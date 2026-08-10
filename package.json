@@ -1,0 +1,50 @@
+{
+  "name": "catbee-container-studio",
+  "version": "0.0.0",
+  "description": "CatBee Container Studio Desktop Application",
+  "main": "dist/main/main.js",
+  "author": "Catbee <harig@catbee.in>",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc -w",
+    "build:ui": "cd frontend && npm run build -- --base-href ./",
+    "clean": "rimraf -rf ./dist ./build ./frontend/dist ./frontend/.angular",
+    "package": "npm run clean && npm run build:ui && npm run build",
+    "dist": "npm run package && electron-builder --config electron-builder.config.mjs",
+    "dist:win": "npm run package && electron-builder --win --config electron-builder.config.mjs",
+    "dist:mac": "npm run package && electron-builder --mac --config electron-builder.config.mjs",
+    "dist:linux": "npm run package && electron-builder --linux --config electron-builder.config.mjs",
+    "start": "npm run build && electron ./dist/main/main.js",
+    "app:serve": "npm-run-all -p angular:serve build:watch electron:serve:wait",
+    "angular:serve": "cd frontend && ng serve --port 4281",
+    "electron:serve": "electron ./dist/main/main.js --serve",
+    "electron:serve:wait": "wait-on http://localhost:4281 && electron ./dist/main/main.js --serve",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "lint:ui": "cd frontend && npm run lint",
+    "lint:ui:fix": "cd frontend && npm run lint -- --fix",
+    "postinstall": "electron-builder install-app-deps",
+    "generate:logos": "node scripts/generate-logos.mjs"
+  },
+  "dependencies": {
+    "dockerode": "^5.0.1",
+    "electron-reloader": "^1.2.3",
+    "npm-run-all": "^4.1.5",
+    "rimraf": "^6.1.3"
+  },
+  "devDependencies": {
+    "@types/dockerode": "^4.0.1",
+    "7zip-bin": "^5.2.0",
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-n": "^18.3.0",
+    "eslint-plugin-prettier": "^5.5.6",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.66.0",
+    "wait-on": "^9.1.0"
+  }
+}
