@@ -1,0 +1,23 @@
+.copy-button {
+  width: 1.5rem;
+  height: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 0.25rem;
+
+  .mat-icon-filled {
+    font-size: 1rem;
+  }
+
+  &.is-copied {
+    color: #bdfad0;
+    border-color: rgb(74 189 119 / 0.6);
+  }
+
+  &.is-failed {
+    color: #ffd2d2;
+    border-color: rgb(210 91 91 / 0.6);
+  }
+}

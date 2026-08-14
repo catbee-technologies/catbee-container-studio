@@ -1,2 +1,54 @@
-<router-outlet />
-<h1>Catbee Docker</h1>
+<div class="desktop-shell">
+  <catbee-container-studio-window-header />
+  <div class="workspace">
+    <aside class="sidebar" [class.is-collapsed]="sidebarCollapsed()" aria-label="Primary navigation">
+      <button
+        type="button"
+        class="sidebar-toggle"
+        (click)="toggleSidebar()"
+        [attr.aria-label]="sidebarCollapsed() ? 'Expand navigation' : 'Collapse navigation'"
+        [title]="sidebarCollapsed() ? 'Expand navigation' : 'Collapse navigation'"
+      >
+        <span class="mat-icon-filled" aria-hidden="true">
+          {{ sidebarCollapsed() ? 'right_panel_open' : 'left_panel_close' }}
+        </span>
+      </button>
+
+      <nav>
+        <ul>
+          @for (item of navItems; track item.route) {
+            <li>
+              <a
+                [routerLink]="item.route"
+                routerLinkActive="is-active"
+                [routerLinkActiveOptions]="{ exact: false }"
+                class="nav-link"
+                [attr.aria-label]="item.label"
+                [title]="item.label"
+                (click)="onNavClick($event)"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">{{ item.icon }}</span>
+                @if (!sidebarCollapsed()) {
+                  <span>{{ item.label }}</span>
+                }
+              </a>
+            </li>
+          }
+        </ul>
+      </nav>
+    </aside>
+
+    <main class="content-pane" aria-label="Main content">
+      @if (dockerConnected()) {
+        <router-outlet />
+      } @else {
+        <catbee-container-studio-empty-state
+          icon="cloud_off"
+          size="large"
+          message="Docker Engine is not connected"
+          hint="Please start Docker Engine to manage your containers, images, and volumes."
+        />
+      }
+    </main>
+  </div>
+</div>

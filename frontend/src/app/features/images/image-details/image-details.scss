@@ -1,0 +1,28 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+table {
+  .col-layer-index {
+    width: 3.5rem;
+    text-align: center;
+  }
+
+  .col-layer-id {
+    max-width: 300px;
+  }
+
+  .col-layer-size {
+    width: 6rem;
+    text-align: right;
+  }
+
+  .layer-created-by {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+  }
+}

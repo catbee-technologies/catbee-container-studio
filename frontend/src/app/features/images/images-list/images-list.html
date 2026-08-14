@@ -1,0 +1,208 @@
+<main class="catbee-outer-container" aria-label="Docker images">
+  <header class="catbee-container-list-header">
+    <div>
+      <h1>Images</h1>
+    </div>
+    <div class="actions">
+      <button
+        type="button"
+        class="refresh-btn"
+        (click)="loadImages()"
+        [disabled]="isRefreshing()"
+        aria-label="Refresh images"
+        title="Refresh"
+      >
+        <span class="mat-icon-filled" [class.is-refreshing]="isRefreshing()" aria-hidden="true">refresh</span>
+      </button>
+      <div class="badges-row">
+        <span class="badge total">Total: {{ images().length }}</span>
+        @if (danglingCount() > 0) {
+          <span class="badge dangling">Dangling: {{ danglingCount() }}</span>
+        }
+        <span class="badge size">{{ formatSize(totalSize()) }}</span>
+      </div>
+    </div>
+  </header>
+
+  @if (error(); as err) {
+    <p class="catbee-error-banner">{{ err }}</p>
+  }
+
+  <section class="catbee-list-toolbar catbee-base-panel" aria-label="Image controls">
+    <div class="catbee-list-toolbar-left">
+      <catbee-container-studio-search-input
+        #imageSearchInput
+        placeholder="Search by tag or ID"
+        ariaLabel="Search images"
+        [value]="searchTerm()"
+        (valueChange)="searchTerm.set($event)"
+      />
+    </div>
+    <div class="catbee-list-toolbar-right">
+      <catbee-container-studio-segmented-filter
+        ariaLabel="Filter images by usage"
+        [options]="usageFilterOptions"
+        [activeValue]="usageFilter()"
+        (valueChange)="setUsageFilter($event)"
+      ></catbee-container-studio-segmented-filter>
+      @if (selectedCount() > 0) {
+        <span class="selection-count">Selected: {{ selectedCount() }}</span>
+        <button type="button" class="catbee-action-btn danger" (click)="requestDeleteSelected()">
+          <span class="mat-icon-filled" aria-hidden="true">delete</span>
+          Delete Selected
+        </button>
+      }
+      @if (danglingCount() > 0) {
+        <button type="button" class="catbee-action-btn danger" (click)="requestPrune()">
+          <span class="mat-icon-filled" aria-hidden="true">delete_sweep</span>
+          Prune Dangling
+        </button>
+      }
+    </div>
+  </section>
+
+  <div class="catbee-container-list-layout">
+    <div class="catbee-container-list-body catbee-base-panel">
+      @if (isLoading()) {
+        <catbee-container-studio-empty-state [icon]="'image'" [message]="'Loading Images...'" />
+      } @else if (sortedImages().length === 0) {
+        <catbee-container-studio-empty-state
+          [icon]="'image'"
+          [message]="images().length === 0 ? 'No images found.' : 'No images match your search.'"
+        />
+      } @else {
+        <table class="catbee-table" aria-label="Images table">
+          <thead>
+            <tr>
+              <th scope="col" class="col-checkbox">
+                <catbee-container-studio-table-checkbox
+                  [checked]="allVisibleSelected()"
+                  [indeterminate]="partiallyVisibleSelected()"
+                  [ariaLabel]="'Select all visible images'"
+                  (checkedChange)="toggleSelectAllVisible()"
+                ></catbee-container-studio-table-checkbox>
+              </th>
+              <th scope="col" class="col-used">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Used'"
+                  [active]="isSortActive('used')"
+                  [indicator]="sortIndicator('used')"
+                  (sort)="toggleSort('used')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Repository'"
+                  [active]="isSortActive('repository')"
+                  [indicator]="sortIndicator('repository')"
+                  (sort)="toggleSort('repository')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Tag'"
+                  [active]="isSortActive('tag')"
+                  [indicator]="sortIndicator('tag')"
+                  (sort)="toggleSort('tag')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col">
+                <catbee-container-studio-table-sort-header
+                  [label]="'ID'"
+                  [active]="isSortActive('id')"
+                  [indicator]="sortIndicator('id')"
+                  (sort)="toggleSort('id')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Size'"
+                  [active]="isSortActive('size')"
+                  [indicator]="sortIndicator('size')"
+                  (sort)="toggleSort('size')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Created'"
+                  [active]="isSortActive('created')"
+                  [indicator]="sortIndicator('created')"
+                  (sort)="toggleSort('created')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col" class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (image of sortedImages(); track image.Id) {
+              <tr [class.is-dangling]="isDangling(image)" (click)="openImageDetails(image.Id)">
+                <td class="col-checkbox" (click)="$event.stopPropagation()">
+                  <catbee-container-studio-table-checkbox
+                    [checked]="selectedImageIds().has(image.Id)"
+                    [ariaLabel]="'Select image'"
+                    (checkedChange)="toggleImageSelection(image.Id)"
+                  ></catbee-container-studio-table-checkbox>
+                </td>
+                <td class="col-used">
+                  <span class="usage-dot" [class.used]="isUsed(image)" [class.unused]="!isUsed(image)"></span>
+                </td>
+                <td>
+                  {{ repositoryAndTag(image)[0] }}
+                  @if (isDangling(image)) {
+                    <span class="badge dangling">dangling</span>
+                  }
+                </td>
+                <td>{{ repositoryAndTag(image)[1] }}</td>
+                <td>{{ shortId(image) }}</td>
+                <td>{{ formatSize(image.Size) }}</td>
+                <td>{{ formatCreated(image.Created) }}</td>
+                <td class="col-actions" (click)="$event.stopPropagation()">
+                  <button
+                    type="button"
+                    class="catbee-action-btn icon-only danger"
+                    (click)="requestDeleteSingle(image.Id)"
+                    aria-label="Remove image"
+                    title="Remove"
+                  >
+                    <span class="mat-icon-filled" aria-hidden="true">delete</span>
+                  </button>
+                </td>
+              </tr>
+              @if ((image.RepoTags?.length ?? 0) > 1) {
+                <tr class="tags-row">
+                  <td colspan="8">
+                    <div class="tags-wrap">
+                      @for (tag of image.RepoTags?.slice(1) ?? []; track tag) {
+                        <span class="tag-extra">{{ tag }}</span>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </div>
+</main>
+
+<catbee-container-studio-confirm-dialog
+  [open]="pendingDeleteImageIds().length > 0"
+  [title]="pendingDeleteImageIds().length > 1 ? 'Remove Images' : 'Remove Image'"
+  [message]="'Remove ' + pendingDeleteLabel() + '? Containers using these images must be removed first.'"
+  confirmLabel="Remove"
+  [dangerous]="true"
+  (confirm)="confirmDelete()"
+  (cancelAction)="cancelDelete()"
+/>
+
+<catbee-container-studio-confirm-dialog
+  [open]="confirmPruneOpen()"
+  title="Prune Dangling Images"
+  message="Remove all dangling (untagged) images? This cannot be undone."
+  confirmLabel="Prune"
+  [dangerous]="true"
+  (confirm)="confirmPrune()"
+  (cancelAction)="cancelPrune()"
+/>

@@ -1,0 +1,24 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+tbody tr {
+  cursor: pointer;
+}
+
+.driver-badge {
+  background: rgb(73 145 213 / 0.2);
+  border-color: rgb(100 175 255 / 0.4);
+  color: #c8e9ff;
+}
+
+.scope-badge {
+  background: rgb(42 188 134 / 0.18);
+  border-color: rgb(74 223 169 / 0.4);
+  color: #cbffe8;
+}
+
+table.catbee-table .col-actions {
+  width: 1rem;
+}

@@ -1,0 +1,7 @@
+<div class="empty-state {{ size() }}">
+  <span class="mat-icon-filled empty-icon" aria-hidden="true">{{ icon() }}</span>
+  <p>{{ message() }}</p>
+  @if (hint()) {
+    <span class="empty-hint">{{ hint() }}</span>
+  }
+</div>

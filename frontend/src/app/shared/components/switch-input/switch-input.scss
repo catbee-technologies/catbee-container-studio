@@ -1,0 +1,47 @@
+.switch-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--ink-100);
+  font-size: 0.84rem;
+
+  input {
+    display: none;
+  }
+
+  span {
+    cursor: pointer;
+  }
+
+  .switch-slider {
+    width: 2.2rem;
+    height: 1.25rem;
+    border-radius: 999px;
+    border: 1px solid rgb(143 170 193 / 0.35);
+    background: rgb(35 58 79 / 0.4);
+    position: relative;
+    transition: background-color 140ms ease;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0.17rem;
+      width: 0.84rem;
+      height: 0.84rem;
+      border-radius: 50%;
+      transform: translateY(-50%);
+      background: #d7e4f2;
+      transition: transform 140ms ease;
+    }
+  }
+}
+
+.switch-toggle input:checked + .switch-slider {
+  background: rgb(24 133 118 / 0.65);
+  border-color: rgb(81 203 168 / 0.55);
+}
+
+.switch-toggle input:checked + .switch-slider::after {
+  transform: translate(0.9rem, -50%);
+}

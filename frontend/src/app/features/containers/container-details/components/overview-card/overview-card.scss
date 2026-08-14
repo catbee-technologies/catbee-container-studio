@@ -1,0 +1,27 @@
+:host {
+  display: block;
+}
+
+.overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+
+  .state {
+    margin-top: 4px;
+    margin-left: -4px;
+  }
+
+  .label {
+    margin: 0;
+    font-size: 0.76rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-300);
+  }
+
+  .value {
+    margin: 0.35rem 0 0;
+    font-size: 0.95rem;
+  }
+}

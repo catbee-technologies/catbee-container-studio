@@ -1,0 +1,33 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+tbody tr {
+  cursor: pointer;
+}
+
+.tag-extra {
+  font-size: 0.7rem;
+  color: var(--ink-400);
+  border: 1px solid rgb(114 167 208 / 0.25);
+  border-radius: 999px;
+  padding: 0.08rem 0.45rem;
+}
+
+.tags-row td,
+.dangling-row td {
+  padding-top: 0.25rem;
+  padding-bottom: 0.4rem;
+}
+
+.tags-row .tags-wrap {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  padding-left: 2.2rem;
+}
+
+table.catbee-table .col-actions {
+  width: 1rem;
+}

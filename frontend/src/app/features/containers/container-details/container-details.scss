@@ -1,0 +1,16 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.title-image-link {
+  font-family: var(--mono-font);
+  font-size: 0.84rem;
+  color: #8beeff;
+}
+
+.header-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}

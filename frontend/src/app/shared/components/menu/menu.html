@@ -1,0 +1,16 @@
+<div class="menu-anchor" (mousedown)="$event.stopPropagation()">
+  <ng-content select="[menuTrigger]" />
+
+  @if (open()) {
+    <div
+      class="options-menu"
+      [style.min-width]="minWidth()"
+      role="menu"
+      tabindex="-1"
+      (click)="$event.stopPropagation()"
+      (keydown)="$event.stopPropagation()"
+    >
+      <ng-content select="[menuContent]" />
+    </div>
+  }
+</div>
