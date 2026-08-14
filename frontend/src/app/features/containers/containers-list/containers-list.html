@@ -1,0 +1,364 @@
+<main class="catbee-outer-container" aria-label="Docker containers dashboard">
+  <header class="catbee-container-list-header">
+    <div>
+      <h1>Containers</h1>
+      <div class="runtime-metrics">
+        <p>Container CPU usage: {{ cpuUsageSummary() }}</p>
+        <p>Container memory usage: {{ memoryUsageSummary() }}</p>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button
+        type="button"
+        class="refresh-btn"
+        (click)="loadContainers()"
+        [disabled]="isRefreshing()"
+        aria-label="Refresh containers"
+        title="Refresh"
+      >
+        <span class="material-symbols-rounded" [class.is-refreshing]="isRefreshing()" aria-hidden="true">refresh</span>
+      </button>
+
+      <div class="badges-row" aria-label="Container stats summary">
+        <span class="badge running">Running: {{ runningCount() }}</span>
+        <span class="badge stopped">Stopped: {{ stoppedCount() }}</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="catbee-list-toolbar catbee-base-panel" aria-label="Container controls">
+    <div class="catbee-list-toolbar-left">
+      <catbee-container-studio-search-input
+        #containerSearchInput
+        inputId="container-search"
+        placeholder="Type container name"
+        ariaLabel="Search containers"
+        [value]="searchTerm()"
+        (valueChange)="setSearchTerm($event)"
+      />
+      <catbee-container-studio-switch-input
+        [(checked)]="showRunningOnly"
+        label="Show only running"
+        [storageKey]="UI_STORAGE_KEYS.CONTAINERS_RUNNING_ONLY"
+      />
+    </div>
+
+    @if (selectedContainers().length > 0) {
+      <div class="catbee-list-toolbar-right">
+        <span class="selection-count">Selected: {{ selectedContainers().length }}</span>
+        <button
+          type="button"
+          class="catbee-action-btn icon-only action-start"
+          (click)="startSelectedContainers()"
+          [disabled]="activeBulkAction() !== null"
+          aria-label="Start selected containers"
+          title="Start"
+        >
+          <span class="material-symbols-rounded" aria-hidden="true">play_arrow</span>
+        </button>
+        <button
+          type="button"
+          class="catbee-action-btn icon-only action-stop"
+          (click)="stopSelectedContainers()"
+          [disabled]="activeBulkAction() !== null"
+          aria-label="Stop selected containers"
+          title="Stop"
+        >
+          <span class="material-symbols-rounded" aria-hidden="true">stop</span>
+        </button>
+        <button
+          type="button"
+          class="catbee-action-btn danger icon-only"
+          (click)="requestDeleteSelected()"
+          [disabled]="activeBulkAction() !== null"
+          aria-label="Delete selected containers"
+          title="Delete"
+        >
+          <span class="material-symbols-rounded" aria-hidden="true">delete</span>
+        </button>
+        <catbee-container-studio-menu
+          [open]="showBulkActionsMenu()"
+          minWidth="12rem"
+          (dismissed)="closeBulkActionsMenu()"
+        >
+          <button
+            menuTrigger
+            type="button"
+            class="catbee-action-btn icon-only menu-trigger"
+            (click)="toggleBulkActionsMenu($event)"
+            [disabled]="activeBulkAction() !== null"
+            aria-label="More actions"
+            title="More"
+          >
+            <span class="material-symbols-rounded" aria-hidden="true">more_vert</span>
+          </button>
+
+          <div menuContent>
+            <button
+              type="button"
+              class="menu-item"
+              (click)="pauseSelectedContainers(); closeBulkActionsMenu()"
+              [disabled]="activeBulkAction() !== null"
+            >
+              <span class="material-symbols-rounded" aria-hidden="true">pause</span>
+              Pause selected
+            </button>
+            <button
+              type="button"
+              class="menu-item"
+              (click)="unpauseSelectedContainers(); closeBulkActionsMenu()"
+              [disabled]="activeBulkAction() !== null"
+            >
+              <span class="material-symbols-rounded" aria-hidden="true">play_circle</span>
+              Unpause selected
+            </button>
+          </div>
+        </catbee-container-studio-menu>
+        <button
+          type="button"
+          class="catbee-action-btn"
+          (click)="clearSelection()"
+          [disabled]="activeBulkAction() !== null"
+        >
+          Clear Selection
+        </button>
+      </div>
+    }
+  </section>
+
+  @if (error()) {
+    <section class="catbee-error-banner" role="alert">{{ error() }}</section>
+  }
+
+  <section class="catbee-container-list-layout">
+    <div class="catbee-container-list-body catbee-base-panel" aria-label="Container list">
+      @if (isLoading()) {
+        <catbee-container-studio-empty-state [icon]="'deployed_code'" [message]="'Loading Containers...'" />
+      } @else if (visibleContainers().length === 0) {
+        <catbee-container-studio-empty-state
+          [icon]="'deployed_code'"
+          [message]="'No containers.'"
+          [hint]="'Containers will appear here once you pull and run an image.'"
+        />
+      } @else {
+        <table class="catbee-table">
+          <thead>
+            <tr>
+              <th scope="col" class="col-checkbox">
+                <catbee-container-studio-table-checkbox
+                  [checked]="allVisibleSelected()"
+                  [indeterminate]="partiallyVisibleSelected()"
+                  [ariaLabel]="'Select all visible containers'"
+                  (checkedChange)="toggleSelectAllVisible()"
+                ></catbee-container-studio-table-checkbox>
+              </th>
+              <th scope="col" class="col-sortable">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Name'"
+                  [active]="isSortActive('name')"
+                  [indicator]="sortIndicator('name')"
+                  (sort)="toggleSort('name')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+
+              <th scope="col" class="col-sortable">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Image'"
+                  [active]="isSortActive('image')"
+                  [indicator]="sortIndicator('image')"
+                  (sort)="toggleSort('image')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col" class="col-sortable">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Ports'"
+                  [active]="isSortActive('ports')"
+                  [indicator]="sortIndicator('ports')"
+                  (sort)="toggleSort('ports')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col" class="col-sortable">
+                <catbee-container-studio-table-sort-header
+                  [label]="'State'"
+                  [active]="isSortActive('state')"
+                  [indicator]="sortIndicator('state')"
+                  (sort)="toggleSort('state')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col" class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (group of groupedContainers(); track group.id) {
+              <tr class="group-row" [attr.aria-label]="group.name">
+                <td class="col-checkbox" (click)="$event.stopPropagation()">
+                  <catbee-container-studio-table-checkbox
+                    [checked]="isGroupSelected(group)"
+                    [indeterminate]="isGroupPartiallySelected(group)"
+                    [ariaLabel]="'Select group'"
+                    (checkedChange)="toggleGroupSelection(group)"
+                  ></catbee-container-studio-table-checkbox>
+                </td>
+                <td colspan="4">
+                  <button type="button" class="group-toggle" (click)="toggleGroupCollapse(group.id)">
+                    <span class="material-symbols-rounded" aria-hidden="true">
+                      {{ isGroupCollapsed(group.id) ? 'chevron_right' : 'expand_more' }}
+                    </span>
+                    @if (group.folder) {
+                      <span class="material-symbols-rounded" aria-hidden="true">folder</span>
+                    }
+                    <span>{{ group.name }}</span>
+                  </button>
+                </td>
+                <td class="col-actions group-count">{{ group.containers.length }} containers</td>
+              </tr>
+
+              @if (!isGroupCollapsed(group.id)) {
+                @for (container of group.containers; track trackByContainerId($index, container)) {
+                  <tr (click)="openContainer(container.Id)">
+                    <td class="col-checkbox" (click)="$event.stopPropagation()">
+                      <catbee-container-studio-table-checkbox
+                        [checked]="isContainerSelected(container.Id)"
+                        [ariaLabel]="'Select container'"
+                        (checkedChange)="toggleContainerSelection(container.Id)"
+                      ></catbee-container-studio-table-checkbox>
+                    </td>
+                    <td>
+                      <button type="button" class="link-btn" (click)="openContainer(container.Id)">
+                        {{ formatNames(container.Names) }}
+                      </button>
+                      <p class="unique-id">{{ container.Id.slice(0, 12) }}</p>
+                    </td>
+                    <td>{{ container.Image }}</td>
+                    <td class="col-ports">
+                      <catbee-container-studio-port-list
+                        [ports]="container.Ports"
+                        [containerState]="container.State"
+                        [expanded]="isPortsExpanded(container.Id)"
+                        (expandedChange)="setPortsExpanded(container.Id, $event)"
+                      />
+                    </td>
+                    <td>
+                      <span
+                        class="container-status"
+                        [class.running]="container.State === 'running'"
+                        [class.stopped]="container.State !== 'running'"
+                      >
+                        {{ container.State }}
+                      </span>
+                      <p class="status-detail">{{ container.Status }}</p>
+                    </td>
+                    <td class="col-actions">
+                      <div class="action-group">
+                        <button
+                          type="button"
+                          class="catbee-action-btn icon-only action-start"
+                          (click)="startContainer(container.Id); $event.stopPropagation()"
+                          [disabled]="activeActionContainerId() === container.Id || container.State === 'running'"
+                          aria-label="Start container"
+                          title="Start"
+                        >
+                          <span class="material-symbols-rounded" aria-hidden="true">play_arrow</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="catbee-action-btn icon-only action-stop"
+                          (click)="stopContainer(container.Id); $event.stopPropagation()"
+                          [disabled]="activeActionContainerId() === container.Id || container.State !== 'running'"
+                          aria-label="Stop container"
+                          title="Stop"
+                        >
+                          <span class="material-symbols-rounded" aria-hidden="true">stop</span>
+                        </button>
+                        <button
+                          type="button"
+                          class="catbee-action-btn danger icon-only"
+                          (click)="requestDeleteContainer(container.Id); $event.stopPropagation()"
+                          [disabled]="activeActionContainerId() === container.Id"
+                          aria-label="Remove container"
+                          title="Remove"
+                        >
+                          <span class="material-symbols-rounded" aria-hidden="true">delete</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          class="catbee-action-btn icon-only menu-trigger"
+                          (click)="toggleContainerActionsMenu($event, container.Id)"
+                          [disabled]="activeActionContainerId() === container.Id"
+                          aria-label="More actions"
+                          title="More"
+                        >
+                          <span class="material-symbols-rounded" aria-hidden="true">more_vert</span>
+                        </button>
+
+                        <catbee-container-studio-menu
+                          [open]="openContainerActionsMenuId() === container.Id"
+                          minWidth="8.5rem"
+                          (dismissed)="closeContainerActionsMenu()"
+                        >
+                          <div menuContent>
+                            <button
+                              type="button"
+                              class="menu-item"
+                              (click)="pauseContainer(container.Id); closeContainerActionsMenu()"
+                              [disabled]="activeActionContainerId() === container.Id || container.State !== 'running'"
+                            >
+                              <span class="material-symbols-rounded" aria-hidden="true">pause</span>
+                              Pause
+                            </button>
+                            <button
+                              type="button"
+                              class="menu-item"
+                              (click)="unpauseContainer(container.Id); closeContainerActionsMenu()"
+                              [disabled]="activeActionContainerId() === container.Id || container.State !== 'paused'"
+                            >
+                              <span class="material-symbols-rounded" aria-hidden="true">play_circle</span>
+                              Unpause
+                            </button>
+                            <button
+                              type="button"
+                              class="menu-item"
+                              (click)="restartContainer(container.Id); closeContainerActionsMenu()"
+                              [disabled]="activeActionContainerId() === container.Id"
+                            >
+                              <span class="material-symbols-rounded" aria-hidden="true">restart_alt</span>
+                              Restart
+                            </button>
+                          </div>
+                        </catbee-container-studio-menu>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </section>
+</main>
+
+<catbee-container-studio-confirm-dialog
+  [open]="pendingDeleteContainer() !== null"
+  title="Remove Container"
+  [message]="pendingContainerDeleteMessage()"
+  confirmLabel="Remove"
+  cancelLabel="Cancel"
+  [dangerous]="true"
+  (cancelAction)="cancelDeleteContainer()"
+  (confirm)="confirmDeleteContainer()"
+/>
+
+<catbee-container-studio-confirm-dialog
+  [open]="pendingDeleteSelection()"
+  title="Remove Selected Containers"
+  [message]="pendingSelectionDeleteMessage()"
+  confirmLabel="Remove All"
+  cancelLabel="Cancel"
+  [dangerous]="true"
+  (cancelAction)="cancelDeleteSelected()"
+  (confirm)="removeSelectedContainers()"
+/>

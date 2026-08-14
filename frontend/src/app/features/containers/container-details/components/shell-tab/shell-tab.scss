@@ -1,0 +1,62 @@
+:host {
+  display: block;
+  height: 100%;
+  min-height: 0;
+}
+
+.shell-panel {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 0.5rem;
+
+  .shell-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+
+    h3 {
+      margin: 0;
+    }
+
+    .shell-status {
+      font-size: 0.78rem;
+      color: var(--ink-300);
+      border: 1px solid rgb(126 161 191 / 0.35);
+      border-radius: 999px;
+      padding: 0.15rem 0.5rem;
+
+      &.connected {
+        color: #cbffe8;
+        border-color: rgb(74 223 169 / 0.58);
+        background: linear-gradient(140deg, rgb(42 188 134 / 0.2), rgb(21 130 101 / 0.2));
+      }
+    }
+  }
+}
+
+.shell-find {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.terminal-wrap {
+  border: 1px solid rgb(114 167 208 / 0.32);
+  border-radius: 0.7rem;
+  background: #050d17;
+  padding: 0.45rem;
+  min-height: 0;
+  overflow: hidden;
+
+  .shell-terminal {
+    height: 100%;
+    min-height: 18rem;
+  }
+}

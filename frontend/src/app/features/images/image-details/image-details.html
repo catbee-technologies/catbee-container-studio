@@ -1,0 +1,109 @@
+<main class="catbee-details-container" aria-label="Image details">
+  <header class="catbee-details-container-header">
+    <button type="button" class="back-btn" (click)="backToImages()" aria-label="Back to images" title="Back">
+      <span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>
+    </button>
+
+    <div class="title-wrap">
+      <h1>{{ title() }}</h1>
+      <p class="mono">{{ shortId(imageId()) }}</p>
+    </div>
+  </header>
+
+  @if (error(); as err) {
+    <p class="catbee-error-banner">{{ err }}</p>
+  }
+
+  @if (isLoading()) {
+    <catbee-container-studio-empty-state [icon]="'hourglass_empty'" [message]="'Loading image details...'" />
+  } @else {
+    <section class="summary catbee-base-panel">
+      @for (item of details(); track item.label) {
+        <article>
+          <p class="label">{{ item.label }}</p>
+          <p class="value mono">{{ item.value }}</p>
+        </article>
+      }
+    </section>
+
+    <section class="catbee-base-panel tabs" aria-label="Image tabs">
+      <catbee-container-studio-tabs
+        [tabs]="tabs"
+        [activeTab]="activeTab()"
+        ariaLabel="Image details tabs"
+        (activeTabChange)="setActiveTab($event)"
+      ></catbee-container-studio-tabs>
+
+      <section class="tab-panel" role="tabpanel">
+        @if (activeTab() === 'layers') {
+          @if (layers().length === 0) {
+            <catbee-container-studio-empty-state
+              [icon]="'database'"
+              [message]="'No layers found for this image.'"
+              [hint]="'Layers will appear here when the image is built or pulled.'"
+            />
+          } @else {
+            <header class="panel-head">
+              <h2>Layers ({{ layers().length }})</h2>
+            </header>
+            <ol class="layers-list mono">
+              @for (layer of layers(); track layer) {
+                <li>
+                  <span class="layer-id">{{ shortLayerId(layer) }}</span>
+                  <span class="layer-full">{{ layer }}</span>
+                </li>
+              }
+            </ol>
+          }
+        } @else {
+          <header class="panel-head">
+            <h2>Containers Using This Image ({{ inUseByContainers().length }})</h2>
+          </header>
+          @if (inUseByContainers().length === 0) {
+            <catbee-container-studio-empty-state
+              [icon]="'storage'"
+              [message]="'No containers are using this image.'"
+              [hint]="'Containers that use this image will appear here when they are created.'"
+            />
+          } @else {
+            <div class="catbee-container-list-layout">
+              <div class="catbee-container-list-body">
+                <table class="catbee-table" aria-label="Containers using this image">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Image</th>
+                      <th>State</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (container of inUseByContainers(); track container.Id) {
+                      <tr>
+                        <td>
+                          <button type="button" class="link-btn" (click)="openContainer(container.Id)">
+                            {{ formatContainerName(container) }}
+                          </button>
+                        </td>
+                        <td>{{ container.Image }}</td>
+                        <td>
+                          <span
+                            class="container-status"
+                            [class.running]="container.State === 'running'"
+                            [class.stopped]="container.State !== 'running'"
+                          >
+                            {{ container.State }}
+                          </span>
+                          <p class="status-detail">{{ container.Status }}</p>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+        }
+      </section>
+    </section>
+  }
+</main>

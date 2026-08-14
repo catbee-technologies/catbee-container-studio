@@ -1,0 +1,106 @@
+:host {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.5rem;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.logs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+
+  .logs-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex: 1 1 22rem;
+    min-width: min(100%, 22rem);
+  }
+
+  .logs-toolbar-right {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.45rem;
+    margin-left: auto;
+  }
+}
+
+.search-mode-btn {
+  border: 0;
+  background: transparent;
+  color: var(--ink-300);
+  width: 1.8rem;
+  height: 1.6rem;
+  border-radius: 0.4rem;
+  font-family: var(--mono-font);
+  font-size: 0.73rem;
+  cursor: pointer;
+
+  &.active {
+    color: #efffff;
+    background: linear-gradient(135deg, rgb(73 147 217 / 0.62), rgb(34 105 167 / 0.65));
+  }
+}
+
+.logs-scroll-panel {
+  min-height: 0;
+  overflow: auto;
+  border-radius: 0.7rem;
+  border: 1px solid rgb(114 167 208 / 0.32);
+  background: radial-gradient(circle at top right, rgb(11 32 48 / 72%), rgb(0 0 0) 68%);
+  padding: 0.75rem;
+
+  .log-terminal {
+    margin: 0;
+    min-height: 100%;
+    font-family: var(--mono-font);
+    font-size: 0.78rem;
+    line-height: 1.35;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    display: block;
+
+    &.wrap-off {
+      white-space: pre;
+      overflow-wrap: normal;
+    }
+
+    .log-line {
+      white-space: inherit;
+      display: block;
+      margin: 0.5rem 0;
+    }
+  }
+}
+
+.logs-tail-select {
+  border: 1px solid rgb(143 170 193 / 0.4);
+  background: linear-gradient(180deg, rgb(23 41 60 / 0.9), rgb(15 30 47 / 0.92));
+  color: var(--ink-100);
+  border-radius: 0.4rem;
+  padding: 0.2rem 0.35rem;
+  min-width: 4.6rem;
+  font-family: var(--mono-font);
+  font-size: 0.74rem;
+
+  &:focus-visible {
+    outline: 1px solid rgb(149 197 237 / 0.75);
+    outline-offset: 1px;
+  }
+
+  option {
+    background: rgb(23 41 60 / 0.9);
+    color: var(--ink-100);
+  }
+}
+
+.scroll-actions {
+  display: flex;
+  justify-content: flex-end;
+}

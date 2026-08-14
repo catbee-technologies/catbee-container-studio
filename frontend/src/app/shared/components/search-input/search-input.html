@@ -1,0 +1,22 @@
+<div class="search-container" role="search" [style.width]="width()">
+  <span class="material-symbols-rounded search-icon" aria-hidden="true">search</span>
+  <input
+    #searchInput
+    [id]="inputId()"
+    class="search-input"
+    [type]="type()"
+    [value]="value()"
+    [attr.aria-label]="ariaLabel()"
+    [placeholder]="placeholder()"
+    (input)="onInput($event)"
+    (keydown)="onKeydown($event)"
+  />
+
+  <ng-content select="[search-controls]"></ng-content>
+
+  @if (value().trim().length > 0) {
+    <button type="button" class="search-clear" (click)="clear()" aria-label="Clear search">
+      <span class="material-symbols-rounded" aria-hidden="true">close</span>
+    </button>
+  }
+</div>

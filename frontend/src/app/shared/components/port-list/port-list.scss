@@ -1,0 +1,37 @@
+:host {
+  display: block;
+}
+
+.ports-list {
+  display: grid;
+  gap: 0.2rem;
+  max-height: 6.5rem;
+  overflow: auto;
+
+  .port-link {
+    color: #7ff3ff;
+    text-decoration: underline;
+    text-decoration-color: rgb(127 243 255 / 0.6);
+    text-underline-offset: 0.16rem;
+
+    &:hover {
+      color: #b0ffff;
+      text-decoration-color: rgb(176 255 255 / 0.9);
+    }
+  }
+}
+
+.port-text,
+.ports-toggle {
+  margin-top: 0.35rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink-300);
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.78rem;
+}
+
+.ports-toggle:hover {
+  color: #baf2ff;
+}

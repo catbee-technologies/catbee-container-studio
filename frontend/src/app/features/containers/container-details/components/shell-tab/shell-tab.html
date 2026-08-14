@@ -1,0 +1,51 @@
+<section class="shell-panel">
+  <div class="shell-toolbar">
+    <h3>Shell Session</h3>
+    <span class="shell-status" [class.connected]="shellConnected()">{{ shellStatus() }}</span>
+    <div class="shell-find" role="search" aria-label="Find in terminal output">
+      <catbee-container-studio-search-input
+        #shellFindInput
+        type="text"
+        [value]="findTerm()"
+        [placeholder]="'Find in terminal'"
+        [ariaLabel]="'Find in terminal output'"
+        [width]="'min(420px, 100%)'"
+        (valueChange)="updateFindTerm($event)"
+        (inputKeydown)="onFindKeydown($event)"
+      >
+      </catbee-container-studio-search-input>
+      <div search-controls class="search-nav">
+        @if (findTerm().trim().length > 0) {
+          <button
+            type="button"
+            class="catbee-action-btn search-nav-btn"
+            aria-label="Find previous match"
+            title="Previous match (Shift+Enter)"
+            (click)="findPrevious()"
+            [disabled]="!hasFindResults()"
+          >
+            <span class="material-symbols-rounded" aria-hidden="true">keyboard_arrow_up</span>
+          </button>
+          <button
+            type="button"
+            class="catbee-action-btn search-nav-btn"
+            aria-label="Find next match"
+            title="Next match (Enter)"
+            (click)="findNext()"
+            [disabled]="!hasFindResults()"
+          >
+            <span class="material-symbols-rounded" aria-hidden="true">keyboard_arrow_down</span>
+          </button>
+          <span class="match-count">{{ findMatchSummary() }}</span>
+        }
+      </div>
+    </div>
+    <button type="button" class="catbee-action-btn" (click)="reconnectShellSession()" [disabled]="shellConnecting()">
+      Reconnect
+    </button>
+  </div>
+
+  <div class="terminal-wrap">
+    <div #shellTerminalHost class="shell-terminal" aria-label="Interactive shell terminal"></div>
+  </div>
+</section>

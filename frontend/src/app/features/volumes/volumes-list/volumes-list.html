@@ -1,0 +1,202 @@
+<main class="catbee-outer-container" aria-label="Docker volumes">
+  <header class="catbee-container-list-header">
+    <div>
+      <h1>Volumes</h1>
+    </div>
+    <div class="actions">
+      <button
+        type="button"
+        class="refresh-btn"
+        (click)="loadVolumes()"
+        [disabled]="isRefreshing()"
+        aria-label="Refresh volumes"
+        title="Refresh"
+      >
+        <span class="material-symbols-rounded" [class.is-refreshing]="isRefreshing()" aria-hidden="true">refresh</span>
+      </button>
+      <div class="badges-row">
+        <span class="badge total">Total: {{ volumes().length }}</span>
+        @if (totalUsedSize() > 0) {
+          <span class="badge size">{{ formatSize(totalUsedSize()) }}</span>
+        }
+      </div>
+    </div>
+  </header>
+
+  @if (error(); as err) {
+    <p class="catbee-error-banner">{{ err }}</p>
+  }
+
+  <section class="catbee-list-toolbar catbee-base-panel" aria-label="Volume controls">
+    <div class="catbee-list-toolbar-left">
+      <catbee-container-studio-search-input
+        #volumeSearchInput
+        placeholder="Search by name, driver or path"
+        ariaLabel="Search volumes"
+        [value]="searchTerm()"
+        (valueChange)="searchTerm.set($event)"
+        width="20rem"
+      />
+    </div>
+    <div class="catbee-list-toolbar-right">
+      <catbee-container-studio-segmented-filter
+        ariaLabel="Filter volumes by usage"
+        [options]="usageFilterOptions"
+        [activeValue]="usageFilter()"
+        (valueChange)="setUsageFilter($event)"
+      ></catbee-container-studio-segmented-filter>
+      @if (selectedCount() > 0) {
+        <span class="selection-count">Selected: {{ selectedCount() }}</span>
+        <button type="button" class="catbee-action-btn danger" (click)="requestDeleteSelected()">
+          <span class="material-symbols-rounded" aria-hidden="true">delete</span>
+          Delete Selected
+        </button>
+      }
+      <button type="button" class="catbee-action-btn danger" (click)="requestPrune()">
+        <span class="material-symbols-rounded" aria-hidden="true">delete_sweep</span>
+        Prune Unused
+      </button>
+    </div>
+  </section>
+
+  <div class="catbee-container-list-layout">
+    <div class="catbee-container-list-body catbee-base-panel">
+      @if (isLoading()) {
+        <catbee-container-studio-empty-state [icon]="'database'" [message]="'Loading Volumes...'" />
+      } @else if (sortedVolumes().length === 0) {
+        <catbee-container-studio-empty-state
+          [icon]="'database'"
+          [message]="volumes().length === 0 ? 'No volumes found.' : 'No volumes match your search.'"
+        />
+      } @else {
+        <table class="catbee-table" aria-label="Volumes table">
+          <thead>
+            <tr>
+              <th scope="col" class="col-checkbox">
+                <catbee-container-studio-table-checkbox
+                  [checked]="allVisibleSelected()"
+                  [indeterminate]="partiallyVisibleSelected()"
+                  [ariaLabel]="'Select all visible volumes'"
+                  (checkedChange)="toggleSelectAllVisible()"
+                ></catbee-container-studio-table-checkbox>
+              </th>
+              <th scope="col" class="col-used">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Used'"
+                  [active]="isSortActive('used')"
+                  [indicator]="sortIndicator('used')"
+                  (sort)="toggleSort('used')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Name'"
+                  [active]="isSortActive('name')"
+                  [indicator]="sortIndicator('name')"
+                  (sort)="toggleSort('name')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Driver'"
+                  [active]="isSortActive('driver')"
+                  [indicator]="sortIndicator('driver')"
+                  (sort)="toggleSort('driver')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Scope'"
+                  [active]="isSortActive('scope')"
+                  [indicator]="sortIndicator('scope')"
+                  (sort)="toggleSort('scope')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Size'"
+                  [active]="isSortActive('size')"
+                  [indicator]="sortIndicator('size')"
+                  (sort)="toggleSort('size')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Created'"
+                  [active]="isSortActive('created')"
+                  [indicator]="sortIndicator('created')"
+                  (sort)="toggleSort('created')"
+                ></catbee-container-studio-table-sort-header>
+              </th>
+              <th scope="col" class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (volume of sortedVolumes(); track volume.Name) {
+              <tr (click)="openVolumeDetails(volume.Name)">
+                <td class="col-checkbox" (click)="$event.stopPropagation()">
+                  <catbee-container-studio-table-checkbox
+                    [checked]="selectedVolumeNames().has(volume.Name)"
+                    [ariaLabel]="'Select volume'"
+                    (checkedChange)="toggleVolumeSelection(volume.Name)"
+                  ></catbee-container-studio-table-checkbox>
+                </td>
+                <td class="col-used">
+                  <span
+                    class="usage-dot"
+                    [class.used]="isUsed(volume.Name)"
+                    [class.unused]="!isUsed(volume.Name)"
+                  ></span>
+                </td>
+                <td>
+                  <button type="button" class="link-btn" (click)="openVolumeDetails(volume.Name)">
+                    {{ volume.Name }}
+                  </button>
+                </td>
+                <td>
+                  <span class="badge driver-badge">{{ volume.Driver }}</span>
+                </td>
+                <td>
+                  <span class="badge scope-badge">{{ volume.Scope }}</span>
+                </td>
+                <td class="mono">{{ formatSize(volume.UsageData?.Size ?? 0) }}</td>
+                <td>{{ formatCreated(volume.CreatedAt) }}</td>
+                <td class="col-actions" (click)="$event.stopPropagation()">
+                  <button
+                    type="button"
+                    class="catbee-action-btn icon-only danger"
+                    (click)="requestDeleteSingle(volume.Name)"
+                    aria-label="Remove volume"
+                    title="Remove"
+                  >
+                    <span class="material-symbols-rounded" aria-hidden="true">delete</span>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </div>
+</main>
+
+<catbee-container-studio-confirm-dialog
+  [open]="pendingDeleteVolumeNames().length > 0"
+  [title]="pendingDeleteVolumeNames().length > 1 ? 'Remove Volumes' : 'Remove Volume'"
+  [message]="'Remove ' + pendingDeleteLabel() + '? All data in these volumes will be permanently deleted.'"
+  confirmLabel="Remove"
+  [dangerous]="true"
+  (confirm)="confirmDelete()"
+  (cancelAction)="cancelDelete()"
+/>
+
+<catbee-container-studio-confirm-dialog
+  [open]="confirmPruneOpen()"
+  title="Prune Unused Volumes"
+  message="Remove all volumes not used by any container? All data in those volumes will be permanently deleted."
+  confirmLabel="Prune"
+  [dangerous]="true"
+  (confirm)="confirmPrune()"
+  (cancelAction)="cancelPrune()"
+/>

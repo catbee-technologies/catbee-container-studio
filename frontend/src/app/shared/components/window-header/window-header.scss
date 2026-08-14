@@ -1,0 +1,73 @@
+.titlebar {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0.35rem 0 0.75rem;
+  border-bottom: 1px solid rgb(140 170 192 / 0.2);
+  background: linear-gradient(180deg, rgb(9 22 37 / 0.92), rgb(8 18 31 / 0.88));
+  backdrop-filter: blur(8px);
+  height: 3rem;
+
+  &.is-macos {
+    justify-content: flex-start;
+    gap: 0.7rem;
+    padding: 0 0.75rem 0 0.15rem;
+  }
+
+  .macos-controls-spacer {
+    width: 4.6rem;
+    height: 100%;
+    flex: 0 0 4.6rem;
+  }
+
+  .titlebar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+
+    .brand-icon {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+
+    .product-name {
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      font-size: 0.95rem;
+      color: var(--ink-100);
+    }
+  }
+
+  .titlebar-actions {
+    display: flex;
+    gap: 0.25rem;
+
+    .window-btn {
+      -webkit-app-region: no-drag;
+      border: 0;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 0.5rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--ink-100);
+      background: transparent;
+      cursor: pointer;
+
+      &:hover {
+        background: rgb(125 154 178 / 0.25);
+      }
+
+      &.danger:hover {
+        background: rgb(186 44 61 / 0.8);
+        color: #fff;
+      }
+
+      .material-symbols-rounded {
+        font-size: 1.1rem;
+      }
+    }
+  }
+}

@@ -1,0 +1,813 @@
+import { CommonModule } from '@angular/common';
+import { Component, DestroyRef, HostListener, computed, inject, signal, viewChild } from '@angular/core';
+import { Router } from '@angular/router';
+import { DockerApiService } from '@core/docker-api.service';
+import { DockerContainerInfo, DockerContainerStats, DockerStreamEventEnvelope } from '@shared/types/docker-api.types';
+import { ConfirmDialogComponent } from '@components/confirm-dialog/confirm-dialog';
+import { LocalStorageService } from '@ng-catbee/storage';
+import { MenuComponent } from '@components/menu/menu';
+import { PortListComponent } from '@components/port-list/port-list';
+import { SearchInputComponent } from '@components/search-input/search-input';
+import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
+import { TableSortHeaderComponent } from '@components/table-sort-header/table-sort-header';
+import { formatDockerBytes, formatDockerNames } from '@utils/docker-display.utils';
+import { UI_STORAGE_KEYS } from '@utils/storage.utils';
+import { SwitchInputComponent } from '@components/switch-input/switch-input';
+import { EmptyStateComponent } from '@components/empty-state/empty-state';
+
+interface ContainerGroup {
+  id: string;
+  name: string;
+  folder: string | null;
+  containers: DockerContainerInfo[];
+}
+
+type ContainerSortKey = 'name' | 'image' | 'ports' | 'state';
+type SortDirection = 'asc' | 'desc';
+
+@Component({
+  selector: 'catbee-container-studio-containers-page',
+  imports: [
+    CommonModule,
+    SearchInputComponent,
+    ConfirmDialogComponent,
+    PortListComponent,
+    MenuComponent,
+    TableCheckboxComponent,
+    TableSortHeaderComponent,
+    SwitchInputComponent,
+    EmptyStateComponent
+  ],
+  templateUrl: './containers-list.html',
+  styleUrl: './containers-list.scss'
+})
+export class ContainersPage {
+  readonly UI_STORAGE_KEYS = UI_STORAGE_KEYS;
+
+  private readonly dockerApi = inject(DockerApiService);
+  private readonly router = inject(Router);
+  private readonly localStorage = inject(LocalStorageService);
+  private readonly destroyRef = inject(DestroyRef);
+  private isRuntimeSummaryUpdating = false;
+  private eventsStreamId: string | null = null;
+  private autoRefreshDebounce: ReturnType<typeof setTimeout> | null = null;
+
+  private readonly containerSearchInput = viewChild<SearchInputComponent>('containerSearchInput');
+
+  readonly containers = signal<DockerContainerInfo[]>([]);
+  readonly searchTerm = signal('');
+  readonly showRunningOnly = signal(this.readRunningOnlyPreference());
+  readonly sortKey = signal<ContainerSortKey>(this.readSortKeyPreference());
+  readonly sortDirection = signal<SortDirection>(this.readSortDirectionPreference());
+
+  readonly isLoading = signal(false);
+  readonly isRefreshing = signal(false);
+  readonly error = signal<string | null>(null);
+  readonly activeActionContainerId = signal<string | null>(null);
+  readonly activeBulkAction = signal<string | null>(null);
+
+  readonly pendingDeleteContainerId = signal<string | null>(null);
+  readonly pendingDeleteSelection = signal(false);
+
+  readonly collapsedGroupIds = signal<Set<string>>(new Set<string>());
+  readonly expandedPortContainerIds = signal<Set<string>>(new Set<string>());
+  readonly selectedContainerIds = signal<Set<string>>(new Set<string>());
+  readonly openContainerActionsMenuId = signal<string | null>(null);
+  readonly showBulkActionsMenu = signal(false);
+
+  readonly runningCount = computed(() => this.containers().filter(item => item.State === 'running').length);
+  readonly stoppedCount = computed(() => this.containers().filter(item => item.State !== 'running').length);
+
+  readonly cpuUsageSummary = signal('--');
+  readonly memoryUsageSummary = signal('--');
+
+  readonly allGroups = computed<ContainerGroup[]>(() => this.groupContainersByCompose(this.containers()));
+
+  readonly visibleContainers = computed(() => {
+    const query = this.searchTerm().trim().toLowerCase();
+    const runningOnly = this.showRunningOnly();
+
+    return this.containers().filter(container => {
+      if (runningOnly && container.State !== 'running') {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      return this.primaryName(container).toLowerCase().includes(query);
+    });
+  });
+
+  readonly groupedContainers = computed<ContainerGroup[]>(() =>
+    this.groupContainersByCompose(this.sortedContainers(this.visibleContainers()))
+  );
+
+  readonly selectedContainers = computed(() => {
+    const ids = this.selectedContainerIds();
+    if (ids.size === 0) {
+      return [];
+    }
+
+    return this.containers().filter(container => ids.has(container.Id));
+  });
+
+  readonly selectedRunningCount = computed(
+    () => this.selectedContainers().filter(container => container.State === 'running').length
+  );
+
+  readonly selectedPausedCount = computed(
+    () => this.selectedContainers().filter(container => container.State === 'paused').length
+  );
+
+  readonly selectedStoppedCount = computed(
+    () => this.selectedContainers().filter(container => container.State !== 'running').length
+  );
+
+  readonly allVisibleSelected = computed(() => {
+    const visible = this.visibleContainers();
+    if (visible.length === 0) {
+      return false;
+    }
+
+    const selected = this.selectedContainerIds();
+    return visible.every(container => selected.has(container.Id));
+  });
+
+  readonly partiallyVisibleSelected = computed(() => {
+    const visible = this.visibleContainers();
+    if (visible.length === 0) {
+      return false;
+    }
+
+    const selected = this.selectedContainerIds();
+    const selectedCount = visible.filter(container => selected.has(container.Id)).length;
+    return selectedCount > 0 && selectedCount < visible.length;
+  });
+
+  readonly pendingDeleteContainer = computed(() => {
+    const pendingId = this.pendingDeleteContainerId();
+    if (!pendingId) {
+      return null;
+    }
+
+    return this.containers().find(container => container.Id === pendingId) ?? null;
+  });
+
+  constructor() {
+    void this.loadContainers(true);
+    void this.startEventStream();
+
+    const unsubscribe = this.dockerApi.onStreamEvent(event => this.onDockerEvent(event));
+    this.destroyRef.onDestroy(() => {
+      unsubscribe();
+      if (this.autoRefreshDebounce) {
+        clearTimeout(this.autoRefreshDebounce);
+      }
+      if (this.eventsStreamId) {
+        void this.dockerApi.stopStream(this.eventsStreamId);
+      }
+    });
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  onWindowKeydown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+      event.preventDefault();
+      this.containerSearchInput()?.focusAndSelect();
+    }
+  }
+
+  private async startEventStream(): Promise<void> {
+    try {
+      const result = await this.dockerApi.startEventsStream();
+      this.eventsStreamId = result.streamId;
+    } catch {
+      // Docker events unavailable; auto-refresh won't work but the page still functions.
+    }
+  }
+
+  private onDockerEvent(event: DockerStreamEventEnvelope): void {
+    if (event.kind !== 'events' || event.type !== 'data') {
+      return;
+    }
+
+    const data = event.data as Record<string, unknown> | null | undefined;
+    if (!data || data['Type'] !== 'container') {
+      return;
+    }
+
+    const action = String(data['Action'] ?? '');
+    const triggers = ['start', 'stop', 'die', 'pause', 'unpause', 'create', 'destroy', 'rename', 'kill'];
+    if (!triggers.includes(action)) {
+      return;
+    }
+
+    if (this.autoRefreshDebounce) {
+      clearTimeout(this.autoRefreshDebounce);
+    }
+
+    this.autoRefreshDebounce = setTimeout(() => {
+      void this.loadContainers();
+    }, 400);
+  }
+
+  async loadContainers(firstLoad = false): Promise<void> {
+    this.error.set(null);
+
+    if (firstLoad) {
+      this.isLoading.set(true);
+    } else {
+      this.isRefreshing.set(true);
+    }
+
+    try {
+      const containers = await this.dockerApi.listContainers();
+      this.containers.set(containers);
+      this.syncCollapsedGroups(this.groupContainersByCompose(containers));
+      this.syncSelectedContainers(containers);
+      this.updateRuntimeSummaries(containers);
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : 'Failed to load containers.');
+      this.cpuUsageSummary.set('--');
+      this.memoryUsageSummary.set('--');
+    } finally {
+      this.isLoading.set(false);
+      this.isRefreshing.set(false);
+    }
+  }
+
+  setSearchTerm(value: string): void {
+    this.searchTerm.set(value);
+  }
+
+  toggleRunningOnly(): void {
+    this.showRunningOnly.update(value => {
+      const next = !value;
+      this.localStorage.set(UI_STORAGE_KEYS.CONTAINERS_RUNNING_ONLY, next ? 'true' : 'false');
+      return next;
+    });
+  }
+
+  toggleSort(key: ContainerSortKey): void {
+    if (this.sortKey() === key) {
+      this.sortDirection.update(direction => {
+        const nextDirection: SortDirection = direction === 'asc' ? 'desc' : 'asc';
+        this.localStorage.set(UI_STORAGE_KEYS.CONTAINERS_SORT_DIRECTION, nextDirection);
+        return nextDirection;
+      });
+      return;
+    }
+
+    const nextDirection: SortDirection = 'asc';
+    this.sortKey.set(key);
+    this.sortDirection.set(nextDirection);
+    this.localStorage.set(UI_STORAGE_KEYS.CONTAINERS_SORT_KEY, key);
+    this.localStorage.set(UI_STORAGE_KEYS.CONTAINERS_SORT_DIRECTION, nextDirection);
+  }
+
+  isSortActive(key: ContainerSortKey): boolean {
+    return this.sortKey() === key;
+  }
+
+  sortIndicator(key: ContainerSortKey): string {
+    if (this.sortKey() !== key) {
+      return 'unfold_more';
+    }
+
+    return this.sortDirection() === 'asc' ? 'north' : 'south';
+  }
+
+  openContainer(containerId: string): void {
+    void this.router.navigate(['/containers', containerId], { state: { returnTo: this.router.url } });
+  }
+
+  toggleGroupCollapse(groupId: string): void {
+    this.collapsedGroupIds.update(current => {
+      const next = new Set(current);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+
+      return next;
+    });
+  }
+
+  isGroupCollapsed(groupId: string): boolean {
+    return this.collapsedGroupIds().has(groupId);
+  }
+
+  togglePorts(containerId: string): void {
+    this.expandedPortContainerIds.update(current => {
+      const next = new Set(current);
+      if (next.has(containerId)) {
+        next.delete(containerId);
+      } else {
+        next.add(containerId);
+      }
+
+      return next;
+    });
+  }
+
+  isPortsExpanded(containerId: string): boolean {
+    return this.expandedPortContainerIds().has(containerId);
+  }
+
+  setPortsExpanded(containerId: string, expanded: boolean): void {
+    this.expandedPortContainerIds.update(current => {
+      const next = new Set(current);
+      if (expanded) {
+        next.add(containerId);
+      } else {
+        next.delete(containerId);
+      }
+
+      return next;
+    });
+  }
+
+  toggleGroupSelection(group: ContainerGroup): void {
+    const ids = group.containers.map(container => container.Id);
+    const current = this.selectedContainerIds();
+    const allSelected = ids.length > 0 && ids.every(id => current.has(id));
+
+    this.selectedContainerIds.update(existing => {
+      const next = new Set(existing);
+      for (const id of ids) {
+        if (allSelected) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+      }
+
+      return next;
+    });
+  }
+
+  isGroupSelected(group: ContainerGroup): boolean {
+    if (group.containers.length === 0) {
+      return false;
+    }
+
+    const selected = this.selectedContainerIds();
+    return group.containers.every(container => selected.has(container.Id));
+  }
+
+  isGroupPartiallySelected(group: ContainerGroup): boolean {
+    const selected = this.selectedContainerIds();
+    const selectedCount = group.containers.filter(container => selected.has(container.Id)).length;
+    return selectedCount > 0 && selectedCount < group.containers.length;
+  }
+
+  toggleContainerSelection(containerId: string): void {
+    this.selectedContainerIds.update(current => {
+      const next = new Set(current);
+      if (next.has(containerId)) {
+        next.delete(containerId);
+      } else {
+        next.add(containerId);
+      }
+
+      return next;
+    });
+  }
+
+  isContainerSelected(containerId: string): boolean {
+    return this.selectedContainerIds().has(containerId);
+  }
+
+  toggleSelectAllVisible(): void {
+    const visibleIds = this.visibleContainers().map(container => container.Id);
+    if (visibleIds.length === 0) {
+      return;
+    }
+
+    const allSelected = this.allVisibleSelected();
+    this.selectedContainerIds.update(current => {
+      const next = new Set(current);
+      for (const id of visibleIds) {
+        if (allSelected) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+      }
+
+      return next;
+    });
+  }
+
+  toggleContainerActionsMenu(event: MouseEvent, containerId: string): void {
+    event.stopPropagation();
+
+    this.openContainerActionsMenuId.update(current => (current === containerId ? null : containerId));
+  }
+
+  closeContainerActionsMenu(): void {
+    this.openContainerActionsMenuId.set(null);
+  }
+
+  toggleBulkActionsMenu(event: MouseEvent): void {
+    event.stopPropagation();
+    this.showBulkActionsMenu.update(value => !value);
+  }
+
+  closeBulkActionsMenu(): void {
+    this.showBulkActionsMenu.set(false);
+  }
+
+  clearSelection(): void {
+    this.selectedContainerIds.set(new Set());
+  }
+
+  async startContainer(containerId: string): Promise<void> {
+    await this.runContainerAction(containerId, async () => {
+      await this.dockerApi.startContainer(containerId);
+      await this.loadContainers();
+    });
+  }
+
+  async stopContainer(containerId: string): Promise<void> {
+    await this.runContainerAction(containerId, async () => {
+      await this.dockerApi.stopContainer(containerId);
+      await this.loadContainers();
+    });
+  }
+
+  async restartContainer(containerId: string): Promise<void> {
+    await this.runContainerAction(containerId, async () => {
+      await this.dockerApi.restartContainer(containerId);
+      await this.loadContainers();
+    });
+  }
+
+  async pauseContainer(containerId: string): Promise<void> {
+    await this.runContainerAction(containerId, async () => {
+      await this.dockerApi.pauseContainer(containerId);
+      await this.loadContainers();
+    });
+  }
+
+  async unpauseContainer(containerId: string): Promise<void> {
+    await this.runContainerAction(containerId, async () => {
+      await this.dockerApi.unpauseContainer(containerId);
+      await this.loadContainers();
+    });
+  }
+
+  requestDeleteContainer(containerId: string): void {
+    this.pendingDeleteContainerId.set(containerId);
+  }
+
+  cancelDeleteContainer(): void {
+    this.pendingDeleteContainerId.set(null);
+  }
+
+  confirmDeleteContainer(): void {
+    const pending = this.pendingDeleteContainer();
+    if (!pending) {
+      return;
+    }
+
+    void this.removeContainer(pending.Id);
+  }
+
+  async removeContainer(containerId: string): Promise<void> {
+    await this.runContainerAction(containerId, async () => {
+      await this.dockerApi.removeContainer(containerId, true);
+      this.pendingDeleteContainerId.set(null);
+      await this.loadContainers();
+    });
+  }
+
+  requestDeleteSelected(): void {
+    if (this.selectedContainers().length === 0) {
+      return;
+    }
+
+    this.pendingDeleteSelection.set(true);
+  }
+
+  cancelDeleteSelected(): void {
+    this.pendingDeleteSelection.set(false);
+  }
+
+  async removeSelectedContainers(): Promise<void> {
+    await this.runBulkAction(
+      'remove',
+      async container => {
+        await this.dockerApi.removeContainer(container.Id, true);
+      },
+      () => true
+    );
+
+    this.pendingDeleteSelection.set(false);
+    this.clearSelection();
+  }
+
+  async startSelectedContainers(): Promise<void> {
+    await this.runBulkAction(
+      'start',
+      async container => {
+        await this.dockerApi.startContainer(container.Id);
+      },
+      container => container.State !== 'running'
+    );
+  }
+
+  async stopSelectedContainers(): Promise<void> {
+    await this.runBulkAction(
+      'stop',
+      async container => {
+        await this.dockerApi.stopContainer(container.Id);
+      },
+      container => container.State === 'running'
+    );
+  }
+
+  async pauseSelectedContainers(): Promise<void> {
+    await this.runBulkAction(
+      'pause',
+      async container => {
+        await this.dockerApi.pauseContainer(container.Id);
+      },
+      container => container.State === 'running'
+    );
+  }
+
+  async unpauseSelectedContainers(): Promise<void> {
+    await this.runBulkAction(
+      'unpause',
+      async container => {
+        await this.dockerApi.unpauseContainer(container.Id);
+      },
+      container => container.State === 'paused'
+    );
+  }
+
+  formatNames(names: string[]): string {
+    return formatDockerNames(names);
+  }
+
+  primaryName(container: DockerContainerInfo): string {
+    const first = container.Names[0] ?? container.Id;
+    return first.replace(/^\//, '');
+  }
+
+  trackByContainerId(_: number, container: DockerContainerInfo): string {
+    return container.Id;
+  }
+
+  pendingContainerDeleteMessage(): string {
+    const pending = this.pendingDeleteContainer();
+    if (!pending) {
+      return 'Remove this container permanently? This action cannot be undone.';
+    }
+
+    return `Remove ${formatDockerNames(pending.Names)} permanently? This action cannot be undone.`;
+  }
+
+  pendingSelectionDeleteMessage(): string {
+    return `Remove ${this.selectedContainers().length} selected containers permanently? This action cannot be undone.`;
+  }
+
+  private isContainerSortKey(value: string | null): value is ContainerSortKey {
+    return value === 'name' || value === 'image' || value === 'ports' || value === 'state';
+  }
+
+  private isSortDirection(value: string | null): value is SortDirection {
+    return value === 'asc' || value === 'desc';
+  }
+
+  private readSortKeyPreference(): ContainerSortKey {
+    const value = this.localStorage.get(UI_STORAGE_KEYS.CONTAINERS_SORT_KEY);
+    return this.isContainerSortKey(value) ? value : 'name';
+  }
+
+  private readSortDirectionPreference(): SortDirection {
+    const value = this.localStorage.get(UI_STORAGE_KEYS.CONTAINERS_SORT_DIRECTION);
+    return this.isSortDirection(value) ? value : 'asc';
+  }
+
+  private readRunningOnlyPreference(): boolean {
+    return this.localStorage.getBoolean(UI_STORAGE_KEYS.CONTAINERS_RUNNING_ONLY) === true;
+  }
+
+  private async runContainerAction(containerId: string, action: () => Promise<void>): Promise<void> {
+    this.activeActionContainerId.set(containerId);
+    this.error.set(null);
+
+    try {
+      await action();
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : 'Container action failed.');
+    } finally {
+      this.activeActionContainerId.set(null);
+    }
+  }
+
+  private async runBulkAction(
+    actionName: string,
+    action: (container: DockerContainerInfo) => Promise<void>,
+    predicate: (container: DockerContainerInfo) => boolean
+  ): Promise<void> {
+    this.error.set(null);
+    this.activeBulkAction.set(actionName);
+
+    try {
+      const targets = this.selectedContainers().filter(predicate);
+      for (const container of targets) {
+        await action(container);
+      }
+
+      await this.loadContainers();
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : 'Bulk action failed.');
+    } finally {
+      this.activeBulkAction.set(null);
+    }
+  }
+
+  private groupContainersByCompose(containers: DockerContainerInfo[]): ContainerGroup[] {
+    const groups = new Map<string, ContainerGroup>();
+
+    for (const container of containers) {
+      const composeProject = container.Labels?.['com.docker.compose.project'] ?? null;
+      const composeFolderRaw = container.Labels?.['com.docker.compose.project.working_dir'] ?? null;
+      const folder = this.extractFolderName(composeFolderRaw);
+
+      const groupId = composeProject ?? 'standalone';
+      const group = groups.get(groupId) ?? {
+        id: groupId,
+        name: composeProject ? `${composeProject}` : 'Standalone Containers',
+        folder,
+        containers: []
+      };
+
+      group.containers.push(container);
+      groups.set(groupId, group);
+    }
+
+    return Array.from(groups.values()).sort((a, b) => {
+      if (a.id === 'standalone') {
+        return -1;
+      }
+
+      if (b.id === 'standalone') {
+        return 1;
+      }
+
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  private sortedContainers(containers: DockerContainerInfo[]): DockerContainerInfo[] {
+    const key = this.sortKey();
+    const direction = this.sortDirection() === 'asc' ? 1 : -1;
+
+    return [...containers].sort((left, right) => {
+      let result: number;
+
+      if (key === 'name') {
+        result = this.primaryName(left).localeCompare(this.primaryName(right));
+      } else if (key === 'image') {
+        result = left.Image.localeCompare(right.Image);
+      } else if (key === 'ports') {
+        result = left.Ports.length - right.Ports.length;
+      } else {
+        result = left.State.localeCompare(right.State);
+      }
+
+      if (result === 0) {
+        result = this.primaryName(left).localeCompare(this.primaryName(right));
+      }
+
+      return result * direction;
+    });
+  }
+
+  private extractFolderName(rawPath: string | null): string | null {
+    if (!rawPath) {
+      return null;
+    }
+
+    const normalized = rawPath.replace(/\\/g, '/').split('/').filter(Boolean);
+    return normalized.length > 0 ? normalized[normalized.length - 1] : null;
+  }
+
+  private syncCollapsedGroups(groups: ContainerGroup[]): void {
+    const validIds = new Set(groups.map(group => group.id));
+
+    this.collapsedGroupIds.update(current => {
+      const next = new Set<string>();
+      for (const id of current) {
+        if (validIds.has(id)) {
+          next.add(id);
+        }
+      }
+
+      return next;
+    });
+  }
+
+  private syncSelectedContainers(containers: DockerContainerInfo[]): void {
+    const validIds = new Set(containers.map(container => container.Id));
+
+    this.selectedContainerIds.update(current => {
+      const next = new Set<string>();
+      for (const id of current) {
+        if (validIds.has(id)) {
+          next.add(id);
+        }
+      }
+
+      return next;
+    });
+  }
+
+  private async updateRuntimeSummaries(containers: DockerContainerInfo[]): Promise<void> {
+    if (this.isRuntimeSummaryUpdating) {
+      return;
+    }
+
+    this.isRuntimeSummaryUpdating = true;
+
+    const running = containers.filter(container => container.State === 'running');
+    const snapshotIds = new Set(containers.map(container => container.Id));
+    try {
+      if (running.length === 0) {
+        this.cpuUsageSummary.set('--');
+        this.memoryUsageSummary.set('--');
+        return;
+      }
+
+      const statsResults = await Promise.all(
+        running.map(async container => {
+          if (!this.containers().some(c => c.Id === container.Id)) {
+            return null;
+          }
+          try {
+            return (await this.dockerApi.getContainerStats(container.Id)) as DockerContainerStats;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      const currentIds = new Set(this.containers().map(container => container.Id));
+      if (currentIds.size !== snapshotIds.size || [...snapshotIds].some(id => !currentIds.has(id))) {
+        return;
+      }
+
+      const statsList = statsResults.filter((item): item is DockerContainerStats => item !== null);
+      if (statsList.length === 0) {
+        this.cpuUsageSummary.set('--');
+        this.memoryUsageSummary.set('--');
+        return;
+      }
+
+      let cpuPercentSum = 0;
+      let maxAvailableCpus = 1;
+      let memoryUsageSum = 0;
+      let memoryLimitMax = 0;
+
+      for (const stats of statsList) {
+        const cpuDelta =
+          (stats.cpu_stats?.cpu_usage?.total_usage ?? 0) - (stats.precpu_stats?.cpu_usage?.total_usage ?? 0);
+        const systemDelta = (stats.cpu_stats?.system_cpu_usage ?? 0) - (stats.precpu_stats?.system_cpu_usage ?? 0);
+        const onlineCpus = stats.cpu_stats?.online_cpus ?? stats.cpu_stats?.cpu_usage?.percpu_usage?.length ?? 1;
+
+        if (cpuDelta > 0 && systemDelta > 0 && onlineCpus > 0) {
+          cpuPercentSum += (cpuDelta / systemDelta) * onlineCpus * 100;
+        }
+
+        if (onlineCpus > maxAvailableCpus) {
+          maxAvailableCpus = onlineCpus;
+        }
+
+        memoryUsageSum += stats.memory_stats?.usage ?? 0;
+        const limit = stats.memory_stats?.limit ?? 0;
+        if (limit > memoryLimitMax) {
+          memoryLimitMax = limit;
+        }
+      }
+
+      this.cpuUsageSummary.set(
+        `${cpuPercentSum.toFixed(2)}% / ${(maxAvailableCpus * 100).toFixed(0)}% (${maxAvailableCpus} CPUs available)`
+      );
+
+      if (memoryLimitMax > 0) {
+        this.memoryUsageSummary.set(`${formatDockerBytes(memoryUsageSum)} / ${formatDockerBytes(memoryLimitMax)}`);
+      } else {
+        this.memoryUsageSummary.set(`${formatDockerBytes(memoryUsageSum)} / --`);
+      }
+    } finally {
+      this.isRuntimeSummaryUpdating = false;
+    }
+  }
+}

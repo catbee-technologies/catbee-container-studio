@@ -1,6 +1,13 @@
 {
-  "printWidth": 100,
+  "$schema": "https://json.schemastore.org/prettierrc",
   "singleQuote": true,
+  "arrowParens": "avoid",
+  "printWidth": 120,
+  "bracketSpacing": true,
+  "trailingComma": "none",
+  "endOfLine": "auto",
+  "semi": true,
+  "tabWidth": 2,
   "overrides": [
     {
       "files": "*.html",

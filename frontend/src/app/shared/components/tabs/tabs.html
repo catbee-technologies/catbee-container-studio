@@ -1,0 +1,17 @@
+<div class="tab-row" role="tablist" [attr.aria-label]="ariaLabel()">
+  @for (tab of tabs(); track tab.id) {
+    <button
+      type="button"
+      class="tab-btn"
+      [class.is-active]="activeTab() === tab.id"
+      role="tab"
+      [attr.aria-selected]="activeTab() === tab.id"
+      (click)="selectTab(tab.id)"
+    >
+      @if (tab.icon) {
+        <span class="material-symbols-rounded" aria-hidden="true">{{ tab.icon }}</span>
+      }
+      <span>{{ tab.label }}</span>
+    </button>
+  }
+</div>

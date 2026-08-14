@@ -1,0 +1,87 @@
+<main class="catbee-details-container" aria-label="Volume details">
+  <header class="catbee-details-container-header">
+    <button type="button" class="back-btn" (click)="backToVolumes()" aria-label="Back to volumes" title="Back">
+      <span class="material-symbols-rounded" aria-hidden="true">arrow_back</span>
+    </button>
+
+    <div class="title-wrap">
+      <h1>{{ volumeName() }}</h1>
+      <p class="mono">Volume</p>
+    </div>
+  </header>
+
+  @if (error(); as err) {
+    <p class="catbee-error-banner">{{ err }}</p>
+  }
+
+  @if (isLoading()) {
+    <catbee-container-studio-empty-state [icon]="'hourglass_empty'" [message]="'Loading volume details...'" />
+  } @else {
+    <section class="catbee-base-panel summary">
+      @for (item of summaryItems(); track item.label) {
+        <article>
+          <p class="label">{{ item.label }}</p>
+          <p class="value mono" [title]="item.value">{{ item.value }}</p>
+        </article>
+      }
+    </section>
+
+    <section class="catbee-base-panel tabs" aria-label="Volume tabs">
+      <catbee-container-studio-tabs
+        [tabs]="tabs"
+        [activeTab]="activeTab()"
+        ariaLabel="Volume details tabs"
+        (activeTabChange)="setActiveTab($event)"
+      ></catbee-container-studio-tabs>
+
+      <section class="tab-panel" role="tabpanel">
+        <header class="panel-head">
+          <h2>Containers Using This Volume ({{ containersInUse().length }})</h2>
+        </header>
+        @if (containersInUse().length === 0) {
+          <catbee-container-studio-empty-state
+            [icon]="'folder_open'"
+            [message]="'No containers currently mount this volume.'"
+            [hint]="'Containers that mount this volume will appear here when running.'"
+          />
+        } @else {
+          <div class="catbee-container-list-layout">
+            <div class="catbee-container-list-body">
+              <table class="catbee-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Image</th>
+                    <th>State</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (container of containersInUse(); track container.Id) {
+                    <tr>
+                      <td>
+                        <button type="button" class="link-btn" (click)="openContainer(container.Id)">
+                          {{ formatContainerName(container) }}
+                        </button>
+                      </td>
+                      <td>{{ container.Image }}</td>
+                      <td>
+                        <span
+                          class="container-status"
+                          [class.running]="container.State === 'running'"
+                          [class.stopped]="container.State !== 'running'"
+                        >
+                          {{ container.State }}
+                        </span>
+                        <p class="status-detail">{{ container.Status }}</p>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+      </section>
+    </section>
+  }
+</main>

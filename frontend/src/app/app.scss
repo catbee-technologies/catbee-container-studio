@@ -1,0 +1,103 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.desktop-shell {
+  height: 100dvh;
+  display: grid;
+  grid-template-rows: 3rem 1fr;
+  overflow: hidden;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 12rem 1fr;
+  min-height: 0;
+  transition: grid-template-columns 180ms ease;
+}
+
+.workspace:has(.sidebar.is-collapsed) {
+  grid-template-columns: 4.5rem 1fr;
+}
+
+.sidebar {
+  border-right: 1px solid rgb(140 170 192 / 0.2);
+  background: linear-gradient(180deg, rgb(9 20 34 / 0.8), rgb(7 16 29 / 0.65));
+  padding: 0.75rem;
+  overflow: visible;
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 0.6rem;
+}
+
+.sidebar-toggle {
+  border: 1px solid rgb(106 152 196 / 0.45);
+  background: linear-gradient(180deg, rgb(30 52 75 / 0.56), rgb(20 36 56 / 0.62));
+  color: #b9d7f5;
+  border-radius: 999px;
+  width: 2.1rem;
+  height: 2.1rem;
+  min-height: 2.1rem;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  right: -1.05rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgb(0 0 0 / 0.35);
+}
+
+.sidebar-toggle:hover {
+  color: #ebfcff;
+  border-color: rgb(150 210 255 / 0.74);
+}
+
+.sidebar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-decoration: none;
+  color: var(--ink-300);
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  padding: 0.6rem 0.65rem;
+  transition: 140ms ease;
+}
+
+.nav-link:hover {
+  color: var(--ink-100);
+  background: rgb(78 126 170 / 0.2);
+}
+
+.nav-link.is-active {
+  color: #e8fff8;
+  border-color: rgb(81 203 168 / 0.45);
+  background: linear-gradient(120deg, rgb(24 101 118 / 0.5), rgb(27 140 122 / 0.28));
+}
+
+.nav-link .material-symbols-rounded {
+  font-size: 1.1rem;
+}
+
+.sidebar.is-collapsed .nav-link {
+  justify-content: center;
+  padding-inline: 0.4rem;
+}
+
+.content-pane {
+  overflow: auto;
+  min-height: 0;
+}

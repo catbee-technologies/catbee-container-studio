@@ -1,0 +1,32 @@
+<header class="titlebar" [class.is-macos]="isMacOS" role="banner" aria-label="Application title bar">
+  @if (isMacOS) {
+    <div class="macos-controls-spacer" aria-hidden="true"></div>
+  }
+
+  <div class="titlebar-left">
+    <img src="favicon.ico" alt="CatBee Container Studio logo" class="brand-icon" aria-hidden="true" />
+    <span class="product-name">CatBee Container Studio</span>
+  </div>
+
+  @if (!isMacOS) {
+    <div class="titlebar-actions no-drag" aria-label="Window controls">
+      <button type="button" class="window-btn" (click)="minimizeWindow()" aria-label="Minimize window" title="Minimize">
+        <span class="material-symbols-rounded" aria-hidden="true">horizontal_rule</span>
+      </button>
+      <button
+        type="button"
+        class="window-btn"
+        (click)="toggleMaximizeWindow()"
+        [attr.aria-label]="isWindowMaximized() ? 'Restore window' : 'Maximize window'"
+        [title]="isWindowMaximized() ? 'Restore' : 'Maximize'"
+      >
+        <span class="material-symbols-rounded" aria-hidden="true">{{
+          isWindowMaximized() ? 'fullscreen_exit' : 'fullscreen'
+        }}</span>
+      </button>
+      <button type="button" class="window-btn danger" (click)="closeWindow()" aria-label="Close window" title="Close">
+        <span class="material-symbols-rounded" aria-hidden="true">close</span>
+      </button>
+    </div>
+  }
+</header>

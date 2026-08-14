@@ -1,0 +1,80 @@
+<div class="stats-summary">
+  <article class="stat-card">
+    <header>
+      <span class="stat-card_icon material-symbols-rounded" aria-hidden="true">memory_alt</span>
+      <span class="stat-card_label">CPU Usage</span>
+      <span class="stat-card_value">{{ latest() ? latest()!.cpuPct.toFixed(2) + '%' : '—' }}</span>
+    </header>
+    <div class="chart-wrap">
+      <canvas #cpuCanvas aria-label="CPU usage over time" role="img"></canvas>
+    </div>
+  </article>
+
+  <article class="stat-card">
+    <header>
+      <span class="stat-card_icon material-symbols-rounded" aria-hidden="true">database</span>
+      <span class="stat-card_label">Memory</span>
+      <span class="stat-card_value">
+        @if (latest(); as s) {
+          {{ formatBytes(s.memUsage) }} / {{ s.memLimit > 0 ? formatBytes(s.memLimit) : '—' }}
+          <span class="stat-card_sub">({{ s.memPct.toFixed(1) }}%)</span>
+        } @else {
+          —
+        }
+      </span>
+    </header>
+    <div class="chart-wrap">
+      <canvas #memCanvas aria-label="Memory usage over time" role="img"></canvas>
+    </div>
+  </article>
+
+  <article class="stat-card">
+    <header>
+      <span class="stat-card_icon material-symbols-rounded" aria-hidden="true">network_node</span>
+      <span class="stat-card_label">Network</span>
+      <span class="stat-card_value">
+        @if (latest(); as s) {
+          <span class="badge rx">Rx {{ formatBytes(s.netRx) }}</span>
+          <span class="badge tx">Tx {{ formatBytes(s.netTx) }}</span>
+        } @else {
+          —
+        }
+      </span>
+    </header>
+    <div class="chart-wrap">
+      <canvas #netCanvas aria-label="Network I/O over time" role="img"></canvas>
+    </div>
+  </article>
+
+  <article class="stat-card">
+    <header>
+      <span class="stat-card_icon material-symbols-rounded" aria-hidden="true">storage</span>
+      <span class="stat-card_label">Block I/O</span>
+      <span class="stat-card_value">
+        @if (latest(); as s) {
+          <span class="badge read">R {{ formatBytes(s.blkRead) }}</span>
+          <span class="badge write">W {{ formatBytes(s.blkWrite) }}</span>
+        } @else {
+          —
+        }
+      </span>
+    </header>
+    <div class="chart-wrap">
+      <canvas #blkCanvas aria-label="Block I/O over time" role="img"></canvas>
+    </div>
+  </article>
+</div>
+
+@if (isLoading()) {
+  <catbee-container-studio-empty-state
+    [icon]="'bar_chart_4_bars'"
+    [message]="'Loading stats…'"
+    [hint]="'Stats will appear here when available.'"
+  />
+} @else if (!latest()) {
+  <catbee-container-studio-empty-state
+    [icon]="'bar_chart_4_bars'"
+    [message]="'No stats available.'"
+    [hint]="'Stats will appear here when available.'"
+  />
+}

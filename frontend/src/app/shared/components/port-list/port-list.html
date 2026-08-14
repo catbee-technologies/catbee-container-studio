@@ -1,0 +1,25 @@
+@if (normalizedPorts().length === 0) {
+  <span class="muted" [class.mono]="mono()">{{ noPortsLabel() }}</span>
+} @else {
+  <div class="ports-list">
+    @for (port of visiblePorts(); track $index) {
+      @if (portHref(port); as href) {
+        <a class="port-link" [class.mono]="mono()" [href]="href" (click)="openPortLink($event, href)">
+          {{ formatPort(port) }}
+        </a>
+      } @else {
+        <span class="port-text" [class.mono]="mono()">{{ formatPort(port) }}</span>
+      }
+    }
+  </div>
+
+  @if (shouldShowToggle()) {
+    <button type="button" class="ports-toggle" (click)="toggleExpanded($event)">
+      @if (expanded()) {
+        Show less
+      } @else {
+        Show all {{ normalizedPorts().length }} ports
+      }
+    </button>
+  }
+}

@@ -1,0 +1,94 @@
+:host {
+  display: block;
+  height: 100%;
+  position: relative;
+}
+
+.stats-summary {
+  display: grid;
+  grid-template-columns: 0.5fr 0.5fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 0.65rem;
+  height: 100%;
+
+  .stat-card {
+    border: 1px solid rgb(123 181 222 / 0.35);
+    border-radius: 0.85rem;
+    padding: 0.7rem 0.85rem 0.6rem;
+    background: linear-gradient(165deg, rgb(12 31 47 / 0.88), rgb(7 21 35 / 0.84));
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-height: 0;
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+
+      .stat-card_icon {
+        font-size: 1.05rem;
+        color: var(--ink-300);
+        flex-shrink: 0;
+      }
+
+      .stat-card_label {
+        font-size: 0.78rem;
+        color: var(--ink-300);
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        flex: 1;
+        min-width: 0;
+      }
+
+      .stat-card_value {
+        font-family: var(--mono-font);
+        font-size: 0.82rem;
+        color: var(--ink-100);
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+      }
+
+      .stat-card_sub {
+        font-size: 0.76rem;
+        color: var(--ink-300);
+      }
+    }
+
+    .chart-wrap {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+
+      canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+      }
+    }
+  }
+}
+
+.badge {
+  display: inline-flex;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-family: var(--mono-font);
+
+  &.rx,
+  &.read {
+    color: #cbffe8;
+    background: linear-gradient(120deg, rgb(27 184 140 / 0.32), rgb(16 126 102 / 0.26));
+  }
+
+  &.tx,
+  &.write {
+    color: #fff0c6;
+    background: linear-gradient(120deg, rgb(204 153 71 / 0.32), rgb(139 100 46 / 0.26));
+  }
+}
