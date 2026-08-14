@@ -1,0 +1,115 @@
+<main class="catbee-details-container" aria-label="Image details">
+  <header class="catbee-details-container-header">
+    <button type="button" class="back-btn" (click)="backToImages()" aria-label="Back to images" title="Back">
+      <span class="mat-icon-filled" aria-hidden="true">arrow_back</span>
+    </button>
+
+    <div class="title-wrap">
+      <h1>{{ title() }}</h1>
+      <p class="mono">{{ shortId(imageId()) }}</p>
+    </div>
+  </header>
+
+  @if (error(); as err) {
+    <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" />
+  }
+
+  @if (isLoading()) {
+    <catbee-container-studio-empty-state [icon]="'hourglass_empty'" [message]="'Loading image details...'" />
+  } @else {
+    <section class="summary catbee-base-panel">
+      @for (item of details(); track item.label) {
+        <article>
+          <p class="label">{{ item.label }}</p>
+          <p class="value mono">{{ item.value }}</p>
+        </article>
+      }
+    </section>
+
+    <section class="catbee-base-panel tabs" aria-label="Image tabs">
+      <catbee-container-studio-tabs
+        [tabs]="tabs"
+        [activeTab]="activeTab()"
+        ariaLabel="Image details tabs"
+        (activeTabChange)="setActiveTab($event)"
+      />
+
+      <section class="catbee-container-list-layout tab-panel" role="tabpanel">
+        @if (activeTab() === 'layers') {
+          @if (history().length === 0) {
+            <catbee-container-studio-empty-state
+              [icon]="'database'"
+              [message]="'No layers found for this image.'"
+              [hint]="'Layers will appear here when the image is built or pulled.'"
+            />
+          } @else {
+            <div class="catbee-container-list-body catbee-base-panel">
+              <table class="catbee-table" aria-label="Image layers">
+                <thead>
+                  <tr>
+                    <th class="col-layer-index" scope="col">#</th>
+                    <th scope="col">Layer ({{ history().length }})</th>
+                    <th class="col-layer-size" scope="col">Size</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (layer of history(); track $index) {
+                    <tr>
+                      <td class="col-layer-index">{{ $index }}</td>
+                      <td class="col-layer-id">
+                        <span class="layer-created-by">{{ layer.CreatedBy }}</span>
+                      </td>
+                      <td class="col-layer-size">{{ formatSize(layer.Size) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        } @else if (activeTab() === 'containers') {
+          @if (inUseByContainers().length === 0) {
+            <catbee-container-studio-empty-state
+              [icon]="'storage'"
+              [message]="'No containers are using this image.'"
+              [hint]="'Containers that use this image will appear here when they are created.'"
+            />
+          } @else {
+            <div class="catbee-container-list-body catbee-base-panel">
+              <table class="catbee-table" aria-label="Containers using this image">
+                <thead>
+                  <tr>
+                    <th>Name ({{ inUseByContainers().length }})</th>
+                    <th>Image</th>
+                    <th>State</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (container of inUseByContainers(); track container.Id) {
+                    <tr>
+                      <td>
+                        <button type="button" class="link-btn" (click)="openContainer(container.Id)">
+                          {{ formatContainerName(container) }}
+                        </button>
+                      </td>
+                      <td>{{ container.Image }}</td>
+                      <td>
+                        <span
+                          class="container-status"
+                          [class.running]="container.State === 'running'"
+                          [class.stopped]="container.State !== 'running'"
+                        >
+                          {{ container.State }}
+                        </span>
+                        <p class="status-detail">{{ container.Status }}</p>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        }
+      </section>
+    </section>
+  }
+</main>

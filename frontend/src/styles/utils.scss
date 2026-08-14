@@ -1,0 +1,30 @@
+.mono {
+  font-family: var(--mono-font);
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+.no-select {
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.pointer {
+  cursor: pointer;
+}
+
+.not-allowed {
+  cursor: not-allowed;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.m-0 {
+  margin: 0;
+}

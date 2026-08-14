@@ -1,0 +1,68 @@
+<div class="env-toolbar">
+  @if (envRows().length > 0) {
+    <catbee-container-studio-search-input
+      #envSearchInput
+      placeholder="Search environment variables"
+      ariaLabel="Search environment variables"
+      [value]="envSearchTerm()"
+      (valueChange)="setSearch($event)"
+      (inputKeydown)="onSearchKeydown($event)"
+      width="285px"
+    />
+  }
+
+  @if (envSearchTerm().trim().length > 0) {
+    <div class="search-nav">
+      <button type="button" class="catbee-action-btn search-nav-btn" (click)="prevMatch()" [disabled]="!hasMatches()">
+        <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_up</span>
+      </button>
+      <button type="button" class="catbee-action-btn search-nav-btn" (click)="nextMatch()" [disabled]="!hasMatches()">
+        <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_down</span>
+      </button>
+      <span class="match-count">{{ matchSummary() }}</span>
+    </div>
+  }
+</div>
+
+@if (envRows().length === 0) {
+  <catbee-container-studio-empty-state
+    [icon]="'data_object'"
+    [message]="'No environment variables.'"
+    [hint]="'Environment variables will appear here when available.'"
+  />
+} @else {
+  <div #envScrollArea class="catbee-container-list-body catbee-base-panel">
+    <table class="catbee-table env-table" aria-label="Environment variables">
+      <colgroup>
+        <col class="col-group-env-key" />
+        <col class="col-group-env-value" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col">Variable</th>
+          <th scope="col">Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of envRows(); track row.key) {
+          <tr>
+            <td class="col-env-key" [innerHTML]="renderHighlightedValue($index, 'key', row.key)"></td>
+            <td class="col-env-value">
+              <div class="env-value-div">
+                <span class="env-value-span" [innerHTML]="renderHighlightedValue($index, 'value', row.value)"></span>
+                <catbee-container-studio-copy-button
+                  [text]="row.value"
+                  [disabled]="row.value.length === 0"
+                  [ariaLabel]="'Copy value for ' + row.key"
+                  [idleTitle]="'Copy value'"
+                  [successTitle]="'Value copied'"
+                  [failureTitle]="'Copy failed'"
+                />
+              </div>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

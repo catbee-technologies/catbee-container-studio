@@ -1,0 +1,44 @@
+:host {
+  display: block;
+}
+
+.catbee-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgb(255 123 142 / 0.62);
+  background: linear-gradient(145deg, rgb(142 26 56 / 0.58), rgb(91 18 46 / 0.62));
+  color: #ffe8ef;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  margin: 0;
+  max-height: 10rem;
+
+  .catbee-error-message {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: clamp(0.8rem, 0.5vw + 0.75rem, 0.95rem);
+    line-height: 1.4;
+    max-height: calc(10rem - 1.5rem);
+    overflow-y: auto;
+  }
+
+  .close-btn {
+    align-self: flex-start;
+    flex: 0 0 auto;
+    background: transparent;
+    border: none;
+    color: #ffe8ef;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: opacity 0.2s ease-in-out;
+
+    &:hover {
+      opacity: 0.8;
+      background: rgb(255 123 142 / 0.2);
+      border-radius: 50%;
+      border: 1px solid rgb(255 123 142 / 0.62);
+    }
+  }
+}

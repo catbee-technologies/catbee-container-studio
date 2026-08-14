@@ -1,0 +1,31 @@
+<div class="inspect-toolbar">
+  <catbee-container-studio-search-input
+    #inspectSearchInput
+    placeholder="Search inspect output"
+    ariaLabel="Search inspect output"
+    [value]="inspectSearchTerm()"
+    (valueChange)="setSearch($event)"
+    (inputKeydown)="onSearchKeydown($event)"
+    width="auto"
+  />
+
+  @if (inspectSearchTerm().trim().length > 0) {
+    <div class="search-nav">
+      <button type="button" class="catbee-action-btn search-nav-btn" (click)="prevMatch()" [disabled]="!hasMatches()">
+        <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_up</span>
+      </button>
+      <button type="button" class="catbee-action-btn search-nav-btn" (click)="nextMatch()" [disabled]="!hasMatches()">
+        <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_down</span>
+      </button>
+      <span class="match-count">{{ matchSummary() }}</span>
+    </div>
+  }
+</div>
+
+<div #inspectScrollArea class="inspect-scroll-panel">
+  <div class="json-block">
+    @for (lineHtml of renderedInspectLinesHtml(); track $index) {
+      <div class="json-line" [innerHTML]="lineHtml"></div>
+    }
+  </div>
+</div>

@@ -1,0 +1,63 @@
+:host {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 0.5rem;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.env-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+table.env-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+
+  th,
+  td {
+    border-bottom: 1px solid rgb(147 179 210 / 0.18);
+    padding: 0.55rem 0.45rem;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  th {
+    font-size: 0.77rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-300);
+  }
+
+  .col-group-env-key {
+    width: 20rem;
+  }
+
+  .col-group-env-value {
+    width: auto;
+  }
+
+  .col-env-key,
+  .col-env-value {
+    font-family: var(--mono-font);
+    font-size: 0.78rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .env-value-div {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+
+    .env-value-span {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+  }
+}

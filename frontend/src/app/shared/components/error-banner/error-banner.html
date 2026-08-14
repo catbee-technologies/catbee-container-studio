@@ -1,0 +1,11 @@
+@if (visible()) {
+  <section class="catbee-error-banner" role="alert">
+    <span class="catbee-error-message">{{ errorMessage() }}</span>
+
+    @if (closable()) {
+      <button type="button" class="catbee-action-btn icon-only close-btn" (click)="onClose()" aria-label="Close">
+        <span class="mat-icon-filled" aria-hidden="true">close</span>
+      </button>
+    }
+  </section>
+}

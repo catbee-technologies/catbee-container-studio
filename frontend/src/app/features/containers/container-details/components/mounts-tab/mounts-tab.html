@@ -1,0 +1,112 @@
+<section class="mounts-panel">
+  <div class="mounts-summary">
+    <article>
+      <h3>Total Mounts</h3>
+      <p>{{ mountRows().length }}</p>
+    </article>
+    <article>
+      <h3>Read/Write</h3>
+      <p>{{ readWriteMountCount() }}</p>
+    </article>
+    <article>
+      <h3>Read-Only</h3>
+      <p>{{ readOnlyMountCount() }}</p>
+    </article>
+    <article>
+      <h3>Declared Volumes</h3>
+      <p>{{ declaredVolumeNames().length }}</p>
+    </article>
+  </div>
+
+  @if (mountRows().length === 0) {
+    <catbee-container-studio-empty-state
+      [icon]="'folder_open'"
+      [message]="'No mounts attached.'"
+      [hint]="'Volume mounts will appear here when attached to this container.'"
+    />
+  } @else {
+    <div class="catbee-container-list-body catbee-base-panel">
+      <table class="catbee-table mounts-table" aria-label="Mounts table">
+        <thead>
+          <tr>
+            <th scope="col">Type</th>
+            <th scope="col">Source</th>
+            <th scope="col">Destination</th>
+            <th scope="col">Mode</th>
+            <th scope="col">Access</th>
+            <th scope="col">Propagation</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (mount of mountRows(); track mount.source + '::' + mount.destination) {
+            <tr>
+              <td>{{ mount.type }}</td>
+              <td class="mono">
+                @if (mount.displaySource !== '--') {
+                  <button
+                    class="mount-source-btn"
+                    (click)="openMountSource(mount)"
+                    [title]="
+                      mount.type === 'volume'
+                        ? 'Open volume details: ' + mount.displaySource
+                        : 'Reveal in Finder: ' + mount.source
+                    "
+                  >
+                    <span class="mat-icon-filled mount-source-icon" aria-hidden="true">folder_open</span>
+                    <span class="mount-source-text">{{ mount.displaySource }}</span>
+                  </button>
+                } @else {
+                  --
+                }
+              </td>
+              <td class="mono">{{ mount.destination }}</td>
+              <td>{{ mount.mode }}</td>
+              <td>
+                <span class="mount-access" [class.rw]="mount.readWrite" [class.ro]="!mount.readWrite">
+                  {{ mount.readWrite ? 'rw' : 'ro' }}
+                </span>
+              </td>
+              <td>{{ mount.propagation }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div class="mounts-meta-grid">
+    <article class="mounts-meta-card">
+      <h3>Host Bind Strings</h3>
+      @if (hostBindRows().length === 0) {
+        <catbee-container-studio-empty-state
+          [icon]="'folder_open'"
+          [message]="'No host bind strings declared.'"
+          [hint]="'Host bind strings will appear here when declared in the container config.'"
+        />
+      } @else {
+        <ul class="mono">
+          @for (bind of hostBindRows(); track bind) {
+            <li>{{ bind }}</li>
+          }
+        </ul>
+      }
+    </article>
+
+    <article class="mounts-meta-card">
+      <h3>Declared Volumes</h3>
+      @if (declaredVolumeNames().length === 0) {
+        <catbee-container-studio-empty-state
+          [icon]="'folder_open'"
+          [message]="'No volumes declared in image config.'"
+          [hint]="'Declared volumes will appear here when specified in the image config.'"
+        />
+      } @else {
+        <ul class="mono">
+          @for (volumeName of declaredVolumeNames(); track volumeName) {
+            <li>{{ volumeName }}</li>
+          }
+        </ul>
+      }
+    </article>
+  </div>
+</section>

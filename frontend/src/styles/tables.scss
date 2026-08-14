@@ -1,0 +1,99 @@
+table.catbee-table {
+  --table-cell-y: 0.65rem;
+  --table-cell-x: 0.45rem;
+  --table-header-size: 0.77rem;
+  --table-body-font-size: 0.95rem;
+
+  width: 100%;
+  border-collapse: collapse;
+  height: fit-content;
+
+  th,
+  td {
+    border-bottom: 1px solid rgb(147 179 210 / 0.18);
+    padding: var(--table-cell-y) var(--table-cell-x);
+    vertical-align: top;
+  }
+
+  th {
+    font-size: var(--table-header-size);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-300);
+    text-align: left;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: linear-gradient(160deg, rgb(14 30 45 / 0.98), rgb(9 23 36 / 0.98));
+  }
+
+  td {
+    font-size: var(--table-body-font-size);
+    color: var(--ink-200);
+  }
+
+  &.sm {
+    --table-cell-y: 0.45rem;
+    --table-cell-x: 0.35rem;
+    --table-header-size: 0.7rem;
+    --table-body-font-size: 0.85rem;
+  }
+
+  &.lg {
+    --table-cell-y: 0.8rem;
+    --table-cell-x: 0.6rem;
+    --table-header-size: 0.82rem;
+    --table-body-font-size: 1.1rem;
+  }
+
+  tbody tr.group-row {
+    cursor: default;
+  }
+
+  tbody tr.group-row td {
+    background: linear-gradient(150deg, rgb(11 28 44 / 0.86), rgb(8 22 37 / 0.76));
+    border-top: 1px solid rgb(122 173 212 / 0.28);
+    border-bottom: 1px solid rgb(122 173 212 / 0.28);
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    vertical-align: middle;
+  }
+
+  tbody tr.group-row:hover {
+    background: transparent;
+  }
+
+  tbody tr:hover {
+    background: linear-gradient(90deg, rgb(76 154 223 / 0.14), rgb(57 205 182 / 0.08));
+  }
+
+  .col-checkbox {
+    width: 2.4rem;
+    text-align: center;
+  }
+
+  .col-actions {
+    width: 150px;
+    text-align: right;
+    vertical-align: middle;
+
+    .action-group {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      width: 150px;
+      gap: 0.45rem;
+      position: relative;
+    }
+  }
+
+  .col-sortable {
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+  }
+
+  .col-used {
+    width: 2.6rem;
+    text-align: center;
+  }
+}

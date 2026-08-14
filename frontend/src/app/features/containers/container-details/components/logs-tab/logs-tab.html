@@ -1,0 +1,127 @@
+<div class="logs-toolbar">
+  <div class="logs-toolbar-left">
+    <catbee-container-studio-search-input
+      #logsSearchInput
+      placeholder="Search logs"
+      ariaLabel="Search logs"
+      [value]="logsSearchTerm()"
+      (valueChange)="setSearch($event)"
+      (inputKeydown)="onSearchKeydown($event)"
+      width="auto"
+    >
+      <button
+        type="button"
+        search-controls
+        class="search-mode-btn"
+        [class.active]="logsSearchMode().caseSensitive"
+        (click)="toggleCaseSensitive()"
+        title="Case sensitive"
+        aria-label="Case sensitive"
+      >
+        Aa
+      </button>
+      <button
+        type="button"
+        search-controls
+        class="search-mode-btn"
+        [class.active]="logsSearchMode().wholeWord"
+        (click)="toggleWholeWord()"
+        title="Whole word"
+        aria-label="Whole word"
+      >
+        W
+      </button>
+      <button
+        type="button"
+        search-controls
+        class="search-mode-btn"
+        [class.active]="logsSearchMode().regex"
+        (click)="toggleRegex()"
+        title="Regex"
+        aria-label="Regex"
+      >
+        .*
+      </button>
+    </catbee-container-studio-search-input>
+    @if (logsSearchTerm().trim().length > 0) {
+      <div class="search-nav">
+        <button type="button" class="catbee-action-btn search-nav-btn" (click)="prevMatch()" [disabled]="!hasMatches()">
+          <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_up</span>
+        </button>
+        <button type="button" class="catbee-action-btn search-nav-btn" (click)="nextMatch()" [disabled]="!hasMatches()">
+          <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_down</span>
+        </button>
+        <span class="match-count" [class.warn]="hasRegexError()">{{ matchSummary() }}</span>
+      </div>
+    }
+  </div>
+
+  <div class="logs-toolbar-right">
+    <button type="button" class="catbee-action-btn" (click)="copyLogs()">
+      {{ copyButtonLabel() }}
+    </button>
+    <button type="button" class="catbee-action-btn" (click)="clearLogs()">
+      {{ clearButtonLabel() }}
+    </button>
+
+    <catbee-container-studio-menu [open]="showLogOptions()" minWidth="12rem" (dismissed)="closeLogOptions()">
+      <button menuTrigger type="button" class="catbee-action-btn" (click)="toggleLogOptions($event)">
+        <span class="mat-icon-filled" aria-hidden="true">tune</span>
+        Options
+      </button>
+
+      <div menuContent class="logs-options-menu">
+        <label class="menu-item menu-item-checkbox no-select pointer">
+          <input type="checkbox" [checked]="showLogTimestamps()" (change)="toggleLogTimestamps()" />
+          Show timestamp
+        </label>
+        <label class="menu-item menu-item-checkbox no-select pointer">
+          <input type="checkbox" [checked]="wrapLogLines()" (change)="toggleWrapLines()" />
+          Wrap lines
+        </label>
+        <label class="menu-item menu-item-select no-select" for="logs-tail-lines-select">
+          Tail lines
+          <select id="logs-tail-lines-select" class="logs-tail-select" (change)="onTailLinesChange($event)">
+            @for (lines of logTailLineOptions; track lines) {
+              <option [value]="lines" [selected]="lines === logTailLines()">{{ lines }}</option>
+            }
+          </select>
+        </label>
+      </div>
+    </catbee-container-studio-menu>
+  </div>
+</div>
+
+<section #tabScrollArea class="logs-scroll-panel" role="tabpanel" (scroll)="onPanelScroll()">
+  @if (logs().length === 0) {
+    <catbee-container-studio-empty-state
+      [icon]="'article'"
+      [message]="isLoading() ? 'Loading logs...' : 'No logs yet.'"
+      [hint]="
+        isLoading() ? 'Connecting to container log stream...' : 'Logs will appear here once the container emits output.'
+      "
+    />
+  } @else {
+    <div class="log-terminal" [class.wrap-off]="!wrapLogLines()">
+      @for (lineHtml of renderedLogLinesHtml(); track $index) {
+        <div class="log-line" [innerHTML]="lineHtml"></div>
+      }
+    </div>
+  }
+</section>
+
+<div class="scroll-actions">
+  @if (isScrollable()) {
+    @if (isNearBottom()) {
+      <button type="button" class="catbee-action-btn" (click)="scrollToTop()">
+        <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_up</span>
+        Scroll up
+      </button>
+    } @else {
+      <button type="button" class="catbee-action-btn" (click)="scrollToBottom()">
+        <span class="mat-icon-filled" aria-hidden="true">keyboard_double_arrow_down</span>
+        Scroll to bottom
+      </button>
+    }
+  }
+</div>

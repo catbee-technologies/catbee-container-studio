@@ -1,0 +1,27 @@
+@if (visible()) {
+  <section
+    class="catbee-dialog-backdrop"
+    [class.closing]="closing()"
+    role="presentation"
+    tabindex="0"
+    (click)="onCancel()"
+    (keydown)="onBackdropKeydown($event)"
+  >
+    <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+    <article class="catbee-dialog catbee-base-panel" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <h2>{{ title() }}</h2>
+
+      <p>{{ localMessage() }}</p>
+
+      <div class="catbee-dialog-actions">
+        <button type="button" class="catbee-action-btn" (click)="onCancel()">
+          {{ cancelLabel() }}
+        </button>
+
+        <button type="button" class="catbee-action-btn" [class.danger]="dangerous()" (click)="onConfirm()">
+          {{ confirmLabel() }}
+        </button>
+      </div>
+    </article>
+  </section>
+}

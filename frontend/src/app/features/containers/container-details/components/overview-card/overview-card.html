@@ -1,0 +1,35 @@
+<section class="catbee-base-panel overview">
+  <div>
+    <p class="label">State</p>
+    <span
+      class="container-status state"
+      [class.running]="container().State === 'running'"
+      [class.stopped]="container().State !== 'running'"
+    >
+      {{ container().State }}
+    </span>
+  </div>
+  <div>
+    <p class="label">Status</p>
+    <p class="value">{{ container().Status }}</p>
+  </div>
+  <div>
+    <p class="label">Ports</p>
+    <catbee-container-studio-port-list
+      class="value"
+      [ports]="container().Ports"
+      [containerState]="container().State"
+      [expanded]="showAllPorts()"
+      [mono]="true"
+      (expandedChange)="setShowAllPorts($event)"
+    />
+  </div>
+  <div>
+    <p class="label">CPU</p>
+    <p class="value mono">{{ formatCpu(stats()) }}</p>
+  </div>
+  <div>
+    <p class="label">Memory</p>
+    <p class="value mono">{{ formatMemory(stats()) }}</p>
+  </div>
+</section>

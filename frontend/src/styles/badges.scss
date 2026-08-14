@@ -1,0 +1,45 @@
+.badges-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.badge {
+  min-height: 1.9rem;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.82rem;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid transparent;
+
+  &.running {
+    background: linear-gradient(140deg, rgb(42 188 134 / 0.28), rgb(21 130 101 / 0.3));
+    border-color: rgb(74 223 169 / 0.58);
+    color: #cbffe8;
+  }
+
+  &.stopped {
+    background: linear-gradient(140deg, rgb(206 104 64 / 0.28), rgb(144 66 39 / 0.3));
+    border-color: rgb(255 153 115 / 0.55);
+    color: #ffe0cd;
+  }
+
+  &.total {
+    background: linear-gradient(140deg, rgb(73 145 213 / 0.28), rgb(38 96 162 / 0.3));
+    border-color: rgb(100 175 255 / 0.55);
+    color: #c8e9ff;
+  }
+
+  &.size {
+    background: linear-gradient(140deg, rgb(130 80 190 / 0.28), rgb(90 50 140 / 0.3));
+    border-color: rgb(190 140 255 / 0.5);
+    color: #e8d4ff;
+  }
+
+  &.dangling {
+    background: linear-gradient(140deg, rgb(206 104 64 / 0.28), rgb(144 66 39 / 0.3));
+    border-color: rgb(255 153 115 / 0.55);
+    color: #ffe0cd;
+  }
+}

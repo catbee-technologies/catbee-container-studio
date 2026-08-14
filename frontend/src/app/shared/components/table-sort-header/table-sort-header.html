@@ -1,0 +1,4 @@
+<button type="button" class="sort-btn" [class.active]="active()" (click)="onSort()">
+  <span>{{ label() }}</span>
+  <span class="mat-icon-filled" aria-hidden="true">{{ indicator() }}</span>
+</button>

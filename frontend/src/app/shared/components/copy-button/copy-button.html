@@ -1,0 +1,12 @@
+<button
+  type="button"
+  class="catbee-action-btn icon-only copy-button"
+  [class.is-copied]="status() === 'copied'"
+  [class.is-failed]="status() === 'failed'"
+  [disabled]="isDisabled()"
+  [attr.aria-label]="ariaLabel()"
+  [attr.title]="buttonTitle()"
+  (click)="copy()"
+>
+  <span class="mat-icon-filled" aria-hidden="true">{{ iconName() }}</span>
+</button>

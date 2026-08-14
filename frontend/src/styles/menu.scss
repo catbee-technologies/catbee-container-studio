@@ -1,0 +1,38 @@
+.menu-item {
+  border: 0;
+  width: 100%;
+  background: transparent;
+  color: var(--ink-100);
+  text-align: left;
+  border-radius: 0.45rem;
+  padding: 0.35rem 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(97 170 231 / 0.2);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .mat-icon-filled {
+    font-size: 1rem;
+  }
+
+  &.menu-item-checkbox {
+    input {
+      margin: 0;
+    }
+  }
+
+  &.menu-item-select {
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.7rem;
+  }
+}
