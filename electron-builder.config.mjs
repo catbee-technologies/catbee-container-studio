@@ -1,6 +1,8 @@
+/** @type {import('electron-builder').Configuration} */
 export default {
   appId: 'in.catbee.container.studio',
   productName: 'CatBee Container Studio',
+  artifactName: '${productName}-${version}-${arch}.${ext}',
   extraMetadata: {
     main: 'backend/main/main.js'
   },
@@ -45,5 +47,14 @@ export default {
     target: ['deb', 'zip'],
     category: 'Utility',
     icon: 'assets/icons/linux/catbee-icon.png'
+  },
+  nsis: {
+    oneClick: false,
+    allowToChangeInstallationDirectory: true,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    shortcutName: "CatBee Container Studio",
+    runAfterFinish: true,
+    deleteAppDataOnUninstall: false
   }
 };
