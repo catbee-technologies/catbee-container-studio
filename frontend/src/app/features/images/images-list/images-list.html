@@ -190,7 +190,7 @@
 <catbee-container-studio-confirm-dialog
   [open]="pendingDeleteImageIds().length > 0"
   [title]="pendingDeleteImageIds().length > 1 ? 'Remove Images' : 'Remove Image'"
-  [message]="'Remove ' + pendingDeleteLabel() + '? Containers using these images must be removed first.'"
+  [message]="'Remove ' + pendingDeleteLabel() + '? \n Containers using these images must be removed first.'"
   confirmLabel="Remove"
   [dangerous]="true"
   (confirm)="confirmDelete()"
@@ -200,7 +200,7 @@
 <catbee-container-studio-confirm-dialog
   [open]="confirmPruneOpen()"
   title="Prune Dangling Images"
-  message="Remove all dangling (untagged) images? This cannot be undone."
+  [message]="'Remove all dangling (untagged) images? \n This cannot be undone.'"
   confirmLabel="Prune"
   [dangerous]="true"
   (confirm)="confirmPrune()"

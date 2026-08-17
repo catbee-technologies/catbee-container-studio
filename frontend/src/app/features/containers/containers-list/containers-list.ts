@@ -551,14 +551,14 @@ export class ContainersPage {
   pendingContainerDeleteMessage(): string {
     const pending = this.pendingDeleteContainer();
     if (!pending) {
-      return 'Remove this container permanently? This action cannot be undone.';
+      return 'Remove this container permanently? \n This action cannot be undone.';
     }
 
-    return `Remove ${formatDockerNames(pending.Names)} permanently? This action cannot be undone.`;
+    return `Remove ${formatDockerNames(pending.Names)} permanently? \n This action cannot be undone.`;
   }
 
   pendingSelectionDeleteMessage(): string {
-    return `Remove ${this.selectedContainers().length} selected containers permanently? This action cannot be undone.`;
+    return `Remove ${this.selectedContainers().length} selected containers permanently? \n This action cannot be undone.`;
   }
 
   private async runContainerAction(containerId: string, action: () => Promise<void>): Promise<void> {
