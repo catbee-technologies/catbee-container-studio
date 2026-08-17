@@ -1,9 +1,15 @@
-<header class="titlebar" [class.is-macos]="isMacOS" role="banner" aria-label="Application title bar">
-  @if (isMacOS) {
+<header
+  class="titlebar"
+  [class.is-macos]="isMacOS"
+  [class.is-fullscreen]="isWindowFullscreen()"
+  role="banner"
+  aria-label="Application title bar"
+>
+  @if (isMacOS && !isWindowFullscreen()) {
     <div class="macos-controls-spacer" aria-hidden="true"></div>
   }
 
-  <div class="titlebar-left">
+  <div class="titlebar-left" [class.is-fullscreen]="isWindowFullscreen()">
     <img src="favicon.ico" alt="CatBee Container Studio logo" class="brand-icon" aria-hidden="true" />
     <span class="product-name">CatBee Container Studio</span>
   </div>
