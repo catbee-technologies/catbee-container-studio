@@ -1,43 +1,29 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, input, output } from '@angular/core';
+import { Component, computed, inject, input } from '@angular/core';
 import { DockerApiService } from '@core/docker-api.service';
+import { MenuComponent } from '@components/menu/menu';
 import { DockerPortInfo } from '@shared/types/docker-api.types';
 import { formatDockerPort, normalizeDockerPorts, resolveDockerPortHref } from '@utils/docker-port.utils';
+import { MenuService } from '@components/menu/menu.service';
 
 @Component({
   selector: 'catbee-container-studio-port-list',
-  imports: [CommonModule],
+  imports: [CommonModule, MenuComponent],
   templateUrl: './port-list.html',
   styleUrl: './port-list.scss'
 })
 export class PortListComponent {
   private readonly dockerApi = inject(DockerApiService);
+  private readonly menuState = inject(MenuService);
+  private readonly menuId = Symbol('port-menu');
 
   readonly ports = input<DockerPortInfo[]>([]);
   readonly containerState = input('');
-  readonly expanded = input(false);
-  readonly collapseAt = input(2);
   readonly noPortsLabel = input('-');
-  readonly mono = input(false);
 
-  readonly expandedChange = output<boolean>();
-
-  normalizedPorts(): DockerPortInfo[] {
-    return normalizeDockerPorts(this.ports());
-  }
-
-  visiblePorts(): DockerPortInfo[] {
-    const all = this.normalizedPorts();
-    if (this.expanded()) {
-      return all;
-    }
-
-    return all.slice(0, this.collapseAt());
-  }
-
-  shouldShowToggle(): boolean {
-    return this.normalizedPorts().length > this.collapseAt();
-  }
+  readonly normalizedPorts = computed(() => normalizeDockerPorts(this.ports()));
+  readonly firstPort = computed(() => this.normalizedPorts()[0] ?? null);
+  readonly hasMultiple = computed(() => this.normalizedPorts().length > 1);
 
   formatPort(port: DockerPortInfo): string {
     return formatDockerPort(port);
@@ -47,12 +33,20 @@ export class PortListComponent {
     return resolveDockerPortHref(port, this.containerState());
   }
 
-  toggleExpanded(event: MouseEvent): void {
-    event.stopPropagation();
-    this.expandedChange.emit(!this.expanded());
+  isMenuOpen(): boolean {
+    return this.menuState.isOpen(this.menuId);
   }
 
-  async openPortLink(event: MouseEvent, href: string): Promise<void> {
+  toggleMenu(event: MouseEvent): void {
+    event.stopPropagation();
+    this.menuState.toggle(this.menuId);
+  }
+
+  closeMenu(): void {
+    this.menuState.close(this.menuId);
+  }
+
+  async openPort(event: MouseEvent, href: string): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
     await this.dockerApi.openExternalUrl(href);

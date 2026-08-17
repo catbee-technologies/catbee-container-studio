@@ -1,25 +1,32 @@
 @if (normalizedPorts().length === 0) {
-  <span class="muted" [class.mono]="mono()">{{ noPortsLabel() }}</span>
-} @else {
-  <div class="ports-list">
-    @for (port of visiblePorts(); track $index) {
-      @if (portHref(port); as href) {
-        <a class="port-link" [class.mono]="mono()" [href]="href" (click)="openPortLink($event, href)">
-          {{ formatPort(port) }}
-        </a>
-      } @else {
-        <span class="port-text" [class.mono]="mono()">{{ formatPort(port) }}</span>
-      }
-    }
-  </div>
-
-  @if (shouldShowToggle()) {
-    <button type="button" class="ports-toggle" (click)="toggleExpanded($event)">
-      @if (expanded()) {
-        Show less
-      } @else {
-        Show all {{ normalizedPorts().length }} ports
-      }
-    </button>
+  <span class="no-ports">{{ noPortsLabel() }}</span>
+} @else if (!hasMultiple()) {
+  @if (portHref(firstPort()!); as href) {
+    <a class="port-chip port-link" [href]="href" (click)="openPort($event, href)">{{ formatPort(firstPort()!) }}</a>
+  } @else {
+    <span class="port-chip">{{ formatPort(firstPort()!) }}</span>
   }
+} @else {
+  <catbee-container-studio-menu [open]="isMenuOpen()" minWidth="13rem" (dismissed)="closeMenu()">
+    <button menuTrigger type="button" class="ports-btn" (click)="toggleMenu($event)">
+      <span class="mat-icon-filled" aria-hidden="true">lan</span>
+      {{ normalizedPorts().length }} ports
+      <span class="mat-icon-filled chevron" aria-hidden="true">expand_more</span>
+    </button>
+    <div menuContent class="ports-menu-list">
+      @for (port of normalizedPorts(); track $index) {
+        @if (portHref(port); as href) {
+          <a class="ports-menu-item port-link" [href]="href" (click)="openPort($event, href)">
+            <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
+            {{ formatPort(port) }}
+          </a>
+        } @else {
+          <span class="ports-menu-item">
+            <span class="mat-icon-filled" aria-hidden="true">lan</span>
+            {{ formatPort(port) }}
+          </span>
+        }
+      }
+    </div>
+  </catbee-container-studio-menu>
 }
