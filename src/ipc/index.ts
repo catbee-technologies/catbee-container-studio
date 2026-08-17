@@ -232,14 +232,20 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.removeHandler(IPC_CHANNELS.App.Window.GetState);
-  ipcMain.handle(IPC_CHANNELS.App.Window.GetState, async (event): Promise<IpcResult<{ maximized: boolean }>> => {
-    const window = BrowserWindow.fromWebContents(event.sender);
-    if (!window) {
-      return fail(new Error('Window not found.'));
-    }
+  ipcMain.handle(
+    IPC_CHANNELS.App.Window.GetState,
+    async (event): Promise<IpcResult<{ maximized: boolean; fullscreen: boolean }>> => {
+      const window = BrowserWindow.fromWebContents(event.sender);
+      if (!window) {
+        return fail(new Error('Window not found.'));
+      }
 
-    return ok({ maximized: window.isMaximized() });
-  });
+      return ok({
+        maximized: window.isMaximized(),
+        fullscreen: window.isFullScreen()
+      });
+    }
+  );
 
   ipcMain.removeHandler(IPC_CHANNELS.App.Window.ToggleMaximize);
   ipcMain.handle(IPC_CHANNELS.App.Window.ToggleMaximize, async (event): Promise<IpcResult<{ maximized: boolean }>> => {
