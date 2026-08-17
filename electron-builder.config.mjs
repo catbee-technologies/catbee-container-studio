@@ -30,6 +30,9 @@ export default {
     ]
   },
   mac: {
+    sign: {
+      hardenedRuntime: true,
+    },
     icon: 'assets/icons/macos/catbee-icon.icns',
     target: [
       {
@@ -41,7 +44,6 @@ export default {
         arch: 'universal'
       }
     ],
-    hardenedRuntime: true
   },
   linux: {
     target: ['deb', 'zip'],
