@@ -4,15 +4,28 @@
       <span class="mat-icon-filled" aria-hidden="true">arrow_back</span>
     </button>
 
-    <div class="title-wrap">
-      <h1>{{ name() }}</h1>
-      @if (container(); as current) {
-        <p>
-          <button type="button" class="link-btn title-image-link" (click)="openImageDetails(imageRouteRef())">
-            {{ current.Image }}
-          </button>
-          <span aria-hidden="true"> • </span>{{ current.Id.slice(0, 12) }}
-        </p>
+    <div class="header-main">
+      <div class="title-wrap">
+        <h1>{{ name() }}</h1>
+        @if (container(); as current) {
+          <p>
+            <button type="button" class="link-btn title-image-link" (click)="openImageDetails(imageRouteRef())">
+              {{ current.Image }}
+            </button>
+            <span aria-hidden="true"> • </span>{{ current.Id.slice(0, 12) }}
+          </p>
+        }
+      </div>
+
+      @if (container(); as currentContainer) {
+        <catbee-container-studio-container-overview-card
+          class="overview-inline"
+          [container]="currentContainer"
+          [imageRef]="imageRouteRef()"
+          [stats]="stats()"
+          [showAllPorts]="showAllPorts()"
+          (showAllPortsChange)="setShowAllPorts($event)"
+        />
       }
     </div>
 
@@ -74,15 +87,6 @@
   }
 
   @if (container(); as currentContainer) {
-    <catbee-container-studio-container-overview-card
-      class="catbee-base-panel"
-      [container]="currentContainer"
-      [imageRef]="imageRouteRef()"
-      [stats]="stats()"
-      [showAllPorts]="showAllPorts()"
-      (showAllPortsChange)="setShowAllPorts($event)"
-    />
-
     <section class="catbee-base-panel tabs" aria-label="Container tabs">
       <catbee-container-studio-tabs
         [tabs]="tabs"
