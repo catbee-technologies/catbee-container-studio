@@ -184,7 +184,7 @@
 <catbee-container-studio-confirm-dialog
   [open]="pendingDeleteVolumeNames().length > 0"
   [title]="pendingDeleteVolumeNames().length > 1 ? 'Remove Volumes' : 'Remove Volume'"
-  [message]="'Remove ' + pendingDeleteLabel() + '? All data in these volumes will be permanently deleted.'"
+  [message]="'Remove ' + pendingDeleteLabel() + '? \n All data in these volumes will be permanently deleted.'"
   confirmLabel="Remove"
   [dangerous]="true"
   (confirm)="confirmDelete()"
@@ -194,7 +194,7 @@
 <catbee-container-studio-confirm-dialog
   [open]="confirmPruneOpen()"
   title="Prune Unused Volumes"
-  message="Remove all volumes not used by any container? All data in those volumes will be permanently deleted."
+  [message]="'Remove all volumes not used by any container? \n All data in those volumes will be permanently deleted.'"
   confirmLabel="Prune"
   [dangerous]="true"
   (confirm)="confirmPrune()"

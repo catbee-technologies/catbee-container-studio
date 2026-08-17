@@ -6,35 +6,53 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 1rem;
+  box-sizing: border-box;
   background: radial-gradient(circle at center, rgb(0 0 0), rgba(4, 16, 27, 0.8));
   z-index: 50;
   animation: backdrop-enter 180ms ease-out both;
 
   .catbee-dialog {
-    width: min(28rem, calc(100vw - 2rem));
+    width: min(28rem, 100%);
     max-height: calc(100dvh - 2rem);
-    overflow: auto;
+    display: flex;
+    flex-direction: column;
     padding: 1rem;
+    box-sizing: border-box;
     border-radius: 0.95rem;
     border: 1px solid rgb(130 178 220 / 0.32);
     box-shadow: 0 20px 56px rgb(2 8 20 / 0.52);
     animation: dialog-enter 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 
     h2 {
+      flex-shrink: 0;
       margin: 0;
     }
 
-    p {
-      margin: 0.7rem 0 0;
-      line-height: 1.45;
-      color: var(--ink-300);
+    .catbee-dialog-message {
+      min-height: 0;
+      overflow-y: auto;
+      margin-top: 0.7rem;
+      word-break: break-word;
+      white-space: pre-line;
+
+      p {
+        margin: 0;
+        line-height: 1.45;
+        color: var(--ink-300);
+      }
     }
 
     .catbee-dialog-actions {
+      flex-shrink: 0;
       display: flex;
       justify-content: flex-end;
       gap: 0.5rem;
       margin-top: 1rem;
+
+      button {
+        font-size: var(--font-size-base);
+      }
     }
   }
 
