@@ -10,8 +10,8 @@
 
   .options-menu {
     position: absolute;
-    top: calc(100% + 0.35rem);
     right: 0;
+
     border: 1px solid rgb(120 172 213 / 0.45);
     background: linear-gradient(160deg, rgb(14 30 45 / 0.98), rgb(9 23 36 / 0.98));
     border-radius: 0.75rem;
@@ -20,5 +20,17 @@
     z-index: 8;
     display: grid;
     gap: 0.25rem;
+    max-height: 10rem;
+    overflow: auto;
+
+    &.menu-bottom {
+      top: calc(100% + 0.35rem);
+      bottom: auto;
+    }
+
+    &.menu-top {
+      bottom: calc(100% + 0.35rem);
+      top: auto;
+    }
   }
 }

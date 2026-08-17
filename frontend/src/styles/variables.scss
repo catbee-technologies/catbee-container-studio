@@ -1,0 +1,220 @@
+:root,
+:host {
+  --main-font: 'Inter', sans-serif;
+  --mono-font: 'JetBrains Mono', monospace;
+
+  // Font Size Scale
+  --font-size-xs: 0.7rem;
+  --font-size-sm: 0.76rem;
+  --font-size-base: 0.95rem;
+  --font-size-lg: 1.1rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+
+  // Icon Sizes
+  --icon-size-sm: 1rem;
+  --icon-size-md: 1.1rem;
+  --icon-size-lg: 1.5rem;
+
+  // Line Heights
+  --line-height-tight: 1;
+  --line-height-normal: 1.4;
+  --line-height-relaxed: 1.6;
+
+  // Letter Spacing
+  --letter-spacing-tight: -0.01em;
+  --letter-spacing-normal: normal;
+  --letter-spacing-wide: 0.08em;
+
+  --font-size-heading-responsive: clamp(1.25rem, 1.8vw, 1.5rem);
+
+  // Text Colors (Ink palette)
+  --ink-100: #e8f0f7; // Primary text - lightest
+  --ink-200: #b9d7f5; // Secondary text
+  --ink-300: #8b9fbd; // Tertiary text
+  --ink-400: #5a6f85; // Quaternary text
+  --ink-700: #3a4d5a; // Disabled/readonly text
+
+  // PRIMARY COLORS (Blues & Cyans)
+  --color-primary-light: #8beeff;
+  --color-primary-base: #58a6ff;
+  --color-primary-dark: #0366d6;
+
+  // Accent/Info Colors
+  --color-info-light: #c8e9ff;
+  --color-info-base: #79c0ff;
+  --color-info-dark: #0969da;
+
+  // Cyan/Teal Colors
+  --color-cyan-light: #7ff3ff;
+  --color-cyan-base: #39d5ff;
+  --color-cyan-dark: #0ea5e9;
+
+  // SUCCESS COLORS (Greens & Teals)
+  --color-success-light: #cbffe8;
+  --color-success-base: #56d364;
+  --color-success-dark: #238636;
+
+  // Mint/Teal Success States
+  --color-mint-light: #bfffe8;
+  --color-mint-base: #5be2ae;
+  --color-mint-dark: #238636;
+
+  // Running/Active State (bright teal)
+  --color-running-light: #cbffe8;
+  --color-running-base: #74df69;
+  --color-running-dark: #238636;
+
+  // WARNING COLORS (Yellows & Oranges)
+  --color-warning-light: #fff1d3;
+  --color-warning-base: #f2cc60;
+  --color-warning-dark: #d29922;
+
+  // Pause State (yellow/gold)
+  --color-pause-light: #fff0c6;
+  --color-pause-base: #e3b341;
+  --color-pause-dark: #9e6a03;
+
+  // DANGER/ERROR COLORS (Reds & Oranges)
+  --color-danger-light: #ffe1e8;
+  --color-danger-base: #ff6b6b;
+  --color-danger-dark: #da3633;
+
+  // Stop State (orange-red)
+  --color-stop-light: #ffe2d5;
+  --color-stop-base: #ff7b72;
+  --color-stop-dark: #da3633;
+
+  // Error Banner (error red)
+  --color-error-light: #ffe8ef;
+  --color-error-base: #ff6b6b;
+  --color-error-dark: #da3633;
+
+  // BACKGROUND COLORS
+  // Dark Navy Backgrounds (main app)
+  --bg-dark-primary: rgb(9 20 34 / 0.8);
+  --bg-dark-secondary: rgb(7 16 29 / 0.65);
+  --bg-dark-tertiary: rgb(14 30 45 / 0.98);
+
+  // Sidebar & Navigation
+  --bg-sidebar: linear-gradient(180deg, rgb(9 20 34 / 0.8), rgb(7 16 29 / 0.65));
+  --bg-surface: linear-gradient(180deg, rgb(30 52 75 / 0.56), rgb(20 36 56 / 0.62));
+
+  // Component Backgrounds
+  --bg-hover: rgb(97 170 231 / 0.2);
+  --bg-active: linear-gradient(120deg, rgb(24 101 118 / 0.5), rgb(27 140 122 / 0.28));
+
+  // Table Row Backgrounds
+  --bg-table-row-group: linear-gradient(150deg, rgb(11 28 44 / 0.86), rgb(8 22 37 / 0.76));
+  --bg-table-row-hover: linear-gradient(90deg, rgb(76 154 223 / 0.14), rgb(57 205 182 / 0.08));
+
+  // BORDER COLORS
+  --border-color-light: rgb(140 170 192 / 0.2);
+  --border-color-primary: rgb(147 179 210 / 0.18);
+  --border-color-accent: rgb(143 170 193 / 0.35);
+  --border-color-hover: rgb(149 197 237 / 0.75);
+
+  // State-specific Borders
+  --border-color-success: rgb(74 223 169 / 0.58);
+  --border-color-warning: rgb(245 191 90 / 0.62);
+  --border-color-danger: rgb(245 108 126 / 0.66);
+  --border-color-error: rgb(255 123 142 / 0.62);
+
+  // BUTTON COLORS & GRADIENTS
+  // Default Button Gradient
+  --btn-default-gradient: linear-gradient(180deg, rgb(37 61 84 / 0.8), rgb(20 38 58 / 0.82));
+  --btn-default-gradient-hover: linear-gradient(180deg, rgb(56 90 122 / 0.88), rgb(28 51 76 / 0.86));
+
+  // Success/Start Button
+  --btn-success-gradient: linear-gradient(180deg, rgb(25 132 105 / 0.92), rgb(18 95 82 / 0.9));
+  --btn-success-border: rgb(56 210 151 / 0.6);
+  --btn-success-text: #dffff3;
+
+  // Warning/Pause Button
+  --btn-warning-gradient: linear-gradient(180deg, rgb(147 106 34 / 0.9), rgb(108 74 20 / 0.92));
+  --btn-warning-border: rgb(245 191 90 / 0.62);
+  --btn-warning-text: #fff1d3;
+
+  // Danger/Stop Button
+  --btn-danger-gradient: linear-gradient(180deg, rgb(170 82 57 / 0.9), rgb(123 53 36 / 0.92));
+  --btn-danger-border: rgb(255 143 124 / 0.64);
+  --btn-danger-text: #ffe2d5;
+
+  // Info/Restart Button
+  --btn-info-gradient: linear-gradient(180deg, rgb(54 101 176 / 0.9), rgb(37 71 132 / 0.92));
+  --btn-info-border: rgb(123 176 255 / 0.66);
+  --btn-info-text: #deeeff;
+
+  // Unpause Button (secondary teal)
+  --btn-unpause-gradient: linear-gradient(180deg, rgb(28 130 108 / 0.88), rgb(17 95 82 / 0.9));
+  --btn-unpause-border: rgb(108 219 186 / 0.62);
+  --btn-unpause-text: #defef2;
+
+  // Destructive/Delete Button
+  --btn-delete-gradient: linear-gradient(180deg, rgb(165 44 75 / 0.93), rgb(121 28 56 / 0.95));
+  --btn-delete-border: rgb(245 108 126 / 0.66);
+  --btn-delete-text: #ffe1e8;
+  --btn-delete-hover: linear-gradient(180deg, rgb(190 49 86 / 0.96), rgb(137 31 63 / 0.97));
+
+  // BADGE COLORS
+  // Running Badge
+  --badge-running-gradient: linear-gradient(140deg, rgb(42 188 134 / 0.28), rgb(21 130 101 / 0.3));
+  --badge-running-border: rgb(74 223 169 / 0.58);
+  --badge-running-text: #cbffe8;
+
+  // Stopped Badge
+  --badge-stopped-gradient: linear-gradient(140deg, rgb(206 104 64 / 0.28), rgb(144 66 39 / 0.3));
+  --badge-stopped-border: rgb(255 153 115 / 0.55);
+  --badge-stopped-text: #ffe0cd;
+
+  // Total Badge (info)
+  --badge-total-gradient: linear-gradient(140deg, rgb(73 145 213 / 0.28), rgb(38 96 162 / 0.3));
+  --badge-total-border: rgb(100 175 255 / 0.55);
+  --badge-total-text: #c8e9ff;
+
+  // Size Badge (purple)
+  --badge-size-gradient: linear-gradient(140deg, rgb(130 80 190 / 0.28), rgb(90 50 140 / 0.3));
+  --badge-size-border: rgb(190 140 255 / 0.5);
+  --badge-size-text: #e8d4ff;
+
+  // Dangling Badge (same as stopped)
+  --badge-dangling-gradient: linear-gradient(140deg, rgb(206 104 64 / 0.28), rgb(144 66 39 / 0.3));
+  --badge-dangling-border: rgb(255 153 115 / 0.55);
+  --badge-dangling-text: #ffe0cd;
+
+  // STATE COLORS
+  // Active/Selected
+  --color-active-text: #e8fff8;
+  --color-active-border: rgb(81 203 168 / 0.45);
+
+  // Hover
+  --color-hover-text: #ebfcff;
+
+  // Disabled
+  --color-disabled-opacity: 0.55;
+
+  // SCROLLBAR COLORS
+  --scrollbar-track-bg: rgb(103 156 201 / 0.55);
+  --scrollbar-thumb-bg: rgb(129 180 224 / 0.72);
+  --scrollbar-thumb-hover: rgb(95 149 196 / 0.72);
+  --scrollbar-border-color: rgb(131 164 190 / 0.45);
+
+  // SPACING (Optional, for consistency)
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.375rem;
+  --spacing-md: 0.5rem;
+  --spacing-lg: 0.75rem;
+  --spacing-xl: 1rem;
+  --spacing-2xl: 1.5rem;
+
+  // BORDER RADIUS
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.8rem;
+  --radius-full: 999px;
+
+  // TRANSITIONS
+  --transition-fast: 120ms ease;
+  --transition-base: 140ms ease;
+  --transition-slow: 180ms ease;
+}
