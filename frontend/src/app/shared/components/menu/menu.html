@@ -4,6 +4,8 @@
   @if (open()) {
     <div
       class="options-menu"
+      [class.menu-top]="placement() === 'top'"
+      [class.menu-bottom]="placement() === 'bottom'"
       [style.min-width]="minWidth()"
       role="menu"
       tabindex="-1"
