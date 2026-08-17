@@ -1,37 +1,109 @@
 :host {
-  display: block;
+  display: inline-flex;
+  align-items: center;
 }
 
-.ports-list {
-  display: grid;
-  gap: 0.2rem;
-  max-height: 6.5rem;
-  overflow: auto;
+.no-ports {
+  font-size: var(--font-size-sm);
+  color: var(--ink-400);
+  padding: 0.25rem 0.5rem;
+}
 
-  .port-link {
-    color: #7ff3ff;
-    text-decoration: underline;
-    text-decoration-color: rgb(127 243 255 / 0.6);
-    text-underline-offset: 0.16rem;
+.port-chip {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--mono-font);
+  font-size: var(--font-size-xs);
+  color: #7ff3ff;
+  background: rgb(0 180 200 / 0.1);
+  border: 1px solid rgb(127 243 255 / 0.25);
+  border-radius: var(--radius-full);
+  padding: 0.25rem 0.5rem;
+  white-space: nowrap;
+  text-decoration: none;
+
+  &.port-link {
+    cursor: pointer;
 
     &:hover {
       color: #b0ffff;
-      text-decoration-color: rgb(176 255 255 / 0.9);
+      border-color: rgb(176 255 255 / 0.5);
+      background: rgb(0 200 220 / 0.18);
     }
   }
 }
 
-.port-text,
-.ports-toggle {
-  margin-top: 0.35rem;
-  border: 0;
-  background: transparent;
-  color: var(--ink-300);
+.ports-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--font-size-xs);
+  font-family: var(--mono-font);
+  color: var(--ink-200);
+  background: rgb(114 167 208 / 0.12);
+  border: 1px solid rgb(114 167 208 / 0.28);
+  border-radius: var(--radius-full);
+  padding: 0.18rem 0.55rem 0.18rem 0.45rem;
   cursor: pointer;
-  padding: 0;
-  font-size: 0.78rem;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+
+  .mat-icon-filled {
+    font-size: var(--icon-size-sm);
+    line-height: 1;
+  }
+
+  .chevron {
+    font-size: 0.85rem;
+    opacity: 0.6;
+  }
+
+  &:hover {
+    color: var(--ink-100);
+    border-color: rgb(149 197 237 / 0.55);
+    background: rgb(114 167 208 / 0.2);
+  }
 }
 
-.ports-toggle:hover {
-  color: #baf2ff;
+.ports-menu-list {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.ports-menu-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--mono-font);
+  font-size: var(--font-size-sm);
+  color: var(--ink-200);
+  padding: 0.32rem 0.5rem;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--transition-fast);
+
+  .mat-icon-filled {
+    font-size: var(--icon-size-sm);
+    opacity: 0.65;
+  }
+
+  &.port-link {
+    color: #7ff3ff;
+    cursor: pointer;
+
+    .mat-icon-filled {
+      color: #7ff3ff;
+      opacity: 0.8;
+    }
+
+    &:hover {
+      background: rgb(0 180 200 / 0.14);
+      color: #b0ffff;
+    }
+  }
+
+  &:not(.port-link):hover {
+    background: rgb(114 167 208 / 0.1);
+  }
 }

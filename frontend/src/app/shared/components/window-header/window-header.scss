@@ -16,9 +16,9 @@
   }
 
   .macos-controls-spacer {
-    width: 4.6rem;
+    width: calc(4.6rem / var(--app-zoom-factor, 1));
     height: 100%;
-    flex: 0 0 4.6rem;
+    flex: 0 0 calc(4.6rem / var(--app-zoom-factor, 1));
   }
 
   .titlebar-left {
@@ -34,8 +34,12 @@
     .product-name {
       font-weight: 600;
       letter-spacing: 0.02em;
-      font-size: 0.95rem;
+      font-size: var(--font-size-base);
       color: var(--ink-100);
+    }
+
+    &.is-fullscreen {
+      margin-left: 0.75rem;
     }
   }
 
@@ -66,7 +70,7 @@
       }
 
       .mat-icon-filled {
-        font-size: 1.1rem;
+        font-size: var(--font-size-lg);
       }
     }
   }

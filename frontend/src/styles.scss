@@ -1,3 +1,4 @@
+@use './styles/variables';
 @use './styles/fonts';
 @use './styles/utils';
 @use './styles/tables';
@@ -10,24 +11,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
 @import '@xterm/xterm/css/xterm.css';
-
-:root {
-  --ink-100: #f4f9ff;
-  --ink-300: #b4c7da;
-  --ink-400: #89a0b7;
-  --ink-500: #6d88a6;
-  --mint-200: #98f8dc;
-  --mint-300: #54e2be;
-  --mint-500: #1fc7a1;
-  --blue-500: #4f9de8;
-  --lime-400: #7cf7aa;
-  --amber-400: #ffd276;
-  --rose-400: #ff9aa6;
-  --cyan-400: #86f3ff;
-  --bg-950: #07121f;
-  --main-font: 'Inter', sans-serif;
-  --mono-font: 'JetBrains Mono', monospace;
-}
 
 * {
   box-sizing: border-box;
@@ -120,7 +103,7 @@ textarea {
     'wght' 500,
     'GRAD' 0,
     'opsz' 24;
-  font-size: 1.15rem;
+  font-size: var(--icon-size-md);
   line-height: 1;
   vertical-align: middle;
 }
@@ -142,7 +125,7 @@ textarea {
 
   h1 {
     margin: 0.2rem 0;
-    font-size: clamp(1.9rem, 2vw, 2rem);
+    font-size: var(--font-size-heading-responsive);
     line-height: 1.1;
     font-weight: 700;
     background: linear-gradient(100deg, #c9f4ff, #86f3ff 35%, #8af7cd 85%);
@@ -156,7 +139,7 @@ textarea {
     color: var(--mint-200);
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    font-size: 0.78rem;
+    font-size: var(--font-size-sm);
     font-weight: 700;
   }
 
@@ -202,7 +185,7 @@ textarea {
 }
 
 .selection-count {
-  font-size: 0.82rem;
+  font-size: var(--font-size-sm);
   color: var(--ink-300);
   margin-right: 0.2rem;
 }
@@ -233,7 +216,7 @@ textarea {
   height: 100%;
   min-height: 0;
   gap: 0.75rem;
-  padding: clamp(0.85rem, 2vw, 1.1rem);
+  padding: 0.75rem;
   color: var(--ink-100);
 
   .catbee-details-container-header {
@@ -246,7 +229,7 @@ textarea {
 
       h1 {
         margin: 0;
-        font-size: clamp(1.35rem, 2.1vw, 2rem);
+        font-size: var(--font-size-heading-responsive);
         background: linear-gradient(100deg, #cff5ff, #87e8ff 40%, #9dffc8 90%);
         -webkit-background-clip: text;
         background-clip: text;
@@ -257,7 +240,7 @@ textarea {
         margin: 0.25rem 0 0;
         color: #a9d8ff;
         font-family: var(--mono-font);
-        font-size: 0.84rem;
+        font-size: var(--font-size-base);
       }
     }
   }
@@ -277,7 +260,7 @@ textarea {
 
   .label {
     margin: 0;
-    font-size: 0.72rem;
+    font-size: var(--font-size-xs);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--ink-300);
@@ -285,7 +268,7 @@ textarea {
 
   .value {
     margin: 0.35rem 0 0;
-    font-size: 0.8rem;
+    font-size: var(--font-size-sm);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -316,12 +299,13 @@ textarea {
 
   &.stats-tab-panel {
     overflow: hidden;
-    padding: 0.65rem;
+    padding: 0;
+    border: none;
   }
 
   .panel-head h2 {
     margin: 0 0 0.5rem 0;
-    font-size: 0.9rem;
+    font-size: var(--font-size-base);
     color: var(--ink-200);
   }
 }
@@ -329,7 +313,7 @@ textarea {
 .container-status {
   display: inline-block;
   border-radius: 999px;
-  font-size: 0.77rem;
+  font-size: var(--font-size-sm);
   padding: 0.18rem 0.55rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -370,7 +354,7 @@ textarea {
     min-width: 3rem;
     text-align: center;
     font-family: var(--mono-font);
-    font-size: 0.75rem;
+    font-size: var(--font-size-sm);
     color: var(--ink-300);
 
     &.warn {
@@ -383,7 +367,7 @@ textarea {
 .status-detail {
   margin: 0.2rem 0 0;
   color: var(--ink-400);
-  font-size: 0.78rem;
+  font-size: var(--font-size-sm);
   font-family: var(--mono-font);
 }
 
