@@ -132,7 +132,11 @@
   }
 
   <section class="catbee-container-list-layout">
-    <div class="catbee-container-list-body catbee-base-panel" aria-label="Container list">
+    <div
+      class="catbee-container-list-body catbee-base-panel"
+      aria-label="Container list"
+      (scroll)="onContainerListScroll()"
+    >
       @if (isLoading()) {
         <catbee-container-studio-empty-state [icon]="'deployed_code'" [message]="'Loading Containers...'" />
       } @else if (visibleContainers().length === 0) {
@@ -232,12 +236,7 @@
                     </td>
                     <td>{{ container.Image }}</td>
                     <td class="col-ports">
-                      <catbee-container-studio-port-list
-                        [ports]="container.Ports"
-                        [containerState]="container.State"
-                        [expanded]="isPortsExpanded(container.Id)"
-                        (expandedChange)="setPortsExpanded(container.Id, $event)"
-                      />
+                      <catbee-container-studio-port-list [ports]="container.Ports" [containerState]="container.State" />
                     </td>
                     <td>
                       <span
@@ -282,22 +281,23 @@
                           <span class="mat-icon-filled" aria-hidden="true">delete</span>
                         </button>
 
-                        <button
-                          type="button"
-                          class="catbee-action-btn icon-only menu-trigger"
-                          (click)="toggleContainerActionsMenu($event, container.Id)"
-                          [disabled]="activeActionContainerId() === container.Id"
-                          aria-label="More actions"
-                          title="More"
-                        >
-                          <span class="mat-icon-filled" aria-hidden="true">more_vert</span>
-                        </button>
-
                         <catbee-container-studio-menu
                           [open]="openContainerActionsMenuId() === container.Id"
                           minWidth="8.5rem"
                           (dismissed)="closeContainerActionsMenu()"
                         >
+                          <button
+                            type="button"
+                            class="catbee-action-btn icon-only menu-trigger"
+                            menuTrigger
+                            (click)="toggleContainerActionsMenu($event, container.Id)"
+                            [disabled]="activeActionContainerId() === container.Id"
+                            aria-label="More actions"
+                            title="More"
+                          >
+                            <span class="mat-icon-filled" aria-hidden="true">more_vert</span>
+                          </button>
+
                           <div menuContent>
                             <button
                               type="button"

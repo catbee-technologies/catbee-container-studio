@@ -16,6 +16,7 @@ import { SwitchInputComponent } from '@components/switch-input/switch-input';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { CONTAINER_SORT_KEYS, ContainerSortKey, SORT_DIRECTIONS, SortDirection } from '@shared/types';
+import { MenuService } from '@components/menu/menu.service';
 
 interface ContainerGroup {
   id: string;
@@ -48,6 +49,7 @@ export class ContainersPage {
   private readonly router = inject(Router);
   private readonly localStorage = inject(LocalStorageService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly menuService = inject(MenuService);
   private isRuntimeSummaryUpdating = false;
   private eventsStreamId: string | null = null;
   private autoRefreshDebounce: ReturnType<typeof setTimeout> | null = null;
@@ -87,7 +89,7 @@ export class ContainersPage {
   readonly pendingDeleteSelection = signal(false);
 
   readonly collapsedGroupIds = signal<Set<string>>(new Set<string>());
-  readonly expandedPortContainerIds = signal<Set<string>>(new Set<string>());
+
   readonly selectedContainerIds = signal<Set<string>>(new Set<string>());
   readonly openContainerActionsMenuId = signal<string | null>(null);
   readonly showBulkActionsMenu = signal(false);
@@ -186,14 +188,6 @@ export class ContainersPage {
         void this.dockerApi.stopStream(this.eventsStreamId);
       }
     });
-  }
-
-  @HostListener('window:keydown', ['$event'])
-  onWindowKeydown(event: KeyboardEvent): void {
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
-      event.preventDefault();
-      this.containerSearchInput()?.focusAndSelect();
-    }
   }
 
   private async startEventStream(): Promise<void> {
@@ -317,36 +311,6 @@ export class ContainersPage {
     return this.collapsedGroupIds().has(groupId);
   }
 
-  togglePorts(containerId: string): void {
-    this.expandedPortContainerIds.update(current => {
-      const next = new Set(current);
-      if (next.has(containerId)) {
-        next.delete(containerId);
-      } else {
-        next.add(containerId);
-      }
-
-      return next;
-    });
-  }
-
-  isPortsExpanded(containerId: string): boolean {
-    return this.expandedPortContainerIds().has(containerId);
-  }
-
-  setPortsExpanded(containerId: string, expanded: boolean): void {
-    this.expandedPortContainerIds.update(current => {
-      const next = new Set(current);
-      if (expanded) {
-        next.add(containerId);
-      } else {
-        next.delete(containerId);
-      }
-
-      return next;
-    });
-  }
-
   toggleGroupSelection(group: ContainerGroup): void {
     const ids = group.containers.map(container => container.Id);
     const current = this.selectedContainerIds();
@@ -421,12 +385,16 @@ export class ContainersPage {
 
   toggleContainerActionsMenu(event: MouseEvent, containerId: string): void {
     event.stopPropagation();
-
     this.openContainerActionsMenuId.update(current => (current === containerId ? null : containerId));
   }
 
   closeContainerActionsMenu(): void {
     this.openContainerActionsMenuId.set(null);
+  }
+
+  onContainerListScroll(): void {
+    this.openContainerActionsMenuId.set(null);
+    this.menuService.closeAll();
   }
 
   toggleBulkActionsMenu(event: MouseEvent): void {
@@ -803,6 +771,14 @@ export class ContainersPage {
       }
     } finally {
       this.isRuntimeSummaryUpdating = false;
+    }
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  onWindowKeydown(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+      event.preventDefault();
+      this.containerSearchInput()?.focusAndSelect();
     }
   }
 }

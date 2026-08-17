@@ -1,6 +1,6 @@
-<section class="catbee-base-panel overview">
-  <div>
-    <p class="label">State</p>
+<section class="overview">
+  <div class="metric metric-state">
+    <span class="label">State</span>
     <span
       class="container-status state"
       [class.running]="container().State === 'running'"
@@ -9,27 +9,22 @@
       {{ container().State }}
     </span>
   </div>
-  <div>
-    <p class="label">Status</p>
-    <p class="value">{{ container().Status }}</p>
-  </div>
-  <div>
-    <p class="label">Ports</p>
+
+  <div class="metric metric-ports">
     <catbee-container-studio-port-list
-      class="value"
       [ports]="container().Ports"
       [containerState]="container().State"
-      [expanded]="showAllPorts()"
-      [mono]="true"
-      (expandedChange)="setShowAllPorts($event)"
+      noPortsLabel="No Ports"
     />
   </div>
-  <div>
-    <p class="label">CPU</p>
-    <p class="value mono">{{ formatCpu(stats()) }}</p>
+
+  <div class="metric">
+    <span class="label">CPU</span>
+    <span class="value mono">{{ formatCpu(stats()) }}</span>
   </div>
-  <div>
-    <p class="label">Memory</p>
-    <p class="value mono">{{ formatMemory(stats()) }}</p>
+
+  <div class="metric">
+    <span class="label">Memory</span>
+    <span class="value mono">{{ formatMemory(stats()) }}</span>
   </div>
 </section>

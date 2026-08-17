@@ -39,7 +39,12 @@
         }
       </div>
     </div>
-    <button type="button" class="catbee-action-btn" (click)="reconnectShellSession()" [disabled]="shellConnecting()">
+    <button
+      type="button"
+      class="catbee-action-btn reconnect-btn"
+      (click)="reconnectShellSession()"
+      [disabled]="shellConnecting()"
+    >
       Reconnect
     </button>
   </div>
