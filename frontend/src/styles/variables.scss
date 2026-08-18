@@ -29,10 +29,12 @@
   --font-size-heading-responsive: clamp(1.25rem, 1.8vw, 1.5rem);
 
   // Text Colors (Ink palette)
-  --ink-100: #e8f0f7; // Primary text - lightest
+  --ink-100: #e8f0f7; // Primary text
   --ink-200: #b9d7f5; // Secondary text
   --ink-300: #8b9fbd; // Tertiary text
   --ink-400: #5a6f85; // Quaternary text
+  --ink-500: #4b6073; // Muted text
+  --ink-600: #425565; // Low-emphasis text
   --ink-700: #3a4d5a; // Disabled/readonly text
 
   // PRIMARY COLORS (Blues & Cyans)

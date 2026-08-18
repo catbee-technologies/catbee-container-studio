@@ -140,17 +140,18 @@ button {
 }
 
 .back-btn {
-  justify-self: start;
   border: 1px solid rgb(120 190 250 / 0.5);
   background: linear-gradient(180deg, rgb(35 67 95 / 0.68), rgb(27 49 70 / 0.72));
   color: #d4f5ff;
   border-radius: var(--radius-full);
   padding: 0.3rem 0.56rem;
   display: inline-flex;
-  align-items: center;
   gap: var(--spacing-xs);
   cursor: pointer;
-  height: 100%;
+  height: 3rem;
+  width: 2rem;
+  align-items: center;
+  justify-content: center;
   font-size: var(--font-size-sm);
   transition: all var(--transition-base);
 
