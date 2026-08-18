@@ -1,27 +1,54 @@
-import { Menu, app, BrowserWindow, protocol } from 'electron';
+import { app, BrowserWindow, protocol } from 'electron';
 import { registerIpcHandlers } from '../ipc';
 import { registerAppProtocol } from './protocol';
-import { createMainWindow, syncMacTrafficLights } from './window';
+import { createMainWindow } from './window';
+import { buildApplicationMenu } from './menu';
+import { logger } from './logger';
+import { isDev, isMacOS } from './constants';
 
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
+  logger.info('Another instance is already running; quitting');
   app.quit();
 } else {
+  logger.info(`Application starting in ${isDev ? 'development' : 'production'} mode`);
   let mainWindow: BrowserWindow | null = null;
 
-  app.on('second-instance', () => {
-    if (!mainWindow) {
+  function openMainWindow(): void {
+    logger.debug('Creating main window');
+    mainWindow = createMainWindow();
+    mainWindow.maximize();
+    mainWindow.on('closed', () => {
+      logger.debug('Main window closed');
+      mainWindow = null;
+    });
+  }
+
+  function showOrCreateMainWindow(): void {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      logger.debug('Main window does not exist; creating it');
+      openMainWindow();
       return;
     }
+
     if (mainWindow.isMinimized()) {
+      logger.debug('Restoring minimized main window');
       mainWindow.restore();
     }
+
     if (!mainWindow.isVisible()) {
+      logger.debug('Showing hidden main window');
       mainWindow.show();
     }
+
     mainWindow.focus();
-    mainWindow.moveTop();
+  }
+
+  app.on('second-instance', () => {
+    logger.info('Second application instance detected');
+    showOrCreateMainWindow();
+    mainWindow?.moveTop();
   });
 
   protocol.registerSchemesAsPrivileged([
@@ -36,166 +63,34 @@ if (!gotTheLock) {
     }
   ]);
 
-  function openMainWindow(): void {
-    mainWindow = createMainWindow();
-    mainWindow.maximize();
-    mainWindow.on('closed', () => {
-      mainWindow = null;
-    });
-  }
+  app
+    .whenReady()
+    .then(() => {
+      logger.info('Application is ready');
+      buildApplicationMenu({ getMainWindow: () => mainWindow, showOrCreateMainWindow });
 
-  function applyZoomDelta(window: BrowserWindow, delta: number): void {
-    const currentLevel = window.webContents.getZoomLevel();
-    window.webContents.setZoomLevel(currentLevel + delta);
-    syncMacTrafficLights(window);
-  }
+      registerAppProtocol();
+      registerIpcHandlers();
 
-  function resetZoom(window: BrowserWindow): void {
-    window.webContents.setZoomLevel(0);
-    syncMacTrafficLights(window);
-  }
-
-  function getTargetWindow(): BrowserWindow | null {
-    return BrowserWindow.getFocusedWindow() ?? mainWindow;
-  }
-
-  function showOrCreateMainWindow(): void {
-    if (!mainWindow || mainWindow.isDestroyed()) {
       openMainWindow();
-      return;
-    }
 
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore();
-    }
-
-    if (!mainWindow.isVisible()) {
-      mainWindow.show();
-    }
-
-    mainWindow.focus();
-  }
-
-  function buildApplicationMenu(): void {
-    const isMac = process.platform === 'darwin';
-    const isDev = !app.isPackaged || process.argv.includes('--serve');
-
-    const viewSubmenu: Electron.MenuItemConstructorOptions[] = [
-      { role: 'reload' },
-      { role: 'forceReload' },
-      ...(isDev ? ([{ role: 'toggleDevTools' as const }] as Electron.MenuItemConstructorOptions[]) : []),
-      { type: 'separator' },
-      {
-        label: 'Actual Size',
-        accelerator: 'CmdOrCtrl+0',
-        click: () => {
-          const targetWindow = getTargetWindow();
-          if (!targetWindow) {
-            return;
-          }
-          resetZoom(targetWindow);
+      app.on('activate', () => {
+        logger.debug('Application activated');
+        if (BrowserWindow.getAllWindows().length === 0) {
+          openMainWindow();
         }
-      },
-      {
-        label: 'Zoom In',
-        accelerator: 'CmdOrCtrl+=',
-        click: () => {
-          const targetWindow = getTargetWindow();
-          if (!targetWindow) {
-            return;
-          }
-          applyZoomDelta(targetWindow, 0.5);
+      });
+
+      app.on('window-all-closed', () => {
+        logger.debug('All application windows closed');
+        if (!isMacOS) {
+          logger.info('Quitting application');
+          app.quit();
         }
-      },
-      {
-        label: 'Zoom Out',
-        accelerator: 'CmdOrCtrl+-',
-        click: () => {
-          const targetWindow = getTargetWindow();
-          if (!targetWindow) {
-            return;
-          }
-          applyZoomDelta(targetWindow, -0.5);
-        }
-      },
-      { type: 'separator' },
-      { role: 'togglefullscreen' }
-    ];
-
-    const template: Electron.MenuItemConstructorOptions[] = [
-      {
-        role: 'appMenu'
-      },
-      {
-        label: 'File',
-        submenu: [
-          {
-            label: 'Show CatBee Window',
-            accelerator: 'CmdOrCtrl+Shift+1',
-            click: () => {
-              showOrCreateMainWindow();
-            }
-          },
-          { type: 'separator' },
-          isMac ? { role: 'close' } : { role: 'quit' }
-        ]
-      },
-      {
-        role: 'editMenu'
-      },
-      {
-        label: 'View',
-        submenu: viewSubmenu
-      },
-      {
-        label: 'Window',
-        submenu: [
-          { role: 'minimize' as const },
-          { role: 'zoom' as const },
-          ...(isMac
-            ? ([{ type: 'separator' }, { role: 'front' as const }] as Electron.MenuItemConstructorOptions[])
-            : [{ role: 'close' as const }])
-        ]
-      },
-      {
-        role: 'help',
-        submenu: [
-          {
-            label: 'About CatBee Container Studio',
-            click: () => {
-              app.showAboutPanel();
-            }
-          },
-          {
-            label: 'Show Main Window',
-            click: () => {
-              showOrCreateMainWindow();
-            }
-          }
-        ]
-      }
-    ];
-
-    const menu = Menu.buildFromTemplate(template);
-    Menu.setApplicationMenu(menu);
-  }
-
-  app.whenReady().then(() => {
-    buildApplicationMenu();
-    registerAppProtocol();
-    registerIpcHandlers();
-    openMainWindow();
-
-    app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
-        openMainWindow();
-      }
+      });
+    })
+    .catch((error: unknown) => {
+      logger.fatal({ err: error }, 'Failed to initialize application');
+      app.quit();
     });
-
-    app.on('window-all-closed', () => {
-      if (process.platform !== 'darwin') {
-        app.quit();
-      }
-    });
-  });
 }
