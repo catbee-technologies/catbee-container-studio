@@ -130,17 +130,17 @@ jobs:
 
           #### Windows
 
-          - **Windows x64** — [Download .exe](${BASE_URL}/CatBee%20Container%20Studio-${VERSION}-x64.exe)
+          - **Windows x64** — [Download .exe](${BASE_URL}/CatBee.Container.Studio-${VERSION}-x64.exe)
 
           #### macOS
 
-          - **macOS Universal (Intel + Apple Silicon)** — [Download .dmg](${BASE_URL}/CatBee%20Container%20Studio-${VERSION}-universal.dmg)
-          - **macOS Universal ZIP** — [Download .zip](${BASE_URL}/CatBee%20Container%20Studio-${VERSION}-universal.zip)
+          - **macOS Universal (Intel + Apple Silicon)** — [Download .dmg](${BASE_URL}/CatBee.Container.Studio-${VERSION}-universal.dmg)
+          - **macOS Universal ZIP** — [Download .zip](${BASE_URL}/CatBee.Container.Studio-${VERSION}-universal.zip)
 
           #### Linux
 
-          - **Linux x64 DEB** — [Download .deb](${BASE_URL}/CatBee%20Container%20Studio-${VERSION}-amd64.deb)
-          - **Linux x64 ZIP** — [Download .zip](${BASE_URL}/CatBee%20Container%20Studio-${VERSION}-x64.zip)
+          - **Linux x64 DEB** — [Download .deb](${BASE_URL}/CatBee.Container.Studio-${VERSION}-amd64.deb)
+          - **Linux x64 ZIP** — [Download .zip](${BASE_URL}/CatBee.Container.Studio-${VERSION}-x64.zip)
 
           ### Installation
 
