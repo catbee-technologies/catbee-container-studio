@@ -46,7 +46,7 @@
     display: inline-flex;
     align-items: center;
     font-family: var(--mono-font);
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
     color: #7ff3ff;
     background: rgb(0 180 200 / 0.1);
     border: 1px solid rgb(127 243 255 / 0.25);
@@ -150,7 +150,7 @@
     font-size: var(--font-size-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--ink-300);
+    color: var(--ink-200);
     white-space: nowrap;
   }
 

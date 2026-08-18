@@ -37,6 +37,10 @@
   &:focus-visible {
     outline: none;
   }
+
+  &::placeholder {
+    color: var(--ink-400);
+  }
 }
 
 .search-clear {
