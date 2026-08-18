@@ -1,6 +1,5 @@
 import type Docker from 'dockerode';
 import { PassThrough } from 'node:stream';
-import { createDockerClient } from './docker.client';
 import {
   DockerActionResult,
   DockerContainerMount,
@@ -9,12 +8,14 @@ import {
   DockerProgressEvent,
   DockerSystemPruneSummary
 } from './docker.types';
+import { DockerRuntimeManager } from './docker.runtime-manager';
 
 export class DockerService {
-  private readonly client: Docker;
+  private client!: Docker;
+  private readonly runtimeManager = new DockerRuntimeManager();
 
-  constructor() {
-    this.client = createDockerClient();
+  async initialize(): Promise<void> {
+    this.client = await this.runtimeManager.ensureDockerAvailable();
   }
 
   private normalizeId(value: string, label: string): string {

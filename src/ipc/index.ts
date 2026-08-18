@@ -6,7 +6,7 @@ import { DockerService } from '../main/docker/docker.service';
 import { IPC_CHANNELS } from './channels';
 import { DockerStreamEventEnvelope, IpcResult, fail, ok } from './contracts';
 
-const dockerService = new DockerService();
+export const dockerService = new DockerService();
 
 type StreamSession = {
   ownerWebContentsId: number;

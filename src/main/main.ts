@@ -1,5 +1,5 @@
 import { app, BrowserWindow, protocol } from 'electron';
-import { registerIpcHandlers } from '../ipc';
+import { dockerService, registerIpcHandlers } from '../ipc';
 import { registerAppProtocol } from './protocol';
 import { createMainWindow } from './window';
 import { buildApplicationMenu } from './menu';
@@ -65,13 +65,18 @@ if (!gotTheLock) {
 
   app
     .whenReady()
-    .then(() => {
+    .then(async () => {
       logger.info('Application is ready');
-      buildApplicationMenu({ getMainWindow: () => mainWindow, showOrCreateMainWindow });
+      try {
+        await dockerService.initialize();
+        logger.info('[DockerConnection] Docker connected successfully.');
+      } catch (error) {
+        logger.error({ err: error }, '[DockerConnection] Failed to connect to Docker.');
+      }
 
+      buildApplicationMenu({ getMainWindow: () => mainWindow, showOrCreateMainWindow });
       registerAppProtocol();
       registerIpcHandlers();
-
       openMainWindow();
 
       app.on('activate', () => {
