@@ -25,7 +25,9 @@
     "lint:ui": "cd frontend && npm run lint",
     "lint:ui:fix": "cd frontend && npm run lint -- --fix",
     "postinstall": "electron-builder install-app-deps",
-    "generate:logos": "node scripts/generate-logos.mjs"
+    "generate:logos": "node scripts/generate-logos.mjs",
+    "preversion": "npm-run-all lint lint:ui package",
+    "version": "node scripts/update-version.mjs && git add ."
   },
   "dependencies": {
     "dockerode": "^5.0.1",

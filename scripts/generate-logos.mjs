@@ -26,7 +26,7 @@ function checkCommand(command, args = []) {
   try {
     execFileSync(command, args, {
       stdio: 'ignore',
-      cwd: PROJECT_DIR,
+      cwd: PROJECT_DIR
     });
 
     return true;
@@ -43,19 +43,11 @@ function checkDependencies() {
     console.error('❌ Python is not installed or is not available in PATH.\n');
 
     if (process.platform === 'win32') {
-      console.error(
-        'Install Python from:\n' +
-        'https://www.python.org/downloads/\n'
-      );
+      console.error('Install Python from:\n' + 'https://www.python.org/downloads/\n');
     } else if (process.platform === 'darwin') {
-      console.error(
-        'Install Python with Homebrew:\n' +
-        'brew install python\n'
-      );
+      console.error('Install Python with Homebrew:\n' + 'brew install python\n');
     } else {
-      console.error(
-        'Install Python using your system package manager.\n'
-      );
+      console.error('Install Python using your system package manager.\n');
     }
 
     process.exit(1);
@@ -89,14 +81,14 @@ function checkDependencies() {
 function runPython(code) {
   execFileSync(PYTHON, ['-c', code], {
     stdio: 'inherit',
-    cwd: PROJECT_DIR,
+    cwd: PROJECT_DIR
   });
 }
 
 function runPythonModule(module, args) {
   execFileSync(PYTHON, ['-m', module, ...args], {
     stdio: 'inherit',
-    cwd: PROJECT_DIR,
+    cwd: PROJECT_DIR
   });
 }
 
@@ -181,24 +173,16 @@ function composeMacOSIcon() {
     'icon_256x256.png',
     'icon_256x256@2x.png',
     'icon_512x512.png',
-    'icon_512x512@2x.png',
+    'icon_512x512@2x.png'
   ];
 
-  runPythonModule('icnsutil', [
-    'compose',
-    '-f',
-    MACOS_ICON,
-    ...files.map((file) => path.join(MACOS_DIR, file)),
-  ]);
+  runPythonModule('icnsutil', ['compose', '-f', MACOS_ICON, ...files.map(file => path.join(MACOS_DIR, file))]);
 }
 
 function verifyMacOSIcon() {
   console.log('Verifying macOS ICNS...');
 
-  runPythonModule('icnsutil', [
-    'info',
-    MACOS_ICON,
-  ]);
+  runPythonModule('icnsutil', ['info', MACOS_ICON]);
 }
 
 function cleanupMacOS() {
@@ -207,7 +191,7 @@ function cleanupMacOS() {
   for (const file of fs.readdirSync(MACOS_DIR)) {
     if (file.endsWith('.png')) {
       fs.rmSync(path.join(MACOS_DIR, file), {
-        force: true,
+        force: true
       });
     }
   }

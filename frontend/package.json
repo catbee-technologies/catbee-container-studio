@@ -10,7 +10,8 @@
     "lint": "ng lint",
     "prelint:fix": "npm run format",
     "lint:fix": "ng lint --fix",
-    "format": "prettier --write --log-level silent \"**/*.{ts,html,scss,css}\" \"!**/*.min.css\""
+    "format": "prettier --write --log-level silent \"**/*.{ts,html,scss,css}\" \"!**/*.min.css\"",
+    "preversion": "node -e \"console.error('Do not run npm version from frontend directory.\\nRun it from the project root.\\n'); process.exit(1)\""
   },
   "private": true,
   "packageManager": "npm@10.9.8",

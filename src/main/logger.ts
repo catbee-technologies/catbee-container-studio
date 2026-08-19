@@ -1,5 +1,5 @@
 import pino from 'pino';
-import { isDev } from './constants';
+import { APP_VERSION, isDev } from './constants';
 import { app } from 'electron';
 
 export const logger = pino(
@@ -10,7 +10,7 @@ export const logger = pino(
       pid: process.pid,
       platform: process.platform,
       arch: process.arch,
-      version: app.getVersion()
+      version: APP_VERSION
     },
     timestamp: pino.stdTimeFunctions.isoTime,
 
