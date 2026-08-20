@@ -14,7 +14,7 @@
     "preversion": "node -e \"console.error('Do not run npm version from frontend directory.\\nRun it from the project root.\\n'); process.exit(1)\""
   },
   "private": true,
-  "packageManager": "npm@10.9.8",
+  "packageManager": "npm@10.9.9",
   "dependencies": {
     "@angular/common": "^22.1.0",
     "@angular/compiler": "^22.1.0",
