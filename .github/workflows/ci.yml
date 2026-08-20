@@ -4,14 +4,13 @@ run-name: CI for ${{ github.repository }} on ${{ github.ref_name }}
 on:
   push:
     branches:
-      - '**'
+      - main
 
   pull_request:
     types:
       - opened
       - synchronize
       - reopened
-      - edited
     branches:
       - '**'
 
