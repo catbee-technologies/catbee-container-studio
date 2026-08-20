@@ -1,6 +1,11 @@
-import pino from 'pino';
-import { APP_VERSION, isDev } from './constants';
 import { app } from 'electron';
+import pino from 'pino';
+import { APP_VERSION, isDev, LOG_FILE_PATH } from './constants';
+
+const destination = pino.destination({
+  dest: LOG_FILE_PATH,
+  sync: false
+});
 
 export const logger = pino(
   {
@@ -26,10 +31,12 @@ export const logger = pino(
       }
     })
   },
-  isDev
-    ? undefined
-    : pino.destination({
-        dest: `${app.getPath('logs')}/main.log`,
-        sync: false
-      })
+  isDev ? undefined : destination
 );
+
+logger.info({ logFilePath: LOG_FILE_PATH }, 'Logger initialized');
+
+app.on('before-quit', () => {
+  logger.info('Application is quitting. Flushing logs...');
+  destination.flushSync();
+});

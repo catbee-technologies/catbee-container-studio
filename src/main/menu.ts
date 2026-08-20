@@ -1,5 +1,5 @@
-import { app, BrowserWindow, Menu } from 'electron';
-import { isDev, ZOOM_CONFIG } from './constants';
+import { app, BrowserWindow, Menu, shell } from 'electron';
+import { isDev, LOG_FILE_PATH, ZOOM_CONFIG } from './constants';
 import { syncMacTrafficLights } from './mac-traffic-lights';
 
 export interface ApplicationMenuOptions {
@@ -126,7 +126,18 @@ export function buildApplicationMenu({ getMainWindow, showOrCreateMainWindow }: 
           click: () => {
             showOrCreateMainWindow();
           }
-        }
+        },
+        ...(!isDev
+          ? [
+              { type: 'separator' as const },
+              {
+                label: 'View Log File',
+                click: async () => {
+                  await shell.openPath(LOG_FILE_PATH);
+                }
+              }
+            ]
+          : [])
       ]
     }
   ];

@@ -17,3 +17,6 @@ export const ZOOM_CONFIG = {
   MAX: 3,
   STEP: 0.5
 };
+
+/** The path to the log file for the application. */
+export const LOG_FILE_PATH = `${app.getPath('logs')}/catbee-container-studio.log`;
