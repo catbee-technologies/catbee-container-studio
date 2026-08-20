@@ -56,7 +56,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-windows
-          path: build/*.exe
+          path: |
+            build/*.exe
+            build/*.zip
           if-no-files-found: error
           retention-days: 1
 
@@ -130,23 +132,39 @@ jobs:
 
           #### Windows
 
-          - **Windows x64** — [Download .exe](${BASE_URL}/CatBee.Container.Studio-${VERSION}-x64.exe)
+          - **Windows x64 Installer** — [Download .exe](${BASE_URL}/CatBee-Container-Studio-${VERSION}-win-x64.exe)
+          - **Windows x64 Portable** — [Download .zip](${BASE_URL}/CatBee-Container-Studio-${VERSION}-win-x64.zip)
 
           #### macOS
 
-          - **macOS Universal (Intel + Apple Silicon)** — [Download .dmg](${BASE_URL}/CatBee.Container.Studio-${VERSION}-universal.dmg)
-          - **macOS Universal ZIP** — [Download .zip](${BASE_URL}/CatBee.Container.Studio-${VERSION}-universal.zip)
+          - **macOS Universal (Intel + Apple Silicon)** — [Download .dmg](${BASE_URL}/CatBee-Container-Studio-${VERSION}-mac-universal.dmg)
+          - **macOS Universal (Intel + Apple Silicon)** — [Download .zip](${BASE_URL}/CatBee-Container-Studio-${VERSION}-mac-universal.zip)
 
           #### Linux
 
-          - **Linux x64 DEB** — [Download .deb](${BASE_URL}/CatBee.Container.Studio-${VERSION}-amd64.deb)
-          - **Linux x64 ZIP** — [Download .zip](${BASE_URL}/CatBee.Container.Studio-${VERSION}-x64.zip)
+          - **Linux x64 DEB** — [Download .deb](${BASE_URL}/CatBee-Container-Studio-${VERSION}-linux-amd64.deb)
+          - **Linux x64 ZIP** — [Download .zip](${BASE_URL}/CatBee-Container-Studio-${VERSION}-linux-x64.zip)
 
           ### Installation
 
-          - **Windows:** Download and run the \`.exe\` installer.
-          - **macOS:** Download the \`.dmg\`, open it, and drag CatBee Container Studio to Applications.
-          - **Linux:** Install the \`.deb\` package or extract the \`.zip\` archive.
+          #### Windows
+          Download the \`.exe\` installer and run it.
+
+          #### macOS
+          Download the \`.dmg\`, open it, and drag **CatBee Container Studio** to the **Applications** folder.
+
+          > **Note:** If macOS displays a security warning because the application is not signed or notarized, you may need to allow it in **System Settings → Privacy & Security** or remove the quarantine attribute using:
+          ```bash
+          xattr -d com.apple.quarantine "/Applications/CatBee Container Studio.app"
+          ```
+
+          #### Linux
+
+          **Debian/Ubuntu:**
+          Install the \`.deb\` package using your package manager.
+
+          **Other distributions:**
+          Download and extract the \`.zip\` archive.
           EOF
 
       - name: Determine release type
@@ -165,7 +183,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
-          name: CatBee Container Studio ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           body_path: release-notes.md
           files: |
             release/windows/**

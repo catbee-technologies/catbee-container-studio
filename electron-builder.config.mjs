@@ -2,7 +2,7 @@
 export default {
   appId: 'in.catbee.container.studio',
   productName: 'CatBee Container Studio',
-  artifactName: '${productName}-${version}-${arch}.${ext}',
+  artifactName: 'CatBee-Container-Studio-${version}-${os}-${arch}.${ext}',
   extraMetadata: {
     main: 'backend/main/main.js'
   },
@@ -25,6 +25,10 @@ export default {
     target: [
       {
         target: 'nsis',
+        arch: ['x64']
+      },
+      {
+        target: 'zip',
         arch: ['x64']
       }
     ]
