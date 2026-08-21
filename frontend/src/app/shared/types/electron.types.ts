@@ -23,15 +23,25 @@ export interface ElectronBridge {
     shell: {
       showItem: (path: string) => IpcPromise<{ shown: boolean }>;
     };
+    window?: {
+      minimize: () => IpcPromise<{ minimized: boolean }>;
+      getState: () => IpcPromise<{ maximized: boolean; fullscreen: boolean }>;
+      toggleMaximize: () => IpcPromise<{ maximized: boolean }>;
+      close: () => IpcPromise<{ closed: boolean }>;
+    };
+    menu: {
+      show: () => IpcPromise<{ shown: boolean }>;
+      showSubmenu: (label: string) => IpcPromise<{ shown: boolean }>;
+    };
   };
   docker: {
     engine: {
-      ping: () => Promise<IpcPromise<boolean>>;
-      info: () => Promise<unknown>;
-      version: () => Promise<unknown>;
-      diskUsage: () => Promise<unknown>;
-      events: (options?: Docker.GetEventsOptions) => Promise<unknown>;
-      pruneSystem: () => Promise<unknown>;
+      ping: () => IpcPromise<boolean>;
+      info: () => IpcPromise<unknown>;
+      version: () => IpcPromise<unknown>;
+      diskUsage: () => IpcPromise<unknown>;
+      events: (options?: Docker.GetEventsOptions) => IpcPromise<unknown>;
+      pruneSystem: () => IpcPromise<unknown>;
     };
     containers: {
       list: (options?: Docker.ContainerListOptions) => IpcPromise<DockerContainerInfo[]>;

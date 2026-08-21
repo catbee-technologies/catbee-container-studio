@@ -99,10 +99,6 @@ export class DockerApiService extends ElectronBaseService {
     this.unwrapResult<unknown>(response);
   }
 
-  showItemInFolder(path: string): void {
-    void this.bridge.app.shell.showItem(path);
-  }
-
   async inspectContainer(containerId: string): Promise<DockerContainerInspectInfo> {
     const response = await this.bridge.docker.containers.inspect(containerId);
     return this.unwrapResult<DockerContainerInspectInfo>(response);
@@ -178,12 +174,6 @@ export class DockerApiService extends ElectronBaseService {
     const response = await this.bridge.docker.streams.stop(streamId);
     const data = this.unwrapResult<{ stopped: boolean }>(response);
     return data.stopped;
-  }
-
-  async openExternalUrl(url: string): Promise<boolean> {
-    const response = await this.bridge.app.external.open(url);
-    const data = this.unwrapResult<{ opened: boolean }>(response);
-    return data.opened;
   }
 
   onStreamEvent(callback: (event: DockerStreamEventEnvelope) => void): () => void {

@@ -1,18 +1,30 @@
+$height: var(--window-header-height);
+
+:host {
+  height: $height;
+}
+
 .titlebar {
   -webkit-app-region: drag;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 0.35rem 0 0.75rem;
+  padding: 0 0 0 0.75rem;
   border-bottom: 1px solid rgb(140 170 192 / 0.2);
   background: linear-gradient(180deg, rgb(9 22 37 / 0.92), rgb(8 18 31 / 0.88));
   backdrop-filter: blur(8px);
-  height: 3rem;
+  height: $height;
 
   &.is-macos {
     justify-content: flex-start;
     gap: 0.7rem;
     padding: 0 0.75rem 0 0.15rem;
+
+    .titlebar-left {
+      &.is-fullscreen {
+        margin-left: 0.75rem;
+      }
+    }
   }
 
   .macos-controls-spacer {
@@ -38,8 +50,17 @@
       color: var(--ink-100);
     }
 
-    &.is-fullscreen {
-      margin-left: 0.75rem;
+    button.menu-btn {
+      -webkit-app-region: no-drag;
+      border: 0;
+      background: transparent;
+      color: var(--ink-300);
+      font-size: var(--font-size-base);
+      cursor: pointer;
+
+      &:hover {
+        color: var(--primary-500);
+      }
     }
   }
 
@@ -50,9 +71,8 @@
     .window-btn {
       -webkit-app-region: no-drag;
       border: 0;
-      width: 2rem;
-      height: 2rem;
-      border-radius: 0.5rem;
+      width: calc($height * 1.2);
+      height: $height;
       display: inline-flex;
       align-items: center;
       justify-content: center;

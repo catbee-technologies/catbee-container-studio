@@ -1,10 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, input } from '@angular/core';
-import { DockerApiService } from '@core/docker-api.service';
 import { MenuComponent } from '@components/menu/menu';
 import { DockerPortInfo } from '@shared/types/docker-api.types';
 import { formatDockerPort, normalizeDockerPorts, resolveDockerPortHref } from '@utils/docker-port.utils';
 import { MenuService } from '@components/menu/menu.service';
+import { ElectronApiService } from '@core/electron-api.service';
 
 @Component({
   selector: 'catbee-container-studio-port-list',
@@ -13,7 +13,7 @@ import { MenuService } from '@components/menu/menu.service';
   styleUrl: './port-list.scss'
 })
 export class PortListComponent {
-  private readonly dockerApi = inject(DockerApiService);
+  private readonly electronApi = inject(ElectronApiService);
   private readonly menuState = inject(MenuService);
   private readonly menuId = Symbol('port-menu');
 
@@ -49,6 +49,6 @@ export class PortListComponent {
   async openPort(event: MouseEvent, href: string): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
-    await this.dockerApi.openExternalUrl(href);
+    await this.electronApi.openExternalUrl(href);
   }
 }
