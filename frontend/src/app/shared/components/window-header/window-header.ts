@@ -1,16 +1,5 @@
-import { Component, OnDestroy, signal } from '@angular/core';
-import { IpcResult } from '@shared/types/docker-api.types';
-
-interface ElectronBridge {
-  app?: {
-    window?: {
-      minimize: () => Promise<unknown>;
-      getState: () => Promise<unknown>;
-      toggleMaximize: () => Promise<unknown>;
-      close: () => Promise<unknown>;
-    };
-  };
-}
+import { Component, inject, OnDestroy, signal } from '@angular/core';
+import { ElectronApiService } from '@core/electron-api.service';
 
 @Component({
   selector: 'catbee-container-studio-window-header',
@@ -18,6 +7,8 @@ interface ElectronBridge {
   styleUrl: './window-header.scss'
 })
 export class WindowHeaderComponent implements OnDestroy {
+  readonly electronApi = inject(ElectronApiService);
+
   isMacOS = /Mac|iPhone|iPad|iPod/i.test(globalThis.navigator?.platform ?? '');
   readonly isWindowMaximized = signal(false);
   readonly isWindowFullscreen = signal(false);
@@ -46,63 +37,28 @@ export class WindowHeaderComponent implements OnDestroy {
   }
 
   async minimizeWindow(): Promise<void> {
-    const bridge = this.getBridge();
-    const response = await bridge.app?.window?.minimize?.();
-    this.unwrapResult(response);
+    await this.electronApi.minimizeWindow();
   }
 
   async toggleMaximizeWindow(): Promise<void> {
-    const bridge = this.getBridge();
-    const response = await bridge.app?.window?.toggleMaximize?.();
-    const data = this.unwrapResult<{ maximized?: boolean; fullscreen?: boolean }>(response);
-    if (typeof data?.maximized === 'boolean') {
-      this.isWindowMaximized.set(data.maximized);
-    } else {
-      this.isWindowMaximized.update(value => !value);
-    }
-
-    if (typeof data?.fullscreen === 'boolean') {
-      this.isWindowFullscreen.set(data.fullscreen);
-    }
-
+    const data = await this.electronApi.toggleMaximizeWindow();
+    this.isWindowMaximized.set(data.maximized);
     void this.syncWindowState();
   }
 
   async closeWindow(): Promise<void> {
-    const bridge = this.getBridge();
-    const response = await bridge.app?.window?.close?.();
-    this.unwrapResult(response);
+    await this.electronApi.closeWindow();
   }
 
-  private getBridge(): ElectronBridge {
-    return (globalThis as unknown as { electron?: ElectronBridge }).electron ?? {};
-  }
-
-  private unwrapResult<T>(payload: unknown): T {
-    if (!payload || typeof payload !== 'object') {
-      return payload as T;
-    }
-
-    const candidate = payload as IpcResult<unknown>;
-    if (candidate.ok === false) {
-      throw new Error(candidate.error.message);
-    }
-
-    return candidate.data as T;
+  async showMenu(): Promise<void> {
+    await this.electronApi.showApplicationMenu();
   }
 
   private async syncWindowState(): Promise<void> {
     try {
-      const bridge = this.getBridge();
-      const response = await bridge.app?.window?.getState?.();
-      const data = this.unwrapResult<{ maximized?: boolean; fullscreen?: boolean }>(response);
-      if (typeof data?.maximized === 'boolean') {
-        this.isWindowMaximized.set(data.maximized);
-      }
-
-      if (typeof data?.fullscreen === 'boolean') {
-        this.isWindowFullscreen.set(data.fullscreen);
-      }
+      const data = await this.electronApi.getWindowState();
+      this.isWindowMaximized.set(data.maximized);
+      this.isWindowFullscreen.set(data.fullscreen);
     } catch {
       // Ignore and keep default state.
     }

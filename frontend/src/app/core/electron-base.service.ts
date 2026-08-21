@@ -1,7 +1,7 @@
 import { ElectronBridge, IpcResult } from '@shared/types';
 
 export class ElectronBaseService {
-  get bridge(): ElectronBridge {
+  protected get bridge(): ElectronBridge {
     const maybeBridge = (globalThis as unknown as { electron?: ElectronBridge }).electron;
     if (!maybeBridge) {
       throw new Error('Electron bridge is unavailable. Ensure preload is loaded.');

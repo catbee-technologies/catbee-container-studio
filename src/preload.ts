@@ -19,6 +19,10 @@ const IPC_CHANNELS = {
       GetState: 'app:window:get-state',
       ToggleMaximize: 'app:window:toggle-maximize',
       Close: 'app:window:close'
+    },
+    Menu: {
+      Show: 'app:menu:show',
+      ShowSubmenu: 'app:menu:show-submenu'
     }
   },
   Docker: {
@@ -116,6 +120,10 @@ const electronBridge = {
       getState: () => ipcRenderer.invoke(IPC_CHANNELS.App.Window.GetState),
       toggleMaximize: () => ipcRenderer.invoke(IPC_CHANNELS.App.Window.ToggleMaximize),
       close: () => ipcRenderer.invoke(IPC_CHANNELS.App.Window.Close)
+    },
+    menu: {
+      show: () => ipcRenderer.invoke(IPC_CHANNELS.App.Menu.Show),
+      showSubmenu: (label: string) => ipcRenderer.invoke(IPC_CHANNELS.App.Menu.ShowSubmenu, label)
     }
   },
   docker: {

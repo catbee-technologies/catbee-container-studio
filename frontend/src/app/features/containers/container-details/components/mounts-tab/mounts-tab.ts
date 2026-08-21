@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { DockerApiService } from '@core/docker-api.service';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { DockerContainerInspectInfo } from '@shared/types/docker-api.types';
+import { ElectronApiService } from '@core/electron-api.service';
 
 interface MountRow {
   type: string;
@@ -24,6 +25,7 @@ interface MountRow {
 })
 export class MountsTabComponent {
   private readonly dockerApi = inject(DockerApiService);
+  private readonly electronApi = inject(ElectronApiService);
   private readonly router = inject(Router);
 
   readonly inspectData = input<DockerContainerInspectInfo | null>(null);
@@ -113,7 +115,7 @@ export class MountsTabComponent {
 
   openSource(source: string): void {
     if (source && source !== '--') {
-      this.dockerApi.showItemInFolder(source);
+      this.electronApi.showItemInFolder(source);
     }
   }
 }

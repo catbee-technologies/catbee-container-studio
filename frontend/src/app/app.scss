@@ -6,7 +6,7 @@
 .desktop-shell {
   height: 100dvh;
   display: grid;
-  grid-template-rows: 3rem 1fr;
+  grid-template-rows: var(--window-header-height) 1fr;
   overflow: hidden;
 }
 

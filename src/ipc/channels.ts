@@ -11,6 +11,10 @@ export const IPC_CHANNELS = {
       GetState: 'app:window:get-state',
       ToggleMaximize: 'app:window:toggle-maximize',
       Close: 'app:window:close'
+    },
+    Menu: {
+      Show: 'app:menu:show',
+      ShowSubmenu: 'app:menu:show-submenu'
     }
   },
   Docker: {

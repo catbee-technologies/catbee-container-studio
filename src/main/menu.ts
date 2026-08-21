@@ -1,11 +1,13 @@
 import { app, BrowserWindow, Menu, shell } from 'electron';
-import { isDev, LOG_FILE_PATH, ZOOM_CONFIG } from './constants';
+import { isDev, isMacOS, LOG_FILE_PATH, ZOOM_CONFIG } from './constants';
 import { syncMacTrafficLights } from './mac-traffic-lights';
 
 export interface ApplicationMenuOptions {
   getMainWindow: () => BrowserWindow | null;
   showOrCreateMainWindow: () => void;
 }
+
+let applicationMenu: Menu | null = null;
 
 function applyZoomDelta(window: BrowserWindow, delta: number): void {
   const currentLevel = window.webContents.getZoomLevel();
@@ -25,8 +27,6 @@ function resetZoom(window: BrowserWindow): void {
 }
 
 export function buildApplicationMenu({ getMainWindow, showOrCreateMainWindow }: ApplicationMenuOptions): void {
-  const isMac = process.platform === 'darwin';
-
   const getTargetWindow = (): BrowserWindow | null => {
     return BrowserWindow.getFocusedWindow() ?? getMainWindow();
   };
@@ -94,7 +94,7 @@ export function buildApplicationMenu({ getMainWindow, showOrCreateMainWindow }: 
           }
         },
         { type: 'separator' },
-        isMac ? { role: 'close' } : { role: 'quit' }
+        isMacOS ? { role: 'close' } : { role: 'quit' }
       ]
     },
     {
@@ -109,7 +109,7 @@ export function buildApplicationMenu({ getMainWindow, showOrCreateMainWindow }: 
       submenu: [
         { role: 'minimize' },
         { role: 'zoom' },
-        ...(isMac ? [{ type: 'separator' as const }, { role: 'front' as const }] : [{ role: 'close' as const }])
+        ...(isMacOS ? [{ type: 'separator' as const }, { role: 'front' as const }] : [{ role: 'close' as const }])
       ]
     },
     {
@@ -142,5 +142,25 @@ export function buildApplicationMenu({ getMainWindow, showOrCreateMainWindow }: 
     }
   ];
 
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  applicationMenu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(applicationMenu);
+}
+
+export function showApplicationMenu(window: BrowserWindow): void {
+  if (!applicationMenu) {
+    return;
+  }
+  applicationMenu.popup({ window });
+}
+
+export function showApplicationSubmenu(window: BrowserWindow, label: string): void {
+  const menu = Menu.getApplicationMenu();
+  if (!menu) {
+    return;
+  }
+  const menuItem = menu.items.find(item => item.label === label);
+  if (!menuItem?.submenu) {
+    return;
+  }
+  menuItem.submenu.popup({ window });
 }

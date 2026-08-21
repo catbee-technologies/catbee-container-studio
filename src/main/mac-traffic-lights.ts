@@ -4,7 +4,7 @@ type WebContentsWithZoomLevelEvent = Electron.WebContents & {
   on(event: 'did-change-zoom-level', listener: () => void): Electron.WebContents;
 };
 
-const TITLEBAR_HEIGHT_PX = 48;
+const TITLEBAR_HEIGHT_PX = 38;
 const TRAFFIC_LIGHTS_GROUP_HEIGHT_PX = 14;
 const TRAFFIC_LIGHTS_BASE_OFFSET_X = 14;
 

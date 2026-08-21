@@ -1,15 +1,23 @@
+@let isFullscreen = isWindowFullscreen();
+@let isMaximized = isWindowMaximized();
+
 <header
   class="titlebar"
   [class.is-macos]="isMacOS"
-  [class.is-fullscreen]="isWindowFullscreen()"
+  [class.is-fullscreen]="isFullscreen"
   role="banner"
   aria-label="Application title bar"
 >
-  @if (isMacOS && !isWindowFullscreen()) {
+  @if (isMacOS && !isFullscreen) {
     <div class="macos-controls-spacer" aria-hidden="true"></div>
   }
 
-  <div class="titlebar-left" [class.is-fullscreen]="isWindowFullscreen()">
+  <div class="titlebar-left" [class.is-fullscreen]="isFullscreen">
+    @if (!isMacOS && !isFullscreen) {
+      <button type="button" class="menu-btn" (click)="showMenu()" aria-label="Show menu" title="Show menu">
+        <span class="mat-icon-filled" aria-hidden="true">menu</span>
+      </button>
+    }
     <img src="favicon.ico" alt="CatBee Container Studio logo" class="brand-icon" aria-hidden="true" />
     <span class="product-name">CatBee Container Studio</span>
   </div>
@@ -23,12 +31,10 @@
         type="button"
         class="window-btn"
         (click)="toggleMaximizeWindow()"
-        [attr.aria-label]="isWindowMaximized() ? 'Restore window' : 'Maximize window'"
-        [title]="isWindowMaximized() ? 'Restore' : 'Maximize'"
+        [attr.aria-label]="isMaximized ? 'Restore window' : 'Maximize window'"
+        [title]="isMaximized ? 'Restore' : 'Maximize'"
       >
-        <span class="mat-icon-filled" aria-hidden="true">{{
-          isWindowMaximized() ? 'fullscreen_exit' : 'fullscreen'
-        }}</span>
+        <span class="mat-icon-filled" aria-hidden="true">{{ isMaximized ? 'fullscreen_exit' : 'fullscreen' }}</span>
       </button>
       <button type="button" class="window-btn danger" (click)="closeWindow()" aria-label="Close window" title="Close">
         <span class="mat-icon-filled" aria-hidden="true">close</span>
