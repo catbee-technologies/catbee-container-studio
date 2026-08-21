@@ -2,6 +2,7 @@
 
 [![Build](https://github.com/catbee-technologies/catbee-container-studio/actions/workflows/ci.yml/badge.svg)](https://github.com/catbee-technologies/catbee-container-studio/actions/workflows/ci.yml)
 [![Release](https://github.com/catbee-technologies/catbee-container-studio/actions/workflows/release.yml/badge.svg)](https://github.com/catbee-technologies/catbee-container-studio/actions/workflows/release.yml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=catbee-technologies_catbee-container-studio&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=catbee-technologies_catbee-container-studio)
 [![Latest Release](https://img.shields.io/github/v/release/catbee-technologies/catbee-container-studio)](https://github.com/catbee-technologies/catbee-container-studio/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/catbee-technologies/catbee-container-studio/total)](https://github.com/catbee-technologies/catbee-container-studio/releases)
 [![License](https://img.shields.io/github/license/catbee-technologies/catbee-container-studio)](https://github.com/catbee-technologies/catbee-container-studio/blob/main/LICENSE)
