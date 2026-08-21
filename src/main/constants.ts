@@ -4,7 +4,7 @@ import { app } from 'electron';
  * The version of the application.
  * Do not modify this value manually, as it may be overwritten during the build process.
  */
-export const APP_VERSION = '0.1.0-rc.2';
+export const APP_VERSION = '0.1.0-rc.3';
 
 /** Indicates whether the application is running in development mode. */
 export const isDev = !app.isPackaged || process.argv.includes('--serve');
