@@ -10,7 +10,6 @@ import { initializeAutoUpdater } from './updater';
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
-  logger.info('Another instance is already running; quitting');
   app.quit();
 } else {
   logger.info(`Application starting in ${isDev ? 'development' : 'production'} mode`);
