@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerInfo, DockerContainerStats, DockerStreamEventEnvelope } from '@shared/types/docker-api.types';
 import { ConfirmDialogComponent } from '@components/confirm-dialog/confirm-dialog';
-import { LocalStorageService } from '@ng-catbee/storage';
+import { LocalStorageService, SessionStorageService } from '@ng-catbee/storage';
 import { MenuComponent } from '@components/menu/menu';
 import { PortListComponent } from '@components/port-list/port-list';
 import { SearchInputComponent } from '@components/search-input/search-input';
@@ -48,6 +48,7 @@ export class ContainersPage {
   private readonly dockerApi = inject(DockerApiService);
   private readonly router = inject(Router);
   private readonly localStorage = inject(LocalStorageService);
+  private readonly sessionStorage = inject(SessionStorageService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly menuService = inject(MenuService);
   private isRuntimeSummaryUpdating = false;
@@ -57,7 +58,7 @@ export class ContainersPage {
   private readonly containerSearchInput = viewChild<SearchInputComponent>('containerSearchInput');
 
   readonly containers = signal<DockerContainerInfo[]>([]);
-  readonly searchTerm = signal('');
+  readonly searchTerm = signal(this.sessionStorage.getWithDefault(UI_STORAGE_KEYS.CONTAINERS_SEARCH_QUERY, ''));
   readonly showRunningOnly = signal(
     this.localStorage.getBooleanWithDefault(
       UI_STORAGE_KEYS.CONTAINERS_RUNNING_ONLY,
@@ -251,6 +252,7 @@ export class ContainersPage {
 
   setSearchTerm(value: string): void {
     this.searchTerm.set(value);
+    this.sessionStorage.set(UI_STORAGE_KEYS.CONTAINERS_SEARCH_QUERY, value ?? '');
   }
 
   toggleRunningOnly(): void {

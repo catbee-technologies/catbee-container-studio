@@ -9,6 +9,12 @@ import { formatDockerNames } from '@utils/docker-display.utils';
 import { VolumeDetailsPrefetch } from './volume-details.resolver';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
+import { SessionStorageService } from '@ng-catbee/storage';
+import { UI_STORAGE_KEYS } from '@utils/storage.utils';
+
+enum VolumeDetailsTab {
+  Containers = 'containers'
+}
 
 @Component({
   selector: 'catbee-container-studio-volume-details-page',
@@ -22,13 +28,14 @@ export class VolumeDetailsPage {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly datePipe = inject(DatePipe);
+  private readonly sessionStorage = inject(SessionStorageService);
 
   readonly volumeName = signal('');
   readonly volume = signal<DockerVolumeInfo | null>(null);
   readonly containersInUse = signal<DockerContainerInfo[]>([]);
   readonly isLoading = signal(false);
   readonly error = signal<string | null>(null);
-  readonly activeTab = signal<'containers'>('containers');
+  readonly activeTab = signal<VolumeDetailsTab>(VolumeDetailsTab.Containers);
   readonly tabs: readonly TabItem[] = [
     { id: 'containers', label: 'Containers using this volume', icon: 'deployed_code' }
   ];
@@ -58,6 +65,17 @@ export class VolumeDetailsPage {
     const routeSub = combineLatest([this.route.paramMap, this.route.data]).subscribe(([params, data]) => {
       const name = params.get('name') ?? '';
       this.volumeName.set(name);
+      if (!name) {
+        return;
+      }
+
+      this.activeTab.set(
+        this.sessionStorage.getEnumWithDefault<VolumeDetailsTab>(
+          `${UI_STORAGE_KEYS.VOLUMES_SELECTED_TAB_PREFIX}${name}`,
+          VolumeDetailsTab.Containers,
+          Object.values(VolumeDetailsTab)
+        )
+      );
 
       const preloaded = (data['preloadedVolumeDetails'] ?? null) as VolumeDetailsPrefetch | null;
       void this.load(preloaded);
@@ -81,9 +99,12 @@ export class VolumeDetailsPage {
   }
 
   setActiveTab(tab: string): void {
-    if (tab === 'containers') {
-      this.activeTab.set(tab);
+    const allowedTabs = Object.values(VolumeDetailsTab);
+    if (!allowedTabs.includes(tab as VolumeDetailsTab)) {
+      return;
     }
+    this.activeTab.set(tab as VolumeDetailsTab);
+    this.sessionStorage.set(`${UI_STORAGE_KEYS.VOLUMES_SELECTED_TAB_PREFIX}${this.volumeName()}`, tab);
   }
 
   private getReturnTo(fallback: string): string {

@@ -16,6 +16,8 @@ import { ShellTabComponent } from './components/shell-tab/shell-tab';
 import { TabsComponent, TabItem } from '@components/tabs/tabs';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
+import { SessionStorageService } from '@ng-catbee/storage';
+import { UI_STORAGE_KEYS } from '@utils/storage.utils';
 
 enum ContainerTab {
   Logs = 'logs',
@@ -53,6 +55,7 @@ export class ContainerDetailsPage implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly sessionStorage = inject(SessionStorageService);
 
   private readonly tabScrollArea = viewChild<ElementRef<HTMLElement>>('tabScrollArea');
   private readonly logsTab = viewChild(LogsTabComponent);
@@ -69,10 +72,11 @@ export class ContainerDetailsPage implements OnDestroy {
     { id: 'stats', label: 'Stats', icon: 'monitoring' }
   ];
 
-  readonly activeTab = signal<ContainerTab>(ContainerTab.Logs);
   readonly showAllPorts = signal(false);
 
   readonly containerId = signal<string>('');
+  readonly activeTab = signal<ContainerTab>(ContainerTab.Logs);
+
   readonly container = signal<DockerContainerInfo | null>(null);
   readonly inspectData = signal<DockerContainerInspectInfo | null>(null);
   readonly stats = signal<DockerContainerStats | null>(null);
@@ -111,6 +115,14 @@ export class ContainerDetailsPage implements OnDestroy {
       if (!id) {
         return;
       }
+
+      this.activeTab.set(
+        this.sessionStorage.getEnumWithDefault<ContainerTab>(
+          `${UI_STORAGE_KEYS.CONTAINERS_SELECTED_TAB_PREFIX}${id}`,
+          ContainerTab.Logs,
+          Object.values(ContainerTab)
+        )
+      );
 
       const preloaded = (data['preloadedContainerDetails'] ?? null) as ContainerDetailsPrefetch | null;
       void this.loadContainer(id, false, preloaded);
@@ -166,6 +178,7 @@ export class ContainerDetailsPage implements OnDestroy {
       return;
     }
     this.activeTab.set(tab as ContainerTab);
+    this.sessionStorage.set(`${UI_STORAGE_KEYS.CONTAINERS_SELECTED_TAB_PREFIX}${this.containerId()}`, tab);
     this.scrollTabPanelToTop();
   }
 

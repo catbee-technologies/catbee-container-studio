@@ -9,8 +9,13 @@ import { TabsComponent, TabItem } from '@components/tabs/tabs';
 import { ImageDetailsPrefetch } from './image-details.resolver';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
+import { SessionStorageService } from '@ng-catbee/storage';
+import { UI_STORAGE_KEYS } from '@utils/storage.utils';
 
-type ImageDetailsTab = 'layers' | 'containers';
+enum ImageDetailsTab {
+  Layers = 'layers',
+  Containers = 'containers'
+}
 
 @Component({
   selector: 'catbee-container-studio-image-details-page',
@@ -24,6 +29,7 @@ export class ImageDetailsPage {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly datePipe = inject(DatePipe);
+  private readonly sessionStorage = inject(SessionStorageService);
 
   readonly imageId = signal('');
   readonly inspectData = signal<DockerImageInspectInfo | null>(null);
@@ -31,7 +37,7 @@ export class ImageDetailsPage {
   readonly history = signal<DockerImageHistoryInfo[]>([]);
   readonly isLoading = signal(false);
   readonly error = signal<string | null>(null);
-  readonly activeTab = signal<ImageDetailsTab>('layers');
+  readonly activeTab = signal<ImageDetailsTab>(ImageDetailsTab.Layers);
   readonly tabs: readonly TabItem[] = [
     { id: 'layers', label: 'Layers', icon: 'layers' },
     { id: 'containers', label: 'Containers using this image', icon: 'deployed_code' }
@@ -70,6 +76,17 @@ export class ImageDetailsPage {
     const routeSub = combineLatest([this.route.paramMap, this.route.data]).subscribe(([params, data]) => {
       const id = params.get('id') ?? '';
       this.imageId.set(id);
+      if (!id) {
+        return;
+      }
+
+      this.activeTab.set(
+        this.sessionStorage.getEnumWithDefault<ImageDetailsTab>(
+          `${UI_STORAGE_KEYS.IMAGES_SELECTED_TAB_PREFIX}${id}`,
+          ImageDetailsTab.Layers,
+          Object.values(ImageDetailsTab)
+        )
+      );
 
       const preloaded = (data['preloadedImageDetails'] ?? null) as ImageDetailsPrefetch | null;
       void this.load(preloaded);
@@ -101,9 +118,12 @@ export class ImageDetailsPage {
   }
 
   setActiveTab(tab: string): void {
-    if (tab === 'layers' || tab === 'containers') {
-      this.activeTab.set(tab);
+    const allowedTabs = Object.values(ImageDetailsTab);
+    if (!allowedTabs.includes(tab as ImageDetailsTab)) {
+      return;
     }
+    this.activeTab.set(tab as ImageDetailsTab);
+    this.sessionStorage.set(`${UI_STORAGE_KEYS.IMAGES_SELECTED_TAB_PREFIX}${this.imageId()}`, tab);
   }
 
   private getReturnTo(fallback: string): string {

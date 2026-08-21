@@ -35,7 +35,15 @@ export const UI_STORAGE_KEYS = {
   IMAGES_USAGE_FILTER: `${UI_STORAGE_PREFIX}images.usage-filter`,
   VOLUMES_SORT_KEY: `${UI_STORAGE_PREFIX}volumes.sort-key`,
   VOLUMES_SORT_DIRECTION: `${UI_STORAGE_PREFIX}volumes.sort-direction`,
-  VOLUMES_USAGE_FILTER: `${UI_STORAGE_PREFIX}volumes.usage-filter`
+  VOLUMES_USAGE_FILTER: `${UI_STORAGE_PREFIX}volumes.usage-filter`,
+
+  // Session storage keys
+  CONTAINERS_SEARCH_QUERY: `${UI_STORAGE_PREFIX}containers.search-query`,
+  CONTAINERS_SELECTED_TAB_PREFIX: `${UI_STORAGE_PREFIX}containers.selected-tab.`,
+  IMAGES_SEARCH_QUERY: `${UI_STORAGE_PREFIX}images.search-query`,
+  IMAGES_SELECTED_TAB_PREFIX: `${UI_STORAGE_PREFIX}images.selected-tab.`,
+  VOLUMES_SEARCH_QUERY: `${UI_STORAGE_PREFIX}volumes.search-query`,
+  VOLUMES_SELECTED_TAB_PREFIX: `${UI_STORAGE_PREFIX}volumes.selected-tab.`
 } as const;
 
 export const UI_STORAGE_DEFAULTS = {

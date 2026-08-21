@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { DockerApiService } from '@core/docker-api.service';
 import { DockerImageInfo } from '@shared/types/docker-api.types';
 import { ConfirmDialogComponent } from '@components/confirm-dialog/confirm-dialog';
-import { LocalStorageService } from '@ng-catbee/storage';
+import { LocalStorageService, SessionStorageService } from '@ng-catbee/storage';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { SegmentedFilterComponent, SegmentedFilterOption } from '@components/segmented-filter/segmented-filter';
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
@@ -41,12 +41,13 @@ export class ImagesPage {
   private readonly dockerApi = inject(DockerApiService);
   private readonly router = inject(Router);
   private readonly localStorage = inject(LocalStorageService);
+  private readonly sessionStorage = inject(SessionStorageService);
   private readonly datePipe = inject(DatePipe);
 
   private readonly imageSearchInput = viewChild<SearchInputComponent>('imageSearchInput');
 
   readonly images = signal<DockerImageInfo[]>([]);
-  readonly searchTerm = signal('');
+  readonly searchTerm = signal(this.sessionStorage.getWithDefault(UI_STORAGE_KEYS.IMAGES_SEARCH_QUERY, ''));
   readonly usageFilter = signal<ImageUsageFilter>(
     this.localStorage.getEnumWithDefault<ImageUsageFilter>(
       UI_STORAGE_KEYS.IMAGES_USAGE_FILTER,
@@ -215,6 +216,11 @@ export class ImagesPage {
     }
   }
 
+  setSearchTerm(value: string): void {
+    this.searchTerm.set(value);
+    this.sessionStorage.set(UI_STORAGE_KEYS.IMAGES_SEARCH_QUERY, value ?? '');
+  }
+
   openImageDetails(imageId: string): void {
     void this.router.navigate(['/images', imageId], { state: { returnTo: this.router.url } });
   }
@@ -251,7 +257,6 @@ export class ImagesPage {
       });
       return;
     }
-
     const nextDirection: SortDirection = key === 'created' || key === 'size' ? 'desc' : 'asc';
     this.sortKey.set(key);
     this.sortDirection.set(nextDirection);
