@@ -92,7 +92,7 @@ export async function checkForUpdates(window: BrowserWindow | null): Promise<voi
       type: 'error',
       title: 'Update Check Failed',
       message: 'Unable to check for updates.',
-      detail: error instanceof Error ? error.message : String(error),
+      detail: getErrorMessage(error),
       buttons: ['OK']
     });
   }
@@ -107,4 +107,27 @@ async function showMessageBox(
   }
 
   return dialog.showMessageBox(options);
+}
+
+function getErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return 'An unexpected error occurred while checking for updates.';
+  }
+
+  if (
+    error.message.includes('ERR_UPDATER_INVALID_RELEASE_FEED') ||
+    error.message.includes('Unable to find latest version on GitHub')
+  ) {
+    return 'No compatible release is currently available.';
+  }
+
+  if (
+    error.message.includes('ENOTFOUND') ||
+    error.message.includes('ECONNREFUSED') ||
+    error.message.includes('ETIMEDOUT')
+  ) {
+    return 'Unable to connect to GitHub. Please check your internet connection and try again.';
+  }
+
+  return 'An unexpected error occurred while checking for updates.';
 }
