@@ -1122,6 +1122,7 @@ export class LogsTabComponent implements AfterViewInit {
     this.logsBootstrapTimer = setTimeout(() => {
       this.isBootstrappingLogs = false;
       this.logsBootstrapTimer = null;
+      this.isLoading.set(false);
       this.onPanelScroll();
     }, LogsTabComponent.LOGS_BOOTSTRAP_SETTLE_MS);
   }
