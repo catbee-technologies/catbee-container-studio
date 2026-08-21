@@ -1,7 +1,8 @@
-import { app, BrowserWindow, Menu, shell } from 'electron';
+import { BrowserWindow, Menu, shell } from 'electron';
 import { isDev, isMacOS, LOG_FILE_PATH, ZOOM_CONFIG } from './constants';
 import { syncMacTrafficLights } from './mac-traffic-lights';
 import { checkForUpdates } from './updater';
+import { showAboutDialog } from './about';
 
 export interface ApplicationMenuOptions {
   getMainWindow: () => BrowserWindow | null;
@@ -166,7 +167,7 @@ function createHelpSubmenu(getMainWindow: () => BrowserWindow | null): Electron.
     {
       label: 'About CatBee Container Studio',
       click: () => {
-        app.showAboutPanel();
+        showAboutDialog();
       }
     }
   ];
