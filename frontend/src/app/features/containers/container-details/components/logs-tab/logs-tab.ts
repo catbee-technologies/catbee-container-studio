@@ -80,6 +80,7 @@ export class LogsTabComponent implements AfterViewInit {
 
   readonly containerId = input.required<string>();
   readonly active = input(false);
+  private hasActivatedLogs = false;
 
   readonly unavailable = output<void>();
   readonly streamError = output<string>();
@@ -156,6 +157,26 @@ export class LogsTabComponent implements AfterViewInit {
 
       queueMicrotask(() => {
         void this.bindContainer(containerId);
+      });
+    });
+
+    effect(() => {
+      if (!this.active()) {
+        return;
+      }
+
+      const firstActivation = !this.hasActivatedLogs;
+      this.hasActivatedLogs = true;
+
+      requestAnimationFrame(() => {
+        if (this.isDisposed || !this.active()) {
+          return;
+        }
+        if (firstActivation) {
+          this.scrollToBottom();
+        } else {
+          this.onPanelScroll();
+        }
       });
     });
   }
@@ -315,14 +336,7 @@ export class LogsTabComponent implements AfterViewInit {
 
   readonly hasMatches = computed(() => this.logMatches().length > 0);
 
-  readonly isScrollable = computed(() => {
-    const area = this.tabScrollArea()?.nativeElement;
-    if (!area || this.logs().length === 0) {
-      return false;
-    }
-
-    return area.scrollHeight > area.clientHeight;
-  });
+  readonly isScrollable = signal(false);
 
   ngAfterViewInit(): void {
     this.onPanelScroll();
@@ -505,8 +519,13 @@ export class LogsTabComponent implements AfterViewInit {
   }
 
   onPanelScroll(): void {
-    const nearBottom = this.isPanelNearBottom();
-    this.isNearBottom.set(nearBottom);
+    const area = this.tabScrollArea()?.nativeElement;
+    if (!area || this.logs().length === 0) {
+      this.isScrollable.set(false);
+      return;
+    }
+    this.isScrollable.set(area.scrollHeight > area.clientHeight);
+    this.isNearBottom.set(this.isPanelNearBottom());
   }
 
   scrollToTop(): void {
