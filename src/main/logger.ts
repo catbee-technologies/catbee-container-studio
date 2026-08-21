@@ -1,4 +1,3 @@
-import { app } from 'electron';
 import pino from 'pino';
 import { APP_VERSION, isDev, LOG_FILE_PATH } from './constants';
 
@@ -35,8 +34,3 @@ export const logger = pino(
 );
 
 logger.info({ logFilePath: LOG_FILE_PATH }, 'Logger initialized');
-
-app.on('before-quit', () => {
-  logger.info('Application is quitting. Flushing logs...');
-  destination.flushSync();
-});
