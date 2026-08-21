@@ -5,6 +5,7 @@ import { createMainWindow } from './window';
 import { buildApplicationMenu } from './menu';
 import { logger } from './logger';
 import { isDev, isMacOS } from './constants';
+import { initializeAutoUpdater } from './updater';
 
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -74,6 +75,7 @@ if (!gotTheLock) {
         logger.error({ err: error }, '[DockerConnection] Failed to connect to Docker.');
       }
 
+      initializeAutoUpdater();
       buildApplicationMenu({ getMainWindow: () => mainWindow, showOrCreateMainWindow });
       registerAppProtocol();
       registerIpcHandlers();

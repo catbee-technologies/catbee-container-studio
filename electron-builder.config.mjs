@@ -6,6 +6,12 @@ export default {
   extraMetadata: {
     main: 'backend/main/main.js'
   },
+  publish: {
+    provider: 'github',
+    owner: 'catbee-technologies',
+    repo: 'catbee-container-studio',
+    releaseType: 'draft'
+  },
   files: [
     {
       from: 'dist',
