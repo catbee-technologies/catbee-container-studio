@@ -76,6 +76,46 @@
       white-space: inherit;
       display: block;
       margin: 0.5rem 0;
+
+      ::ng-deep a.log-url {
+        color: var(--color-cyan-base);
+        text-decoration: underline;
+        text-decoration-color: var(--color-info-base);
+        text-decoration-thickness: 1px;
+        text-underline-offset: 2px;
+        cursor: pointer;
+        font-family: inherit;
+        font-weight: inherit;
+        border-radius: var(--radius-sm);
+        transition:
+          color var(--transition-fast),
+          background-color var(--transition-fast),
+          text-decoration-color var(--transition-fast);
+
+        .mat-icon-filled {
+          font-size: 1rem;
+          vertical-align: middle;
+          margin-left: 0.2rem;
+          text-decoration: none;
+        }
+
+        &:hover {
+          color: var(--color-primary-light);
+          background-color: var(--bg-hover);
+          text-decoration-color: var(--color-primary-light);
+        }
+
+        &:active {
+          color: var(--color-cyan-light);
+          background-color: var(--bg-active);
+        }
+
+        &:focus-visible {
+          outline: 1px solid var(--border-color-hover);
+          outline-offset: 2px;
+          border-radius: var(--radius-sm);
+        }
+      }
     }
   }
 }

@@ -20,6 +20,7 @@ import { LOGS_STORAGE_DEFAULTS, LOGS_STORAGE_KEYS } from '@utils/storage.utils';
 import { LocalStorageService } from '@ng-catbee/storage';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { LOG_TAIL_OPTIONS } from '@shared/types';
+import { ElectronApiService } from '@core/electron-api.service';
 
 export interface LogsSearchMode {
   caseSensitive: boolean;
@@ -66,11 +67,13 @@ export class LogsTabComponent implements AfterViewInit {
   private static readonly ESC = String.fromCharCode(27);
 
   private readonly dockerApi = inject(DockerApiService);
+  private readonly electronApi = inject(ElectronApiService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly localStorage = inject(LocalStorageService);
 
   private readonly ansiCodePattern = new RegExp(`${LogsTabComponent.ESC}\\[([0-9;]*)m`, 'g');
   private readonly ansiStripPattern = new RegExp(`${LogsTabComponent.ESC}\\[[0-9;]*m`, 'g');
+  private readonly urlPattern = /\bhttps?(?:\\?:\/\/)[^\s<>"'`]+/gi;
 
   private readonly logsSearchInput = viewChild<SearchInputComponent>('logsSearchInput');
   private readonly tabScrollArea = viewChild<ElementRef<HTMLElement>>('tabScrollArea');
@@ -116,7 +119,7 @@ export class LogsTabComponent implements AfterViewInit {
 
   readonly logsStreamId = signal<string | null>(null);
 
-  private readonly chunkBufferByChannel: Record<string, string> = {
+  private readonly chunkBufferByChannel: Record<'stdout' | 'stderr' | 'unknown', string> = {
     stdout: '',
     stderr: '',
     unknown: ''
@@ -635,7 +638,6 @@ export class LogsTabComponent implements AfterViewInit {
       return '';
     }
 
-    const escaped = this.escapeHtml(segmentText);
     const classes: string[] = ['ansi'];
     if (style.fgClass) {
       classes.push(style.fgClass);
@@ -646,13 +648,85 @@ export class LogsTabComponent implements AfterViewInit {
 
     const hasStyle = style.fgClass !== null || style.fgColorHex !== null || style.bold;
     const styleAttribute = style.fgColorHex ? ` style="color:${style.fgColorHex}"` : '';
-    const styled = hasStyle ? `<span class="${classes.join(' ')}"${styleAttribute}>${escaped}</span>` : escaped;
 
-    if (!markClass) {
-      return styled;
+    const renderPart = (text: string): string => {
+      if (!text) {
+        return '';
+      }
+
+      const escaped = this.escapeHtml(text);
+
+      const styled = hasStyle ? `<span class="${classes.join(' ')}"${styleAttribute}>${escaped}</span>` : escaped;
+
+      return markClass ? `<mark class="${markClass}">${styled}</mark>` : styled;
+    };
+
+    return this.renderUrls(segmentText, renderPart);
+  }
+
+  private renderUrls(text: string, renderText: (text: string) => string): string {
+    this.urlPattern.lastIndex = 0;
+
+    let html = '';
+    let lastIndex = 0;
+    let match = this.urlPattern.exec(text);
+
+    while (match) {
+      const rawUrl = match[0];
+      const urlStart = match.index;
+
+      let url = rawUrl.replace(/\\:\/\//, '://');
+
+      // Remove punctuation that is usually not part of the URL.
+      const trailingMatch = /[.,;:!?)}\]]+$/.exec(url);
+      const trailing = trailingMatch?.[0] ?? '';
+
+      if (trailing) {
+        url = url.slice(0, -trailing.length);
+      }
+
+      html += renderText(text.slice(lastIndex, urlStart));
+
+      if (url) {
+        const escapedUrl = this.escapeHtml(url);
+
+        html += `<a class="log-url" href="${escapedUrl}">${escapedUrl}<span class="mat-icon-filled" aria-hidden="true">open_in_new</span></a>`;
+      }
+
+      if (trailing) {
+        html += renderText(trailing);
+      }
+
+      lastIndex = urlStart + rawUrl.length;
+      match = this.urlPattern.exec(text);
     }
 
-    return `<mark class="${markClass}">${styled}</mark>`;
+    html += renderText(text.slice(lastIndex));
+
+    return html;
+  }
+
+  onLogClick(event: MouseEvent): void {
+    const target = event.target;
+
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+
+    const link = target.closest<HTMLAnchorElement>('a.log-url');
+    if (!link) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const url = link.getAttribute('href');
+    if (!url) {
+      return;
+    }
+
+    this.electronApi.openExternalUrl(url);
   }
 
   private ansiToStyledSegments(value: string): StyledTextSegment[] {

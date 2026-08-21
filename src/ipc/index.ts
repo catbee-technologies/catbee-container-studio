@@ -206,8 +206,16 @@ export function registerIpcHandlers(): void {
         return fail(new Error('Invalid URL.'));
       }
 
-      await shell.openExternal(url);
-      return ok({ opened: true });
+      try {
+        const parsedUrl = new URL(url);
+        if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+          return fail(new Error('Unsupported URL protocol.'));
+        }
+        await shell.openExternal(parsedUrl.href);
+        return ok({ opened: true });
+      } catch {
+        return fail(new Error('Invalid URL.'));
+      }
     }
   );
 
