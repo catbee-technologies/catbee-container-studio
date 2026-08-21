@@ -11,65 +11,13 @@ import {
   DockerImageInspectInfo,
   DockerStreamEventEnvelope,
   DockerVolumeInfo,
-  IpcResult,
   StreamStartResult
 } from '@shared/types/docker-api.types';
-import { ElectronBridge } from '@shared/types/electron.types';
 import { LOGS_STORAGE_DEFAULTS } from '@utils/storage.utils';
-
-type GenericRecord = Record<string, unknown>;
-
-function isRecord(value: unknown): value is GenericRecord {
-  return typeof value === 'object' && value !== null;
-}
-
-function isIpcResult<T>(value: unknown): value is IpcResult<T> {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return typeof value['ok'] === 'boolean';
-}
-
-function isStreamEventEnvelope(value: unknown): value is DockerStreamEventEnvelope {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return (
-    typeof value['streamId'] === 'string' &&
-    typeof value['kind'] === 'string' &&
-    typeof value['type'] === 'string' &&
-    typeof value['timestamp'] === 'string'
-  );
-}
+import { ElectronBaseService } from './electron-base.service';
 
 @Injectable({ providedIn: 'root' })
-export class DockerApiService {
-  private get bridge(): ElectronBridge {
-    const maybeBridge = (globalThis as unknown as { electron?: ElectronBridge }).electron;
-
-    if (!maybeBridge) {
-      throw new Error('Electron bridge is unavailable. Ensure preload is loaded.');
-    }
-
-    return maybeBridge;
-  }
-
-  private unwrapResult<T>(payload: unknown): T {
-    if (!isIpcResult<T>(payload)) {
-      throw new Error('Invalid IPC response payload.');
-    }
-
-    const result = payload;
-
-    if (result.ok === false) {
-      throw new Error(result.error.message);
-    }
-
-    return result.data;
-  }
-
+export class DockerApiService extends ElectronBaseService {
   async pingDockerEngine(): Promise<boolean> {
     const response = await this.bridge.docker.engine.ping();
     return this.unwrapResult<boolean>(response);
@@ -240,7 +188,7 @@ export class DockerApiService {
 
   onStreamEvent(callback: (event: DockerStreamEventEnvelope) => void): () => void {
     return this.bridge.docker.streams.onEvent((payload: unknown) => {
-      if (!isStreamEventEnvelope(payload)) {
+      if (!this.isStreamEventEnvelope(payload)) {
         return;
       }
 
@@ -269,5 +217,18 @@ export class DockerApiService {
     const response = await this.bridge.docker.execSession.close(sessionId);
     const data = this.unwrapResult<{ closed: boolean }>(response);
     return data.closed;
+  }
+
+  private isStreamEventEnvelope(value: unknown): value is DockerStreamEventEnvelope {
+    if (!this.isRecord(value)) {
+      return false;
+    }
+
+    return (
+      typeof value['streamId'] === 'string' &&
+      typeof value['kind'] === 'string' &&
+      typeof value['type'] === 'string' &&
+      typeof value['timestamp'] === 'string'
+    );
   }
 }
