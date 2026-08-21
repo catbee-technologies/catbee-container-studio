@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu, shell } from 'electron';
 import { isDev, isMacOS, LOG_FILE_PATH, ZOOM_CONFIG } from './constants';
 import { syncMacTrafficLights } from './mac-traffic-lights';
+import { checkForUpdates } from './updater';
 
 export interface ApplicationMenuOptions {
   getMainWindow: () => BrowserWindow | null;
@@ -115,6 +116,16 @@ export function buildApplicationMenu({ getMainWindow, showOrCreateMainWindow }: 
     {
       role: 'help',
       submenu: [
+        {
+          label: 'Check for Updates...',
+          click: async () => {
+            const targetWindow = getTargetWindow();
+            await checkForUpdates(targetWindow);
+          }
+        },
+        {
+          type: 'separator'
+        },
         {
           label: 'About CatBee Container Studio',
           click: () => {
