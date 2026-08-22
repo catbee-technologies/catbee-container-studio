@@ -63,7 +63,7 @@ jobs:
       contents: read
 
     env:
-      SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+      SNAP_CSC_LINK: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
 
     steps:
       - name: Checkout
