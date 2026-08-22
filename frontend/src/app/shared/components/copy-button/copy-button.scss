@@ -11,6 +11,10 @@
     font-size: 1rem;
   }
 
+  &:hover {
+    transform: translateY(0px);
+  }
+
   &.is-copied {
     color: #bdfad0;
     border-color: rgb(74 189 119 / 0.6);
@@ -19,5 +23,23 @@
   &.is-failed {
     color: #ffd2d2;
     border-color: rgb(210 91 91 / 0.6);
+  }
+
+  &.small {
+    width: 1.25rem;
+    height: 1.25rem;
+
+    .mat-icon-filled {
+      font-size: 0.8rem;
+    }
+  }
+
+  &.large {
+    width: 2rem;
+    height: 2rem;
+
+    .mat-icon-filled {
+      font-size: 1.25rem;
+    }
   }
 }

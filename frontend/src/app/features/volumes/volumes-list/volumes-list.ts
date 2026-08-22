@@ -1,4 +1,4 @@
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { DockerApiService } from '@core/docker-api.service';
@@ -10,7 +10,7 @@ import { SearchInputComponent } from '@components/search-input/search-input';
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
 import { TableSortHeaderComponent } from '@components/table-sort-header/table-sort-header';
 import { UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
-import { formatDockerBytes } from '@utils/docker-display.utils';
+import { formatDockerBytes, formatDockerRelativeTime } from '@utils/docker-display.utils';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import {
@@ -42,7 +42,6 @@ export class VolumesPage {
   private readonly router = inject(Router);
   private readonly localStorage = inject(LocalStorageService);
   private readonly sessionStorage = inject(SessionStorageService);
-  private readonly datePipe = inject(DatePipe);
 
   private readonly volumeSearchInput = viewChild<SearchInputComponent>('volumeSearchInput');
 
@@ -343,7 +342,7 @@ export class VolumesPage {
   formatCreated(createdAt: string | undefined): string {
     if (!createdAt) return '--';
     const d = new Date(createdAt);
-    return this.datePipe.transform(d, 'dd-MMM-yyyy') ?? '--';
+    return formatDockerRelativeTime(d);
   }
 
   isUsed(name: string): boolean {

@@ -1,7 +1,7 @@
 <main class="catbee-details-container" aria-label="Container details">
   <header class="catbee-details-container-header">
     <button type="button" class="back-btn" (click)="backToContainers()">
-      <span class="mat-icon-filled" aria-hidden="true">arrow_back</span>
+      <span class="mat-icon-filled" aria-hidden="true">chevron_left</span>
     </button>
 
     <div class="header-main">
@@ -10,9 +10,11 @@
         @if (container(); as current) {
           <p>
             <button type="button" class="link-btn title-image-link" (click)="openImageDetails(imageRouteRef())">
-              {{ current.Image }}
+              {{ current.Image }}<span class="mat-icon-filled">arrow_outward</span>
             </button>
-            <span aria-hidden="true"> • </span>{{ current.Id.slice(0, 12) }}
+            <span aria-hidden="true"> • </span>
+            {{ current.Id.slice(0, 12) }}
+            <catbee-container-studio-copy-button [text]="current.Id" size="small" />
           </p>
         }
       </div>

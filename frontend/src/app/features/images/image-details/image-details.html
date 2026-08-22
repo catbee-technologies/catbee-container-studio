@@ -1,12 +1,15 @@
 <main class="catbee-details-container" aria-label="Image details">
   <header class="catbee-details-container-header">
     <button type="button" class="back-btn" (click)="backToImages()" aria-label="Back to images" title="Back">
-      <span class="mat-icon-filled" aria-hidden="true">arrow_back</span>
+      <span class="mat-icon-filled" aria-hidden="true">chevron_left</span>
     </button>
 
     <div class="title-wrap">
       <h1>{{ title() }}</h1>
-      <p class="mono">{{ shortId(imageId()) }}</p>
+      <p class="mono">
+        {{ shortId(imageId()) }}
+        <catbee-container-studio-copy-button [text]="imageId()" size="small" />
+      </p>
     </div>
   </header>
 
@@ -89,6 +92,7 @@
                       <td>
                         <button type="button" class="link-btn" (click)="openContainer(container.Id)">
                           {{ formatContainerName(container) }}
+                          <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
                         </button>
                       </td>
                       <td>{{ container.Image }}</td>

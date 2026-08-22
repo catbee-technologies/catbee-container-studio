@@ -106,14 +106,6 @@
               </th>
               <th scope="col">
                 <catbee-container-studio-table-sort-header
-                  [label]="'Scope'"
-                  [active]="isSortActive('scope')"
-                  [indicator]="sortIndicator('scope')"
-                  (sort)="toggleSort('scope')"
-                />
-              </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
                   [label]="'Size'"
                   [active]="isSortActive('size')"
                   [indicator]="sortIndicator('size')"
@@ -154,10 +146,7 @@
                   </button>
                 </td>
                 <td>
-                  <span class="badge driver-badge">{{ volume.Driver }}</span>
-                </td>
-                <td>
-                  <span class="badge scope-badge">{{ volume.Scope }}</span>
+                  <span class="badge small driver-badge">{{ volume.Driver }}</span>
                 </td>
                 <td class="mono">{{ formatSize(volume.UsageData?.Size ?? 0) }}</td>
                 <td>{{ formatCreated(volume.CreatedAt) }}</td>

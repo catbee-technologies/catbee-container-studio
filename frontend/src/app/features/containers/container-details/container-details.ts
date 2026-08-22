@@ -18,6 +18,7 @@ import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { SessionStorageService } from '@ng-catbee/storage';
 import { UI_STORAGE_KEYS } from '@utils/storage.utils';
+import { CopyButtonComponent } from '@components/copy-button/copy-button';
 
 enum ContainerTab {
   Logs = 'logs',
@@ -41,7 +42,8 @@ enum ContainerTab {
     ShellTabComponent,
     TabsComponent,
     EmptyStateComponent,
-    ErrorBannerComponent
+    ErrorBannerComponent,
+    CopyButtonComponent
   ],
   templateUrl: './container-details.html',
   styleUrl: './container-details.scss',
