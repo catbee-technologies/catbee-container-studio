@@ -1,7 +1,7 @@
 <main class="catbee-details-container" aria-label="Volume details">
   <header class="catbee-details-container-header">
     <button type="button" class="back-btn" (click)="backToVolumes()" aria-label="Back to volumes" title="Back">
-      <span class="mat-icon-filled" aria-hidden="true">arrow_back</span>
+      <span class="mat-icon-filled" aria-hidden="true">chevron_left</span>
     </button>
 
     <div class="title-wrap">
@@ -57,6 +57,7 @@
                     <td>
                       <button type="button" class="link-btn" (click)="openContainer(container.Id)">
                         {{ formatContainerName(container) }}
+                        <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
                       </button>
                     </td>
                     <td>{{ container.Image }}</td>

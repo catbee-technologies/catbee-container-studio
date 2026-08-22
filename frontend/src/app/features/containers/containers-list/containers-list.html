@@ -234,7 +234,15 @@
                       </button>
                       <p class="unique-id">{{ container.Id.slice(0, 12) }}</p>
                     </td>
-                    <td>{{ container.Image }}</td>
+                    <td>
+                      <button
+                        type="button"
+                        class="link-btn"
+                        (click)="openImageDetails(container.ImageID!); $event.stopPropagation()"
+                      >
+                        {{ container.Image }}
+                      </button>
+                    </td>
                     <td class="col-ports">
                       <catbee-container-studio-port-list [ports]="container.Ports" [containerState]="container.State" />
                     </td>

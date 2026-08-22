@@ -14,6 +14,18 @@
   border: 1px solid transparent;
   font-weight: 400;
 
+  &.small {
+    min-height: 1.5rem;
+    padding: 0.25rem 0.5rem;
+    font-size: var(--font-size-xs);
+  }
+
+  &.large {
+    min-height: 2.5rem;
+    padding: 0.5rem 1rem;
+    font-size: var(--font-size-md);
+  }
+
   &.running {
     background: var(--badge-running-gradient);
     border-color: var(--badge-running-border);

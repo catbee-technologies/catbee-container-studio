@@ -47,8 +47,7 @@ export class VolumeDetailsPage {
     }
 
     return [
-      { label: 'Driver', value: volume.Driver },
-      { label: 'Scope', value: volume.Scope },
+      { label: 'Driver', value: volume.Driver.toUpperCase() },
       { label: 'Mountpoint', value: volume.Mountpoint },
       {
         label: 'Created',

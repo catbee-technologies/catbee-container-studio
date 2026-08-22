@@ -16,6 +16,8 @@ export class CopyButtonComponent {
   readonly successTitle = input('Copied');
   readonly failureTitle = input('Copy failed');
   readonly disabled = input(false);
+  readonly size = input<'small' | 'medium' | 'large'>('medium');
+  readonly className = input('');
 
   readonly status = signal<CopyButtonStatus>('idle');
   readonly isDisabled = computed(() => this.disabled() || this.text().length === 0);

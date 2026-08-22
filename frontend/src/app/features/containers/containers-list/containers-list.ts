@@ -563,6 +563,13 @@ export class ContainersPage {
     return `Remove ${this.selectedContainers().length} selected containers permanently? \n This action cannot be undone.`;
   }
 
+  openImageDetails(imageRef: string): void {
+    if (!imageRef) {
+      return;
+    }
+    void this.router.navigate(['/images', imageRef], { state: { returnTo: this.router.url } });
+  }
+
   private async runContainerAction(containerId: string, action: () => Promise<void>): Promise<void> {
     this.activeActionContainerId.set(containerId);
     this.error.set(null);

@@ -147,10 +147,13 @@
                   <span class="usage-dot" [class.used]="isUsed(image)" [class.unused]="!isUsed(image)"></span>
                 </td>
                 <td>
-                  {{ repositoryAndTag(image)[0] }}
-                  @if (isDangling(image)) {
-                    <span class="badge dangling">dangling</span>
-                  }
+                  <button type="button" class="link-btn" (click)="openImageDetails(image.Id)">
+                    {{ repositoryAndTag(image)[0] }}
+                    @if (isDangling(image)) {
+                      <span class="badge dangling small">dangling</span>
+                    }
+                  </button>
+                  <p class="unique-id">{{ shortId(image) }}</p>
                 </td>
                 <td>{{ repositoryAndTag(image)[1] }}</td>
                 <td>{{ shortId(image) }}</td>

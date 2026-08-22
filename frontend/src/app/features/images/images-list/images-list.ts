@@ -1,4 +1,4 @@
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { DockerApiService } from '@core/docker-api.service';
@@ -10,7 +10,7 @@ import { SegmentedFilterComponent, SegmentedFilterOption } from '@components/seg
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
 import { TableSortHeaderComponent } from '@components/table-sort-header/table-sort-header';
 import { UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
-import { formatDockerBytes } from '@utils/docker-display.utils';
+import { formatDockerBytes, formatDockerRelativeTime } from '@utils/docker-display.utils';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import {
@@ -42,7 +42,6 @@ export class ImagesPage {
   private readonly router = inject(Router);
   private readonly localStorage = inject(LocalStorageService);
   private readonly sessionStorage = inject(SessionStorageService);
-  private readonly datePipe = inject(DatePipe);
 
   private readonly imageSearchInput = viewChild<SearchInputComponent>('imageSearchInput');
 
@@ -374,7 +373,7 @@ export class ImagesPage {
   }
 
   formatCreated(unixSeconds: number): string {
-    return this.datePipe.transform(new Date(unixSeconds * 1000), 'dd-MMM-yyyy') ?? '--';
+    return formatDockerRelativeTime(new Date(unixSeconds * 1000));
   }
 
   isDangling(image: DockerImageInfo): boolean {
