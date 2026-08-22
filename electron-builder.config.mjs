@@ -21,7 +21,7 @@ export default {
       from: 'frontend/dist/catbee-container-studio/browser',
       to: 'app'
     },
-    'package.json',
+    'package.json'
   ],
   directories: {
     output: 'build'
@@ -41,7 +41,7 @@ export default {
   },
   mac: {
     sign: {
-      hardenedRuntime: true,
+      hardenedRuntime: true
     },
     icon: 'assets/icons/macos/catbee-icon.icns',
     target: [
@@ -53,19 +53,32 @@ export default {
         target: 'zip',
         arch: 'universal'
       }
-    ],
+    ]
   },
   linux: {
     target: ['deb', 'zip'],
     category: 'Utility',
     icon: 'assets/icons/linux/catbee-icon.png'
   },
+  snapcraft: {
+    base: 'core24',
+    core24: {
+      confinement: 'strict',
+      grade: 'stable',
+      summary: 'Docker container management desktop application',
+      title: 'CatBee Container Studio'
+    },
+    publish: {
+      provider: 'snapStore',
+      repo: 'catbee-container-studio'
+    }
+  },
   nsis: {
     oneClick: false,
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
-    shortcutName: "CatBee Container Studio",
+    shortcutName: 'CatBee Container Studio',
     runAfterFinish: true,
     deleteAppDataOnUninstall: false
   }

@@ -54,6 +54,57 @@ jobs:
           echo "Build output for ${{ matrix.platform }}:"
           find build -maxdepth 2 -type f -print
 
+  snap:
+    name: Publish Snap
+    runs-on: ubuntu-latest
+    needs: build
+
+    permissions:
+      contents: read
+
+    env:
+      SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci && cd frontend && npm ci
+
+      - name: Install Snapcraft
+        run: sudo snap install snapcraft --classic
+
+      - name: Verify Snapcraft
+        run: snapcraft --version
+
+      - name: Determine Snap channel
+        id: snap
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
+            echo "channel=edge" >> "$GITHUB_OUTPUT"
+          else
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and publish Snap
+        env:
+          SNAP_CHANNEL: ${{ steps.snap.outputs.channel }}
+        run: |
+          npm run package
+          npx electron-builder \
+            --linux snap \
+            --config electron-builder.config.mjs \
+            --publish always \
+            -c.snapcraft.publish.channels="${SNAP_CHANNEL}"
+
   release:
     name: Finalize GitHub Release
     runs-on: ubuntu-latest
@@ -112,6 +163,10 @@ jobs:
           **Debian/Ubuntu:**
 
           Install the \`.deb\` package using your package manager.
+
+          **Snap:**
+
+          Install **CatBee Container Studio** from the Ubuntu App Center or Snap Store.
 
           **Other distributions:**
 
