@@ -76,23 +76,6 @@
 
   <div class="mounts-meta-grid">
     <article class="mounts-meta-card">
-      <h3>Host Bind Strings</h3>
-      @if (hostBindRows().length === 0) {
-        <catbee-container-studio-empty-state
-          [icon]="'folder_open'"
-          [message]="'No host bind strings declared.'"
-          [hint]="'Host bind strings will appear here when declared in the container config.'"
-        />
-      } @else {
-        <ul class="mono">
-          @for (bind of hostBindRows(); track bind) {
-            <li>{{ bind }}</li>
-          }
-        </ul>
-      }
-    </article>
-
-    <article class="mounts-meta-card">
       <h3>Declared Volumes</h3>
       @if (declaredVolumeNames().length === 0) {
         <catbee-container-studio-empty-state

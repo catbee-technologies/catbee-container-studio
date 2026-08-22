@@ -71,17 +71,6 @@ export class MountsTabComponent {
     }).sort((a, b) => a.destination.localeCompare(b.destination));
   });
 
-  readonly hostBindRows = computed<string[]>(() => {
-    const inspectData = this.inspectData();
-    if (!inspectData || typeof inspectData !== 'object') {
-      return [];
-    }
-
-    const record = inspectData as { HostConfig?: { Binds?: unknown } };
-    const binds = Array.isArray(record.HostConfig?.Binds) ? record.HostConfig?.Binds : [];
-    return binds.map(entry => String(entry));
-  });
-
   readonly declaredVolumeNames = computed<string[]>(() => {
     const inspectData = this.inspectData();
     if (!inspectData || typeof inspectData !== 'object') {
