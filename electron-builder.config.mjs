@@ -63,6 +63,8 @@ export default {
   snapcraft: {
     base: 'core24',
     core24: {
+      useDestructiveMode: true,
+      extensions: [],
       confinement: 'strict',
       grade: 'stable',
       summary: 'Docker container management desktop application',
