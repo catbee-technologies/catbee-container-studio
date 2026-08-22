@@ -1,9 +1,18 @@
 import pino from 'pino';
-import { APP_VERSION, isDev, LOG_FILE_PATH } from './constants';
+import { APP_VERSION, isDev, LOG_FILE_PATH, LOG_DIR_PATH } from './constants';
 
-const destination = pino.destination({
-  dest: LOG_FILE_PATH,
-  sync: false
+const productionTransport = pino.transport({
+  target: 'pino-roll',
+  options: {
+    file: LOG_FILE_PATH,
+    frequency: 'daily',
+    dateFormat: 'yyyy-MM-dd',
+    mkdir: true,
+    limit: {
+      count: 30,
+      removeOtherLogFiles: true
+    }
+  }
 });
 
 export const logger = pino(
@@ -30,7 +39,7 @@ export const logger = pino(
       }
     })
   },
-  isDev ? undefined : destination
+  isDev ? undefined : productionTransport
 );
 
-logger.info({ logFilePath: LOG_FILE_PATH }, 'Logger initialized');
+logger.info({ logDir: LOG_DIR_PATH }, 'Logger initialized');

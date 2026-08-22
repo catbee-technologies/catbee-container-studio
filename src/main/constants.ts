@@ -1,4 +1,5 @@
 import { app } from 'electron';
+import path from 'node:path';
 
 /**
  * The version of the application.
@@ -19,4 +20,5 @@ export const ZOOM_CONFIG = {
 };
 
 /** The path to the log file for the application. */
-export const LOG_FILE_PATH = `${app.getPath('logs')}/catbee-container-studio.log`;
+export const LOG_DIR_PATH = app.getPath('logs');
+export const LOG_FILE_PATH = path.join(LOG_DIR_PATH, 'catbee-container-studio.log');

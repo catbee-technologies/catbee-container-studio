@@ -1,5 +1,5 @@
 import { BrowserWindow, Menu, shell } from 'electron';
-import { isDev, isMacOS, LOG_FILE_PATH, ZOOM_CONFIG } from './constants';
+import { isDev, isMacOS, LOG_DIR_PATH, ZOOM_CONFIG } from './constants';
 import { syncMacTrafficLights } from './mac-traffic-lights';
 import { checkForUpdates } from './updater';
 import { showAboutDialog } from './about';
@@ -158,9 +158,9 @@ function createHelpSubmenu(getMainWindow: () => BrowserWindow | null): Electron.
     },
     { type: 'separator' },
     {
-      label: 'View Log File',
+      label: 'View Logs',
       click: async () => {
-        await shell.openPath(LOG_FILE_PATH);
+        await shell.openPath(LOG_DIR_PATH);
       }
     },
     { type: 'separator' },
