@@ -21,7 +21,7 @@ export default {
       from: 'frontend/dist/catbee-container-studio/browser',
       to: 'app'
     },
-    'package.json',
+    'package.json'
   ],
   directories: {
     output: 'build'
@@ -41,7 +41,7 @@ export default {
   },
   mac: {
     sign: {
-      hardenedRuntime: true,
+      hardenedRuntime: true
     },
     icon: 'assets/icons/macos/catbee-icon.icns',
     target: [
@@ -53,10 +53,27 @@ export default {
         target: 'zip',
         arch: 'universal'
       }
-    ],
+    ]
   },
   linux: {
-    target: ['deb', 'zip'],
+    target: [
+      {
+        target: 'deb',
+        arch: ['x64']
+      },
+      {
+        target: 'rpm',
+        arch: ['x64']
+      },
+      {
+        target: 'AppImage',
+        arch: ['x64']
+      },
+      {
+        target: 'tar.gz',
+        arch: ['x64']
+      }
+    ],
     category: 'Utility',
     icon: 'assets/icons/linux/catbee-icon.png'
   },
@@ -65,7 +82,7 @@ export default {
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
-    shortcutName: "CatBee Container Studio",
+    shortcutName: 'CatBee Container Studio',
     runAfterFinish: true,
     deleteAppDataOnUninstall: false
   }

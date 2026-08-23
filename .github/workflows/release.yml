@@ -92,7 +92,9 @@ jobs:
           #### Linux
 
           - **Linux x64 DEB** — [Download .deb](${BASE_URL}/CatBee-Container-Studio-${VERSION}-linux-amd64.deb)
-          - **Linux x64 ZIP** — [Download .zip](${BASE_URL}/CatBee-Container-Studio-${VERSION}-linux-x64.zip)
+          - **Linux x64 RPM** — [Download .rpm](${BASE_URL}/CatBee-Container-Studio-${VERSION}-linux-x86_64.rpm)
+          - **Linux x64 AppImage** — [Download AppImage](${BASE_URL}/CatBee-Container-Studio-${VERSION}-linux-x86_64.AppImage)
+          - **Linux x64 TAR.GZ** — [Download .tar.gz](${BASE_URL}/CatBee-Container-Studio-${VERSION}-linux-x64.tar.gz)
 
           ### Installation
 
@@ -109,13 +111,13 @@ jobs:
 
           #### Linux
 
-          **Debian/Ubuntu:**
+          **Debian/Ubuntu:** Download the \`.deb\` package and install it using your package manager.
 
-          Install the \`.deb\` package using your package manager.
+          **Fedora/RHEL/openSUSE:** Download the \`.rpm\` package and install it using your package manager.
 
-          **Other distributions:**
+          **Other distributions:** Download the \`.AppImage\`, make it executable, and run it: \`chmod +x CatBee-Container-Studio-*.AppImage && ./CatBee-Container-Studio-*.AppImage\`
 
-          Download and extract the \`.zip\` archive.
+          Alternatively, download the \`.tar.gz\` archive, extract it, and run the application.
 
           ### Updates
 
