@@ -47,4 +47,8 @@ export class ElectronApiService extends ElectronBaseService {
   onDockerInitializationStatus(callback: (status: DockerInitializationStatus) => void): () => void {
     return this.bridge.app?.initialization?.docker?.onStatus(callback);
   }
+
+  notifyDockerRendererReady(): void {
+    this.bridge.app?.initialization?.rendererReady();
+  }
 }

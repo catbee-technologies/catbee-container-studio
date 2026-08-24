@@ -60,11 +60,16 @@ export class App implements OnInit {
       this.electronApi.onDockerInitializationStatus(status => {
         this.dockerInitStatus.set(status);
         this.sessionStorage.setJson(UI_STORAGE_KEYS.DOCKER_INIT_STATUS, status);
-        console.log('Docker initialization status:', status);
+        console.log(
+          `\x1b[36m${new Date().toISOString()}\x1b[0m Docker initialization status:`,
+          status
+        );
         if (status.state === 'ready') {
           this.dockerConnected.set(true);
         }
       });
+    
+    this.electronApi.notifyDockerRendererReady();
 
     this.destroyRef.onDestroy(() => {
       this.unsubscribeDockerStatus?.();
@@ -76,7 +81,7 @@ export class App implements OnInit {
         takeUntilDestroyed(this.destroyRef)
       )
       .subscribe(isConnected => {
-        console.log('Docker connected:', isConnected);
+        console.log(`Docker connected: ${isConnected ? '\x1b[32mtrue' : '\x1b[31mfalse'}\x1b[0m`);
         this.dockerConnected.set(isConnected);
       });
   }
