@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { ElectronBaseService } from './electron-base.service';
+import { DockerInitializationStatus } from '@shared/types';
 
 @Injectable({ providedIn: 'root' })
 export class ElectronApiService extends ElectronBaseService {
@@ -41,5 +42,9 @@ export class ElectronApiService extends ElectronBaseService {
   async showApplicationSubmenu(label: string): Promise<void> {
     const response = await this.bridge.app?.menu?.showSubmenu?.(label);
     this.unwrapResult(response);
+  }
+
+  onDockerInitializationStatus(callback: (status: DockerInitializationStatus) => void): () => void {
+    return this.bridge.app?.initialization?.docker?.onStatus(callback);
   }
 }

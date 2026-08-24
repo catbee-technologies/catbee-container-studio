@@ -15,6 +15,11 @@ export const IPC_CHANNELS = {
     Menu: {
       Show: 'app:menu:show',
       ShowSubmenu: 'app:menu:show-submenu'
+    },
+    Initialization: {
+      Docker: {
+        Status: 'app:initialization:docker:status'
+      }
     }
   },
   Docker: {

@@ -9,13 +9,27 @@ import {
   DockerSystemPruneSummary
 } from './docker.types';
 import { DockerRuntimeManager } from './docker.runtime-manager';
+import { DockerInitializationStatus } from './docker.runtime';
 
 export class DockerService {
   private client!: Docker;
   private readonly runtimeManager = new DockerRuntimeManager();
 
-  async initialize(): Promise<void> {
-    this.client = await this.runtimeManager.ensureDockerAvailable();
+  async initialize(
+    onStatus?: (status: DockerInitializationStatus) => void,
+    onRuntimeStarted?: () => void
+  ): Promise<void> {
+    onStatus?.({
+      state: 'checking',
+      message: 'Checking Docker availability...',
+      hint: 'Verifying if Docker Engine is running and accessible.'
+    });
+    this.client = await this.runtimeManager.ensureDockerAvailable(onStatus, onRuntimeStarted);
+    onStatus?.({
+      state: 'ready',
+      message: 'Docker Engine is ready.',
+      hint: 'Docker Engine is running and accessible.'
+    });
   }
 
   private normalizeId(value: string, label: string): string {

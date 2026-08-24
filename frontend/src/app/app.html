@@ -42,11 +42,13 @@
       @if (dockerConnected()) {
         <router-outlet />
       } @else {
+        @let showLoader = showDockerLoader();
         <catbee-container-studio-empty-state
           icon="cloud_off"
           size="large"
-          message="Docker Engine is not connected"
-          hint="Please start Docker Engine to manage your containers, images, and volumes."
+          [message]="showLoader ? dockerInitStatus().message : 'Docker Engine is not connected'"
+          [hint]="showLoader ? dockerInitStatus().hint : 'Please start Docker Engine to manage your containers, images, and volumes.'"
+          [showLoader]="showLoader"
         />
       }
     </main>

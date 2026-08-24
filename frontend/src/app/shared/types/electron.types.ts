@@ -15,6 +15,47 @@ import {
 
 type IpcPromise<T> = Promise<IpcResult<T>>;
 
+export type DockerRuntime = 'docker-desktop' | 'rancher-desktop';
+
+export type DockerInitializationStatus =
+  | {
+    state: 'loading';
+    message: string;
+    hint: string;
+  }
+  | {
+    state: 'checking';
+    message: string;
+    hint: string;
+  }
+  | {
+    state: 'detecting-runtime';
+    message: string;
+    hint: string;
+  }
+  | {
+    state: 'starting-runtime';
+    runtime: DockerRuntime;
+    message: string;
+    hint: string;
+  }
+  | {
+    state: 'waiting-for-engine';
+    message: string;
+    hint: string;
+  }
+  | {
+    state: 'ready';
+    message: string;
+    hint: string;
+  }
+  | {
+    state: 'error';
+    message: string;
+    hint: string;
+  };
+
+
 export interface ElectronBridge {
   app: {
     external: {
@@ -33,6 +74,11 @@ export interface ElectronBridge {
       show: () => IpcPromise<{ shown: boolean }>;
       showSubmenu: (label: string) => IpcPromise<{ shown: boolean }>;
     };
+    initialization: {
+      docker: {
+        onStatus: (callback: (status: DockerInitializationStatus) => void) => () => void;
+      };
+    }
   };
   docker: {
     engine: {
