@@ -1,13 +1,12 @@
+import { promisify } from 'node:util';
+import { execFile } from 'node:child_process';
 import Docker from 'dockerode';
 import { createDockerClient } from './docker.client';
 import { DockerConnectionError } from './docker.connection';
-import {
-  isDockerDesktopInstalled,
-  isRancherDesktopInstalled,
-  startDockerRuntime,
-  type DockerRuntime
-} from './docker.runtime';
+import { DockerRuntimeInfo, getDockerCliPath, getRdctlPath, startDockerRuntime } from './docker.runtime';
 import { logger } from '../logger';
+
+const execFileAsync = promisify(execFile);
 
 export class DockerRuntimeManager {
   async ensureDockerAvailable(): Promise<Docker> {
@@ -22,61 +21,98 @@ export class DockerRuntimeManager {
       logger.debug(`[DockerRuntime] Docker is unavailable: ${error instanceof Error ? error.message : String(error)}`);
     }
 
-    const runtime = await this.detectRuntime();
-    if (!runtime) {
+    const runtimeInfo = await this.detectRuntime();
+    if (!runtimeInfo) {
       throw new DockerConnectionError('Docker is not available and no supported container runtime was detected.');
     }
-    logger.info(`[DockerRuntime] Starting detected runtime: ${runtime}`);
-    await startDockerRuntime(runtime);
+    logger.info(`[DockerRuntime] Starting detected runtime: ${runtimeInfo.runtime}`);
+    await startDockerRuntime(runtimeInfo);
 
     return this.waitForDocker();
   }
 
-  private async detectRuntime(): Promise<DockerRuntime | null> {
+  private async detectRuntime(): Promise<DockerRuntimeInfo | null> {
     logger.debug('[DockerRuntime] Detecting Docker runtime.');
 
-    const context = await this.getCurrentContext();
-    logger.debug(`[DockerRuntime] Current Docker context: ${context ?? 'none'}`);
+    const dockerPath = await getDockerCliPath();
+    logger.debug(`[DockerRuntime] Docker CLI path: ${dockerPath ?? 'not found'}`);
 
-    if (context === 'rancher-desktop') {
-      logger.info('[DockerRuntime] Rancher Desktop detected from Docker context.');
-      return 'rancher-desktop';
+    if (dockerPath) {
+      const context = await this.getCurrentContext(dockerPath);
+
+      logger.debug(`[DockerRuntime] Current Docker context: ${context ?? 'none'}`);
+
+      if (context === 'rancher-desktop') {
+        const rdctlPath = await getRdctlPath();
+
+        if (rdctlPath) {
+          logger.info('[DockerRuntime] Rancher Desktop detected from Docker context.');
+
+          return {
+            runtime: 'rancher-desktop',
+            executablePath: rdctlPath
+          };
+        }
+      }
+
+      const dockerDesktop = await this.detectDockerDesktop(dockerPath);
+
+      if (dockerDesktop) {
+        return dockerDesktop;
+      }
     }
 
-    return this.detectPlatformRuntime();
+    // Only use rdctl as a fallback when Docker Desktop was not identified.
+    const rdctlPath = await getRdctlPath();
+
+    if (rdctlPath) {
+      logger.info(`[DockerRuntime] Rancher Desktop detected. rdctl: ${rdctlPath}`);
+
+      return {
+        runtime: 'rancher-desktop',
+        executablePath: rdctlPath
+      };
+    }
+
+    return null;
   }
 
-  private async getCurrentContext(): Promise<string | null> {
-    try {
-      const { execFile } = await import('node:child_process');
-      const { promisify } = await import('node:util');
+  private async detectDockerDesktop(dockerPath: string | null): Promise<DockerRuntimeInfo | null> {
+    logger.debug('[DockerRuntime] Checking for Docker Desktop.');
 
-      const execFileAsync = promisify(execFile);
-      const { stdout } = await execFileAsync('docker', ['context', 'show'], {
+    if (!dockerPath) {
+      return null;
+    }
+
+    try {
+      await execFileAsync(dockerPath, ['desktop', 'version'], {
         encoding: 'utf8',
         windowsHide: true
       });
 
-      return stdout.trim() || null;
+      logger.info(`[DockerRuntime] Docker Desktop detected. Docker CLI: ${dockerPath}`);
+
+      return {
+        runtime: 'docker-desktop',
+        executablePath: dockerPath
+      };
     } catch {
+      logger.debug('[DockerRuntime] Docker Desktop CLI is not available.');
+
       return null;
     }
   }
 
-  private async detectPlatformRuntime(): Promise<DockerRuntime | null> {
-    logger.debug('[DockerRuntime] Checking installed Docker runtimes.');
-
-    if (await isDockerDesktopInstalled()) {
-      logger.info('[DockerRuntime] Docker Desktop is installed.');
-      return 'docker-desktop';
+  private async getCurrentContext(dockerPath: string): Promise<string | null> {
+    try {
+      const { stdout } = await execFileAsync(dockerPath, ['context', 'show'], {
+        encoding: 'utf8',
+        windowsHide: true
+      });
+      return stdout.trim() || null;
+    } catch {
+      return null;
     }
-    if (await isRancherDesktopInstalled()) {
-      logger.info('[DockerRuntime] Rancher Desktop is installed.');
-      return 'rancher-desktop';
-    }
-
-    logger.warn('[DockerRuntime] No supported Docker runtime is installed.');
-    return null;
   }
 
   private async waitForDocker(): Promise<Docker> {
