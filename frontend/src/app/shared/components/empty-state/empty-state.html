@@ -1,6 +1,20 @@
 <div class="empty-state {{ size() }}">
-  <span class="mat-icon-filled empty-icon" aria-hidden="true">{{ icon() }}</span>
-  <p>{{ message() }}</p>
+  @if (showLoader()) {
+    <ng-catbee-loader
+      class="init-loader-host"
+      [name]="emptyStateLoaderName"
+      [message]="message()"
+      size="medium"
+      [fullscreen]="false"
+      [backgroundColor]="'transparent'"
+      [loaderColor]="'#fff'"
+    />
+  } @else {
+    <span class="mat-icon-filled empty-icon" aria-hidden="true">
+      {{ icon() }}
+    </span>
+    <p>{{ message() }}</p>
+  }
   @if (hint()) {
     <span class="empty-hint">{{ hint() }}</span>
   }

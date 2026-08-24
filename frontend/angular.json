@@ -52,7 +52,10 @@
                 "input": "public"
               }
             ],
-            "styles": ["src/styles.scss"]
+            "styles": [
+              "src/styles.scss",
+              "node_modules/@ng-catbee/loader/css/ball-spin-clockwise.min.css"
+            ]
           },
           "configurations": {
             "production": {

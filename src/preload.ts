@@ -23,6 +23,11 @@ const IPC_CHANNELS = {
     Menu: {
       Show: 'app:menu:show',
       ShowSubmenu: 'app:menu:show-submenu'
+    },
+    Initialization: {
+      Docker: {
+        Status: 'app:initialization:docker:status'
+      }
     }
   },
   Docker: {
@@ -124,6 +129,19 @@ const electronBridge = {
     menu: {
       show: () => ipcRenderer.invoke(IPC_CHANNELS.App.Menu.Show),
       showSubmenu: (label: string) => ipcRenderer.invoke(IPC_CHANNELS.App.Menu.ShowSubmenu, label)
+    },
+    initialization: {
+      docker: {
+        onStatus: (callback: (status: unknown) => void) => {
+          const listener = (_event: Electron.IpcRendererEvent, status: unknown): void => {
+            callback(status);
+          };
+          ipcRenderer.on(IPC_CHANNELS.App.Initialization.Docker.Status, listener);
+          return () => {
+            ipcRenderer.removeListener(IPC_CHANNELS.App.Initialization.Docker.Status, listener);
+          };
+        }
+      }
     }
   },
   docker: {

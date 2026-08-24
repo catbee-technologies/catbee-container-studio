@@ -13,6 +13,39 @@ export interface DockerRuntimeInfo {
   executablePath: string;
 }
 
+export type DockerInitializationStatus =
+  | {
+      state: 'checking';
+      message: string;
+      hint: string;
+    }
+  | {
+      state: 'detecting-runtime';
+      message: string;
+      hint: string;
+    }
+  | {
+      state: 'starting-runtime';
+      runtime: DockerRuntime;
+      message: string;
+      hint: string;
+    }
+  | {
+      state: 'waiting-for-engine';
+      message: string;
+      hint: string;
+    }
+  | {
+      state: 'ready';
+      message: string;
+      hint: string;
+    }
+  | {
+      state: 'error';
+      message: string;
+      hint: string;
+    };
+
 export async function startDockerRuntime(runtimeInfo: DockerRuntimeInfo): Promise<void> {
   logger.info(`[DockerRuntime] Starting runtime: ${runtimeInfo.runtime}`);
 

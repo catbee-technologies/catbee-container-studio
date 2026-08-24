@@ -6,6 +6,7 @@ import { buildApplicationMenu } from './menu';
 import { logger } from './logger';
 import { isDev, isMacOS } from './constants';
 import { initializeAutoUpdater } from './updater';
+import { IPC_CHANNELS } from '../ipc/channels';
 
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -67,18 +68,32 @@ if (!gotTheLock) {
     .whenReady()
     .then(async () => {
       logger.info('Application is ready');
-      try {
-        await dockerService.initialize();
-        logger.info('[DockerConnection] Docker connected successfully.');
-      } catch (error) {
-        logger.error({ err: error }, '[DockerConnection] Failed to connect to Docker.');
-      }
 
       initializeAutoUpdater();
       buildApplicationMenu({ getMainWindow: () => mainWindow, showOrCreateMainWindow });
       registerAppProtocol();
       registerIpcHandlers();
       openMainWindow();
+
+      void dockerService
+        .initialize(
+          status => {
+            if (!mainWindow || mainWindow.isDestroyed()) {
+              return;
+            }
+            mainWindow.webContents.send(IPC_CHANNELS.App.Initialization.Docker.Status, status);
+          },
+          () => {
+            if (!mainWindow || mainWindow.isDestroyed()) {
+              return;
+            }
+            mainWindow.show();
+            mainWindow.focus();
+          }
+        )
+        .catch(error => {
+          logger.error({ err: error }, '[DockerConnection] Failed to initialize Docker service.');
+        });
 
       app.on('activate', () => {
         logger.debug('Application activated');

@@ -42,12 +42,23 @@
       @if (dockerConnected()) {
         <router-outlet />
       } @else {
-        <catbee-container-studio-empty-state
-          icon="cloud_off"
-          size="large"
-          message="Docker Engine is not connected"
-          hint="Please start Docker Engine to manage your containers, images, and volumes."
-        />
+        @let status = dockerInitStatus();
+        @let error = dockerErrorStatus();
+        @let initializing = isDockerInitializing();
+        
+        <catbee-container-studio-empty-state icon="cloud_off" size="large" [message]="
+            error
+              ? error.message
+              : initializing
+                ? status.message
+                : 'Docker Engine is not connected'
+          " [hint]="
+            error
+              ? error.hint
+              : initializing
+                ? status.hint
+                : 'Please start Docker Engine to manage your containers, images, and volumes.'
+          " [showLoader]="initializing" />
       }
     </main>
   </div>

@@ -43,7 +43,8 @@ export const UI_STORAGE_KEYS = {
   IMAGES_SEARCH_QUERY: `${UI_STORAGE_PREFIX}images.search-query`,
   IMAGES_SELECTED_TAB_PREFIX: `${UI_STORAGE_PREFIX}images.selected-tab.`,
   VOLUMES_SEARCH_QUERY: `${UI_STORAGE_PREFIX}volumes.search-query`,
-  VOLUMES_SELECTED_TAB_PREFIX: `${UI_STORAGE_PREFIX}volumes.selected-tab.`
+  VOLUMES_SELECTED_TAB_PREFIX: `${UI_STORAGE_PREFIX}volumes.selected-tab.`,
+  DOCKER_INIT_STATUS: `${UI_STORAGE_PREFIX}docker-init-status`
 } as const;
 
 export const UI_STORAGE_DEFAULTS = {
