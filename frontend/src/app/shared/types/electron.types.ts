@@ -78,6 +78,7 @@ export interface ElectronBridge {
       docker: {
         onStatus: (callback: (status: DockerInitializationStatus) => void) => () => void;
       };
+      rendererReady: () => void;
     }
   };
   docker: {

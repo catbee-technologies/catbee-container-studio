@@ -830,4 +830,9 @@ export function registerIpcHandlers(): void {
     showApplicationSubmenu(window, label);
     return ok({ shown: true });
   });
+
+  ipcMain.removeHandler(IPC_CHANNELS.App.Initialization.RendererReady);
+  ipcMain.on(IPC_CHANNELS.App.Initialization.RendererReady, () => {
+    dockerService.setRendererReady();
+  });
 }

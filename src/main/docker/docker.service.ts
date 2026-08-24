@@ -15,21 +15,43 @@ export class DockerService {
   private client!: Docker;
   private readonly runtimeManager = new DockerRuntimeManager();
 
+  private rendererReady = false;
+  private latestStatus: DockerInitializationStatus | null = null;
+  private statusListener?: (status: DockerInitializationStatus) => void;
+
   async initialize(
     onStatus?: (status: DockerInitializationStatus) => void,
     onRuntimeStarted?: () => void
   ): Promise<void> {
-    onStatus?.({
+    this.statusListener = onStatus;
+
+    this.emitStatus({
       state: 'checking',
       message: 'Checking Docker availability...',
       hint: 'Verifying if Docker Engine is running and accessible.'
     });
-    this.client = await this.runtimeManager.ensureDockerAvailable(onStatus, onRuntimeStarted);
-    onStatus?.({
+
+    this.client = await this.runtimeManager.ensureDockerAvailable(status => this.emitStatus(status), onRuntimeStarted);
+
+    this.emitStatus({
       state: 'ready',
       message: 'Docker Engine is ready.',
       hint: 'Docker Engine is running and accessible.'
     });
+  }
+
+  setRendererReady(): void {
+    this.rendererReady = true;
+    if (this.latestStatus) {
+      this.statusListener?.(this.latestStatus);
+    }
+  }
+
+  private emitStatus(status: DockerInitializationStatus): void {
+    this.latestStatus = status;
+    if (this.rendererReady) {
+      this.statusListener?.(status);
+    }
   }
 
   private normalizeId(value: string, label: string): string {

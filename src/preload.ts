@@ -27,7 +27,8 @@ const IPC_CHANNELS = {
     Initialization: {
       Docker: {
         Status: 'app:initialization:docker:status'
-      }
+      },
+      RendererReady: 'app:initialization:renderer-ready'
     }
   },
   Docker: {
@@ -141,6 +142,9 @@ const electronBridge = {
             ipcRenderer.removeListener(IPC_CHANNELS.App.Initialization.Docker.Status, listener);
           };
         }
+      },
+      rendererReady: () => {
+        ipcRenderer.send(IPC_CHANNELS.App.Initialization.RendererReady);
       }
     }
   },

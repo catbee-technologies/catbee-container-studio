@@ -19,7 +19,8 @@ export const IPC_CHANNELS = {
     Initialization: {
       Docker: {
         Status: 'app:initialization:docker:status'
-      }
+      },
+      RendererReady: 'app:initialization:renderer-ready'
     }
   },
   Docker: {
