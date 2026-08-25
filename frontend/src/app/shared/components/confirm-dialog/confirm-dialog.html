@@ -11,11 +11,11 @@
     <article class="catbee-dialog catbee-base-panel" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
       <h2>{{ title() }}</h2>
 
-      <div class="catbee-dialog-message">
+      <div class="catbee-confirm-dialog-message">
         <p>{{ localMessage() }}</p>
       </div>
 
-      <div class="catbee-dialog-actions">
+      <div class="catbee-confirm-dialog-actions">
         <button type="button" class="catbee-action-btn" (click)="onCancel()">
           {{ cancelLabel() }}
         </button>

@@ -1,0 +1,73 @@
+.catbee-dialog-backdrop {
+  .catbee-dialog {
+    .catbee-dialog-header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1rem 1rem 0.75rem;
+
+      h2 {
+        flex-shrink: 0;
+        margin: 0;
+        font-size: var(--font-size-xl);
+        font-weight: 600;
+        color: var(--ink-100);
+      }
+
+      .catbee-dialog-close {
+        flex-shrink: 0;
+        width: 2rem;
+        height: 2rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 0;
+        border-radius: 0.5rem;
+        background: transparent;
+        color: var(--ink-300);
+        font-size: 1.5rem;
+        line-height: 1;
+        cursor: pointer;
+        transition:
+          background-color 120ms ease,
+          color 120ms ease;
+
+        &:hover {
+          background: rgb(255 255 255 / 0.08);
+          color: var(--ink-100);
+        }
+
+        &:focus-visible {
+          outline: 2px solid var(--ink-300);
+          outline-offset: 2px;
+        }
+      }
+    }
+
+    .catbee-dialog-body {
+      min-height: 0;
+      overflow-y: auto;
+      padding: 0 1rem 1rem;
+    }
+
+    ::ng-deep .catbee-footer-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 0.5rem;
+      gap: 0.5rem;
+
+      button.primary {
+        color: var(--ink-100);
+      }
+
+      button.secondary {
+        background: transparent;
+        color: var(--ink-300);
+        border: 1px solid var(--border-color-accent);
+      }
+    }
+  }
+}

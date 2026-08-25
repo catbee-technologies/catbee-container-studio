@@ -1,0 +1,33 @@
+@if (visible()) {
+  <section
+    class="catbee-dialog-backdrop"
+    [class.closing]="closing()"
+    role="presentation"
+    tabindex="0"
+    (click)="onClose()"
+    (keydown)="onBackdropKeydown($event)"
+  >
+    <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
+    <article
+      class="catbee-dialog catbee-base-panel"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-labelledby]="titleId"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="catbee-dialog-header">
+        <h2 [id]="titleId">{{ title() }}</h2>
+        <button type="button" class="catbee-dialog-close" aria-label="Close dialog" (click)="onClose()">
+          <span class="mat-icon-filled" aria-hidden="true">close</span>
+        </button>
+      </header>
+
+      <div class="catbee-dialog-body">
+        <ng-content select="[catbeeDialogBody]"></ng-content>
+      </div>
+      <div class="catbee-footer-actions">
+        <ng-content select="[catbeeDialogFooter]"></ng-content>
+      </div>
+    </article>
+  </section>
+}
