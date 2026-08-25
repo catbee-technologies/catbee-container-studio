@@ -69,11 +69,14 @@ if (!gotTheLock) {
     .then(async () => {
       logger.info('Application is ready');
 
-      initializeAutoUpdater();
       buildApplicationMenu({ getMainWindow: () => mainWindow, showOrCreateMainWindow });
       registerAppProtocol();
       registerIpcHandlers();
       openMainWindow();
+
+      if (mainWindow) {
+        initializeAutoUpdater(mainWindow);
+      }
 
       void dockerService
         .initialize(

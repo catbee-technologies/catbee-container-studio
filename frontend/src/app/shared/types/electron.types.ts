@@ -19,42 +19,75 @@ export type DockerRuntime = 'docker-desktop' | 'rancher-desktop';
 
 export type DockerInitializationStatus =
   | {
-    state: 'loading';
-    message: string;
-    hint: string;
-  }
+      state: 'loading';
+      message: string;
+      hint: string;
+    }
   | {
-    state: 'checking';
-    message: string;
-    hint: string;
-  }
+      state: 'checking';
+      message: string;
+      hint: string;
+    }
   | {
-    state: 'detecting-runtime';
-    message: string;
-    hint: string;
-  }
+      state: 'detecting-runtime';
+      message: string;
+      hint: string;
+    }
   | {
-    state: 'starting-runtime';
-    runtime: DockerRuntime;
-    message: string;
-    hint: string;
-  }
+      state: 'starting-runtime';
+      runtime: DockerRuntime;
+      message: string;
+      hint: string;
+    }
   | {
-    state: 'waiting-for-engine';
-    message: string;
-    hint: string;
-  }
+      state: 'waiting-for-engine';
+      message: string;
+      hint: string;
+    }
   | {
-    state: 'ready';
-    message: string;
-    hint: string;
-  }
+      state: 'ready';
+      message: string;
+      hint: string;
+    }
   | {
-    state: 'error';
-    message: string;
-    hint: string;
-  };
+      state: 'error';
+      message: string;
+      hint: string;
+    };
 
+export interface UpdateDownloadProgress {
+  percent: number;
+  transferred: number;
+  total: number;
+  bytesPerSecond: number;
+}
+
+export type AutoUpdaterStatus =
+  | {
+      status: 'idle';
+    }
+  | {
+      status: 'checking';
+    }
+  | {
+      status: 'available';
+      version: string;
+    }
+  | {
+      status: 'not-available';
+      version: string;
+    }
+  | ({
+      status: 'downloading';
+    } & UpdateDownloadProgress)
+  | {
+      status: 'downloaded';
+      version: string;
+    }
+  | {
+      status: 'error';
+      message: string;
+    };
 
 export interface ElectronBridge {
   app: {
@@ -79,7 +112,13 @@ export interface ElectronBridge {
         onStatus: (callback: (status: DockerInitializationStatus) => void) => () => void;
       };
       rendererReady: () => void;
-    }
+    };
+    updater: {
+      checkForUpdates: () => IpcPromise<void>;
+      downloadUpdate: () => IpcPromise<void>;
+      restartAndInstallUpdate: () => IpcPromise<void>;
+      onStatus: (callback: (status: AutoUpdaterStatus) => void) => () => void;
+    };
   };
   docker: {
     engine: {

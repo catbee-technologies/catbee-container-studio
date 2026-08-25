@@ -1,0 +1,110 @@
+@mixin catbee-updater-hint {
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: 0.6rem;
+  background: rgb(255 255 255 / 0.04);
+  line-height: 1.45;
+  color: var(--ink-400);
+  border-left: 0.25rem solid var(--ink-400);
+}
+
+.catbee-updater-state {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+
+  p {
+    margin: 0;
+    line-height: 1.45;
+    color: var(--ink-300);
+  }
+
+  &.error {
+    @include catbee-updater-hint;
+    border-left-color: var(--color-error-dark);
+
+    p {
+      color: var(--color-error-light);
+    }
+  }
+}
+
+.catbee-updater-version {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.6rem;
+  background: rgb(255 255 255 / 0.04);
+
+  span {
+    color: var(--ink-400);
+  }
+
+  strong {
+    color: var(--ink-100);
+    font-weight: 500;
+  }
+}
+
+.catbee-updater-progress {
+  width: 100%;
+  height: 0.45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.catbee-updater-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ink-100);
+  transition: width 180ms ease-out;
+}
+
+.catbee-updater-progress-info {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ink-400);
+  font-size: var(--font-size-sm);
+}
+
+.catbee-updater-hint {
+  @include catbee-updater-hint;
+
+  &.info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: var(--font-size-sm);
+
+    &::before {
+      content: 'info';
+      font-family: 'Mat Icon Filled';
+      position: relative;
+    }
+  }
+}
+
+.catbee-updater-spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  align-self: center;
+  border: 2px solid rgb(255 255 255 / 0.15);
+  border-top-color: var(--ink-100);
+  border-radius: 50%;
+  animation: catbee-updater-spin 700ms linear infinite;
+}
+
+@keyframes catbee-updater-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catbee-updater-spinner {
+    animation: none;
+  }
+}

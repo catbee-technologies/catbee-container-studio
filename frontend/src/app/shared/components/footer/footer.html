@@ -1,0 +1,52 @@
+<div class="catbee-footer-container">
+  <div class="catbee-footer-left">
+    @let running = dockerConnected();
+
+    <span class="docker-engine-status {{ running ? 'running' : 'not-running' }}">
+      <span class="status-dot-container">
+        <span class="status-dot-ping"></span>
+        <span class="status-dot"></span>
+      </span>
+
+      Docker Engine {{ running ? '' : 'not' }} running
+    </span>
+  </div>
+
+  <div class="catbee-footer-right">
+    @let hasUpdate = updateAvailable();
+    @let progress = downloadProgress();
+    @let downloaded = updateDownloaded();
+
+    <button type="button" class="catbee-action-btn plain-btn updater-launch-btn" (click)="updaterDialogOpen.set(true)">
+      @if (progress) {
+        <span class="update-progress">
+          <span class="update-progress-percent"> {{ progress.percent | number: '1.0-0' }}% </span>
+          <span class="update-progress-size">
+            {{ formatBytes(progress.transferred) }}
+            /
+            {{ formatBytes(progress.total) }}
+          </span>
+          <span class="downloading-icon" aria-hidden="true">
+            <span class="mat-icon-filled" aria-hidden="true">download</span>
+          </span>
+        </span>
+      } @else if (downloaded) {
+        <span class="mat-icon-filled downloaded-icon" aria-hidden="true"> download_done </span>
+        <span class="version"> Restart to Update </span>
+      } @else if (hasUpdate) {
+        <span class="mat-icon-filled update-icon" aria-hidden="true"> notifications_active </span>
+        <span class="version"> v{{ currentVersion() }} (Update Available) </span>
+      } @else {
+        <span class="version"> v{{ currentVersion() }} </span>
+      }
+    </button>
+  </div>
+</div>
+
+<catbee-container-studio-updater
+  [(updaterDialogOpen)]="updaterDialogOpen"
+  [currentVersion]="currentVersion()"
+  (updateAvailable)="onUpdateAvailable()"
+  (updateDownloadProgress)="onUpdateDownloadProgress($event)"
+  (updateDownloaded)="onUpdateDownloaded()"
+/>

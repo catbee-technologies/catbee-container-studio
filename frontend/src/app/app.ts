@@ -10,10 +10,19 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ElectronApiService } from '@core/electron-api.service';
 import { DockerInitializationStatus } from '@shared/types';
+import { FooterComponent } from '@components/footer/footer';
 
 @Component({
   selector: 'catbee-container-studio-root',
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, WindowHeaderComponent, EmptyStateComponent],
+  imports: [
+    CommonModule,
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    WindowHeaderComponent,
+    EmptyStateComponent,
+    FooterComponent
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
@@ -23,16 +32,18 @@ export class App implements OnInit {
   private readonly dockerApi = inject(DockerApiService);
   private readonly electronApi = inject(ElectronApiService);
   private readonly destroyRef = inject(DestroyRef);
-   
+
   readonly sidebarCollapsed = signal(
     this.localStorage.getBooleanWithDefault(UI_STORAGE_KEYS.SIDEBAR_COLLAPSED, UI_STORAGE_DEFAULTS.SIDEBAR_COLLAPSED)
   );
   readonly dockerConnected = signal(true); // Assume connected until checked
-  readonly dockerInitStatus = signal<DockerInitializationStatus>(this.sessionStorage.getJsonWithDefault<DockerInitializationStatus>(UI_STORAGE_KEYS.DOCKER_INIT_STATUS, {
-    state: 'checking',
-    message: 'Checking Docker Engine status...',
-    hint: 'Please wait while we check the status of the Docker Engine.'
-  }));
+  readonly dockerInitStatus = signal<DockerInitializationStatus>(
+    this.sessionStorage.getJsonWithDefault<DockerInitializationStatus>(UI_STORAGE_KEYS.DOCKER_INIT_STATUS, {
+      state: 'checking',
+      message: 'Checking Docker Engine status...',
+      hint: 'Please wait while we check the status of the Docker Engine.'
+    })
+  );
   readonly isDockerInitializing = computed(() => {
     const state = this.dockerInitStatus().state;
     return (
@@ -56,19 +67,15 @@ export class App implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.unsubscribeDockerStatus =
-      this.electronApi.onDockerInitializationStatus(status => {
-        this.dockerInitStatus.set(status);
-        this.sessionStorage.setJson(UI_STORAGE_KEYS.DOCKER_INIT_STATUS, status);
-        console.log(
-          `\x1b[36m${new Date().toISOString()}\x1b[0m Docker initialization status:`,
-          status
-        );
-        if (status.state === 'ready') {
-          this.dockerConnected.set(true);
-        }
-      });
-    
+    this.unsubscribeDockerStatus = this.electronApi.onDockerInitializationStatus(status => {
+      this.dockerInitStatus.set(status);
+      this.sessionStorage.setJson(UI_STORAGE_KEYS.DOCKER_INIT_STATUS, status);
+      console.log(`\x1b[36m${new Date().toISOString()}\x1b[0m Docker initialization status:`, status);
+      if (status.state === 'ready') {
+        this.dockerConnected.set(true);
+      }
+    });
+
     this.electronApi.notifyDockerRendererReady();
 
     this.destroyRef.onDestroy(() => {

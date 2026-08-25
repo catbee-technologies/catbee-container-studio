@@ -21,6 +21,12 @@ export const IPC_CHANNELS = {
         Status: 'app:initialization:docker:status'
       },
       RendererReady: 'app:initialization:renderer-ready'
+    },
+    Updater: {
+      CheckForUpdates: 'app:updater:check-for-updates',
+      DownloadUpdate: 'app:updater:download-update',
+      RestartAndInstallUpdate: 'app:updater:restart-and-install-update',
+      Status: 'app:updater:status'
     }
   },
   Docker: {

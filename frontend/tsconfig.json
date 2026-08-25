@@ -23,6 +23,7 @@
       "@docker-images/*": ["./src/app/features/images/*"],
       "@docker-volumes/*": ["./src/app/features/volumes/*"],
       "@docker-networks/*": ["./src/app/features/networks/*"],
+      "@environments/*": ["./src/environments/*"],
       "@features/*": ["./src/app/features/*"],
       "@core/*": ["./src/app/core/*"],
       "@shared/*": ["./src/app/shared/*"],

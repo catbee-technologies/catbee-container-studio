@@ -29,6 +29,12 @@ const IPC_CHANNELS = {
         Status: 'app:initialization:docker:status'
       },
       RendererReady: 'app:initialization:renderer-ready'
+    },
+    Updater: {
+      CheckForUpdates: 'app:updater:check-for-updates',
+      DownloadUpdate: 'app:updater:download-update',
+      RestartAndInstallUpdate: 'app:updater:restart-and-install-update',
+      Status: 'app:updater:status'
     }
   },
   Docker: {
@@ -145,6 +151,20 @@ const electronBridge = {
       },
       rendererReady: () => {
         ipcRenderer.send(IPC_CHANNELS.App.Initialization.RendererReady);
+      }
+    },
+    updater: {
+      checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.App.Updater.CheckForUpdates),
+      downloadUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.App.Updater.DownloadUpdate),
+      restartAndInstallUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.App.Updater.RestartAndInstallUpdate),
+      onStatus: (callback: (status: unknown) => void) => {
+        const listener = (_event: Electron.IpcRendererEvent, status: unknown): void => {
+          callback(status);
+        };
+        ipcRenderer.on(IPC_CHANNELS.App.Updater.Status, listener);
+        return () => {
+          ipcRenderer.removeListener(IPC_CHANNELS.App.Updater.Status, listener);
+        };
       }
     }
   },

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { ElectronBaseService } from './electron-base.service';
-import { DockerInitializationStatus } from '@shared/types';
+import { AutoUpdaterStatus, DockerInitializationStatus } from '@shared/types';
 
 @Injectable({ providedIn: 'root' })
 export class ElectronApiService extends ElectronBaseService {
@@ -50,5 +50,21 @@ export class ElectronApiService extends ElectronBaseService {
 
   notifyDockerRendererReady(): void {
     this.bridge.app?.initialization?.rendererReady();
+  }
+
+  onUpdaterStatus(callback: (status: AutoUpdaterStatus) => void): () => void {
+    return this.bridge.app?.updater?.onStatus(callback);
+  }
+
+  async checkForUpdates(): Promise<void> {
+    await this.bridge.app?.updater?.checkForUpdates();
+  }
+
+  async downloadUpdate(): Promise<void> {
+    await this.bridge.app?.updater?.downloadUpdate();
+  }
+
+  async restartAndInstallUpdate(): Promise<void> {
+    await this.bridge.app?.updater?.restartAndInstallUpdate();
   }
 }

@@ -1,0 +1,127 @@
+<catbee-container-studio-dialog [open]="updaterDialogOpen()" [title]="updaterTitle()" (closeDialog)="closeUpdater()">
+  @let status = updaterStatus();
+
+  <ng-container catbeeDialogBody>
+    @switch (status.status) {
+      @case ('checking') {
+        <div class="catbee-updater-state">
+          <p>Checking for a new version...</p>
+          <div class="catbee-updater-spinner" aria-hidden="true"></div>
+        </div>
+      }
+
+      @case ('available') {
+        <div class="catbee-updater-state">
+          <p>A new version of CatBee Container Studio is available.</p>
+          <div class="catbee-updater-version">
+            <span>Current version</span>
+            <strong>{{ currentVersion() }}</strong>
+          </div>
+
+          <div class="catbee-updater-version">
+            <span>New version</span>
+            <strong>{{ status.version }}</strong>
+          </div>
+
+          <div class="catbee-updater-changelog-container">
+            <span>See what's new in this release.</span>
+            <button type="button" class="link-btn" (click)="openChangelog(currentVersion(), status.version)">
+              View Changelog
+              <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
+            </button>
+          </div>
+        </div>
+      }
+
+      @case ('downloading') {
+        <div class="catbee-updater-state">
+          <p>Downloading the latest version...</p>
+
+          <div
+            class="catbee-updater-progress"
+            role="progressbar"
+            [attr.aria-valuenow]="status.percent"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            [attr.aria-valuetext]="formatBytes(status.transferred) + ' of ' + formatBytes(status.total)"
+          >
+            <div class="catbee-updater-progress-bar" [style.width.%]="status.percent"></div>
+          </div>
+
+          <div class="catbee-updater-progress-info">
+            <span> {{ status.percent | number: '1.0-0' }}% </span>
+
+            <span>
+              {{ formatBytes(status.transferred) }}
+              /
+              {{ formatBytes(status.total) }}
+            </span>
+
+            <span> {{ formatBytes(status.bytesPerSecond) }}/s </span>
+          </div>
+        </div>
+      }
+
+      @case ('downloaded') {
+        <div class="catbee-updater-state">
+          <p>
+            CatBee Container Studio
+            <strong>{{ status.version }}</strong>
+            has been downloaded successfully.
+          </p>
+
+          <p class="catbee-updater-hint">Restart the application to finish the update.</p>
+        </div>
+      }
+
+      @case ('not-available') {
+        <div class="catbee-updater-state">
+          <p>CatBee Container Studio is already up to date.</p>
+          <p class="catbee-updater-hint">Current version: {{ currentVersion() }}</p>
+        </div>
+      }
+
+      @case ('error') {
+        <div class="catbee-updater-state error">
+          <p>{{ status.message }}</p>
+        </div>
+      }
+    }
+  </ng-container>
+
+  <ng-container catbeeDialogFooter>
+    @switch (status.status) {
+      @case ('available') {
+        <button type="button" class="catbee-action-btn primary" (click)="downloadUpdate()">
+          <span class="mat-icon-filled" aria-hidden="true">download</span>
+          Download Update
+        </button>
+      }
+
+      @case ('downloading') {
+        <button type="button" class="catbee-action-btn secondary" (click)="downloadInBackground()">
+          <span class="mat-icon-filled" aria-hidden="true">download_for_offline</span>
+          Continue in Background
+        </button>
+      }
+
+      @case ('downloaded') {
+        <button type="button" class="catbee-action-btn secondary" (click)="closeUpdater()">
+          <span class="mat-icon-filled" aria-hidden="true">watch_later</span>
+          Later
+        </button>
+        <button type="button" class="catbee-action-btn primary" (click)="restartAndInstall()">
+          <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
+          Restart Now
+        </button>
+      }
+
+      @case ('error') {
+        <button type="button" class="catbee-action-btn primary" (click)="checkForUpdates()">
+          <span class="mat-icon-filled" aria-hidden="true">refresh</span>
+          Try Again
+        </button>
+      }
+    }
+  </ng-container>
+</catbee-container-studio-dialog>

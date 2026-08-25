@@ -1,0 +1,212 @@
+.catbee-footer-container {
+  background: var(--bg-sidebar);
+  border-top: 1px solid var(--border-color-light);
+  padding: 0 20px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  .catbee-footer-left {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: var(--font-size-sm);
+    user-select: none;
+
+    .status-dot-container {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 0.58rem;
+      height: 0.58rem;
+
+      .status-dot-ping {
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+      }
+
+      .status-dot {
+        position: relative;
+        display: inline-block;
+        width: 0.58rem;
+        height: 0.58rem;
+        border-radius: 999px;
+      }
+    }
+
+    .docker-engine-status {
+      &.running {
+        color: var(--color-success-base);
+
+        .status-dot,
+        .status-dot-ping {
+          background-color: var(--color-success-base);
+        }
+      }
+
+      &.not-running {
+        color: var(--color-error-base);
+
+        .status-dot,
+        .status-dot-ping {
+          background-color: var(--color-error-base);
+        }
+      }
+    }
+  }
+
+  .catbee-footer-right {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    font-size: var(--font-size-sm);
+
+    .version {
+      color: var(--ink-300);
+    }
+
+    .updater-launch-btn {
+      padding: 0.25rem 0.5rem;
+
+      &:hover:not(:disabled) {
+        transform: none;
+      }
+    }
+
+    .update-progress {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+
+      .update-progress-percent {
+        color: var(--ink-300);
+      }
+
+      .update-progress-size {
+        color: var(--ink-400);
+        font-size: var(--font-size-xs);
+      }
+
+      .downloading-icon {
+        position: relative;
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        margin-right: 6px;
+        overflow: hidden;
+        vertical-align: middle;
+
+        .mat-icon-filled {
+          position: absolute;
+          top: -18px;
+          left: 0;
+          font-size: 18px;
+          line-height: 18px;
+          animation: downloading-scroll 1s linear infinite;
+        }
+      }
+    }
+
+    .downloaded-icon {
+      display: inline-block;
+      font-size: 18px;
+      margin-right: 6px;
+      transform-origin: 50% 10%;
+      animation: download-complete-ready 1.5s ease-in-out infinite;
+    }
+
+    .update-icon {
+      display: inline-block;
+      font-size: 18px;
+      margin-right: 6px;
+      transform-origin: 50% 10%;
+      animation: notification-shake 1.8s ease-in-out infinite;
+    }
+  }
+}
+
+@keyframes download-complete-ready {
+  0%,
+  70%,
+  100% {
+    transform: translateY(0);
+  }
+  80% {
+    transform: translateY(-3px);
+  }
+  90% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes downloading-scroll {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  65% {
+    transform: translateY(28px);
+    opacity: 1;
+  }
+
+  80% {
+    transform: translateY(36px);
+    opacity: 0;
+  }
+
+  100% {
+    transform: translateY(36px);
+    opacity: 0;
+  }
+}
+
+@keyframes notification-shake {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  10% {
+    transform: rotate(12deg);
+  }
+
+  20% {
+    transform: rotate(-12deg);
+  }
+
+  30% {
+    transform: rotate(9deg);
+  }
+
+  40% {
+    transform: rotate(-9deg);
+  }
+
+  50% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes ping {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  75%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}

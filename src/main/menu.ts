@@ -1,7 +1,6 @@
 import { BrowserWindow, Menu, shell } from 'electron';
 import { isDev, isMacOS, LOG_DIR_PATH, ZOOM_CONFIG } from './constants';
 import { syncMacTrafficLights } from './mac-traffic-lights';
-import { checkForUpdates } from './updater';
 import { showAboutDialog } from './about';
 
 export interface ApplicationMenuOptions {
@@ -147,16 +146,8 @@ function createWindowSubmenu(): Electron.MenuItemConstructorOptions[] {
   ];
 }
 
-function createHelpSubmenu(getMainWindow: () => BrowserWindow | null): Electron.MenuItemConstructorOptions[] {
+function createHelpSubmenu(): Electron.MenuItemConstructorOptions[] {
   return [
-    {
-      label: 'Check for Updates...',
-      click: async () => {
-        const targetWindow = getTargetWindow(getMainWindow);
-        await checkForUpdates(targetWindow);
-      }
-    },
-    { type: 'separator' },
     {
       label: 'View Logs',
       click: async () => {
@@ -200,7 +191,7 @@ export function buildApplicationMenu({ getMainWindow, showOrCreateMainWindow }: 
     },
     {
       role: 'help',
-      submenu: createHelpSubmenu(getMainWindow)
+      submenu: createHelpSubmenu()
     }
   ];
 

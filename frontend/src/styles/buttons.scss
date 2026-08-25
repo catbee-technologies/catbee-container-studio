@@ -30,6 +30,18 @@ button {
     cursor: not-allowed;
   }
 
+  &.plain-btn {
+    border: 0;
+    background: transparent;
+    color: var(--ink-300);
+    padding: 0.32rem 0.56rem;
+
+    &:hover:not(:disabled) {
+      color: var(--ink-100);
+      background: rgb(255 255 255 / 0.04);
+    }
+  }
+
   // Hover and active states
   &:hover:not(:disabled) {
     transform: translateY(-1px);

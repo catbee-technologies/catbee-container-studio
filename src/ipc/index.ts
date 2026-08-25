@@ -6,6 +6,7 @@ import { DockerService } from '../main/docker/docker.service';
 import { IPC_CHANNELS } from './channels';
 import { DockerStreamEventEnvelope, IpcResult, fail, ok } from './contracts';
 import { showApplicationMenu, showApplicationSubmenu } from '../main/menu';
+import { checkForUpdates, downloadUpdate, restartAndInstallUpdate } from '../main/updater';
 
 export const dockerService = new DockerService();
 
@@ -834,5 +835,20 @@ export function registerIpcHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.App.Initialization.RendererReady);
   ipcMain.on(IPC_CHANNELS.App.Initialization.RendererReady, () => {
     dockerService.setRendererReady();
+  });
+
+  ipcMain.removeHandler(IPC_CHANNELS.App.Updater.CheckForUpdates);
+  ipcMain.handle(IPC_CHANNELS.App.Updater.CheckForUpdates, async () => {
+    await checkForUpdates();
+  });
+
+  ipcMain.removeHandler(IPC_CHANNELS.App.Updater.DownloadUpdate);
+  ipcMain.handle(IPC_CHANNELS.App.Updater.DownloadUpdate, async () => {
+    await downloadUpdate();
+  });
+
+  ipcMain.removeHandler(IPC_CHANNELS.App.Updater.RestartAndInstallUpdate);
+  ipcMain.handle(IPC_CHANNELS.App.Updater.RestartAndInstallUpdate, () => {
+    restartAndInstallUpdate();
   });
 }

@@ -45,21 +45,22 @@
         @let status = dockerInitStatus();
         @let error = dockerErrorStatus();
         @let initializing = isDockerInitializing();
-        
-        <catbee-container-studio-empty-state icon="cloud_off" size="large" [message]="
-            error
-              ? error.message
-              : initializing
-                ? status.message
-                : 'Docker Engine is not connected'
-          " [hint]="
+
+        <catbee-container-studio-empty-state
+          icon="cloud_off"
+          size="large"
+          [message]="error ? error.message : initializing ? status.message : 'Docker Engine is not connected'"
+          [hint]="
             error
               ? error.hint
               : initializing
                 ? status.hint
                 : 'Please start Docker Engine to manage your containers, images, and volumes.'
-          " [showLoader]="initializing" />
+          "
+          [showLoader]="initializing"
+        />
       }
     </main>
   </div>
+  <catbee-container-studio-footer [dockerConnected]="dockerConnected()" />
 </div>
