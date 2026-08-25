@@ -851,4 +851,9 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.App.Updater.RestartAndInstallUpdate, () => {
     restartAndInstallUpdate();
   });
+
+  ipcMain.removeHandler(IPC_CHANNELS.App.Platform.Get);
+  ipcMain.handle(IPC_CHANNELS.App.Platform.Get, () => {
+    return ok(process.platform);
+  });
 }

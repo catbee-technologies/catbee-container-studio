@@ -67,4 +67,9 @@ export class ElectronApiService extends ElectronBaseService {
   async restartAndInstallUpdate(): Promise<void> {
     await this.bridge.app?.updater?.restartAndInstallUpdate();
   }
+
+  async getPlatform(): Promise<string> {
+    const response = await this.bridge.app?.platform?.get();
+    return this.unwrapResult<string>(response);
+  }
 }

@@ -8,6 +8,9 @@ import { contextBridge, ipcRenderer } from 'electron';
  */
 const IPC_CHANNELS = {
   App: {
+    Platform: {
+      Get: 'app:platform:get'
+    },
     External: {
       Open: 'app:external:open'
     },
@@ -121,6 +124,9 @@ const IPC_CHANNELS = {
 
 const electronBridge = {
   app: {
+    platform: {
+      get: () => ipcRenderer.invoke(IPC_CHANNELS.App.Platform.Get)
+    },
     external: {
       open: (url: string) => ipcRenderer.invoke(IPC_CHANNELS.App.External.Open, url)
     },

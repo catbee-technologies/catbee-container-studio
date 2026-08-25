@@ -1,5 +1,8 @@
 export const IPC_CHANNELS = {
   App: {
+    Platform: {
+      Get: 'app:platform:get'
+    },
     External: {
       Open: 'app:external:open'
     },

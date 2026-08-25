@@ -91,6 +91,9 @@ export type AutoUpdaterStatus =
 
 export interface ElectronBridge {
   app: {
+    platform: {
+      get: () => IpcPromise<string>;
+    };
     external: {
       open: (url: string) => IpcPromise<{ opened: boolean }>;
     };
