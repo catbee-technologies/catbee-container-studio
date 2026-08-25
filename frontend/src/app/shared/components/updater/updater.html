@@ -23,6 +23,13 @@
             <strong>{{ status.version }}</strong>
           </div>
 
+          @if (isMacOS()) {
+            <p class="catbee-updater-hint info">
+              Automatic updates aren't available on macOS yet. Download the latest version from GitHub and replace your
+              current application.
+            </p>
+          }
+
           <div class="catbee-updater-changelog-container">
             <span>See what's new in this release.</span>
             <button type="button" class="link-btn" (click)="openChangelog(currentVersion(), status.version)">
@@ -92,10 +99,17 @@
   <ng-container catbeeDialogFooter>
     @switch (status.status) {
       @case ('available') {
-        <button type="button" class="catbee-action-btn primary" (click)="downloadUpdate()">
-          <span class="mat-icon-filled" aria-hidden="true">download</span>
-          Download Update
-        </button>
+        @if (isMacOS()) {
+          <button type="button" class="catbee-action-btn primary" (click)="openLatestRelease()">
+            <span class="mat-icon-filled" aria-hidden="true">download</span>
+            Download Latest Version
+          </button>
+        } @else {
+          <button type="button" class="catbee-action-btn primary" (click)="downloadUpdate()">
+            <span class="mat-icon-filled" aria-hidden="true">download</span>
+            Download Update
+          </button>
+        }
       }
 
       @case ('downloading') {

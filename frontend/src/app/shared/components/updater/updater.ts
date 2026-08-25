@@ -23,6 +23,9 @@ export class UpdaterComponent {
 
   readonly updaterStatus = signal<AutoUpdaterStatus>({ status: 'idle' });
   readonly githubRepoUrl = 'https://github.com/catbee-technologies/catbee-container-studio';
+
+  readonly isMacOS = signal(false);
+
   private downloadInProgress = false;
 
   constructor() {
@@ -37,6 +40,9 @@ export class UpdaterComponent {
   }
 
   private async initialize(): Promise<void> {
+    const platform = await this.electronApi.getPlatform();
+    this.isMacOS.set(platform === 'darwin');
+
     const unsubscribe = this.electronApi.onUpdaterStatus(status => {
       this.updaterStatus.set(status);
       console.log(`\x1b[36m${new Date().toISOString()}\x1b[0m Updater status:`, status);
@@ -58,7 +64,7 @@ export class UpdaterComponent {
     this.destroyRef.onDestroy(() => {
       unsubscribe();
     });
-    this.checkForUpdates();
+    await this.checkForUpdates();
   }
 
   async checkForUpdates(): Promise<void> {
@@ -66,10 +72,16 @@ export class UpdaterComponent {
   }
 
   async downloadUpdate(): Promise<void> {
+    if (this.isMacOS()) {
+      return;
+    }
     await this.electronApi.downloadUpdate();
   }
 
   restartAndInstall(): void {
+    if (this.isMacOS()) {
+      return;
+    }
     this.electronApi.restartAndInstallUpdate();
   }
 
@@ -88,6 +100,14 @@ export class UpdaterComponent {
   openChangelog(currentVersion: string, newVersion: string): void {
     const changelogUrl = `${this.githubRepoUrl}/compare/v${currentVersion}...v${newVersion}`;
     this.electronApi.openExternalUrl(changelogUrl);
+  }
+
+  openLatestRelease(): void {
+    const status = this.updaterStatus();
+    if (status.status !== 'available') {
+      return;
+    }
+    this.electronApi.openExternalUrl(`${this.githubRepoUrl}/releases/tag/v${status.version}`);
   }
 
   updaterTitle(): string {
