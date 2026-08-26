@@ -1,119 +1,106 @@
-import { autoUpdater } from 'electron-updater';
 import { BrowserWindow } from 'electron';
-import { isDev } from './constants';
-import { logger } from './logger';
 import { IPC_CHANNELS } from '../ipc/channels';
 
 export type AutoUpdaterStatus =
   | {
-      status: 'checking';
-    }
+    status: 'checking';
+  }
   | {
-      status: 'available';
-      version: string;
-    }
+    status: 'available';
+    version: string;
+  }
   | {
-      status: 'not-available';
-      version: string;
-    }
+    status: 'not-available';
+    version: string;
+  }
   | {
-      status: 'downloading';
-      percent: number;
-      transferred: number;
-      total: number;
-      bytesPerSecond: number;
-    }
+    status: 'downloading';
+    percent: number;
+    transferred: number;
+    total: number;
+    bytesPerSecond: number;
+  }
   | {
-      status: 'downloaded';
-      version: string;
-    }
+    status: 'downloaded';
+    version: string;
+  }
   | {
-      status: 'error';
-      message: string;
-    };
+    status: 'error';
+    message: string;
+  };
 
 let mainWindow: BrowserWindow | null = null;
 
+const MOCK_VERSION = '1.2.0';
+const MOCK_TOTAL_BYTES = 100 * 1024 * 1024;
+const MOCK_DOWNLOAD_SPEED = 5 * 1024 * 1024;
+
 export function initializeAutoUpdater(window: BrowserWindow): void {
   mainWindow = window;
-
-  autoUpdater.autoDownload = false;
-  autoUpdater.autoInstallOnAppQuit = true;
-
-  autoUpdater.on('checking-for-update', () => {
-    logger.info('[AutoUpdater] Checking for update...');
-    sendStatus({ status: 'checking' });
-  });
-
-  autoUpdater.on('update-available', info => {
-    logger.info(`[AutoUpdater] Update available: ${info.version}`);
-    sendStatus({ status: 'available', version: info.version });
-  });
-
-  autoUpdater.on('update-not-available', info => {
-    logger.info(`[AutoUpdater] No update available: ${info.version}`);
-    sendStatus({ status: 'not-available', version: info.version });
-  });
-
-  autoUpdater.on('download-progress', progress => {
-    logger.info(`[AutoUpdater] Download progress: ${progress.percent.toFixed(1)}%`);
-
-    sendStatus({
-      status: 'downloading',
-      percent: progress.percent,
-      transferred: progress.transferred,
-      total: progress.total,
-      bytesPerSecond: progress.bytesPerSecond
-    });
-  });
-
-  autoUpdater.on('update-downloaded', info => {
-    logger.info(`[AutoUpdater] Update downloaded: ${info.version}`);
-    sendStatus({ status: 'downloaded', version: info.version });
-  });
-
-  autoUpdater.on('error', error => {
-    logger.error({ err: error }, '[AutoUpdater] Error');
-    sendStatus({ status: 'error', message: getErrorMessage(error) });
-  });
 }
 
 export async function checkForUpdates(): Promise<void> {
-  if (isDev) {
-    logger.info('[AutoUpdater] Skipping update check in development.');
-    return;
-  }
+  console.log('[MockAutoUpdater] Checking for updates...');
+  sendStatus({
+    status: 'checking'
+  });
 
-  try {
-    await autoUpdater.checkForUpdates();
-  } catch (error) {
-    logger.error({ err: error }, '[AutoUpdater] Failed to check for updates');
-    sendStatus({
-      status: 'error',
-      message: getErrorMessage(error)
-    });
-  }
+  await delay(1000);
+
+  sendStatus({
+    status: 'available',
+    version: MOCK_VERSION
+  });
 }
 
+// export async function checkForUpdates(): Promise<void> {
+//   sendStatus({ status: 'checking' });
+
+//   await delay(1000);
+
+//   sendStatus({
+//     status: 'not-available',
+//     version: '1.1.0'
+//   });
+// }
+
+// export async function checkForUpdates(): Promise<void> {
+//   sendStatus({ status: 'checking' });
+
+//   await delay(1000);
+
+//   sendStatus({
+//     status: 'error',
+//     message:
+//       'Unable to connect to GitHub. Please check your internet connection and try again.'
+//   });
+// }
+
 export async function downloadUpdate(): Promise<void> {
-  if (isDev) {
-    return;
+  for (let percent = 0; percent <= 100; percent += 10) {
+    await delay(500);
+
+    const transferred = Math.floor((MOCK_TOTAL_BYTES * percent) / 100);
+
+    sendStatus({
+      status: 'downloading',
+      percent,
+      transferred,
+      total: MOCK_TOTAL_BYTES,
+      bytesPerSecond: MOCK_DOWNLOAD_SPEED
+    });
   }
 
-  try {
-    await autoUpdater.downloadUpdate();
-  } catch (error) {
-    logger.error({ err: error }, '[AutoUpdater] Failed to download update');
-    sendStatus({ status: 'error', message: getErrorMessage(error) });
-  }
+  await delay(500);
+
+  sendStatus({
+    status: 'downloaded',
+    version: MOCK_VERSION
+  });
 }
 
 export function restartAndInstallUpdate(): void {
-  if (isDev) {
-    return;
-  }
-  logger.info('[AutoUpdater] Restarting and installing update...');
-  autoUpdater.quitAndInstall();
+  console.log('[MockAutoUpdater] Restart and install');
 }
 
 function sendStatus(status: AutoUpdaterStatus): void {
@@ -123,25 +110,6 @@ function sendStatus(status: AutoUpdaterStatus): void {
   mainWindow.webContents.send(IPC_CHANNELS.App.Updater.Status, status);
 }
 
-function getErrorMessage(error: unknown): string {
-  if (!(error instanceof Error)) {
-    return 'An unexpected error occurred while checking for updates.';
-  }
-
-  if (
-    error.message.includes('ERR_UPDATER_INVALID_RELEASE_FEED') ||
-    error.message.includes('Unable to find latest version on GitHub')
-  ) {
-    return 'No compatible release is currently available.';
-  }
-
-  if (
-    error.message.includes('ENOTFOUND') ||
-    error.message.includes('ECONNREFUSED') ||
-    error.message.includes('ETIMEDOUT')
-  ) {
-    return 'Unable to connect to GitHub. Please check your internet connection and try again.';
-  }
-
-  return 'An unexpected error occurred while checking for updates.';
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
