@@ -7,7 +7,11 @@
     <span class="port-chip">{{ formatPort(firstPort()!) }}</span>
   }
 } @else {
-  <catbee-container-studio-menu [open]="isMenuOpen()" minWidth="13rem" (dismissed)="closeMenu()">
+  <catbee-container-studio-menu
+    [open]="isMenuOpen()"
+    [style]="{ minWidth: '13rem', maxHeight: '12rem' }"
+    (dismissed)="closeMenu()"
+  >
     <button menuTrigger type="button" class="ports-btn" (click)="toggleMenu($event)">
       <span class="mat-icon-filled" aria-hidden="true">lan</span>
       {{ normalizedPorts().length }} Ports

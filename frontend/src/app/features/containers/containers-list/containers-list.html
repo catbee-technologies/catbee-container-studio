@@ -79,7 +79,7 @@
         </button>
         <catbee-container-studio-menu
           [open]="showBulkActionsMenu()"
-          minWidth="12rem"
+          [style]="{ width: '12rem' }"
           (dismissed)="closeBulkActionsMenu()"
         >
           <button
@@ -132,11 +132,7 @@
   }
 
   <section class="catbee-container-list-layout">
-    <div
-      class="catbee-container-list-body catbee-base-panel"
-      aria-label="Container list"
-      (scroll)="onContainerListScroll()"
-    >
+    <div class="catbee-container-list-body catbee-base-panel" aria-label="Container list">
       @if (isLoading()) {
         <catbee-container-studio-empty-state [icon]="'deployed_code'" [message]="'Loading Containers...'" />
       } @else if (visibleContainers().length === 0) {
@@ -291,7 +287,7 @@
 
                         <catbee-container-studio-menu
                           [open]="openContainerActionsMenuId() === container.Id"
-                          minWidth="8.5rem"
+                          [style]="{ width: '12rem' }"
                           (dismissed)="closeContainerActionsMenu()"
                         >
                           <button

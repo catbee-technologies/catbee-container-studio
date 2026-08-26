@@ -6,21 +6,21 @@ import { Injectable, signal } from '@angular/core';
 export class MenuService {
   private readonly activeMenu = signal<symbol | null>(null);
 
-  isOpen(menuId: symbol): boolean {
+  register(menuId: symbol): void {
+    this.activeMenu.set(menuId);
+  }
+
+  isActive(menuId: symbol): boolean {
     return this.activeMenu() === menuId;
-  }
-
-  toggle(menuId: symbol): void {
-    this.activeMenu.update(current => (current === menuId ? null : menuId));
-  }
-
-  closeAll(): void {
-    this.activeMenu.set(null);
   }
 
   close(menuId: symbol): void {
     if (this.activeMenu() === menuId) {
       this.activeMenu.set(null);
     }
+  }
+
+  closeAll(): void {
+    this.activeMenu.set(null);
   }
 }

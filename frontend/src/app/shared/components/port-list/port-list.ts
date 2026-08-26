@@ -1,9 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { MenuComponent } from '@components/menu/menu';
 import { DockerPortInfo } from '@shared/types/docker-api.types';
 import { formatDockerPort, normalizeDockerPorts, resolveDockerPortHref } from '@utils/docker-port.utils';
-import { MenuService } from '@components/menu/menu.service';
 import { ElectronApiService } from '@core/electron-api.service';
 
 @Component({
@@ -14,12 +13,12 @@ import { ElectronApiService } from '@core/electron-api.service';
 })
 export class PortListComponent {
   private readonly electronApi = inject(ElectronApiService);
-  private readonly menuState = inject(MenuService);
-  private readonly menuId = Symbol('port-menu');
 
   readonly ports = input<DockerPortInfo[]>([]);
   readonly containerState = input('');
   readonly noPortsLabel = input('-');
+
+  readonly isMenuOpen = signal(false);
 
   readonly normalizedPorts = computed(() => normalizeDockerPorts(this.ports()));
   readonly firstPort = computed(() => this.normalizedPorts()[0] ?? null);
@@ -33,17 +32,13 @@ export class PortListComponent {
     return resolveDockerPortHref(port, this.containerState());
   }
 
-  isMenuOpen(): boolean {
-    return this.menuState.isOpen(this.menuId);
-  }
-
   toggleMenu(event: MouseEvent): void {
     event.stopPropagation();
-    this.menuState.toggle(this.menuId);
+    this.isMenuOpen.update(value => !value);
   }
 
   closeMenu(): void {
-    this.menuState.close(this.menuId);
+    this.isMenuOpen.set(false);
   }
 
   async openPort(event: MouseEvent, href: string): Promise<void> {

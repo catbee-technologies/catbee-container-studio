@@ -1,18 +1,17 @@
 <div class="menu-anchor" (mousedown)="$event.stopPropagation()">
   <ng-content select="[menuTrigger]" />
 
-  @if (open()) {
+  <ng-template #menuTemplate>
     <div
       class="options-menu"
-      [class.menu-top]="placement() === 'top'"
-      [class.menu-bottom]="placement() === 'bottom'"
-      [style.min-width]="minWidth()"
+      [style]="style()"
       role="menu"
       tabindex="-1"
+      (mousedown)="$event.stopPropagation()"
       (click)="$event.stopPropagation()"
       (keydown)="$event.stopPropagation()"
     >
       <ng-content select="[menuContent]" />
     </div>
-  }
+  </ng-template>
 </div>

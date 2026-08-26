@@ -64,7 +64,11 @@
       {{ clearButtonLabel() }}
     </button>
 
-    <catbee-container-studio-menu [open]="showLogOptions()" minWidth="12rem" (dismissed)="closeLogOptions()">
+    <catbee-container-studio-menu
+      [open]="showLogOptions()"
+      [style]="{ width: '13rem' }"
+      (dismissed)="closeLogOptions()"
+    >
       <button menuTrigger type="button" class="catbee-action-btn" (click)="toggleLogOptions($event)">
         <span class="mat-icon-filled" aria-hidden="true">tune</span>
         Options
@@ -81,7 +85,7 @@
         </label>
         <label class="menu-item menu-item-select no-select" for="logs-tail-lines-select">
           Tail lines
-          <select id="logs-tail-lines-select" class="logs-tail-select" (change)="onTailLinesChange($event)">
+          <select id="logs-tail-lines-select" class="logs-tail-select pointer" (change)="onTailLinesChange($event)">
             @for (lines of logTailLineOptions; track lines) {
               <option [value]="lines" [selected]="lines === logTailLines()">{{ lines }}</option>
             }

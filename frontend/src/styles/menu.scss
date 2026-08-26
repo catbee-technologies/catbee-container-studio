@@ -38,3 +38,11 @@
     gap: var(--spacing-lg);
   }
 }
+
+.cdk-overlay-container {
+  z-index: 10000;
+}
+
+.catbee-menu-overlay-panel {
+  z-index: 10000;
+}

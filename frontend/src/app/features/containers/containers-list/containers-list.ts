@@ -394,11 +394,6 @@ export class ContainersPage {
     this.openContainerActionsMenuId.set(null);
   }
 
-  onContainerListScroll(): void {
-    this.openContainerActionsMenuId.set(null);
-    this.menuService.closeAll();
-  }
-
   toggleBulkActionsMenu(event: MouseEvent): void {
     event.stopPropagation();
     this.showBulkActionsMenu.update(value => !value);
