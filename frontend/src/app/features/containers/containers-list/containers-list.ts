@@ -16,7 +16,6 @@ import { SwitchInputComponent } from '@components/switch-input/switch-input';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { CONTAINER_SORT_KEYS, ContainerSortKey, SORT_DIRECTIONS, SortDirection } from '@shared/types';
-import { MenuService } from '@components/menu/menu.service';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
 
@@ -54,7 +53,6 @@ export class ContainersPage {
   private readonly localStorage = inject(LocalStorageService);
   private readonly sessionStorage = inject(SessionStorageService);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly menuService = inject(MenuService);
   private isRuntimeSummaryUpdating = false;
   private eventsStreamId: string | null = null;
   private autoRefreshDebounce: ReturnType<typeof setTimeout> | null = null;
@@ -106,6 +104,8 @@ export class ContainersPage {
 
   readonly cpuUsageSummary = signal('--');
   readonly memoryUsageSummary = signal('--');
+  readonly cpuUsagePercent = signal<number | null>(null);
+  readonly memoryUsagePercent = signal<number | null>(null);
 
   readonly allGroups = computed<ContainerGroup[]>(() => this.groupContainersByCompose(this.containers()));
 
@@ -248,8 +248,7 @@ export class ContainersPage {
       this.updateRuntimeSummaries(containers);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Failed to load containers.');
-      this.cpuUsageSummary.set('--');
-      this.memoryUsageSummary.set('--');
+      this.resetRuntimeSummaries();
     } finally {
       this.isLoading.set(false);
       this.isRefreshing.set(false);
@@ -703,6 +702,29 @@ export class ContainersPage {
     });
   }
 
+  usageLevel(value: number | null): 'normal' | 'warning' | 'high' | 'critical' {
+    if (value === null) {
+      return 'normal';
+    }
+    if (value >= 90) {
+      return 'critical';
+    }
+    if (value >= 80) {
+      return 'high';
+    }
+    if (value >= 60) {
+      return 'warning';
+    }
+    return 'normal';
+  }
+
+  private resetRuntimeSummaries(): void {
+    this.cpuUsagePercent.set(null);
+    this.memoryUsagePercent.set(null);
+    this.cpuUsageSummary.set('--');
+    this.memoryUsageSummary.set('--');
+  }
+
   private async updateRuntimeSummaries(containers: DockerContainerInfo[]): Promise<void> {
     if (this.isRuntimeSummaryUpdating) {
       return;
@@ -714,8 +736,7 @@ export class ContainersPage {
     const snapshotIds = new Set(containers.map(container => container.Id));
     try {
       if (running.length === 0) {
-        this.cpuUsageSummary.set('--');
-        this.memoryUsageSummary.set('--');
+        this.resetRuntimeSummaries();
         return;
       }
 
@@ -739,8 +760,7 @@ export class ContainersPage {
 
       const statsList = statsResults.filter((item): item is DockerContainerStats => item !== null);
       if (statsList.length === 0) {
-        this.cpuUsageSummary.set('--');
-        this.memoryUsageSummary.set('--');
+        this.resetRuntimeSummaries();
         return;
       }
 
@@ -770,13 +790,18 @@ export class ContainersPage {
         }
       }
 
+      const cpuCapacityPercent = maxAvailableCpus * 100;
+      this.cpuUsagePercent.set(cpuCapacityPercent > 0 ? (cpuPercentSum / cpuCapacityPercent) * 100 : null);
+
       this.cpuUsageSummary.set(
         `${cpuPercentSum.toFixed(2)}% / ${(maxAvailableCpus * 100).toFixed(0)}% (${maxAvailableCpus} CPUs available)`
       );
 
       if (memoryLimitMax > 0) {
+        this.memoryUsagePercent.set((memoryUsageSum / memoryLimitMax) * 100);
         this.memoryUsageSummary.set(`${formatDockerBytes(memoryUsageSum)} / ${formatDockerBytes(memoryLimitMax)}`);
       } else {
+        this.memoryUsagePercent.set(null);
         this.memoryUsageSummary.set(`${formatDockerBytes(memoryUsageSum)} / --`);
       }
     } finally {

@@ -3,8 +3,12 @@
     <div>
       <h1>Containers</h1>
       <div class="runtime-metrics">
-        <p>Container CPU usage: {{ cpuUsageSummary() }}</p>
-        <p>Container memory usage: {{ memoryUsageSummary() }}</p>
+        <p>
+          Container CPU usage: <span [class]="usageLevel(cpuUsagePercent())">{{ cpuUsageSummary() }}</span>
+        </p>
+        <p>
+          Container memory usage: <span [class]="usageLevel(memoryUsagePercent())">{{ memoryUsageSummary() }}</span>
+        </p>
       </div>
     </div>
 

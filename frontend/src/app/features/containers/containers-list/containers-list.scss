@@ -14,12 +14,23 @@ tbody tr {
 
   p {
     margin: 0;
-    color: #9ed7ff;
     font-size: 0.8rem;
-  }
+    color: var(--ink-200);
 
-  p:last-child {
-    color: #9cf2c9;
+    span {
+      &.normal {
+        color: #9cf2c9;
+      }
+      &.warning {
+        color: #f6d365;
+      }
+      &.high {
+        color: #ffad66;
+      }
+      &.critical {
+        color: #ff7070;
+      }
+    }
   }
 }
 
