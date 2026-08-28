@@ -3,7 +3,7 @@ import { Component, HostListener, computed, inject, signal, viewChild } from '@a
 import { Router } from '@angular/router';
 import { DockerApiService } from '@core/docker-api.service';
 import { DockerImageInfo } from '@shared/types/docker-api.types';
-import { ConfirmDialogComponent } from '@components/confirm-dialog/confirm-dialog';
+import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
 import { LocalStorageService, SessionStorageService } from '@ng-catbee/storage';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { SegmentedFilterComponent, SegmentedFilterOption } from '@components/segmented-filter/segmented-filter';

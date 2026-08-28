@@ -3,7 +3,7 @@ import { Component, DestroyRef, HostListener, computed, inject, signal, viewChil
 import { Router } from '@angular/router';
 import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerInfo, DockerContainerStats, DockerStreamEventEnvelope } from '@shared/types/docker-api.types';
-import { ConfirmDialogComponent } from '@components/confirm-dialog/confirm-dialog';
+import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
 import { LocalStorageService, SessionStorageService } from '@ng-catbee/storage';
 import { MenuComponent } from '@components/menu/menu';
 import { PortListComponent } from '@components/port-list/port-list';

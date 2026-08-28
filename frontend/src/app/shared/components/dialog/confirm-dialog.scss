@@ -1,0 +1,13 @@
+.catbee-dialog {
+  .catbee-confirm-dialog-message {
+    p {
+      margin: 0;
+      line-height: 1.45;
+      color: var(--ink-300);
+      min-height: 0;
+      overflow-y: auto;
+      word-break: break-all;
+      white-space: pre-line;
+    }
+  }
+}
