@@ -7,20 +7,22 @@ export function formatDockerBytes(value: number, precision = 2): string {
     return '--';
   }
 
-  if (value < 1000) {
+  if (value < 1024) {
     return `${value} B`;
   }
 
   const units = ['KB', 'MB', 'GB', 'TB'];
-  let current = value / 1000; // Intentionally using 1000 instead of 1024 to match Docker's output
+  let current = value / 1024;
   let unitIndex = 0;
 
-  while (current >= 1000 && unitIndex < units.length - 1) {
-    current /= 1000;
+  while (current >= 1024 && unitIndex < units.length - 1) {
+    current /= 1024;
     unitIndex++;
   }
 
-  return `${current.toFixed(precision)} ${units[unitIndex]}`;
+  const formatted = Number(current.toFixed(precision));
+
+  return `${formatted} ${units[unitIndex]}`;
 }
 
 export function formatDockerRelativeTime(date: string | Date | undefined): string {

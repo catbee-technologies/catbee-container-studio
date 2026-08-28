@@ -4,7 +4,7 @@ export * from './electron.types';
 export const SORT_DIRECTIONS = ['asc', 'desc'] as const;
 export type SortDirection = (typeof SORT_DIRECTIONS)[number];
 
-export const CONTAINER_SORT_KEYS = ['name', 'image', 'ports', 'state'] as const;
+export const CONTAINER_SORT_KEYS = ['name', 'image', 'ports', 'state', 'cpu', 'memory'] as const;
 export type ContainerSortKey = (typeof CONTAINER_SORT_KEYS)[number];
 
 export const LOG_TAIL_OPTIONS = [200, 500, 1000, 2000, 5000] as const;

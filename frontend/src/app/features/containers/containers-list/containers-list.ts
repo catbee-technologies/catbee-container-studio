@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, HostListener, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { DockerApiService } from '@core/docker-api.service';
-import { DockerContainerInfo, DockerContainerStats, DockerStreamEventEnvelope } from '@shared/types/docker-api.types';
+import { DockerContainerInfo, DockerStreamEventEnvelope } from '@shared/types/docker-api.types';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
 import { LocalStorageService, SessionStorageService } from '@ng-catbee/storage';
 import { MenuComponent } from '@components/menu/menu';
@@ -106,6 +106,16 @@ export class ContainersPage {
   readonly memoryUsageSummary = signal('--');
   readonly cpuUsagePercent = signal<number | null>(null);
   readonly memoryUsagePercent = signal<number | null>(null);
+  readonly containerCpuUsage = signal<Map<string, number>>(new Map());
+  readonly containerMemoryUsage = signal<
+    Map<
+      string,
+      {
+        usage: number;
+        limit: number;
+      }
+    >
+  >(new Map());
 
   readonly allGroups = computed<ContainerGroup[]>(() => this.groupContainersByCompose(this.containers()));
 
@@ -643,7 +653,7 @@ export class ContainersPage {
     const direction = this.sortDirection() === 'asc' ? 1 : -1;
 
     return [...containers].sort((left, right) => {
-      let result: number;
+      let result = 0;
 
       if (key === 'name') {
         result = this.primaryName(left).localeCompare(this.primaryName(right));
@@ -651,8 +661,17 @@ export class ContainersPage {
         result = left.Image.localeCompare(right.Image);
       } else if (key === 'ports') {
         result = left.Ports.length - right.Ports.length;
-      } else {
+      } else if (key === 'state') {
         result = left.State.localeCompare(right.State);
+      } else if (key === 'cpu') {
+        const leftCpu = this.containerCpuUsage().get(left.Id) ?? 0;
+        const rightCpu = this.containerCpuUsage().get(right.Id) ?? 0;
+        result = leftCpu - rightCpu;
+      } else if (key === 'memory') {
+        const leftMemory = this.containerMemoryUsage().get(left.Id)?.usage ?? 0;
+        const rightMemory = this.containerMemoryUsage().get(right.Id)?.usage ?? 0;
+
+        result = leftMemory - rightMemory;
       }
 
       if (result === 0) {
@@ -723,6 +742,8 @@ export class ContainersPage {
     this.memoryUsagePercent.set(null);
     this.cpuUsageSummary.set('--');
     this.memoryUsageSummary.set('--');
+    this.containerCpuUsage.set(new Map());
+    this.containerMemoryUsage.set(new Map());
   }
 
   private async updateRuntimeSummaries(containers: DockerContainerInfo[]): Promise<void> {
@@ -745,8 +766,14 @@ export class ContainersPage {
           if (!this.containers().some(c => c.Id === container.Id)) {
             return null;
           }
+
           try {
-            return await this.dockerApi.getContainerStats(container.Id);
+            const stats = await this.dockerApi.getContainerStats(container.Id);
+
+            return {
+              containerId: container.Id,
+              stats
+            };
           } catch {
             return null;
           }
@@ -758,37 +785,49 @@ export class ContainersPage {
         return;
       }
 
-      const statsList = statsResults.filter((item): item is DockerContainerStats => item !== null);
-      if (statsList.length === 0) {
-        this.resetRuntimeSummaries();
-        return;
-      }
+      const cpuUsage = new Map<string, number>();
+      const memoryUsage = new Map<string, { usage: number; limit: number }>();
 
       let cpuPercentSum = 0;
       let maxAvailableCpus = 1;
       let memoryUsageSum = 0;
       let memoryLimitMax = 0;
 
-      for (const stats of statsList) {
+      for (const result of statsResults) {
+        if (!result) {
+          continue;
+        }
+        const { containerId, stats } = result;
         const cpuDelta =
           (stats.cpu_stats?.cpu_usage?.total_usage ?? 0) - (stats.precpu_stats?.cpu_usage?.total_usage ?? 0);
         const systemDelta = (stats.cpu_stats?.system_cpu_usage ?? 0) - (stats.precpu_stats?.system_cpu_usage ?? 0);
+
         const onlineCpus = stats.cpu_stats?.online_cpus ?? stats.cpu_stats?.cpu_usage?.percpu_usage?.length ?? 1;
+        let cpuPercent = 0;
 
         if (cpuDelta > 0 && systemDelta > 0 && onlineCpus > 0) {
-          cpuPercentSum += (cpuDelta / systemDelta) * onlineCpus * 100;
+          cpuPercent = (cpuDelta / systemDelta) * onlineCpus * 100;
+          cpuPercentSum += cpuPercent;
         }
+
+        cpuUsage.set(containerId, cpuPercent);
 
         if (onlineCpus > maxAvailableCpus) {
           maxAvailableCpus = onlineCpus;
         }
 
-        memoryUsageSum += stats.memory_stats?.usage ?? 0;
+        const usage = stats.memory_stats?.usage ?? 0;
         const limit = stats.memory_stats?.limit ?? 0;
+        memoryUsage.set(containerId, { usage, limit });
+        memoryUsageSum += usage;
         if (limit > memoryLimitMax) {
           memoryLimitMax = limit;
         }
       }
+
+      // Update per-container values
+      this.containerCpuUsage.set(cpuUsage);
+      this.containerMemoryUsage.set(memoryUsage);
 
       const cpuCapacityPercent = maxAvailableCpus * 100;
       this.cpuUsagePercent.set(cpuCapacityPercent > 0 ? (cpuPercentSum / cpuCapacityPercent) * 100 : null);
@@ -807,6 +846,10 @@ export class ContainersPage {
     } finally {
       this.isRuntimeSummaryUpdating = false;
     }
+  }
+
+  formatDockerBytes(bytes: number): string {
+    return formatDockerBytes(bytes);
   }
 
   @HostListener('window:keydown', ['$event'])

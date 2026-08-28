@@ -200,6 +200,22 @@
                   (sort)="toggleSort('state')"
                 />
               </th>
+              <th scope="col" class="col-sortable">
+                <catbee-container-studio-table-sort-header
+                  [label]="'CPU'"
+                  [active]="isSortActive('cpu')"
+                  [indicator]="sortIndicator('cpu')"
+                  (sort)="toggleSort('cpu')"
+                />
+              </th>
+              <th scope="col" class="col-sortable">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Memory'"
+                  [active]="isSortActive('memory')"
+                  [indicator]="sortIndicator('memory')"
+                  (sort)="toggleSort('memory')"
+                />
+              </th>
               <th scope="col" class="col-actions">Actions</th>
             </tr>
           </thead>
@@ -214,7 +230,7 @@
                     (checkedChange)="toggleGroupSelection(group)"
                   />
                 </td>
-                <td colspan="4">
+                <td colspan="6">
                   <button type="button" class="group-toggle" (click)="toggleGroupCollapse(group.id)">
                     <span class="mat-icon-filled" aria-hidden="true">
                       {{ isGroupCollapsed(group.id) ? 'chevron_right' : 'expand_more' }}
@@ -272,6 +288,21 @@
                         {{ container.State }}
                       </span>
                       <p class="status-detail">{{ container.Status }}</p>
+                    </td>
+                    <td class="col-cpu">
+                      @if (containerCpuUsage().has(container.Id)) {
+                        {{ containerCpuUsage().get(container.Id)!.toFixed(2) }}%
+                      } @else {
+                        --
+                      }
+                    </td>
+                    <td class="col-memory">
+                      @if (containerMemoryUsage().get(container.Id); as memory) {
+                        {{ formatDockerBytes(memory.usage) }} /
+                        {{ formatDockerBytes(memory.limit) }}
+                      } @else {
+                        --
+                      }
                     </td>
                     <td class="col-actions">
                       <div class="action-group">

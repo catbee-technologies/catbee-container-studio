@@ -59,3 +59,16 @@ tbody tr {
   max-width: 320px;
   word-break: break-word;
 }
+
+.col-cpu {
+  font-family: var(--mono-font);
+  font-size: 0.8rem;
+  max-width: 120px;
+}
+
+.col-memory {
+  font-family: var(--mono-font);
+  font-size: 0.8rem;
+  max-width: 120px;
+  overflow-wrap: anywhere;
+}
