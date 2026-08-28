@@ -63,53 +63,227 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Generate changelog
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          echo "Generating changelog for ${TAG}"
+
+          # Find the previous release tag.
+          PREVIOUS_TAG=""
+
+          while IFS= read -r tag; do
+            if [[ "$tag" != "$TAG" ]]; then
+              PREVIOUS_TAG="$tag"
+              break
+            fi
+          done < <(git tag --sort=-version:refname)
+
+          echo "Current tag:  ${TAG}"
+
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            echo "Previous tag: ${PREVIOUS_TAG}"
+          else
+            echo "No previous release tag found. Treating this as the first release."
+          fi
+
+          # Temporary files for generated sections.
+          FEATURES_FILE="$(mktemp)"
+          FIXES_FILE="$(mktemp)"
+          OTHER_FILE="$(mktemp)"
+          CONTRIBUTORS_FILE="$(mktemp)"
+
+          touch "$FEATURES_FILE"
+          touch "$FIXES_FILE"
+          touch "$OTHER_FILE"
+          touch "$CONTRIBUTORS_FILE"
+
+          # Determine commit range
+
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            COMMIT_RANGE="${PREVIOUS_TAG}..${TAG}"
+          else
+            COMMIT_RANGE="${TAG}"
+          fi
+
+          echo "Commit range: ${COMMIT_RANGE}"
+
+          # Generate changelog from commits
+
+          declare -A CONTRIBUTORS=()
+
+          while IFS=$'\t' read -r SUBJECT AUTHOR; do
+            [[ -z "$SUBJECT" ]] && continue
+            # Skip release/version bookkeeping commits.
+            if [[ "$SUBJECT" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-].*)?$ ]]; then
+              continue
+            fi
+            if [[ "$SUBJECT" =~ ^chore\(release\): ]]; then
+              continue
+            fi
+            # Skip merge commits.
+            if [[ "$SUBJECT" =~ ^Merge[[:space:]] ]]; then
+              continue
+            fi
+
+            # Keep track of contributors.
+            CONTRIBUTORS["$AUTHOR"]=1
+
+            # Classify commit
+
+            if [[ "$SUBJECT" =~ ^feat(\([^)]*\))?:[[:space:]]*(.*)$ ]]; then
+              MESSAGE="${BASH_REMATCH[2]}"
+              # Capitalize first character.
+              MESSAGE="$(printf '%s' "$MESSAGE" | sed 's/^./\U&/')"
+              echo "- ${MESSAGE}." >> "$FEATURES_FILE"
+
+            elif [[ "$SUBJECT" =~ ^fix(\([^)]*\))?:[[:space:]]*(.*)$ ]]; then
+              MESSAGE="${BASH_REMATCH[2]}"
+              MESSAGE="$(printf '%s' "$MESSAGE" | sed 's/^./\U&/')"
+              echo "- ${MESSAGE}." >> "$FIXES_FILE"
+
+            else
+              # Everything else goes into Other Changes.
+              MESSAGE="$SUBJECT"
+
+              # Remove conventional commit prefix.
+              MESSAGE="$(printf '%s' "$MESSAGE" | sed -E \
+                's/^(chore|refactor|docs|ci|perf|test|build|style)(\([^)]*\))?:[[:space:]]*//')"
+              MESSAGE="$(printf '%s' "$MESSAGE" | sed 's/^./\U&/')"
+              echo "- ${MESSAGE}." >> "$OTHER_FILE"
+            fi
+
+          done < <(
+            git log \
+              --no-merges \
+              --format='%s%x09%an' \
+              "$COMMIT_RANGE"
+          )
+
+          # Generate contributors
+
+          for contributor in "${!CONTRIBUTORS[@]}"; do
+            echo "- **${contributor}**" >> "$CONTRIBUTORS_FILE"
+          done
+
+          sort -f "$CONTRIBUTORS_FILE" -o "$CONTRIBUTORS_FILE"
+
+          # Make contributors available to later steps
+          CONTRIBUTORS="$(cat "$CONTRIBUTORS_FILE")"
+
+          {
+            echo 'CONTRIBUTORS<<EOF'
+            echo "$CONTRIBUTORS"
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
+
+          # Full changelog URL
+
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            FULL_CHANGELOG_URL="https://github.com/${REPOSITORY}/compare/${PREVIOUS_TAG}...${TAG}"
+          else
+            FULL_CHANGELOG_URL="https://github.com/${REPOSITORY}/commits/${TAG}"
+          fi
+
+          # Build changelog
+
+          {
+            if [[ -s "$FEATURES_FILE" ]]; then
+              echo "### ✨ Features"
+              echo
+              cat "$FEATURES_FILE"
+              echo
+            fi
+
+            if [[ -s "$FIXES_FILE" ]]; then
+              echo "### 🐛 Fixes"
+              echo
+              cat "$FIXES_FILE"
+              echo
+            fi
+
+            if [[ -s "$OTHER_FILE" ]]; then
+              echo "### 🧹 Other Changes"
+              echo
+              cat "$OTHER_FILE"
+              echo
+            fi
+          } > changelog.md
+
+          echo "Generated changelog:"
+          cat changelog.md
+
+          echo "Generated contributors:"
+          cat "$CONTRIBUTORS_FILE"
+
+          echo "Full changelog URL:"
+          echo "$FULL_CHANGELOG_URL"
+
+          echo "FULL_CHANGELOG_URL=$FULL_CHANGELOG_URL" >> "$GITHUB_ENV"
+
       - name: Generate release notes
         shell: bash
         env:
           TAG: ${{ github.ref_name }}
           REPOSITORY: ${{ github.repository }}
         run: |
+          set -euo pipefail
+
           VERSION="${TAG#v}"
           BASE_URL="https://github.com/${REPOSITORY}/releases/download/${TAG}"
 
           cat > release-notes.md <<EOF
-          ## CatBee Container Studio
+          ## CatBee Container Studio ${TAG}
 
-          Release \`${TAG}\`
+          A new release of **CatBee Container Studio** with new features, improvements, and fixes.
 
-          ### Downloads
+          $(cat changelog.md)
 
-          #### Windows
+          **📋 Full Changelog**: [View on GitHub](${FULL_CHANGELOG_URL})
+
+          ### 📦 Downloads
+
+          #### 🪟 Windows
 
           - **Windows x64 Installer** — [Download .exe](${BASE_URL}/CatBee-Container-Studio-${VERSION}-win-x64.exe)
           - **Windows x64 Portable** — [Download .zip](${BASE_URL}/CatBee-Container-Studio-${VERSION}-win-x64.zip)
 
-          #### macOS
+          #### 🍎 macOS
 
           - **macOS Universal (Intel + Apple Silicon)** — [Download .dmg](${BASE_URL}/CatBee-Container-Studio-${VERSION}-mac-universal.dmg)
           - **macOS Universal (Intel + Apple Silicon)** — [Download .zip](${BASE_URL}/CatBee-Container-Studio-${VERSION}-mac-universal.zip)
 
-          #### Linux
+          #### 🐧 Linux
 
           - **Linux x64 DEB** — [Download .deb](${BASE_URL}/CatBee-Container-Studio-${VERSION}-linux-amd64.deb)
           - **Linux x64 RPM** — [Download .rpm](${BASE_URL}/CatBee-Container-Studio-${VERSION}-linux-x86_64.rpm)
           - **Linux x64 AppImage** — [Download AppImage](${BASE_URL}/CatBee-Container-Studio-${VERSION}-linux-x86_64.AppImage)
           - **Linux x64 TAR.GZ** — [Download .tar.gz](${BASE_URL}/CatBee-Container-Studio-${VERSION}-linux-x64.tar.gz)
 
-          ### Installation
+          ### 🛠️ Installation
 
-          #### Windows
+          #### 🪟 Windows
 
           Download the \`.exe\` installer and run it.
 
-          #### macOS
+          #### 🍎 macOS
 
           Download the \`.dmg\`, open it, and drag **CatBee Container Studio** to the **Applications** folder.
 
           > **Note:** If macOS displays a security warning because the application is not signed or notarized, you may need to allow it in **System Settings → Privacy & Security** or remove the quarantine attribute using:
           > \`xattr -d com.apple.quarantine "/Applications/CatBee Container Studio.app"\`
 
-          #### Linux
+          #### 🐧 Linux
 
           **Debian/Ubuntu:** Download the \`.deb\` package and install it using your package manager.
 
@@ -119,10 +293,13 @@ jobs:
 
           Alternatively, download the \`.tar.gz\` archive, extract it, and run the application.
 
-          ### Updates
+          ### 🔄 Updates
 
           CatBee Container Studio supports automatic updates.
           Use **Help → Check for Updates...** to manually check for a new release.
+
+          ### 👥 Contributors
+          ${CONTRIBUTORS}
           EOF
 
       - name: Determine release type
