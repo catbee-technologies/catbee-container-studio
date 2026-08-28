@@ -1,4 +1,4 @@
-import { Component, effect, inject, input } from '@angular/core';
+import { Component, effect, inject, input, untracked } from '@angular/core';
 import { CatbeeLoaderComponent, CatbeeLoaderService } from '@ng-catbee/loader';
 
 @Component({
@@ -23,16 +23,19 @@ export class EmptyStateComponent {
 
   constructor() {
     effect(() => {
-      const msg = this.message();
-      if (this.showLoader()) {
-        queueMicrotask(() => {
-          this.loader.show(this.emptyStateLoaderName, {
-            message: msg
+      const message = this.message();
+      const visible = this.showLoader();
+
+      untracked(() => {
+        if (visible) {
+          void this.loader.show(this.emptyStateLoaderName, {
+            message,
+            fullscreen: false
           });
-        });
-      } else {
-        this.loader.hide(this.emptyStateLoaderName);
-      }
+        } else {
+          void this.loader.hide(this.emptyStateLoaderName);
+        }
+      });
     });
   }
 }
