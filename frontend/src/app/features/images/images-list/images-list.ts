@@ -21,6 +21,8 @@ import {
   SORT_DIRECTIONS,
   SortDirection
 } from '@shared/types';
+import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
+import { CopyButtonComponent } from '@components/copy-button/copy-button';
 
 @Component({
   selector: 'catbee-container-studio-images-page',
@@ -32,7 +34,9 @@ import {
     TableCheckboxComponent,
     TableSortHeaderComponent,
     EmptyStateComponent,
-    ErrorBannerComponent
+    ErrorBannerComponent,
+    CatbeeTooltip,
+    CopyButtonComponent
   ],
   templateUrl: './images-list.html',
   styleUrl: './images-list.scss'
@@ -44,6 +48,8 @@ export class ImagesPage {
   private readonly sessionStorage = inject(SessionStorageService);
 
   private readonly imageSearchInput = viewChild<SearchInputComponent>('imageSearchInput');
+
+  readonly tooltipDelay = 300;
 
   readonly images = signal<DockerImageInfo[]>([]);
   readonly searchTerm = signal(this.sessionStorage.getWithDefault(UI_STORAGE_KEYS.IMAGES_SEARCH_QUERY, ''));
@@ -333,7 +339,7 @@ export class ImagesPage {
     try {
       await this.loadImages();
     } catch (err) {
-      this.error.set(err instanceof Error ? err.message : 'Failed to remove image.');
+      this.error.set(err instanceof Error ? err.message : 'Failed to delete image.');
     }
   }
 

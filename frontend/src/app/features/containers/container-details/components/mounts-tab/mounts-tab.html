@@ -46,11 +46,8 @@
                   <button
                     class="mount-source-btn"
                     (click)="openMountSource(mount)"
-                    [title]="
-                      mount.type === 'volume'
-                        ? 'Open volume details: ' + mount.displaySource
-                        : 'Reveal in Finder: ' + mount.source
-                    "
+                    [catbeeTooltip]="mount.type === 'volume' ? 'Open volume details' : 'Open in Finder'"
+                    [catbeeTooltipPosition]="'top'"
                   >
                     <span class="mat-icon-filled mount-source-icon" aria-hidden="true">folder_open</span>
                     <span class="mount-source-text">{{ mount.displaySource }}</span>

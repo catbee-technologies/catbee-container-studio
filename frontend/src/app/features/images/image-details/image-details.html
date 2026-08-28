@@ -1,6 +1,6 @@
 <main class="catbee-details-container" aria-label="Image details">
   <header class="catbee-details-container-header">
-    <button type="button" class="back-btn" (click)="backToImages()" aria-label="Back to images" title="Back">
+    <button type="button" class="back-btn" (click)="backToImages()" aria-label="Back to images">
       <span class="mat-icon-filled" aria-hidden="true">chevron_left</span>
     </button>
 
@@ -8,7 +8,7 @@
       <h1>{{ title() }}</h1>
       <p class="mono">
         {{ shortId(imageId()) }}
-        <catbee-container-studio-copy-button [text]="imageId()" size="small" />
+        <catbee-container-studio-copy-button [text]="imageId().replace('sha256:', '')" size="small" />
       </p>
     </div>
   </header>
@@ -94,7 +94,14 @@
                           {{ formatContainerName(container) }}
                           <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
                         </button>
-                        <p class="unique-id">{{ container.Id.slice(0, 12) }}</p>
+                        <p class="unique-id">
+                          {{ container.Id.slice(0, 12) }}
+                          <catbee-container-studio-copy-button
+                            [text]="container.Id"
+                            size="small"
+                            (click)="$event.stopPropagation()"
+                          />
+                        </p>
                       </td>
                       <td>{{ container.Image }}</td>
                       <td>

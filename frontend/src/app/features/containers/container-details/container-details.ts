@@ -19,6 +19,7 @@ import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { SessionStorageService } from '@ng-catbee/storage';
 import { UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
+import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 
 enum ContainerTab {
   Logs = 'logs',
@@ -43,7 +44,8 @@ enum ContainerTab {
     TabsComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
-    CopyButtonComponent
+    CopyButtonComponent,
+    CatbeeTooltip
   ],
   templateUrl: './container-details.html',
   styleUrl: './container-details.scss',
@@ -64,6 +66,8 @@ export class ContainerDetailsPage implements OnDestroy {
   private readonly inspectTab = viewChild(InspectTabComponent);
   private readonly envTab = viewChild(EnvTabComponent);
   private readonly shellTab = viewChild(ShellTabComponent);
+
+  readonly tooltipDelay = 300;
 
   readonly tabs: readonly TabItem[] = [
     { id: 'logs', label: 'Logs', icon: 'article' },

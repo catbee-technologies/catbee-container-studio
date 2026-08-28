@@ -6,7 +6,8 @@
   class="{{ size() + ' ' + className() }}"
   [disabled]="isDisabled()"
   [attr.aria-label]="ariaLabel()"
-  [attr.title]="buttonTitle()"
+  [catbeeTooltip]="buttonTitle()"
+  catbeeTooltipPosition="top"
   (click)="copy()"
 >
   <span class="mat-icon-filled" aria-hidden="true">{{ iconName() }}</span>

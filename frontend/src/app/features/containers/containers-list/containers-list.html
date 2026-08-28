@@ -15,7 +15,9 @@
         (click)="loadContainers()"
         [disabled]="isRefreshing()"
         aria-label="Refresh containers"
-        title="Refresh"
+        [catbeeTooltip]="'Refresh'"
+        [catbeeTooltipDelay]="tooltipDelay"
+        [catbeeTooltipPosition]="'left'"
       >
         <span class="mat-icon-filled" [class.is-refreshing]="isRefreshing()" aria-hidden="true">refresh</span>
       </button>
@@ -53,7 +55,9 @@
           (click)="startSelectedContainers()"
           [disabled]="activeBulkAction() !== null"
           aria-label="Start selected containers"
-          title="Start"
+          [catbeeTooltip]="'Start'"
+          [catbeeTooltipDelay]="tooltipDelay"
+          [catbeeTooltipPosition]="'top'"
         >
           <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
         </button>
@@ -63,7 +67,9 @@
           (click)="stopSelectedContainers()"
           [disabled]="activeBulkAction() !== null"
           aria-label="Stop selected containers"
-          title="Stop"
+          [catbeeTooltip]="'Stop'"
+          [catbeeTooltipDelay]="tooltipDelay"
+          [catbeeTooltipPosition]="'top'"
         >
           <span class="mat-icon-filled" aria-hidden="true">stop</span>
         </button>
@@ -73,7 +79,9 @@
           (click)="requestDeleteSelected()"
           [disabled]="activeBulkAction() !== null"
           aria-label="Delete selected containers"
-          title="Delete"
+          [catbeeTooltip]="'Delete'"
+          [catbeeTooltipDelay]="tooltipDelay"
+          [catbeeTooltipPosition]="'top'"
         >
           <span class="mat-icon-filled" aria-hidden="true">delete</span>
         </button>
@@ -89,7 +97,9 @@
             (click)="toggleBulkActionsMenu($event)"
             [disabled]="activeBulkAction() !== null"
             aria-label="More actions"
-            title="More"
+            [catbeeTooltip]="'More actions'"
+            [catbeeTooltipDelay]="tooltipDelay"
+            [catbeeTooltipPosition]="'top'"
           >
             <span class="mat-icon-filled" aria-hidden="true">more_vert</span>
           </button>
@@ -228,7 +238,14 @@
                       <button type="button" class="link-btn" (click)="openContainer(container.Id)">
                         {{ formatNames(container.Names) }}
                       </button>
-                      <p class="unique-id">{{ container.Id.slice(0, 12) }}</p>
+                      <p class="unique-id">
+                        {{ container.Id.slice(0, 12) }}
+                        <catbee-container-studio-copy-button
+                          [text]="container.Id"
+                          size="small"
+                          (click)="$event.stopPropagation()"
+                        />
+                      </p>
                     </td>
                     <td>
                       <button
@@ -260,7 +277,9 @@
                           (click)="startContainer(container.Id); $event.stopPropagation()"
                           [disabled]="activeActionContainerId() === container.Id || container.State === 'running'"
                           aria-label="Start container"
-                          title="Start"
+                          [catbeeTooltip]="'Start'"
+                          [catbeeTooltipDelay]="tooltipDelay"
+                          [catbeeTooltipPosition]="'top'"
                         >
                           <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
                         </button>
@@ -270,7 +289,9 @@
                           (click)="stopContainer(container.Id); $event.stopPropagation()"
                           [disabled]="activeActionContainerId() === container.Id || container.State !== 'running'"
                           aria-label="Stop container"
-                          title="Stop"
+                          [catbeeTooltip]="'Stop'"
+                          [catbeeTooltipDelay]="tooltipDelay"
+                          [catbeeTooltipPosition]="'top'"
                         >
                           <span class="mat-icon-filled" aria-hidden="true">stop</span>
                         </button>
@@ -279,8 +300,10 @@
                           class="catbee-action-btn danger icon-only"
                           (click)="requestDeleteContainer(container.Id); $event.stopPropagation()"
                           [disabled]="activeActionContainerId() === container.Id"
-                          aria-label="Remove container"
-                          title="Remove"
+                          aria-label="Delete container"
+                          [catbeeTooltip]="'Delete'"
+                          [catbeeTooltipDelay]="tooltipDelay"
+                          [catbeeTooltipPosition]="'top'"
                         >
                           <span class="mat-icon-filled" aria-hidden="true">delete</span>
                         </button>
@@ -297,7 +320,9 @@
                             (click)="toggleContainerActionsMenu($event, container.Id)"
                             [disabled]="activeActionContainerId() === container.Id"
                             aria-label="More actions"
-                            title="More"
+                            [catbeeTooltip]="'More actions'"
+                            [catbeeTooltipDelay]="tooltipDelay"
+                            [catbeeTooltipPosition]="'left'"
                           >
                             <span class="mat-icon-filled" aria-hidden="true">more_vert</span>
                           </button>
@@ -347,9 +372,9 @@
 
 <catbee-container-studio-confirm-dialog
   [open]="pendingDeleteContainer() !== null"
-  title="Remove Container"
+  title="Delete Container"
   [message]="pendingContainerDeleteMessage()"
-  confirmLabel="Remove"
+  confirmLabel="Delete"
   cancelLabel="Cancel"
   [dangerous]="true"
   (cancelAction)="cancelDeleteContainer()"
@@ -358,9 +383,9 @@
 
 <catbee-container-studio-confirm-dialog
   [open]="pendingDeleteSelection()"
-  title="Remove Selected Containers"
+  title="Delete Selected Containers"
   [message]="pendingSelectionDeleteMessage()"
-  confirmLabel="Remove All"
+  confirmLabel="Delete All"
   cancelLabel="Cancel"
   [dangerous]="true"
   (cancelAction)="cancelDeleteSelected()"

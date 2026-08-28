@@ -11,6 +11,7 @@ import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { SessionStorageService } from '@ng-catbee/storage';
 import { UI_STORAGE_KEYS } from '@utils/storage.utils';
+import { CopyButtonComponent } from '@components/copy-button/copy-button';
 
 enum VolumeDetailsTab {
   Containers = 'containers'
@@ -18,7 +19,7 @@ enum VolumeDetailsTab {
 
 @Component({
   selector: 'catbee-container-studio-volume-details-page',
-  imports: [CommonModule, TabsComponent, EmptyStateComponent, ErrorBannerComponent],
+  imports: [CommonModule, TabsComponent, EmptyStateComponent, ErrorBannerComponent, CopyButtonComponent],
   templateUrl: './volume-details.html',
   styleUrl: './volume-details.scss'
 })

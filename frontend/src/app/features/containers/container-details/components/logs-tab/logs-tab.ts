@@ -21,6 +21,7 @@ import { LocalStorageService } from '@ng-catbee/storage';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { LOG_TAIL_OPTIONS } from '@shared/types';
 import { ElectronApiService } from '@core/electron-api.service';
+import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 
 export interface LogsSearchMode {
   caseSensitive: boolean;
@@ -56,7 +57,7 @@ interface LogMatch {
 
 @Component({
   selector: 'catbee-container-studio-container-logs-tab',
-  imports: [CommonModule, SearchInputComponent, MenuComponent, EmptyStateComponent],
+  imports: [CommonModule, SearchInputComponent, MenuComponent, EmptyStateComponent, CatbeeTooltip],
   templateUrl: './logs-tab.html',
   styleUrl: './logs-tab.scss'
 })
@@ -77,6 +78,8 @@ export class LogsTabComponent implements AfterViewInit {
 
   private readonly logsSearchInput = viewChild<SearchInputComponent>('logsSearchInput');
   private readonly tabScrollArea = viewChild<ElementRef<HTMLElement>>('tabScrollArea');
+
+  readonly tooltipDelay = 300;
 
   readonly containerId = input.required<string>();
   readonly active = input(false);

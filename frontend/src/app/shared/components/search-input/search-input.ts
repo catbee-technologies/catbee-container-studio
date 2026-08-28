@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, input, output, viewChild } from '@angular/core';
+import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 
 @Component({
   selector: 'catbee-container-studio-search-input',
-  imports: [CommonModule],
+  imports: [CommonModule, CatbeeTooltip],
   templateUrl: './search-input.html',
   styleUrl: './search-input.scss'
 })
@@ -17,6 +18,8 @@ export class SearchInputComponent {
 
   readonly valueChange = output<string>();
   readonly inputKeydown = output<KeyboardEvent>();
+
+  readonly tooltipDelay = 300;
 
   private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
 

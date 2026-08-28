@@ -383,6 +383,18 @@ textarea {
   font-family: var(--mono-font);
 }
 
+.unique-id {
+  catbee-container-studio-copy-button {
+    visibility: hidden;
+  }
+
+  &:hover {
+    catbee-container-studio-copy-button {
+      visibility: visible;
+    }
+  }
+}
+
 .search-match {
   background: rgb(255 210 93 / 0.42);
   color: #fff2c6;

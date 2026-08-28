@@ -15,7 +15,9 @@
         class="search-mode-btn"
         [class.active]="logsSearchMode().caseSensitive"
         (click)="toggleCaseSensitive()"
-        title="Case sensitive"
+        [catbeeTooltip]="'Case sensitive'"
+        [catbeeTooltipPosition]="'bottom'"
+        [catbeeTooltipDelay]="tooltipDelay"
         aria-label="Case sensitive"
       >
         Aa
@@ -26,7 +28,9 @@
         class="search-mode-btn"
         [class.active]="logsSearchMode().wholeWord"
         (click)="toggleWholeWord()"
-        title="Whole word"
+        [catbeeTooltip]="'Whole word'"
+        [catbeeTooltipPosition]="'bottom'"
+        [catbeeTooltipDelay]="tooltipDelay"
         aria-label="Whole word"
       >
         W
@@ -37,7 +41,9 @@
         class="search-mode-btn"
         [class.active]="logsSearchMode().regex"
         (click)="toggleRegex()"
-        title="Regex"
+        [catbeeTooltip]="'Regex'"
+        [catbeeTooltipPosition]="'bottom'"
+        [catbeeTooltipDelay]="tooltipDelay"
         aria-label="Regex"
       >
         .*

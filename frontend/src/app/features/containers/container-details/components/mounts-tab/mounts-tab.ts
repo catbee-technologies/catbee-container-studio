@@ -5,6 +5,7 @@ import { DockerApiService } from '@core/docker-api.service';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { DockerContainerInspectInfo } from '@shared/types/docker-api.types';
 import { ElectronApiService } from '@core/electron-api.service';
+import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 
 interface MountRow {
   type: string;
@@ -19,7 +20,7 @@ interface MountRow {
 
 @Component({
   selector: 'catbee-container-studio-container-mounts-tab',
-  imports: [CommonModule, EmptyStateComponent],
+  imports: [CommonModule, EmptyStateComponent, CatbeeTooltip],
   templateUrl: './mounts-tab.html',
   styleUrl: './mounts-tab.scss'
 })

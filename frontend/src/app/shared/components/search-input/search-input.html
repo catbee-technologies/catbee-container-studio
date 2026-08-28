@@ -15,7 +15,15 @@
   <ng-content select="[search-controls]"></ng-content>
 
   @if (value().trim().length > 0) {
-    <button type="button" class="search-clear" (click)="clear()" aria-label="Clear search">
+    <button
+      type="button"
+      class="search-clear"
+      (click)="clear()"
+      aria-label="Clear search"
+      [catbeeTooltip]="'Clear'"
+      [catbeeTooltipPosition]="'bottom'"
+      [catbeeTooltipDelay]="tooltipDelay"
+    >
       <span class="mat-icon-filled" aria-hidden="true">close</span>
     </button>
   }

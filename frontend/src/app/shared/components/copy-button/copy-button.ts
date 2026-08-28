@@ -1,9 +1,11 @@
 import { Component, DestroyRef, computed, inject, input, signal } from '@angular/core';
+import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 
 type CopyButtonStatus = 'idle' | 'copied' | 'failed';
 
 @Component({
   selector: 'catbee-container-studio-copy-button',
+  imports: [CatbeeTooltip],
   templateUrl: './copy-button.html',
   styleUrl: './copy-button.scss'
 })

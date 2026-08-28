@@ -1,6 +1,6 @@
 <main class="catbee-details-container" aria-label="Volume details">
   <header class="catbee-details-container-header">
-    <button type="button" class="back-btn" (click)="backToVolumes()" aria-label="Back to volumes" title="Back">
+    <button type="button" class="back-btn" (click)="backToVolumes()">
       <span class="mat-icon-filled" aria-hidden="true">chevron_left</span>
     </button>
 
@@ -59,7 +59,14 @@
                         {{ formatContainerName(container) }}
                         <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
                       </button>
-                      <p class="unique-id">{{ container.Id.slice(0, 12) }}</p>
+                      <p class="unique-id">
+                        {{ container.Id.slice(0, 12) }}
+                        <catbee-container-studio-copy-button
+                          [text]="container.Id"
+                          size="small"
+                          (click)="$event.stopPropagation()"
+                        />
+                      </p>
                     </td>
                     <td>{{ container.Image }}</td>
                     <td>

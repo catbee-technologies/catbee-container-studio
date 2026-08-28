@@ -11,6 +11,7 @@ import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ElectronApiService } from '@core/electron-api.service';
 import { DockerInitializationStatus } from '@shared/types';
 import { FooterComponent } from '@components/footer/footer';
+import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 
 @Component({
   selector: 'catbee-container-studio-root',
@@ -21,7 +22,8 @@ import { FooterComponent } from '@components/footer/footer';
     RouterLinkActive,
     WindowHeaderComponent,
     EmptyStateComponent,
-    FooterComponent
+    FooterComponent,
+    CatbeeTooltip
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss'

@@ -17,6 +17,8 @@ import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { CONTAINER_SORT_KEYS, ContainerSortKey, SORT_DIRECTIONS, SortDirection } from '@shared/types';
 import { MenuService } from '@components/menu/menu.service';
+import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
+import { CopyButtonComponent } from '@components/copy-button/copy-button';
 
 interface ContainerGroup {
   id: string;
@@ -37,7 +39,9 @@ interface ContainerGroup {
     TableSortHeaderComponent,
     SwitchInputComponent,
     EmptyStateComponent,
-    ErrorBannerComponent
+    ErrorBannerComponent,
+    CatbeeTooltip,
+    CopyButtonComponent
   ],
   templateUrl: './containers-list.html',
   styleUrl: './containers-list.scss'
@@ -56,6 +60,8 @@ export class ContainersPage {
   private autoRefreshDebounce: ReturnType<typeof setTimeout> | null = null;
 
   private readonly containerSearchInput = viewChild<SearchInputComponent>('containerSearchInput');
+
+  readonly tooltipDelay = 300;
 
   readonly containers = signal<DockerContainerInfo[]>([]);
   readonly searchTerm = signal(this.sessionStorage.getWithDefault(UI_STORAGE_KEYS.CONTAINERS_SEARCH_QUERY, ''));
@@ -548,14 +554,14 @@ export class ContainersPage {
   pendingContainerDeleteMessage(): string {
     const pending = this.pendingDeleteContainer();
     if (!pending) {
-      return 'Remove this container permanently? \n This action cannot be undone.';
+      return 'Delete this container permanently? \n This action cannot be undone.';
     }
 
-    return `Remove ${formatDockerNames(pending.Names)} permanently? \n This action cannot be undone.`;
+    return `Delete ${formatDockerNames(pending.Names)} permanently? \n This action cannot be undone.`;
   }
 
   pendingSelectionDeleteMessage(): string {
-    return `Remove ${this.selectedContainers().length} selected containers permanently? \n This action cannot be undone.`;
+    return `Delete ${this.selectedContainers().length} selected containers permanently? \n This action cannot be undone.`;
   }
 
   openImageDetails(imageRef: string): void {

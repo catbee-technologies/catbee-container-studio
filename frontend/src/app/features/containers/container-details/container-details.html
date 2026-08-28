@@ -38,7 +38,9 @@
         (click)="start()"
         [disabled]="container()?.State === 'running'"
         aria-label="Start"
-        title="Start"
+        [catbeeTooltip]="'Start'"
+        [catbeeTooltipPosition]="'top'"
+        [catbeeTooltipDelay]="tooltipDelay"
       >
         <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
       </button>
@@ -48,7 +50,9 @@
         (click)="stop()"
         [disabled]="container()?.State !== 'running'"
         aria-label="Stop"
-        title="Stop"
+        [catbeeTooltip]="'Stop'"
+        [catbeeTooltipPosition]="'top'"
+        [catbeeTooltipDelay]="tooltipDelay"
       >
         <span class="mat-icon-filled" aria-hidden="true">stop</span>
       </button>
@@ -58,7 +62,9 @@
         (click)="pause()"
         [disabled]="container()?.State !== 'running'"
         aria-label="Pause"
-        title="Pause"
+        [catbeeTooltip]="'Pause'"
+        [catbeeTooltipPosition]="'top'"
+        [catbeeTooltipDelay]="tooltipDelay"
       >
         <span class="mat-icon-filled" aria-hidden="true">pause</span>
       </button>
@@ -68,7 +74,9 @@
         (click)="unpause()"
         [disabled]="container()?.State !== 'paused'"
         aria-label="Unpause"
-        title="Unpause"
+        [catbeeTooltip]="'Unpause'"
+        [catbeeTooltipPosition]="'top'"
+        [catbeeTooltipDelay]="tooltipDelay"
       >
         <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
       </button>
@@ -77,7 +85,9 @@
         class="catbee-action-btn icon-only action-restart"
         (click)="restart()"
         aria-label="Restart"
-        title="Restart"
+        [catbeeTooltip]="'Restart'"
+        [catbeeTooltipPosition]="'left'"
+        [catbeeTooltipDelay]="tooltipDelay"
       >
         <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
       </button>

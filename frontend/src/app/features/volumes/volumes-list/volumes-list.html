@@ -10,7 +10,9 @@
         (click)="loadVolumes()"
         [disabled]="isRefreshing()"
         aria-label="Refresh volumes"
-        title="Refresh"
+        [catbeeTooltip]="'Refresh'"
+        [catbeeTooltipPosition]="'left'"
+        [catbeeTooltipDelay]="tooltipDelay"
       >
         <span class="mat-icon-filled" [class.is-refreshing]="isRefreshing()" aria-hidden="true">refresh</span>
       </button>
@@ -155,8 +157,10 @@
                     type="button"
                     class="catbee-action-btn icon-only danger"
                     (click)="requestDeleteSingle(volume.Name)"
-                    aria-label="Remove volume"
-                    title="Remove"
+                    aria-label="Delete volume"
+                    [catbeeTooltip]="'Delete'"
+                    [catbeeTooltipPosition]="'left'"
+                    [catbeeTooltipDelay]="tooltipDelay"
                   >
                     <span class="mat-icon-filled" aria-hidden="true">delete</span>
                   </button>
@@ -172,9 +176,9 @@
 
 <catbee-container-studio-confirm-dialog
   [open]="pendingDeleteVolumeNames().length > 0"
-  [title]="pendingDeleteVolumeNames().length > 1 ? 'Remove Volumes' : 'Remove Volume'"
-  [message]="'Remove ' + pendingDeleteLabel() + '? \n All data in these volumes will be permanently deleted.'"
-  confirmLabel="Remove"
+  [title]="pendingDeleteVolumeNames().length > 1 ? 'Delete Volumes' : 'Delete Volume'"
+  [message]="'Delete ' + pendingDeleteLabel() + '? \n All data in these volumes will be permanently deleted.'"
+  confirmLabel="Delete"
   [dangerous]="true"
   (confirm)="confirmDelete()"
   (cancelAction)="cancelDelete()"
@@ -183,7 +187,7 @@
 <catbee-container-studio-confirm-dialog
   [open]="confirmPruneOpen()"
   title="Prune Unused Volumes"
-  [message]="'Remove all volumes not used by any container? \n All data in those volumes will be permanently deleted.'"
+  [message]="'Delete all volumes not used by any container? \n All data in those volumes will be permanently deleted.'"
   confirmLabel="Prune"
   [dangerous]="true"
   (confirm)="confirmPrune()"

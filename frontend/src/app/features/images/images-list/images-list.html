@@ -10,7 +10,9 @@
         (click)="loadImages()"
         [disabled]="isRefreshing()"
         aria-label="Refresh images"
-        title="Refresh"
+        [catbeeTooltip]="'Refresh'"
+        [catbeeTooltipDelay]="tooltipDelay"
+        [catbeeTooltipPosition]="'left'"
       >
         <span class="mat-icon-filled" [class.is-refreshing]="isRefreshing()" aria-hidden="true">refresh</span>
       </button>
@@ -153,7 +155,14 @@
                       <span class="badge dangling small">dangling</span>
                     }
                   </button>
-                  <p class="unique-id">{{ shortId(image) }}</p>
+                  <p class="unique-id">
+                    {{ shortId(image) }}
+                    <catbee-container-studio-copy-button
+                      [text]="image.Id.replace('sha256:', '')"
+                      size="small"
+                      (click)="$event.stopPropagation()"
+                    />
+                  </p>
                 </td>
                 <td>{{ repositoryAndTag(image)[1] }}</td>
                 <td>{{ shortId(image) }}</td>
@@ -164,8 +173,10 @@
                     type="button"
                     class="catbee-action-btn icon-only danger"
                     (click)="requestDeleteSingle(image.Id)"
-                    aria-label="Remove image"
-                    title="Remove"
+                    aria-label="Delete image"
+                    [catbeeTooltip]="'Delete'"
+                    [catbeeTooltipDelay]="tooltipDelay"
+                    [catbeeTooltipPosition]="'left'"
                   >
                     <span class="mat-icon-filled" aria-hidden="true">delete</span>
                   </button>
@@ -192,9 +203,9 @@
 
 <catbee-container-studio-confirm-dialog
   [open]="pendingDeleteImageIds().length > 0"
-  [title]="pendingDeleteImageIds().length > 1 ? 'Remove Images' : 'Remove Image'"
-  [message]="'Remove ' + pendingDeleteLabel() + '? \n Containers using these images must be removed first.'"
-  confirmLabel="Remove"
+  [title]="pendingDeleteImageIds().length > 1 ? 'Delete Images' : 'Delete Image'"
+  [message]="'Delete ' + pendingDeleteLabel() + '? \n Containers using these images must be deleted first.'"
+  confirmLabel="Delete"
   [dangerous]="true"
   (confirm)="confirmDelete()"
   (cancelAction)="cancelDelete()"
@@ -203,7 +214,7 @@
 <catbee-container-studio-confirm-dialog
   [open]="confirmPruneOpen()"
   title="Prune Dangling Images"
-  [message]="'Remove all dangling (untagged) images? \n This cannot be undone.'"
+  [message]="'Delete all dangling (untagged) images? \n This cannot be undone.'"
   confirmLabel="Prune"
   [dangerous]="true"
   (confirm)="confirmPrune()"

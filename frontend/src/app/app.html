@@ -6,8 +6,9 @@
         type="button"
         class="sidebar-toggle"
         (click)="toggleSidebar()"
-        [attr.aria-label]="sidebarCollapsed() ? 'Expand navigation' : 'Collapse navigation'"
-        [title]="sidebarCollapsed() ? 'Expand navigation' : 'Collapse navigation'"
+        [attr.aria-label]="sidebarCollapsed() ? 'Expand' : 'Collapse'"
+        [catbeeTooltip]="sidebarCollapsed() ? 'Expand' : 'Collapse'"
+        catbeeTooltipPosition="right"
       >
         <span class="mat-icon-filled" aria-hidden="true">
           {{ sidebarCollapsed() ? 'right_panel_open' : 'left_panel_close' }}
@@ -24,7 +25,9 @@
                 [routerLinkActiveOptions]="{ exact: false }"
                 class="nav-link"
                 [attr.aria-label]="item.label"
-                [title]="item.label"
+                [catbeeTooltip]="item.label"
+                catbeeTooltipPosition="right"
+                [catbeeTooltipDisabled]="!sidebarCollapsed()"
                 (click)="onNavClick($event)"
               >
                 <span class="mat-icon-filled" aria-hidden="true">{{ item.icon }}</span>

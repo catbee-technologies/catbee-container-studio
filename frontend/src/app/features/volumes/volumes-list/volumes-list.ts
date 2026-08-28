@@ -21,6 +21,7 @@ import {
   VolumeSortKey,
   VolumeUsageFilter
 } from '@shared/types';
+import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 
 @Component({
   selector: 'catbee-container-studio-volumes-page',
@@ -32,7 +33,8 @@ import {
     TableCheckboxComponent,
     TableSortHeaderComponent,
     EmptyStateComponent,
-    ErrorBannerComponent
+    ErrorBannerComponent,
+    CatbeeTooltip
   ],
   templateUrl: './volumes-list.html',
   styleUrl: './volumes-list.scss'
@@ -44,6 +46,8 @@ export class VolumesPage {
   private readonly sessionStorage = inject(SessionStorageService);
 
   private readonly volumeSearchInput = viewChild<SearchInputComponent>('volumeSearchInput');
+
+  readonly tooltipDelay = 300;
 
   readonly volumes = signal<DockerVolumeInfo[]>([]);
   readonly searchTerm = signal(this.sessionStorage.getWithDefault(UI_STORAGE_KEYS.VOLUMES_SEARCH_QUERY, ''));
@@ -311,7 +315,7 @@ export class VolumesPage {
     try {
       await this.loadVolumes();
     } catch (err) {
-      this.error.set(err instanceof Error ? err.message : 'Failed to remove volume.');
+      this.error.set(err instanceof Error ? err.message : 'Failed to delete volume.');
     }
   }
 
