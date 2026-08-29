@@ -36,6 +36,10 @@ export default {
       {
         target: 'zip',
         arch: ['x64']
+      },
+      {
+        target: 'msix',
+        arch: ['x64']
       }
     ]
   },
@@ -85,5 +89,14 @@ export default {
     shortcutName: 'CatBee Container Studio',
     runAfterFinish: true,
     deleteAppDataOnUninstall: false
+  },
+  msix: {
+    identityName: 'Catbee.CatbeeContainerStudio',
+    publisher: 'CN=3E66AE3B-95DE-4430-827D-87F2A65B8834',
+    publisherDisplayName: 'Catbee',
+    displayName: 'CatBee Container Studio',
+    applicationId: 'CatbeeContainerStudio',
+    languages: ['en-US'],
+    createMsixupload: true
   }
 };
