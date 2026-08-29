@@ -1,0 +1,74 @@
+name: Microsoft Store
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish Microsoft Store Package
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          npm ci
+          Push-Location frontend
+          npm ci
+          Pop-Location
+
+      - name: Build MSIX
+        run: npm run dist:win:store
+
+      - name: Find MSIX package
+        id: msix
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem build -Filter "*.msixupload" |
+            Select-Object -First 1
+
+          if (-not $package) {
+            throw "No MSIXUPLOAD package found."
+          }
+
+          Write-Host "Found package: $($package.FullName)"
+          "path=$($package.FullName)" >> $env:GITHUB_OUTPUT
+
+      - name: Setup Microsoft Store Developer CLI
+        uses: microsoft/microsoft-store-apppublisher@v1.4
+
+      - name: Configure Microsoft Store credentials
+        shell: pwsh
+        env:
+          AZURE_AD_TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
+          MICROSOFT_PARTNER_SELLER_ID: ${{ secrets.MICROSOFT_PARTNER_SELLER_ID }}
+          AZURE_AD_APPLICATION_CLIENT_ID: ${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}
+          AZURE_AD_APPLICATION_CLIENT_SECRET: ${{ secrets.AZURE_AD_APPLICATION_CLIENT_SECRET }}
+        run: |
+          msstore reconfigure `
+            --tenantId "$env:AZURE_AD_TENANT_ID" `
+            --sellerId "$env:MICROSOFT_PARTNER_SELLER_ID" `
+            --clientId "$env:AZURE_AD_APPLICATION_CLIENT_ID" `
+            --clientSecret "$env:AZURE_AD_APPLICATION_CLIENT_SECRET"
+
+      - name: Publish to Microsoft Store
+        shell: pwsh
+        run: |
+          msstore publish `
+            "${{ steps.msix.outputs.path }}" `
+            -id "9NX6H3J2RNX2"
