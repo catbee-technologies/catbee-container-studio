@@ -98,5 +98,20 @@ export default {
     applicationId: 'CatbeeContainerStudio',
     languages: ['en-US'],
     createMsixupload: true
+  },
+  snapcraft: {
+    base: 'core24',
+    core24: {
+      useDestructiveMode: true,
+      extensions: [],
+      confinement: 'strict',
+      grade: 'stable',
+      summary: 'Docker container management desktop application',
+      title: 'CatBee Container Studio'
+    },
+    publish: {
+      provider: 'snapStore',
+      repo: 'catbee-container-studio'
+    }
   }
 };
