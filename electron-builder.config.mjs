@@ -86,5 +86,35 @@ export default {
     shortcutName: 'CatBee Container Studio',
     runAfterFinish: true,
     deleteAppDataOnUninstall: false
+  },
+  snapcraft: {
+    base: 'core24',
+    core24: {
+      useLXD: true,
+      confinement: 'strict',
+      grade: 'stable',
+      stagePackages: ['default'],
+      summary: 'Docker container management desktop application',
+      title: 'CatBee Container Studio',
+      plugs: [
+        'desktop',
+        'desktop-legacy',
+        'home',
+        'x11',
+        'wayland',
+        'unity7',
+        'network',
+        'gsettings',
+        'audio-playback',
+        'pulseaudio',
+        'opengl',
+        'browser-support',
+        'docker'
+      ]
+    },
+    publish: {
+      provider: 'snapStore',
+      repo: 'catbee-container-studio'
+    }
   }
 };
