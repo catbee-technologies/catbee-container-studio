@@ -2,8 +2,8 @@ name: Release Snap
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - release/snap
 
 permissions:
   contents: read
@@ -38,19 +38,7 @@ jobs:
       - name: Verify Snapcraft
         run: snapcraft --version
 
-      - name: Determine Snap channel
-        id: snap
-        shell: bash
-        run: |
-          if [[ "${GITHUB_REF_NAME}" == *-* ]]; then
-            echo "channel=edge" >> "$GITHUB_OUTPUT"
-          else
-            echo "channel=stable" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Build and publish Snap
-        env:
-          SNAP_CHANNEL: ${{ steps.snap.outputs.channel }}
         run: |
           npm run package
-          npm run dist:linux:snap -- --publish always -c.snapcraft.publish.channels="${SNAP_CHANNEL}"
+          npm run dist:linux:snap -- --publish always -c.snapcraft.publish.channels="stable"
