@@ -20,6 +20,11 @@ const isHeadlessTeardown = process.argv.includes('--uninstall') || process.argv.
 
 const gotTheLock = app.requestSingleInstanceLock();
 
+// eslint-disable-next-line n/no-process-env
+if (process.env.SNAP) {
+  app.commandLine.appendSwitch('disable-gpu-compositing');
+}
+
 if (!gotTheLock) {
   if (isHeadlessTeardown) {
     logger.error('Close the running CatBee application before requesting headless teardown.');
