@@ -13,6 +13,7 @@
     "package": "npm run clean && npm run build:ui && npm run build",
     "dist": "npm run package && electron-builder --config electron-builder.config.mjs",
     "dist:win": "npm run package && electron-builder --win --config electron-builder.config.mjs",
+    "dist:win:store": "npm run package && electron-builder --win --config electron-builder-msix.config.mjs",
     "dist:mac": "npm run package && electron-builder --mac --config electron-builder.config.mjs",
     "dist:linux": "npm run package && electron-builder --linux --config electron-builder.config.mjs",
     "start": "npm run build && electron ./dist/main/main.js",

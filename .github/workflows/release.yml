@@ -283,6 +283,12 @@ jobs:
           - **Windows x64 Installer** — [Download .exe](${BASE_URL}/CatBee-Container-Studio-${VERSION}-win-x64.exe)
           - **Windows x64 Portable** — [Download .zip](${BASE_URL}/CatBee-Container-Studio-${VERSION}-win-x64.zip)
 
+          **Microsoft Store**
+
+          Install CatBee Container Studio directly from the Microsoft Store:
+
+          <a href="https://apps.microsoft.com/detail/9NX6H3J2RNX2?referrer=appbadge&mode=full" target="_blank"  rel="noopener noreferrer"><img src="https://get.microsoft.com/images/en-us%20dark.svg" width="150"/></a>
+
           #### 🍎 macOS
 
           - **macOS Universal (Intel + Apple Silicon)** — [Download .dmg](${BASE_URL}/CatBee-Container-Studio-${VERSION}-mac-universal.dmg)
