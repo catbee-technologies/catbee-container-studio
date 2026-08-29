@@ -15,6 +15,7 @@
     "dist:win": "npm run package && electron-builder --win --config electron-builder.config.mjs",
     "dist:mac": "npm run package && electron-builder --mac --config electron-builder.config.mjs",
     "dist:linux": "npm run package && electron-builder --linux --config electron-builder.config.mjs",
+    "dist:linux:snap": "npm run package && electron-builder --linux snap --config electron-builder.config.mjs",
     "start": "npm run build && electron ./dist/main/main.js",
     "app:serve": "npm-run-all -p angular:serve build:watch electron:serve:wait",
     "angular:serve": "cd frontend && ng serve --port 4281",

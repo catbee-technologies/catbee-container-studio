@@ -289,6 +289,8 @@ jobs:
 
           **Fedora/RHEL/openSUSE:** Download the \`.rpm\` package and install it using your package manager.
 
+          **Snap:** Install **CatBee Container Studio** from the Ubuntu App Center or Snap Store.
+
           **Other distributions:** Download the \`.AppImage\`, make it executable, and run it: \`chmod +x CatBee-Container-Studio-*.AppImage && ./CatBee-Container-Studio-*.AppImage\`
 
           Alternatively, download the \`.tar.gz\` archive, extract it, and run the application.
