@@ -1,5 +1,6 @@
 import Docker from 'dockerode';
-import { resolveDockerConnection, type ResolvedDockerConnection } from './docker.connection';
+import { resolveDockerConnection } from './docker.connection';
+import type { ResolvedDockerConnection } from './types/connection.types';
 import { logger } from '../logger';
 
 export async function createDockerClient(connection?: ResolvedDockerConnection): Promise<Docker> {

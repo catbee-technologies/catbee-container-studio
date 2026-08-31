@@ -2,49 +2,10 @@ import { access } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
-import { logger } from '../logger';
+import { logger } from '../../logger';
+import { DockerRuntimeInfo } from '../types/runtime.types';
 
 const execFileAsync = promisify(execFile);
-
-export type DockerRuntime = 'docker-desktop' | 'rancher-desktop';
-
-export interface DockerRuntimeInfo {
-  runtime: DockerRuntime;
-  executablePath: string;
-}
-
-export type DockerInitializationStatus =
-  | {
-      state: 'checking';
-      message: string;
-      hint: string;
-    }
-  | {
-      state: 'detecting-runtime';
-      message: string;
-      hint: string;
-    }
-  | {
-      state: 'starting-runtime';
-      runtime: DockerRuntime;
-      message: string;
-      hint: string;
-    }
-  | {
-      state: 'waiting-for-engine';
-      message: string;
-      hint: string;
-    }
-  | {
-      state: 'ready';
-      message: string;
-      hint: string;
-    }
-  | {
-      state: 'error';
-      message: string;
-      hint: string;
-    };
 
 export async function startDockerRuntime(runtimeInfo: DockerRuntimeInfo): Promise<void> {
   logger.info(`[DockerRuntime] Starting runtime: ${runtimeInfo.runtime}`);
