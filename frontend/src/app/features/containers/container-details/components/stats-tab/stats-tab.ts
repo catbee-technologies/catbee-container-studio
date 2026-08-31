@@ -57,13 +57,25 @@ const CHART_OPTS = {
   },
   scales: {
     x: {
-      display: false,
-      grid: { display: false }
+      display: true,
+      border: { display: false },
+      grid: { display: false },
+      ticks: {
+        color: '#6fa0bf',
+        font: { size: 10 },
+        maxTicksLimit: 4,
+        autoSkip: true,
+        maxRotation: 0
+      }
     },
     y: {
       display: true,
       border: { display: false },
-      ticks: { color: '#6fa0bf', font: { size: 11 } },
+      ticks: {
+        color: '#6fa0bf',
+        font: { size: 11 },
+        maxTicksLimit: 5
+      },
       grid: { color: 'rgb(90 130 165 / 0.14)' }
     }
   }
@@ -285,10 +297,21 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
           ...CHART_OPTS.scales,
           y: {
             ...CHART_OPTS.scales.y,
-            min: 0,
             ticks: {
               ...CHART_OPTS.scales.y.ticks,
-              callback: v => `${v}%`
+              callback: value => this.formatPercentage(Number(value))
+            }
+          }
+        },
+        plugins: {
+          ...CHART_OPTS.plugins,
+          tooltip: {
+            enabled: true,
+            callbacks: {
+              label: context => {
+                const value = Number(context.raw ?? 0);
+                return `CPU: ${this.formatPercentage(value)}`;
+              }
             }
           }
         }
@@ -299,7 +322,12 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
       type: 'line',
       data: {
         labels: [],
-        datasets: [{ ...baseDataset('#58a6ff', 'rgb(88 166 255 / 0.10)'), label: 'Memory %' }]
+        datasets: [
+          {
+            ...baseDataset('#58a6ff', 'rgb(88 166 255 / 0.10)'),
+            label: 'Memory'
+          }
+        ]
       },
       options: {
         ...CHART_OPTS,
@@ -307,9 +335,26 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
           ...CHART_OPTS.scales,
           y: {
             ...CHART_OPTS.scales.y,
-            min: 0,
-            max: 100,
-            ticks: { ...CHART_OPTS.scales.y.ticks, callback: v => `${v}%` }
+            ticks: {
+              ...CHART_OPTS.scales.y.ticks,
+              callback: value => formatDockerBytes(Number(value), 1)
+            }
+          }
+        },
+        plugins: {
+          ...CHART_OPTS.plugins,
+          tooltip: {
+            enabled: true,
+            callbacks: {
+              label: context => {
+                const value = Number(context.raw ?? 0);
+                const sample = this.history()[context.dataIndex];
+                if (!sample) {
+                  return `Memory: ${formatDockerBytes(value, 1)}`;
+                }
+                return `Memory: ${formatDockerBytes(value, 1)} (${this.formatPercentage(sample.memPct)})`;
+              }
+            }
           }
         }
       }
@@ -417,23 +462,118 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
     if (h.length > 0) this.updateCharts(h);
   }
 
-  private getCpuAxisMax(history: StatsSample[]): number {
-    const maxCpu = Math.max(...history.map(s => s.cpuPct), 100);
-    if (maxCpu <= 100) return 100;
-    return Math.ceil((maxCpu * 1.1) / 100) * 100;
+  private getPercentageAxisRange(history: StatsSample[], key: 'cpuPct' | 'memPct'): { min: number; max: number } {
+    const values = history.map(s => s[key]).filter(Number.isFinite);
+
+    if (values.length === 0) {
+      return { min: 0, max: 100 };
+    }
+
+    const dataMin = Math.min(...values);
+    const dataMax = Math.max(...values);
+    const range = dataMax - dataMin;
+
+    // Handle completely/near-completely flat data.
+    const effectiveRange = Math.max(range, Math.abs(dataMax) * 0.1, 0.01);
+
+    const padding = effectiveRange * 0.15;
+
+    let min = Math.max(0, dataMin - padding);
+    let max = dataMax + padding;
+
+    // Pick a "nice" tick size based on the magnitude.
+    const rawStep = (max - min) / 5;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const normalized = rawStep / magnitude;
+
+    let niceNormalized: number;
+
+    if (normalized <= 1) {
+      niceNormalized = 1;
+    } else if (normalized <= 2) {
+      niceNormalized = 2;
+    } else if (normalized <= 5) {
+      niceNormalized = 5;
+    } else {
+      niceNormalized = 10;
+    }
+
+    const step = niceNormalized * magnitude;
+
+    min = Math.max(0, Math.floor(min / step) * step);
+    max = Math.ceil(max / step) * step;
+
+    // Memory is naturally bounded to 100%.
+    if (key === 'memPct') {
+      max = Math.min(100, max);
+    }
+
+    // CPU can exceed 100%, so don't cap it.
+    return { min, max };
+  }
+
+  private getMemoryAxisRange(history: StatsSample[]): {
+    min: number;
+    max: number;
+  } {
+    const values = history.map(s => s.memUsage).filter(Number.isFinite);
+
+    if (values.length === 0) {
+      return { min: 0, max: 1 };
+    }
+
+    const dataMin = Math.min(...values);
+    const dataMax = Math.max(...values);
+    const range = dataMax - dataMin;
+
+    const effectiveRange = Math.max(range, dataMax * 0.1, 1);
+    const padding = effectiveRange * 0.15;
+
+    let min = Math.max(0, dataMin - padding);
+    let max = dataMax + padding;
+
+    const rawStep = (max - min) / 5;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+    const normalized = rawStep / magnitude;
+
+    let niceNormalized: number;
+
+    if (normalized <= 1) {
+      niceNormalized = 1;
+    } else if (normalized <= 2) {
+      niceNormalized = 2;
+    } else if (normalized <= 5) {
+      niceNormalized = 5;
+    } else {
+      niceNormalized = 10;
+    }
+
+    const step = niceNormalized * magnitude;
+
+    min = Math.max(0, Math.floor(min / step) * step);
+    max = Math.ceil(max / step) * step;
+
+    return { min, max };
   }
 
   private updateCharts(h: StatsSample[]): void {
     const labels = h.map(s => s.label);
     if (this.cpuChart) {
+      const cpuRange = this.getPercentageAxisRange(h, 'cpuPct');
       this.cpuChart.data.labels = labels;
-      this.cpuChart.data.datasets[0]!.data = h.map(s => +s.cpuPct.toFixed(2));
-      this.cpuChart.options.scales!['y']!.max = this.getCpuAxisMax(h);
+      this.cpuChart.data.datasets[0]!.data = h.map(s => s.cpuPct);
+      const cpuScale = this.cpuChart.options.scales!['y']!;
+      cpuScale.min = cpuRange.min;
+      cpuScale.max = cpuRange.max;
       this.cpuChart.update('none');
     }
     if (this.memChart) {
+      const memRange = this.getMemoryAxisRange(h);
       this.memChart.data.labels = labels;
-      this.memChart.data.datasets[0]!.data = h.map(s => +s.memPct.toFixed(2));
+      this.memChart.data.datasets[0]!.data = h.map(s => s.memUsage);
+      const memScale = this.memChart.options.scales!['y']!;
+      memScale.min = memRange.min;
+      memScale.max = memRange.max;
       this.memChart.update('none');
     }
     if (this.netChart) {
@@ -448,6 +588,29 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
       this.blkChart.data.datasets[1]!.data = h.map(s => s.blkWrite);
       this.blkChart.update('none');
     }
+  }
+
+  formatPercentage(value: number): string {
+    if (!Number.isFinite(value)) {
+      return '—';
+    }
+    const abs = Math.abs(value);
+    if (abs === 0) {
+      return '0%';
+    }
+    if (abs >= 10) {
+      return `${value.toFixed(0)}%`;
+    }
+    if (abs >= 1) {
+      return `${value.toFixed(1)}%`;
+    }
+    if (abs >= 0.1) {
+      return `${value.toFixed(2)}%`;
+    }
+    if (abs >= 0.01) {
+      return `${value.toFixed(3)}%`;
+    }
+    return `${value.toFixed(4)}%`;
   }
 
   private destroyCharts(): void {
