@@ -1,5 +1,5 @@
 import pino from 'pino';
-import { APP_VERSION, isDev, LOG_FILE_PATH, LOG_DIR_PATH } from './constants';
+import { APP_VERSION, isDev, LOG_FILE_PATH, LOG_DIR_PATH, isVerbose } from './constants';
 
 const productionTransport = pino.transport({
   target: 'pino-roll',
@@ -18,7 +18,7 @@ const productionTransport = pino.transport({
 export const logger = pino(
   {
     name: 'catbee-container-studio',
-    level: isDev ? 'debug' : 'info',
+    level: isDev || isVerbose ? 'debug' : 'info',
     base: {
       pid: process.pid,
       platform: process.platform,
