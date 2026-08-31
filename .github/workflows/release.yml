@@ -59,6 +59,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
 
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
     permissions:
       contents: write
 
@@ -101,12 +104,10 @@ jobs:
           FEATURES_FILE="$(mktemp)"
           FIXES_FILE="$(mktemp)"
           OTHER_FILE="$(mktemp)"
-          CONTRIBUTORS_FILE="$(mktemp)"
 
           touch "$FEATURES_FILE"
           touch "$FIXES_FILE"
           touch "$OTHER_FILE"
-          touch "$CONTRIBUTORS_FILE"
 
           # Determine commit range
 
@@ -129,8 +130,6 @@ jobs:
 
           # Generate changelog from commits
 
-          declare -A CONTRIBUTORS_MAP=()
-
           while IFS=$'\t' read -r SUBJECT AUTHOR; do
             [[ -z "$SUBJECT" ]] && continue
             # Skip release/version bookkeeping commits.
@@ -144,9 +143,6 @@ jobs:
             if [[ "$SUBJECT" =~ ^Merge[[:space:]] ]]; then
               continue
             fi
-
-            # Keep track of contributors.
-            CONTRIBUTORS_MAP["$AUTHOR"]=1
 
             # Classify commit
 
@@ -181,18 +177,32 @@ jobs:
 
           # Generate contributors
 
-          for contributor in "${!CONTRIBUTORS_MAP[@]}"; do
-            echo "- **${contributor}**" >> "$CONTRIBUTORS_FILE"
-          done
-
-          sort -f "$CONTRIBUTORS_FILE" -o "$CONTRIBUTORS_FILE"
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            CONTRIBUTORS="$(
+              gh api \
+                "repos/${REPOSITORY}/compare/${PREVIOUS_TAG}...${TAG}" \
+                --paginate \
+                --jq '.commits[].author.login // empty' |
+              sort -fu |
+              sed 's/^/- **@/' |
+              sed 's/$/**/'
+            )"
+          else
+            CONTRIBUTORS="$(
+              gh api \
+                "repos/${REPOSITORY}/commits?sha=${TAG}" \
+                --paginate \
+                --jq '.[].author.login // empty' |
+              sort -fu |
+              sed 's/^/- **@/' |
+              sed 's/$/**/'
+            )"
+          fi
 
           # Make contributors available to later steps.
-          CONTRIBUTORS_TEXT="$(cat "$CONTRIBUTORS_FILE")"
-
           {
             echo 'CONTRIBUTORS<<EOF'
-            echo "$CONTRIBUTORS_TEXT"
+            echo "$CONTRIBUTORS"
             echo 'EOF'
           } >> "$GITHUB_ENV"
 
@@ -233,7 +243,7 @@ jobs:
           cat changelog.md
 
           echo "Generated contributors:"
-          cat "$CONTRIBUTORS_FILE"
+          echo "$CONTRIBUTORS"
 
           echo "Full changelog URL:"
           echo "$FULL_CHANGELOG_URL"
@@ -244,8 +254,7 @@ jobs:
           rm -f \
             "$FEATURES_FILE" \
             "$FIXES_FILE" \
-            "$OTHER_FILE" \
-            "$CONTRIBUTORS_FILE"
+            "$OTHER_FILE"
 
       - name: Generate release notes
         shell: bash
@@ -265,7 +274,7 @@ jobs:
 
           $(cat changelog.md)
 
-          **📋 Full Changelog**: [View on GitHub](${FULL_CHANGELOG_URL})
+          **📋 Full Changelog**: ${FULL_CHANGELOG_URL}
 
           ### 📦 Downloads
 
@@ -315,6 +324,7 @@ jobs:
           Use **Help → Check for Updates...** to manually check for a new release.
 
           ### 👥 Contributors
+
           ${CONTRIBUTORS}
           EOF
 
