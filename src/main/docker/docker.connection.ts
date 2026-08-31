@@ -2,41 +2,10 @@ import { access } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { logger } from '../logger';
-import { getDockerCliPath } from './docker.runtime';
+import { getDockerCliPath } from './runtime/docker.runtime';
+import { DockerConnection, DockerContextInspect, ResolvedDockerConnection } from './types/connection.types';
 
 const execFileAsync = promisify(execFile);
-
-export type DockerConnection = DockerUnixConnection | DockerNpipeConnection | DockerTcpConnection;
-
-export type DockerUnixConnection = {
-  type: 'unix';
-  path: string;
-};
-
-export type DockerNpipeConnection = {
-  type: 'npipe';
-  path: string;
-};
-
-export type DockerTcpConnection = {
-  type: 'tcp';
-  host: string;
-  port: number;
-};
-
-export type DockerConnectionSource = 'docker-host' | 'docker-context' | 'platform-default';
-
-export type ResolvedDockerConnection = DockerConnection & {
-  source: DockerConnectionSource;
-};
-
-type DockerContextInspect = {
-  Endpoints?: {
-    docker?: {
-      Host?: string;
-    };
-  };
-};
 
 export async function resolveDockerConnection(): Promise<ResolvedDockerConnection> {
   logger.debug('[DockerConnection] Starting Docker connection resolution.');

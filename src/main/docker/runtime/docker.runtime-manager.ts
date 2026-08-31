@@ -1,16 +1,11 @@
 import { promisify } from 'node:util';
 import { execFile } from 'node:child_process';
 import Docker from 'dockerode';
-import { createDockerClient } from './docker.client';
-import { DockerConnectionError } from './docker.connection';
-import {
-  DockerInitializationStatus,
-  DockerRuntimeInfo,
-  getDockerCliPath,
-  getRdctlPath,
-  startDockerRuntime
-} from './docker.runtime';
-import { logger } from '../logger';
+import { createDockerClient } from '../docker.client';
+import { DockerConnectionError } from '../docker.connection';
+import { getDockerCliPath, getRdctlPath, startDockerRuntime } from './docker.runtime';
+import { logger } from '../../logger';
+import { DockerInitializationStatus, DockerRuntimeInfo } from '../types/runtime.types';
 
 const execFileAsync = promisify(execFile);
 

@@ -1,5 +1,5 @@
 import { app, BrowserWindow, protocol } from 'electron';
-import { dockerService, registerIpcHandlers } from '../ipc';
+import { registerIpcHandlers } from '../ipc';
 import { registerAppProtocol } from './protocol';
 import { createMainWindow } from './window';
 import { buildApplicationMenu } from './menu';
@@ -7,6 +7,7 @@ import { logger } from './logger';
 import { isDev, isMacOS } from './constants';
 import { initializeAutoUpdater } from './updater';
 import { IPC_CHANNELS } from '../ipc/channels';
+import { dockerManager } from './docker/services/docker.manager';
 
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -78,7 +79,7 @@ if (!gotTheLock) {
         initializeAutoUpdater(mainWindow);
       }
 
-      void dockerService
+      void dockerManager
         .initialize(
           status => {
             if (!mainWindow || mainWindow.isDestroyed()) {
