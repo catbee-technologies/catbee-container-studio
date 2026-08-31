@@ -1,5 +1,5 @@
 import pino from 'pino';
-import { APP_VERSION, isDev, LOG_FILE_PATH, LOG_DIR_PATH, isVerbose } from './constants';
+import { APP_VERSION, isDev, LOG_FILE_PATH, LOG_DIR_PATH, isVerbose } from './app/constants';
 
 const productionTransport = pino.transport({
   target: 'pino-roll',

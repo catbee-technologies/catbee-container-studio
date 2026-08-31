@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron';
 import { IPC_CHANNELS } from '../channels';
-import { checkForUpdates, downloadUpdate, restartAndInstallUpdate } from '../../main/updater';
+import { checkForUpdates, downloadUpdate, restartAndInstallUpdate } from '../../main/app/updater';
 
 export function registerUpdaterHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.App.Updater.CheckForUpdates);

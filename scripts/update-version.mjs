@@ -11,7 +11,7 @@ const rootPackagePath = path.join(rootDir, 'package.json');
 const rootPackage = JSON.parse(fs.readFileSync(rootPackagePath, 'utf8'));
 const version = rootPackage.version;
 
-const backendConstantsPath = path.join(rootDir, 'src/main/constants.ts');
+const backendConstantsPath = path.join(rootDir, 'src/main/app/constants.ts');
 
 const frontendEnvFiles = [
   path.join(frontendDir, 'src/environments/environment.ts'),

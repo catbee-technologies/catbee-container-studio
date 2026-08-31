@@ -1,7 +1,7 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import { IPC_CHANNELS } from '../channels';
 import { IpcResult, fail, ok } from '../contracts';
-import { showApplicationMenu, showApplicationSubmenu } from '../../main/menu';
+import { showApplicationMenu, showApplicationSubmenu } from '../../main/app/menu';
 
 export function registerMenuHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.App.Menu.Show);

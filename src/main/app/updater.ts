@@ -1,8 +1,8 @@
 import { autoUpdater } from 'electron-updater';
 import { BrowserWindow } from 'electron';
 import { isDev } from './constants';
-import { logger } from './logger';
-import { IPC_CHANNELS } from '../ipc/channels';
+import { logger } from '../logger';
+import { IPC_CHANNELS } from '../../ipc/channels';
 
 export type AutoUpdaterStatus =
   | {

@@ -1,7 +1,7 @@
 import { BrowserWindow } from 'electron';
 import path from 'node:path';
-import { isDev, isMacOS } from './constants';
-import { setupMacTrafficLights } from './mac-traffic-lights';
+import { isDev, isMacOS } from './app/constants';
+import { setupMacTrafficLights } from './app/mac-traffic-lights';
 
 export function createMainWindow(): BrowserWindow {
   const window = new BrowserWindow({
