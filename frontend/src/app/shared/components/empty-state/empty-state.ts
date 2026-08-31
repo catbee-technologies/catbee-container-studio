@@ -27,14 +27,16 @@ export class EmptyStateComponent {
       const visible = this.showLoader();
 
       untracked(() => {
-        if (visible) {
-          void this.loader.show(this.emptyStateLoaderName, {
-            message,
-            fullscreen: false
-          });
-        } else {
-          void this.loader.hide(this.emptyStateLoaderName);
-        }
+        queueMicrotask(() => {
+          if (visible) {
+            void this.loader.show(this.emptyStateLoaderName, {
+              message,
+              fullscreen: false
+            });
+          } else {
+            void this.loader.hide(this.emptyStateLoaderName);
+          }
+        });
       });
     });
   }
