@@ -1,11 +1,11 @@
 import { app, BrowserWindow, protocol } from 'electron';
 import { registerIpcHandlers } from '../ipc';
-import { registerAppProtocol } from './protocol';
+import { registerAppProtocol } from './app/protocol';
 import { createMainWindow } from './window';
-import { buildApplicationMenu } from './menu';
+import { buildApplicationMenu } from './app/menu';
 import { logger } from './logger';
-import { isDev, isMacOS } from './constants';
-import { initializeAutoUpdater } from './updater';
+import { isDev, isMacOS } from './app/constants';
+import { initializeAutoUpdater } from './app/updater';
 import { IPC_CHANNELS } from '../ipc/channels';
 import { dockerManager } from './docker/services/docker.manager';
 

@@ -2,7 +2,7 @@ import { net, protocol } from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-const frontendPath = path.resolve(__dirname, '../../app');
+const frontendPath = path.resolve(__dirname, '../../../app');
 
 export function registerAppProtocol(): void {
   protocol.handle('catbee', async request => {
