@@ -3,7 +3,7 @@
     <header>
       <span class="stat-card_icon mat-icon-filled" aria-hidden="true">memory_alt</span>
       <span class="stat-card_label">CPU Usage</span>
-      <span class="stat-card_value">{{ latest() ? latest()!.cpuPct.toFixed(2) + '%' : '—' }}</span>
+      <span class="stat-card_value">{{ latest() ? formatPercentage(latest()!.cpuPct) : '—' }}</span>
     </header>
     <div class="chart-wrap">
       <canvas #cpuCanvas aria-label="CPU usage over time" role="img"></canvas>
