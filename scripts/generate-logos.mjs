@@ -9,6 +9,7 @@ const __dirname = path.dirname(__filename);
 const PROJECT_DIR = path.resolve(__dirname, '..');
 
 const ICONS_DIR = path.join(PROJECT_DIR, 'assets', 'icons');
+const APPX_DIR = path.join(PROJECT_DIR, 'assets', 'appx');
 
 const RAW_ICON = path.join(ICONS_DIR, 'raw.png');
 
@@ -19,6 +20,11 @@ const LINUX_DIR = path.join(ICONS_DIR, 'linux');
 const WINDOWS_ICON = path.join(WINDOWS_DIR, 'catbee-icon.ico');
 const MACOS_ICON = path.join(MACOS_DIR, 'catbee-icon.icns');
 const LINUX_ICON = path.join(LINUX_DIR, 'catbee-icon.png');
+
+const APPX_STORE_LOGO = path.join(APPX_DIR, 'StoreLogo.png');
+const APPX_SQUARE_44 = path.join(APPX_DIR, 'Square44x44Logo.png');
+const APPX_SQUARE_150 = path.join(APPX_DIR, 'Square150x150Logo.png');
+const APPX_WIDE_310 = path.join(APPX_DIR, 'Wide310x150Logo.png');
 
 const PYTHON = process.platform === 'win32' ? 'py' : 'python3';
 
@@ -96,6 +102,7 @@ function ensureDirectories() {
   fs.mkdirSync(WINDOWS_DIR, { recursive: true });
   fs.mkdirSync(MACOS_DIR, { recursive: true });
   fs.mkdirSync(LINUX_DIR, { recursive: true });
+  fs.mkdirSync(APPX_DIR, { recursive: true });
 }
 
 function ensureRawIcon() {
@@ -207,6 +214,54 @@ function generateLinuxIcon() {
   `);
 }
 
+function generateMsixIcons() {
+  console.log('Generating MSIX tile icons...');
+
+  runPython(`
+    from PIL import Image
+    image = Image.open(r"${RAW_ICON}").convert("RGBA")
+    def save_square(output, size):
+        resized = image.resize((size, size), Image.Resampling.LANCZOS)
+        resized.save(output, format="PNG")
+    def save_wide(output):
+        canvas = Image.new("RGBA", (310, 150), (0, 0, 0, 0))
+        logo = image.copy()
+        logo.thumbnail((150, 150), Image.Resampling.LANCZOS)
+        x = (310 - logo.width) // 2
+        y = (150 - logo.height) // 2
+        canvas.alpha_composite(logo, (x, y))
+        canvas.save(output, format="PNG")
+    save_square(r"${APPX_STORE_LOGO}", 50)
+    save_square(r"${APPX_SQUARE_44}", 44)
+    save_square(r"${APPX_SQUARE_150}", 150)
+    save_wide(r"${APPX_WIDE_310}")
+  `);
+}
+
+function verifyMsixIcons() {
+  console.log('Verifying MSIX tile icons...');
+  runPython(`
+    from PIL import Image
+    files = {
+        "StoreLogo": (r"${APPX_STORE_LOGO}", (50, 50)),
+        "Square44x44Logo": (r"${APPX_SQUARE_44}", (44, 44)),
+        "Square150x150Logo": (r"${APPX_SQUARE_150}", (150, 150)),
+        "Wide310x150Logo": (r"${APPX_WIDE_310}", (310, 150))
+    }
+    for name, (filename, expected_size) in files.items():
+        image = Image.open(filename)
+        print(
+            f"{name}: {image.size}, "
+            f"mode={image.mode}"
+        )
+        if image.size != expected_size:
+            raise RuntimeError(
+                f"{name} has size {image.size}, "
+                f"expected {expected_size}"
+            )
+  `);
+}
+
 function main() {
   console.log('Generating CatBee icons...\n');
   console.log(`Base: ${ICONS_DIR}\n`);
@@ -229,10 +284,15 @@ function main() {
   // Linux
   generateLinuxIcon();
 
+  // MSIX
+  generateMsixIcons();
+  verifyMsixIcons();
+
   console.log('\nDone!');
   console.log(`Windows: ${path.relative(PROJECT_DIR, WINDOWS_ICON)}`);
   console.log(`macOS:   ${path.relative(PROJECT_DIR, MACOS_ICON)}`);
   console.log(`Linux:   ${path.relative(PROJECT_DIR, LINUX_ICON)}`);
+  console.log(`MSIX:    ${path.relative(PROJECT_DIR, APPX_DIR)}`);
 }
 
 try {

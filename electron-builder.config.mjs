@@ -24,10 +24,11 @@ export default {
     'package.json'
   ],
   directories: {
-    output: 'build'
+    output: 'build',
+    buildResources: 'assets'
   },
   win: {
-    icon: 'assets/icons/windows/catbee-icon.ico',
+    icon: 'icons/windows/catbee-icon.ico',
     target: [
       {
         target: 'nsis',
@@ -43,7 +44,7 @@ export default {
     sign: {
       hardenedRuntime: true
     },
-    icon: 'assets/icons/macos/catbee-icon.icns',
+    icon: 'icons/macos/catbee-icon.icns',
     target: [
       {
         target: 'dmg',
@@ -75,7 +76,7 @@ export default {
       }
     ],
     category: 'Utility',
-    icon: 'assets/icons/linux/catbee-icon.png'
+    icon: 'icons/linux/catbee-icon.png'
   },
   nsis: {
     oneClick: false,
