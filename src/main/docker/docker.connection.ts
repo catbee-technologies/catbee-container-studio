@@ -2,6 +2,7 @@ import { access } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { logger } from '../logger';
+import { getDockerCliPath } from './docker.runtime';
 
 const execFileAsync = promisify(execFile);
 
@@ -165,14 +166,19 @@ function parseDockerHost(value: string): DockerConnection {
 
 async function resolveCurrentDockerContext(): Promise<DockerConnection | null> {
   try {
-    const contextName = await getCurrentDockerContextName();
+    const dockerPath = await getDockerCliPath();
+    if (!dockerPath) {
+      logger.debug('[DockerConnection] Docker CLI not found.');
+      return null;
+    }
+    const contextName = await getCurrentDockerContextName(dockerPath);
     if (!contextName) {
       logger.debug('[DockerConnection] No current Docker context.');
       return null;
     }
 
     logger.debug(`[DockerConnection] Inspecting Docker context: ${contextName}`);
-    const { stdout } = await execFileAsync('docker', ['context', 'inspect', contextName, '--format', '{{json .}}'], {
+    const { stdout } = await execFileAsync(dockerPath, ['context', 'inspect', contextName, '--format', '{{json .}}'], {
       encoding: 'utf8',
       windowsHide: true
     });
@@ -193,15 +199,23 @@ async function resolveCurrentDockerContext(): Promise<DockerConnection | null> {
   }
 }
 
-async function getCurrentDockerContextName(): Promise<string | null> {
+async function getCurrentDockerContextName(dockerPath?: string): Promise<string | null> {
   try {
-    const { stdout } = await execFileAsync('docker', ['context', 'show'], {
+    const resolvedDockerPath = dockerPath ?? (await getDockerCliPath());
+    if (!resolvedDockerPath) {
+      logger.debug('[DockerConnection] Docker CLI not found.');
+      return null;
+    }
+    const { stdout } = await execFileAsync(resolvedDockerPath, ['context', 'show'], {
       encoding: 'utf8',
       windowsHide: true
     });
     const context = stdout.trim();
     return context || null;
-  } catch {
+  } catch (error) {
+    logger.debug(
+      `[DockerConnection] Failed to get current Docker context name: ${error instanceof Error ? error.message : String(error)}`
+    );
     return null;
   }
 }

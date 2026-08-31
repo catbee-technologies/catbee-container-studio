@@ -100,7 +100,11 @@ async function startRancherDesktop(rdctlPath: string): Promise<void> {
   logger.info('[DockerRuntime] Rancher Desktop start command completed.');
 }
 
+let cachedDockerCliPath: string | null = null;
 export async function getDockerCliPath(): Promise<string | null> {
+  if (cachedDockerCliPath) {
+    return cachedDockerCliPath;
+  }
   const candidates: string[] = [];
 
   // eslint-disable-next-line n/no-process-env
@@ -111,7 +115,8 @@ export async function getDockerCliPath(): Promise<string | null> {
       candidates.push(
         '/opt/homebrew/bin/docker',
         '/usr/local/bin/docker',
-        path.join(home ?? '', '.docker', 'bin', 'docker')
+        path.join(home ?? '', '.docker', 'bin', 'docker'),
+        path.join(home ?? '', '.rd', 'bin', 'docker')
       );
       break;
 
@@ -130,6 +135,8 @@ export async function getDockerCliPath(): Promise<string | null> {
           .map(line => line.trim())
           .find(Boolean);
         if (dockerPath) {
+          logger.debug(`[DockerRuntime] Docker CLI found at: ${dockerPath}`);
+          cachedDockerCliPath = dockerPath;
           return dockerPath;
         }
       } catch {
@@ -142,6 +149,7 @@ export async function getDockerCliPath(): Promise<string | null> {
     try {
       await access(candidate);
       logger.debug(`[DockerRuntime] Docker CLI found at: ${candidate}`);
+      cachedDockerCliPath = candidate;
       return candidate;
     } catch {
       logger.debug(`[DockerRuntime] Docker CLI not found at: ${candidate}`);
@@ -159,6 +167,7 @@ export async function getDockerCliPath(): Promise<string | null> {
 
       if (dockerPath) {
         logger.debug(`[DockerRuntime] Docker CLI found in PATH: ${dockerPath}`);
+        cachedDockerCliPath = dockerPath;
         return dockerPath;
       }
     } catch {
