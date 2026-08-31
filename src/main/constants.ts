@@ -22,3 +22,5 @@ export const ZOOM_CONFIG = {
 /** The path to the log file for the application. */
 export const LOG_DIR_PATH = app.getPath('logs');
 export const LOG_FILE_PATH = path.join(LOG_DIR_PATH, 'catbee-container-studio.log');
+
+export const isVerbose = process.argv.includes('--verbose');
