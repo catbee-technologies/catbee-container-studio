@@ -1,0 +1,210 @@
+<catbee-container-studio-dialog
+  [open]="open() && isDialogReady()"
+  [title]="'Run a new container'"
+  [style]="{ width: 'min(95vw, 50rem)' }"
+  (closeDialog)="onClose()"
+>
+  <ng-container catbeeDialogBody>
+    <div class="run-container-form">
+      @if (error(); as errorMessage) {
+        <catbee-container-studio-error-banner [errorMessage]="errorMessage" (closeErr)="error.set(null)" size="small" />
+      }
+
+      <label class="field">
+        <span class="field-label">Image</span>
+        <input id="image-name" type="text" class="field-input" placeholder="Image name" [value]="image()" readonly />
+      </label>
+
+      <label class="field">
+        <span class="field-label">Container name</span>
+        <input
+          id="container-name"
+          type="text"
+          class="field-input"
+          placeholder="Optional, auto-generated if empty"
+          [value]="containerName()"
+          (input)="containerName.set($any($event.target).value)"
+        />
+      </label>
+
+      <section class="field-group">
+        <header class="field-group-header">
+          <span class="field-group-title">Ports</span>
+        </header>
+
+        @if (isLoadingPorts()) {
+          <p class="field-group-empty">Checking exposed ports...</p>
+        } @else if (ports().length === 0) {
+          <p class="field-group-empty">This image does not expose any ports.</p>
+        } @else {
+          <p class="field-group-hint">Enter "0" to assign a randomly generated host port.</p>
+
+          @for (port of ports(); track port.containerPort + port.protocol) {
+            <div class="port-row">
+              <input
+                id="port-{{ $index }}"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                maxlength="5"
+                class="field-input port-input"
+                placeholder="Host port"
+                [value]="port.hostPort"
+                (keydown)="onPortHostKeydown($event)"
+                (input)="onPortHostInput($event, $index)"
+              />
+              <span class="port-suffix mono" aria-hidden="true">:{{ port.containerPort }}/{{ port.protocol }}</span>
+            </div>
+          }
+        }
+      </section>
+
+      <section class="field-group">
+        <header class="field-group-header">
+          <span class="field-group-title">Volumes</span>
+          <div class="field-group-actions">
+            @if (volumes().length > 0) {
+              <button
+                type="button"
+                class="catbee-action-btn fix-height"
+                aria-label="Clear all volumes"
+                (click)="clearVolumes()"
+              >
+                Clear all
+              </button>
+            }
+            <button
+              type="button"
+              class="catbee-action-btn icon-only"
+              aria-label="Add volume mapping"
+              (click)="addVolume()"
+            >
+              <span class="mat-icon-filled" aria-hidden="true">add</span>
+            </button>
+          </div>
+        </header>
+
+        @if (volumes().length === 0) {
+          <p class="field-group-empty">No mounted volumes. The container will use its own filesystem only.</p>
+        }
+
+        @for (volume of volumes(); track $index) {
+          <div class="row-inputs">
+            <div class="path-input">
+              <input
+                id="volume-host-{{ $index }}"
+                type="text"
+                class="field-input"
+                placeholder="Host path"
+                [value]="volume.hostPath"
+                (input)="setVolumeHost($index, $any($event.target).value)"
+              />
+              <button
+                type="button"
+                class="catbee-action-btn icon-only"
+                aria-label="Browse for host folder"
+                (click)="pickVolumeHostPath($index)"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">folder_open</span>
+              </button>
+            </div>
+            <span class="row-separator" aria-hidden="true">:</span>
+            <input
+              id="volume-container-{{ $index }}"
+              type="text"
+              class="field-input"
+              placeholder="Container path"
+              [value]="volume.containerPath"
+              (input)="setVolumeContainer($index, $any($event.target).value)"
+            />
+            <catbee-container-studio-switch-input
+              class="checkbox-field"
+              label="Read-only"
+              [checked]="volume.readOnly"
+              (checkedChange)="setVolumeReadOnly($index, $event)"
+            />
+            <button
+              type="button"
+              class="catbee-action-btn icon-only no-bg"
+              aria-label="Remove volume mapping"
+              (click)="removeVolume($index)"
+            >
+              <span class="mat-icon-filled" aria-hidden="true">close</span>
+            </button>
+          </div>
+        }
+      </section>
+
+      <section class="field-group">
+        <header class="field-group-header">
+          <span class="field-group-title">Environment variables</span>
+          <div class="field-group-actions">
+            @if (envVars().length > 0) {
+              <button
+                type="button"
+                class="catbee-action-btn fix-height"
+                aria-label="Clear all environment variables"
+                (click)="clearEnvVars()"
+              >
+                Clear all
+              </button>
+            }
+            <button
+              type="button"
+              class="catbee-action-btn icon-only"
+              aria-label="Add environment variable"
+              (click)="addEnvVar()"
+            >
+              <span class="mat-icon-filled" aria-hidden="true">add</span>
+            </button>
+          </div>
+        </header>
+
+        @if (envVars().length === 0) {
+          <p class="field-group-empty">No environment variables set.</p>
+          <p class="field-group-hint">Paste the contents of an .env file to populate variables automatically.</p>
+        }
+
+        @for (envVar of envVars(); track $index) {
+          <div class="row-inputs">
+            <input
+              id="env-key-{{ $index }}"
+              type="text"
+              class="field-input"
+              placeholder="Key"
+              [value]="envVar.key"
+              (input)="setEnvKey($index, $any($event.target).value)"
+              (paste)="onEnvPaste($event, $index)"
+            />
+            <span class="row-separator" aria-hidden="true">=</span>
+            <input
+              id="env-value-{{ $index }}"
+              type="text"
+              class="field-input"
+              placeholder="Value"
+              [value]="envVar.value"
+              (input)="setEnvValue($index, $any($event.target).value)"
+              (paste)="onEnvPaste($event, $index)"
+            />
+            <button
+              type="button"
+              class="catbee-action-btn icon-only no-bg"
+              aria-label="Remove environment variable"
+              (click)="removeEnvVar($index)"
+            >
+              <span class="mat-icon-filled" aria-hidden="true">close</span>
+            </button>
+          </div>
+        }
+      </section>
+    </div>
+  </ng-container>
+
+  <ng-container catbeeDialogFooter>
+    <button type="button" class="catbee-action-btn" [disabled]="isSubmitting()" (click)="onClose()">Cancel</button>
+    <button type="button" class="catbee-action-btn action-start" [disabled]="isSubmitting()" (click)="run()">
+      <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+      {{ isSubmitting() ? 'Running...' : 'Run Container' }}
+    </button>
+  </ng-container>
+</catbee-container-studio-dialog>

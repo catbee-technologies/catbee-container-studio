@@ -17,6 +17,9 @@ const IPC_CHANNELS = {
     Shell: {
       ShowItem: 'app:shell:show-item'
     },
+    Dialog: {
+      SelectDirectory: 'app:dialog:select-directory'
+    },
     Window: {
       Minimize: 'app:window:minimize',
       GetState: 'app:window:get-state',
@@ -92,6 +95,7 @@ const IPC_CHANNELS = {
     Volumes: {
       List: 'docker:volumes:list',
       Inspect: 'docker:volumes:inspect',
+      Usage: 'docker:volumes:usage',
       Create: 'docker:volumes:create',
       Remove: 'docker:volumes:remove',
       Prune: 'docker:volumes:prune',
@@ -146,6 +150,9 @@ const electronBridge = {
     },
     shell: {
       showItem: (path: string) => ipcRenderer.invoke(IPC_CHANNELS.App.Shell.ShowItem, path)
+    },
+    dialog: {
+      selectDirectory: () => ipcRenderer.invoke(IPC_CHANNELS.App.Dialog.SelectDirectory)
     },
     window: {
       minimize: () => ipcRenderer.invoke(IPC_CHANNELS.App.Window.Minimize),
@@ -253,6 +260,7 @@ const electronBridge = {
     volumes: {
       list: (options?: unknown) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.List, options),
       inspect: (name: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.Inspect, name),
+      usage: (name?: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.Usage, name),
       create: (options: unknown) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.Create, options),
       remove: (name: string, force?: boolean) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.Remove, name, force),
       prune: (filters?: unknown) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.Prune, filters),

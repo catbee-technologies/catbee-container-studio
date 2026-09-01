@@ -9,6 +9,9 @@ export const IPC_CHANNELS = {
     Shell: {
       ShowItem: 'app:shell:show-item'
     },
+    Dialog: {
+      SelectDirectory: 'app:dialog:select-directory'
+    },
     Window: {
       Minimize: 'app:window:minimize',
       GetState: 'app:window:get-state',
@@ -84,6 +87,7 @@ export const IPC_CHANNELS = {
     Volumes: {
       List: 'docker:volumes:list',
       Inspect: 'docker:volumes:inspect',
+      Usage: 'docker:volumes:usage',
       Create: 'docker:volumes:create',
       Remove: 'docker:volumes:remove',
       Prune: 'docker:volumes:prune',
