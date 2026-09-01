@@ -167,7 +167,9 @@
                 <td>{{ repositoryAndTag(image)[1] }}</td>
                 <td>{{ shortId(image) }}</td>
                 <td>{{ formatSize(image.Size) }}</td>
-                <td>{{ formatCreated(image.Created) }}</td>
+                <td>
+                  <catbee-container-studio-tooltip-date [date]="formatCreated(image.Created)" />
+                </td>
                 <td class="col-actions" (click)="$event.stopPropagation()">
                   <button
                     type="button"

@@ -1,0 +1,15 @@
+<nav class="breadcrumbs" aria-label="Current directory">
+  <ol>
+    @for (crumb of breadcrumbs(); track crumb.path; let last = $last) {
+      <li>
+        @if (last) {
+          <span class="current" aria-current="location">{{ crumb.label }}</span>
+        } @else {
+          <button type="button" (click)="navigate(crumb.path)">{{ crumb.label }}</button>
+          <span class="mat-icon-filled separator" aria-hidden="true">chevron_right</span>
+        }
+      </li>
+    }
+    <catbee-container-studio-copy-button [text]="path()" size="small" />
+  </ol>
+</nav>

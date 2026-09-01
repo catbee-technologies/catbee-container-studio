@@ -46,3 +46,14 @@ export interface DockerSystemPruneSummary {
   networks: unknown;
   buildCache: unknown;
 }
+
+export type DockerFileType = 'file' | 'directory' | 'symlink';
+
+export interface DockerFileEntry {
+  name: string;
+  path: string;
+  type: DockerFileType;
+  size: number;
+  modifiedAt: string | null;
+  mode: string | null;
+}

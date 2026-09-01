@@ -61,7 +61,15 @@ export const IPC_CHANNELS = {
       Ports: 'docker:containers:ports',
       Env: 'docker:containers:env',
       Mounts: 'docker:containers:mounts',
-      Networks: 'docker:containers:networks'
+      Networks: 'docker:containers:networks',
+      Files: {
+        List: 'docker:containers:files:list',
+        Read: 'docker:containers:files:read',
+        Upload: 'docker:containers:files:upload',
+        CreateDirectory: 'docker:containers:files:create-directory',
+        Delete: 'docker:containers:files:delete',
+        Rename: 'docker:containers:files:rename'
+      }
     },
     Images: {
       List: 'docker:images:list',
@@ -78,7 +86,13 @@ export const IPC_CHANNELS = {
       Inspect: 'docker:volumes:inspect',
       Create: 'docker:volumes:create',
       Remove: 'docker:volumes:remove',
-      Prune: 'docker:volumes:prune'
+      Prune: 'docker:volumes:prune',
+      Files: {
+        List: 'docker:volumes:files:list',
+        Read: 'docker:volumes:files:read',
+        Write: 'docker:volumes:files:write',
+        Delete: 'docker:volumes:files:delete'
+      }
     },
     Networks: {
       List: 'docker:networks:list',

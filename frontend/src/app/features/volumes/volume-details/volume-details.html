@@ -34,8 +34,14 @@
         (activeTabChange)="setActiveTab($event)"
       />
 
-      <section class="catbee-container-list-layout tab-panel" role="tabpanel">
-        @if (containersInUse().length === 0) {
+      <section
+        class="catbee-container-list-layout tab-panel"
+        [class.files-tab-panel]="activeTab() === 'files'"
+        role="tabpanel"
+      >
+        @if (activeTab() === 'files') {
+          <catbee-container-studio-volume-files-tab [volumeName]="volumeName()" />
+        } @else if (containersInUse().length === 0) {
           <catbee-container-studio-empty-state
             [icon]="'folder_open'"
             [message]="'No containers currently mount this volume.'"

@@ -187,6 +187,17 @@ export interface DockerVolumeInfo {
   UsageData?: { Size: number; RefCount: number } | null;
 }
 
+export type DockerFileType = 'file' | 'directory' | 'symlink';
+
+export interface DockerFileEntry {
+  name: string;
+  path: string;
+  type: DockerFileType;
+  size: number;
+  modifiedAt: string | null;
+  mode: string | null;
+}
+
 export interface DockerExecSessionCreateResult {
   sessionId: string;
   execId: string;

@@ -141,6 +141,9 @@
           @if (activeTab() === 'mounts') {
             <catbee-container-studio-container-mounts-tab [inspectData]="inspectData()" />
           }
+          @if (activeTab() === 'files') {
+            <catbee-container-studio-container-files-tab [containerId]="containerId()" />
+          }
           @if (activeTab() === 'shell') {
             <catbee-container-studio-container-shell-tab
               [containerId]="containerId()"
