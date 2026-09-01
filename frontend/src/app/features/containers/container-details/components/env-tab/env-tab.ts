@@ -1,9 +1,15 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, computed, input, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, effect, input, signal, viewChild } from '@angular/core';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { DockerContainerInspectInfo } from '@shared/types/docker-api.types';
+import {
+  escapeSearchHtml,
+  findVisibleMatchIndex,
+  getSearchNavigationDirection,
+  normalizeSearchMatchIndex
+} from '@utils/search-navigation.utils';
 
 interface EnvVarRow {
   key: string;
@@ -97,7 +103,7 @@ export class EnvTabComponent {
       return null;
     }
 
-    const idx = this.normalizeMatchIndex(this.currentMatchIndex(), matches.length);
+    const idx = normalizeSearchMatchIndex(this.currentMatchIndex(), matches.length);
     return matches[idx] ?? null;
   });
 
@@ -107,12 +113,19 @@ export class EnvTabComponent {
       return '0/0';
     }
 
-    return `${this.normalizeMatchIndex(this.currentMatchIndex(), total) + 1}/${total}`;
+    return `${normalizeSearchMatchIndex(this.currentMatchIndex(), total) + 1}/${total}`;
   });
 
   readonly hasMatches = computed(() => this.envMatches().length > 0);
 
   private isSearchNavigationPrimed = false;
+
+  constructor() {
+    effect(() => {
+      this.inspectData();
+      queueMicrotask(() => this.selectNearestMatchFromViewport());
+    });
+  }
 
   focusAndSelectSearch(): void {
     this.envSearchInput()?.focusAndSelect();
@@ -120,17 +133,17 @@ export class EnvTabComponent {
 
   setSearch(value: string): void {
     this.envSearchTerm.set(value);
-    this.currentMatchIndex.set(0);
-    this.isSearchNavigationPrimed = false;
+    this.selectNearestMatchFromViewport();
   }
 
   onSearchKeydown(event: KeyboardEvent): void {
-    if (event.key !== 'Enter') {
+    const direction = getSearchNavigationDirection(event);
+    if (direction === null) {
       return;
     }
 
     event.preventDefault();
-    if (event.shiftKey) {
+    if (direction < 0) {
       this.prevMatch();
       return;
     }
@@ -146,12 +159,12 @@ export class EnvTabComponent {
 
     if (!this.isSearchNavigationPrimed) {
       this.isSearchNavigationPrimed = true;
-      this.currentMatchIndex.set(this.normalizeMatchIndex(this.currentMatchIndex(), total));
+      this.currentMatchIndex.set(normalizeSearchMatchIndex(this.currentMatchIndex(), total));
       this.scrollCurrentMatchIntoView();
       return;
     }
 
-    this.currentMatchIndex.set(this.normalizeMatchIndex(this.currentMatchIndex() + 1, total));
+    this.currentMatchIndex.set(normalizeSearchMatchIndex(this.currentMatchIndex() + 1, total));
     this.scrollCurrentMatchIntoView();
   }
 
@@ -163,19 +176,19 @@ export class EnvTabComponent {
 
     if (!this.isSearchNavigationPrimed) {
       this.isSearchNavigationPrimed = true;
-      this.currentMatchIndex.set(this.normalizeMatchIndex(this.currentMatchIndex(), total));
+      this.currentMatchIndex.set(normalizeSearchMatchIndex(this.currentMatchIndex(), total));
       this.scrollCurrentMatchIntoView();
       return;
     }
 
-    this.currentMatchIndex.set(this.normalizeMatchIndex(this.currentMatchIndex() - 1, total));
+    this.currentMatchIndex.set(normalizeSearchMatchIndex(this.currentMatchIndex() - 1, total));
     this.scrollCurrentMatchIntoView();
   }
 
   renderHighlightedValue(rowIndex: number, field: 'key' | 'value', value: string): string {
     const marks = this.envMatches().filter(match => match.rowIndex === rowIndex && match.field === field);
     if (marks.length === 0) {
-      return this.escapeHtml(value);
+      return escapeSearchHtml(value);
     }
 
     const current = this.currentMatch();
@@ -184,7 +197,7 @@ export class EnvTabComponent {
 
     for (const mark of marks) {
       if (cursor < mark.start) {
-        html += this.escapeHtml(value.slice(cursor, mark.start));
+        html += escapeSearchHtml(value.slice(cursor, mark.start));
       }
 
       const isCurrent =
@@ -193,13 +206,13 @@ export class EnvTabComponent {
         current.field === mark.field &&
         current.start === mark.start &&
         current.end === mark.end;
-      const text = this.escapeHtml(value.slice(mark.start, mark.end));
+      const text = escapeSearchHtml(value.slice(mark.start, mark.end));
       html += `<span class="search-match${isCurrent ? ' current' : ''}">${text}</span>`;
       cursor = mark.end;
     }
 
     if (cursor < value.length) {
-      html += this.escapeHtml(value.slice(cursor));
+      html += escapeSearchHtml(value.slice(cursor));
     }
 
     return html;
@@ -217,20 +230,23 @@ export class EnvTabComponent {
     });
   }
 
-  private normalizeMatchIndex(index: number, total: number): number {
-    if (total === 0) {
-      return 0;
+  private selectNearestMatchFromViewport(): void {
+    const matches = this.envMatches();
+    const panel = this.envScrollArea()?.nativeElement;
+    if (matches.length === 0 || !panel) {
+      this.currentMatchIndex.set(0);
+      this.isSearchNavigationPrimed = false;
+      return;
     }
 
-    return ((index % total) + total) % total;
-  }
+    const rows = panel.querySelectorAll<HTMLElement>('tbody tr');
+    const headerHeight = panel.querySelector<HTMLElement>('thead')?.getBoundingClientRect().height ?? 0;
+    const visibleMatch = findVisibleMatchIndex(matches, rows, match => match.rowIndex, panel, headerHeight);
 
-  private escapeHtml(value: string): string {
-    return value
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
+    this.currentMatchIndex.set(Math.max(visibleMatch, 0));
+    this.isSearchNavigationPrimed = true;
+    if (visibleMatch < 0) {
+      this.scrollCurrentMatchIntoView();
+    }
   }
 }
