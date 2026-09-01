@@ -63,10 +63,10 @@
   </div>
 
   <div class="logs-toolbar-right">
-    <button type="button" class="catbee-action-btn" (click)="copyLogs()">
+    <button type="button" class="catbee-action-btn fix-height" (click)="copyLogs()">
       {{ copyButtonLabel() }}
     </button>
-    <button type="button" class="catbee-action-btn" (click)="clearLogs()">
+    <button type="button" class="catbee-action-btn fix-height" (click)="clearLogs()">
       {{ clearButtonLabel() }}
     </button>
 
@@ -75,7 +75,7 @@
       [style]="{ width: '13rem' }"
       (dismissed)="closeLogOptions()"
     >
-      <button menuTrigger type="button" class="catbee-action-btn" (click)="toggleLogOptions($event)">
+      <button menuTrigger type="button" class="catbee-action-btn fix-height" (click)="toggleLogOptions($event)">
         <span class="mat-icon-filled" aria-hidden="true">tune</span>
         Options
       </button>

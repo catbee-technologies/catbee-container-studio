@@ -14,6 +14,12 @@ export class ElectronApiService extends ElectronBaseService {
     await this.bridge.app.shell.showItem(path);
   }
 
+  async selectDirectory(): Promise<string | null> {
+    const response = await this.bridge.app.dialog.selectDirectory();
+    const data = this.unwrapResult<{ path: string | null }>(response);
+    return data.path;
+  }
+
   async minimizeWindow(): Promise<void> {
     const response = await this.bridge.app?.window?.minimize?.();
     this.unwrapResult(response);

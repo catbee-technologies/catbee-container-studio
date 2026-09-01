@@ -195,8 +195,9 @@ export class VolumesPage {
     try {
       const volumes = await this.dockerApi.listVolumes();
       this.volumes.set(volumes);
-      await this.refreshUsedVolumes();
       this.clearSelection();
+      void this.refreshVolumeUsage();
+      void this.refreshUsedVolumes();
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Failed to load volumes.');
     } finally {
@@ -360,6 +361,20 @@ export class VolumesPage {
 
     const value = Date.parse(volume.CreatedAt);
     return Number.isFinite(value) ? value : 0;
+  }
+
+  private async refreshVolumeUsage(): Promise<void> {
+    try {
+      const usageByName = await this.dockerApi.getVolumeUsage();
+      this.volumes.update(volumes =>
+        volumes.map(volume => ({
+          ...volume,
+          UsageData: usageByName[volume.Name] ?? volume.UsageData
+        }))
+      );
+    } catch {
+      return;
+    }
   }
 
   private async refreshUsedVolumes(): Promise<void> {

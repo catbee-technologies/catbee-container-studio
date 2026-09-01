@@ -64,10 +64,11 @@ export class VolumeDetailsPage {
         label: 'Created',
         value: volume.CreatedAt ? (this.datePipe.transform(new Date(volume.CreatedAt), DATE_FORMAT) ?? '--') : '--'
       },
-      { label: 'Size', value: this.formatBytes(volume.UsageData?.Size ?? 0) },
       { label: 'Ref Count', value: String(volume.UsageData?.RefCount ?? 0) }
     ];
   });
+
+  readonly volumeSize = computed(() => this.formatBytes(this.volume()?.UsageData?.Size ?? 0));
 
   constructor() {
     const routeSub = combineLatest([this.route.paramMap, this.route.data]).subscribe(([params, data]) => {
@@ -161,11 +162,13 @@ export class VolumeDetailsPage {
 
         this.volume.set(preloaded.volume);
         this.containersInUse.set(preloaded.containersInUse);
+        void this.refreshVolumeUsage(name);
         return;
       }
 
       const volume = await this.dockerApi.inspectVolume(name);
       this.volume.set(volume as DockerVolumeInfo);
+      void this.refreshVolumeUsage(name);
 
       const containers = await this.dockerApi.listContainers();
       const inUse: DockerContainerInfo[] = [];
@@ -198,6 +201,19 @@ export class VolumeDetailsPage {
       this.error.set(err instanceof Error ? err.message : 'Failed to load volume details.');
     } finally {
       this.isLoading.set(false);
+    }
+  }
+
+  private async refreshVolumeUsage(name: string): Promise<void> {
+    try {
+      const usage = (await this.dockerApi.getVolumeUsage(name))[name];
+      if (!usage) {
+        return;
+      }
+
+      this.volume.update(volume => (volume?.Name === name ? { ...volume, UsageData: usage } : volume));
+    } catch {
+      return;
     }
   }
 }
