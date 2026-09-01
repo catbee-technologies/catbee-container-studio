@@ -77,6 +77,7 @@
   padding: var(--spacing-md) var(--spacing-lg);
   transition: all var(--transition-base);
   font-size: var(--font-size-base);
+  user-select: none;
 }
 
 .nav-link:hover {

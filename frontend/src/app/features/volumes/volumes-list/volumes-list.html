@@ -150,7 +150,7 @@
                 <td>
                   <span class="badge small driver-badge">{{ volume.Driver }}</span>
                 </td>
-                <td class="mono">{{ formatSize(volume.UsageData?.Size ?? 0) }}</td>
+                <td>{{ formatSize(volume.UsageData?.Size ?? 0) }}</td>
                 <td>
                   <catbee-container-studio-tooltip-date [date]="volume.CreatedAt" />
                 </td>
