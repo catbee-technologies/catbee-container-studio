@@ -2,11 +2,17 @@ import { CommonModule } from '@angular/common';
 import { Component, ElementRef, computed, input, signal, viewChild } from '@angular/core';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { DockerContainerInspectInfo } from '@shared/types/docker-api.types';
+import hljs from 'highlight.js/lib/core';
+import json from 'highlight.js/lib/languages/json';
+
+hljs.registerLanguage('json', json);
 
 interface InspectMatch {
   lineIndex: number;
   start: number;
   end: number;
+  globalStart: number;
+  globalEnd: number;
 }
 
 @Component({
@@ -34,6 +40,12 @@ export class InspectTabComponent {
 
   readonly inspectLines = computed(() => this.inspectJson().split('\n'));
 
+  readonly highlightedInspectHtml = computed(() => {
+    return hljs.highlight(this.inspectJson(), {
+      language: 'json'
+    }).value;
+  });
+
   readonly inspectMatches = computed<InspectMatch[]>(() => {
     const term = this.inspectSearchTerm().trim();
     if (!term) {
@@ -41,9 +53,12 @@ export class InspectTabComponent {
     }
 
     const needle = term.toLowerCase();
+    const lines = this.inspectLines();
     const matches: InspectMatch[] = [];
 
-    this.inspectLines().forEach((line, lineIndex) => {
+    let lineOffset = 0;
+
+    lines.forEach((line, lineIndex) => {
       const source = line.toLowerCase();
       let fromIndex = 0;
 
@@ -56,11 +71,14 @@ export class InspectTabComponent {
         matches.push({
           lineIndex,
           start: found,
-          end: found + needle.length
+          end: found + needle.length,
+          globalStart: lineOffset + found,
+          globalEnd: lineOffset + found + needle.length
         });
 
         fromIndex = found + needle.length;
       }
+      lineOffset += line.length + 1;
     });
 
     return matches;
@@ -76,39 +94,15 @@ export class InspectTabComponent {
     return matches[idx] ?? null;
   });
 
-  readonly renderedInspectLinesHtml = computed<string[]>(() => {
+  readonly renderedInspectHtml = computed(() => {
+    const html = this.highlightedInspectHtml();
+    const matches = this.inspectMatches();
     const current = this.currentMatch();
 
-    return this.inspectLines().map((line, lineIndex) => {
-      const marks = this.inspectMatches().filter(match => match.lineIndex === lineIndex);
-      if (marks.length === 0) {
-        return this.escapeHtml(line);
-      }
-
-      let cursor = 0;
-      let html = '';
-
-      for (const mark of marks) {
-        if (cursor < mark.start) {
-          html += this.escapeHtml(line.slice(cursor, mark.start));
-        }
-
-        const isCurrent =
-          current !== null &&
-          current.lineIndex === mark.lineIndex &&
-          current.start === mark.start &&
-          current.end === mark.end;
-        const text = this.escapeHtml(line.slice(mark.start, mark.end));
-        html += `<span class="search-match${isCurrent ? ' current' : ''}">${text}</span>`;
-        cursor = mark.end;
-      }
-
-      if (cursor < line.length) {
-        html += this.escapeHtml(line.slice(cursor));
-      }
-
+    if (matches.length === 0) {
       return html;
-    });
+    }
+    return this.applySearchHighlights(html, matches, current);
   });
 
   readonly matchSummary = computed(() => {
@@ -182,6 +176,73 @@ export class InspectTabComponent {
     this.scrollCurrentMatchIntoView();
   }
 
+  private applySearchHighlights(
+    highlightedHtml: string,
+    matches: InspectMatch[],
+    current: InspectMatch | null
+  ): string {
+    const container = document.createElement('div');
+    container.innerHTML = highlightedHtml;
+    const textNodes = this.collectTextNodes(container);
+    let globalOffset = 0;
+
+    for (const textNode of textNodes) {
+      const text = textNode.nodeValue ?? '';
+      const textLength = text.length;
+
+      if (textLength === 0) {
+        continue;
+      }
+
+      const nodeStart = globalOffset;
+      const nodeEnd = nodeStart + textLength;
+
+      const overlappingMatches = matches.filter(match => match.globalStart < nodeEnd && match.globalEnd > nodeStart);
+
+      if (overlappingMatches.length === 0) {
+        globalOffset = nodeEnd;
+        continue;
+      }
+
+      const fragment = document.createDocumentFragment();
+      let cursor = 0;
+
+      for (const match of overlappingMatches) {
+        const start = Math.max(match.globalStart - nodeStart, 0);
+        const end = Math.min(match.globalEnd - nodeStart, textLength);
+        if (start > cursor) {
+          fragment.appendChild(document.createTextNode(text.slice(cursor, start)));
+        }
+        if (end > start) {
+          const span = document.createElement('span');
+          const isCurrent =
+            current !== null && current.globalStart === match.globalStart && current.globalEnd === match.globalEnd;
+          span.className = isCurrent ? 'search-match current' : 'search-match';
+          span.textContent = text.slice(start, end);
+          fragment.appendChild(span);
+          cursor = end;
+        }
+      }
+      if (cursor < textLength) {
+        fragment.appendChild(document.createTextNode(text.slice(cursor)));
+      }
+      textNode.replaceWith(fragment);
+      globalOffset = nodeEnd;
+    }
+
+    return container.innerHTML;
+  }
+
+  private collectTextNodes(root: Node): Text[] {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes: Text[] = [];
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      nodes.push(node as Text);
+    }
+    return nodes;
+  }
+
   private scrollCurrentMatchIntoView(): void {
     const panel = this.inspectScrollArea()?.nativeElement;
     if (!panel) {
@@ -200,14 +261,5 @@ export class InspectTabComponent {
     }
 
     return ((index % total) + total) % total;
-  }
-
-  private escapeHtml(value: string): string {
-    return value
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
   }
 }
