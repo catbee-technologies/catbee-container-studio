@@ -3,7 +3,12 @@ import { Component, DestroyRef, ElementRef, OnDestroy, computed, inject, signal,
 import { ActivatedRoute, Router } from '@angular/router';
 import { combineLatest } from 'rxjs';
 import { DockerApiService } from '@core/docker-api.service';
-import { DockerContainerInfo, DockerContainerInspectInfo, DockerContainerStats } from '@shared/types/docker-api.types';
+import {
+  DockerContainerInfo,
+  DockerContainerInspectInfo,
+  DockerContainerStats,
+  DockerStreamEventEnvelope
+} from '@shared/types/docker-api.types';
 import { formatDockerNames } from '@utils/docker-display.utils';
 import { ContainerDetailsPrefetch } from './container-details.resolver';
 import { OverviewCardComponent } from './components/overview-card/overview-card';
@@ -118,6 +123,8 @@ export class ContainerDetailsPage implements OnDestroy {
 
   private isDisposed = false;
   private isRedirectingToList = false;
+  private eventsStreamId: string | null = null;
+  private eventsRefreshDebounce: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     const routeSub = combineLatest([this.route.paramMap, this.route.data]).subscribe(([params, data]) => {
@@ -138,9 +145,87 @@ export class ContainerDetailsPage implements OnDestroy {
       void this.loadContainer(id, false, preloaded);
     });
 
+    void this.startEventStream();
+    const streamUnsubscribe = this.dockerApi.onStreamEvent(event => this.onDockerEvent(event));
+
     this.destroyRef.onDestroy(() => {
       routeSub.unsubscribe();
+      streamUnsubscribe();
+      if (this.eventsRefreshDebounce) {
+        clearTimeout(this.eventsRefreshDebounce);
+      }
+      if (this.eventsStreamId) {
+        void this.dockerApi.stopStream(this.eventsStreamId);
+      }
     });
+  }
+
+  private async startEventStream(): Promise<void> {
+    try {
+      const result = await this.dockerApi.startEventsStream();
+      this.eventsStreamId = result.streamId;
+    } catch {
+      // Docker events unavailable; the header status will only refresh after manual actions.
+    }
+  }
+
+  private onDockerEvent(event: DockerStreamEventEnvelope): void {
+    if (
+      event.kind !== 'events' ||
+      event.type !== 'data' ||
+      !this.eventsStreamId ||
+      event.streamId !== this.eventsStreamId
+    ) {
+      return;
+    }
+
+    const data = event.data as Record<string, unknown> | null | undefined;
+    if (!data || data['Type'] !== 'container') {
+      return;
+    }
+
+    const actor = data['Actor'] as Record<string, unknown> | undefined;
+    const eventContainerId = String(data['id'] ?? actor?.['ID'] ?? '');
+    if (eventContainerId !== this.containerId()) {
+      return;
+    }
+
+    const action = String(data['Action'] ?? '');
+    const triggers = ['start', 'stop', 'die', 'pause', 'unpause', 'restart', 'kill'];
+    if (!triggers.includes(action)) {
+      return;
+    }
+
+    if (this.eventsRefreshDebounce) {
+      clearTimeout(this.eventsRefreshDebounce);
+    }
+
+    this.eventsRefreshDebounce = setTimeout(() => {
+      void this.refreshContainerState();
+    }, 400);
+  }
+
+  private async refreshContainerState(): Promise<void> {
+    const id = this.containerId();
+    if (!id || this.isDisposed) {
+      return;
+    }
+
+    try {
+      const containers = await this.dockerApi.listContainers();
+      const found = containers.find(item => item.Id === id) ?? null;
+
+      if (!found) {
+        this.redirectToContainers();
+        return;
+      }
+
+      this.container.set(found);
+    } catch (error) {
+      if (this.isContainerUnavailableError(error)) {
+        this.redirectToContainers();
+      }
+    }
   }
 
   onWindowKeydown(event: KeyboardEvent): void {
