@@ -10,6 +10,7 @@ import {
   DockerImageInfo,
   DockerImageInspectInfo,
   DockerVolumeInfo,
+  DockerVolumeUsage,
   IpcResult,
   StreamStartResult
 } from './docker-api.types';
@@ -101,6 +102,9 @@ export interface ElectronBridge {
     shell: {
       showItem: (path: string) => IpcPromise<{ shown: boolean }>;
     };
+    dialog: {
+      selectDirectory: () => IpcPromise<{ path: string | null }>;
+    };
     window?: {
       minimize: () => IpcPromise<{ minimized: boolean }>;
       getState: () => IpcPromise<{ maximized: boolean; fullscreen: boolean }>;
@@ -136,6 +140,7 @@ export interface ElectronBridge {
     containers: {
       list: (options?: Docker.ContainerListOptions) => IpcPromise<DockerContainerInfo[]>;
       inspect: (containerId: string) => IpcPromise<DockerContainerInspectInfo>;
+      create: (options: Docker.ContainerCreateOptions) => IpcPromise<DockerContainerInspectInfo>;
       start: (containerId: string) => IpcPromise<DockerActionResult>;
       stop: (containerId: string) => IpcPromise<DockerActionResult>;
       restart: (containerId: string) => IpcPromise<DockerActionResult>;
@@ -161,6 +166,7 @@ export interface ElectronBridge {
       ) => IpcPromise<StreamStartResult>;
       startStats: (containerId: string) => IpcPromise<StreamStartResult>;
       startEvents: (options?: Docker.GetEventsOptions) => IpcPromise<StreamStartResult>;
+      startPull: (image: string, options?: Record<string, never>) => IpcPromise<StreamStartResult>;
       stop: (streamId: string) => IpcPromise<unknown>;
       onEvent: (callback: (payload: unknown) => void) => () => void;
     };
@@ -174,6 +180,7 @@ export interface ElectronBridge {
     volumes: {
       list: (options?: Docker.VolumeListOptions) => IpcPromise<{ Volumes?: DockerVolumeInfo[] }>;
       inspect: (name: string) => IpcPromise<DockerVolumeInfo>;
+      usage: (name?: string) => IpcPromise<Record<string, DockerVolumeUsage>>;
       remove: (name: string, force?: boolean) => IpcPromise<unknown>;
       prune: (filters?: Docker.VolumePruneOptions['filters']) => IpcPromise<unknown>;
       files: {

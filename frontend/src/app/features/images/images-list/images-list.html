@@ -4,6 +4,15 @@
       <h1>Images</h1>
     </div>
     <div class="actions">
+      <!-- <button
+        type="button"
+        class="catbee-action-btn action-start"
+        (click)="openPullDialog()"
+        aria-label="Pull image"
+      >
+        <span class="mat-icon-filled" aria-hidden="true">download</span>
+        Pull Image
+      </button> -->
       <button
         type="button"
         class="refresh-btn"
@@ -164,37 +173,48 @@
                     />
                   </p>
                 </td>
-                <td>{{ repositoryAndTag(image)[1] }}</td>
+                <td>
+                  {{ repositoryAndTag(image)[1] }}
+                  @if ((image.RepoTags?.length ?? 0) > 1) {
+                    <div class="tags-wrap">
+                      @for (tag of image.RepoTags?.slice(1) ?? []; track tag) {
+                        <span class="tag-extra">{{ tag }}</span>
+                      }
+                    </div>
+                  }
+                </td>
                 <td>{{ shortId(image) }}</td>
                 <td>{{ formatSize(image.Size) }}</td>
                 <td>
                   <catbee-container-studio-tooltip-date [date]="formatCreated(image.Created)" />
                 </td>
                 <td class="col-actions" (click)="$event.stopPropagation()">
-                  <button
-                    type="button"
-                    class="catbee-action-btn icon-only danger"
-                    (click)="requestDeleteSingle(image.Id)"
-                    aria-label="Delete image"
-                    [catbeeTooltip]="'Delete'"
-                    [catbeeTooltipDelay]="tooltipDelay"
-                    [catbeeTooltipPosition]="'left'"
-                  >
-                    <span class="mat-icon-filled" aria-hidden="true">delete</span>
-                  </button>
+                  <div>
+                    <button
+                      type="button"
+                      class="catbee-action-btn icon-only"
+                      (click)="openRunDialog(image)"
+                      aria-label="Run container from this image"
+                      [catbeeTooltip]="'Run'"
+                      [catbeeTooltipDelay]="tooltipDelay"
+                      [catbeeTooltipPosition]="'left'"
+                    >
+                      <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="catbee-action-btn icon-only danger"
+                      (click)="requestDeleteSingle(image.Id)"
+                      aria-label="Delete image"
+                      [catbeeTooltip]="'Delete'"
+                      [catbeeTooltipDelay]="tooltipDelay"
+                      [catbeeTooltipPosition]="'left'"
+                    >
+                      <span class="mat-icon-filled" aria-hidden="true">delete</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
-              @if ((image.RepoTags?.length ?? 0) > 1) {
-                <tr class="tags-row">
-                  <td colspan="8">
-                    <div class="tags-wrap">
-                      @for (tag of image.RepoTags?.slice(1) ?? []; track tag) {
-                        <span class="tag-extra">{{ tag }}</span>
-                      }
-                    </div>
-                  </td>
-                </tr>
-              }
             }
           </tbody>
         </table>
@@ -221,4 +241,17 @@
   [dangerous]="true"
   (confirm)="confirmPrune()"
   (cancelAction)="cancelPrune()"
+/>
+
+<catbee-container-studio-pull-image-dialog
+  [open]="pullDialogOpen()"
+  (closeDialog)="closePullDialog()"
+  (pulled)="onImagePulled()"
+/>
+
+<catbee-container-studio-run-container-dialog
+  [open]="runDialogImage() !== null"
+  [image]="runDialogImage() ?? ''"
+  (closeDialog)="closeRunDialog()"
+  (created)="onContainerCreated($event)"
 />

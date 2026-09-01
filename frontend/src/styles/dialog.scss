@@ -30,6 +30,9 @@
       font-size: var(--font-size-xl);
       font-weight: 600;
       color: var(--ink-100);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .catbee-dialog-close {

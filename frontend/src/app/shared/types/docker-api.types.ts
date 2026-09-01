@@ -30,6 +30,14 @@ export interface DockerStreamEventEnvelope<T = unknown> {
   error?: string;
 }
 
+export interface DockerProgressEvent {
+  status?: string;
+  id?: string;
+  progress?: string;
+  stream?: string;
+  error?: string;
+}
+
 export interface DockerActionResult {
   containerId: string;
   output: string;
@@ -173,6 +181,7 @@ export interface DockerImageInspectInfo {
   Config?: {
     Cmd?: string[];
     Entrypoint?: string[];
+    ExposedPorts?: Record<string, unknown>;
   };
 }
 
@@ -186,6 +195,8 @@ export interface DockerVolumeInfo {
   CreatedAt?: string;
   UsageData?: { Size: number; RefCount: number } | null;
 }
+
+export type DockerVolumeUsage = NonNullable<DockerVolumeInfo['UsageData']>;
 
 export type DockerFileType = 'file' | 'directory' | 'symlink';
 

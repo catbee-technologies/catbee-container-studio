@@ -10,6 +10,8 @@ export function registerDockerVolumeHandlers(): void {
 
   registerHandle(IPC_CHANNELS.Docker.Volumes.Inspect, (name: string) => dockerManager.volumes.inspectVolume(name));
 
+  registerHandle(IPC_CHANNELS.Docker.Volumes.Usage, (name?: string) => dockerManager.volumes.getVolumeUsage(name));
+
   registerHandle(IPC_CHANNELS.Docker.Volumes.Create, (options: Docker.VolumeCreateOptions) =>
     dockerManager.volumes.createVolume(options)
   );

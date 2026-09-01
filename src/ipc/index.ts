@@ -4,6 +4,7 @@ import { registerMenuHandlers } from './app/menu.ipc';
 import { registerInitializationHandlers } from './app/initialization.ipc';
 import { registerUpdaterHandlers } from './app/updater.ipc';
 import { registerPlatformHandlers } from './app/platform.ipc';
+import { registerDialogHandlers } from './app/dialog.ipc';
 
 import { registerDockerSystemHandlers } from './docker/system.ipc';
 import { registerDockerContainerHandlers } from './docker/containers.ipc';
@@ -21,6 +22,7 @@ export function registerIpcHandlers(): void {
   registerInitializationHandlers();
   registerUpdaterHandlers();
   registerPlatformHandlers();
+  registerDialogHandlers();
 
   // Docker
   registerDockerSystemHandlers();
