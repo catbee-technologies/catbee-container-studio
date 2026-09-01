@@ -37,6 +37,7 @@ $height: var(--window-header-height);
     display: flex;
     align-items: center;
     gap: 0.55rem;
+    user-select: none;
 
     .brand-icon {
       width: 1.5rem;

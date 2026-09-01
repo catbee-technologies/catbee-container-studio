@@ -12,6 +12,7 @@ import {
   DockerImageInspectInfo,
   DockerStreamEventEnvelope,
   DockerVolumeInfo,
+  DockerVolumeUsage,
   StreamStartResult
 } from '@shared/types/docker-api.types';
 import { LOGS_STORAGE_DEFAULTS } from '@utils/storage.utils';
@@ -90,6 +91,11 @@ export class DockerApiService extends ElectronBaseService {
     return this.unwrapResult<DockerVolumeInfo>(response);
   }
 
+  async getVolumeUsage(name?: string): Promise<Record<string, DockerVolumeUsage>> {
+    const response = await this.bridge.docker.volumes.usage(name);
+    return this.unwrapResult<Record<string, DockerVolumeUsage>>(response);
+  }
+
   async removeVolume(name: string, force = false): Promise<void> {
     const response = await this.bridge.docker.volumes.remove(name, force);
     this.unwrapResult<unknown>(response);
@@ -122,6 +128,11 @@ export class DockerApiService extends ElectronBaseService {
 
   async inspectContainer(containerId: string): Promise<DockerContainerInspectInfo> {
     const response = await this.bridge.docker.containers.inspect(containerId);
+    return this.unwrapResult<DockerContainerInspectInfo>(response);
+  }
+
+  async createContainer(options: Docker.ContainerCreateOptions): Promise<DockerContainerInspectInfo> {
+    const response = await this.bridge.docker.containers.create(options);
     return this.unwrapResult<DockerContainerInspectInfo>(response);
   }
 
@@ -218,6 +229,11 @@ export class DockerApiService extends ElectronBaseService {
 
   async startEventsStream(): Promise<StreamStartResult> {
     const response = await this.bridge.docker.streams.startEvents();
+    return this.unwrapResult<StreamStartResult>(response);
+  }
+
+  async startPullStream(image: string, options?: Record<string, never>): Promise<StreamStartResult> {
+    const response = await this.bridge.docker.streams.startPull(image, options);
     return this.unwrapResult<StreamStartResult>(response);
   }
 

@@ -6,8 +6,19 @@
 
     <div class="title-wrap">
       <h1>{{ volumeName() }}</h1>
-      <p class="mono">Volume</p>
     </div>
+
+    @if (volume()) {
+      <div class="details-header-actions">
+        <div class="header-size" aria-label="Volume size">
+          <span class="mat-icon-filled" aria-hidden="true">hard_drive</span>
+          <span class="header-size-text">
+            <span class="header-size-label">Size</span>
+            <strong>{{ volumeSize() }}</strong>
+          </span>
+        </div>
+      </div>
+    }
   </header>
 
   @if (error(); as err) {
