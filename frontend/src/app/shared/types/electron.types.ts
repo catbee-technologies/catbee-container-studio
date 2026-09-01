@@ -4,6 +4,7 @@ import {
   DockerContainerInfo,
   DockerContainerInspectInfo,
   DockerContainerStats,
+  DockerFileEntry,
   DockerExecSessionCreateResult,
   DockerImageHistoryInfo,
   DockerImageInfo,
@@ -144,6 +145,14 @@ export interface ElectronBridge {
       exec: (containerId: string, command: string[]) => IpcPromise<DockerActionResult>;
       remove: (containerId: string, force?: boolean) => IpcPromise<DockerActionResult>;
       stats: (containerId: string) => IpcPromise<DockerContainerStats>;
+      files: {
+        list: (containerId: string, path?: string) => IpcPromise<DockerFileEntry[]>;
+        read: (containerId: string, path: string) => IpcPromise<Uint8Array>;
+        upload: (containerId: string, path: string, data: Uint8Array) => IpcPromise<void>;
+        createDirectory: (containerId: string, path: string) => IpcPromise<void>;
+        delete: (containerId: string, path: string) => IpcPromise<void>;
+        rename: (containerId: string, path: string, newPath: string) => IpcPromise<void>;
+      };
     };
     streams: {
       startLogs: (
@@ -167,6 +176,12 @@ export interface ElectronBridge {
       inspect: (name: string) => IpcPromise<DockerVolumeInfo>;
       remove: (name: string, force?: boolean) => IpcPromise<unknown>;
       prune: (filters?: Docker.VolumePruneOptions['filters']) => IpcPromise<unknown>;
+      files: {
+        list: (name: string, path?: string) => IpcPromise<DockerFileEntry[]>;
+        read: (name: string, path: string) => IpcPromise<Uint8Array>;
+        write: (name: string, path: string, data: Uint8Array) => IpcPromise<void>;
+        delete: (name: string, path: string) => IpcPromise<void>;
+      };
     };
     execSession: {
       create: (containerId: string, command: string[], tty?: boolean) => IpcPromise<DockerExecSessionCreateResult>;

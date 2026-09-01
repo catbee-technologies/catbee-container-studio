@@ -85,4 +85,28 @@ export function registerDockerContainerHandlers(): void {
   registerHandle(IPC_CHANNELS.Docker.Containers.Networks, (containerId: string) =>
     dockerManager.containers.getContainerNetworks(containerId)
   );
+
+  registerHandle(IPC_CHANNELS.Docker.Containers.Files.List, (containerId: string, path?: string) =>
+    dockerManager.containers.listContainerFiles(containerId, path)
+  );
+
+  registerHandle(IPC_CHANNELS.Docker.Containers.Files.Read, (containerId: string, path: string) =>
+    dockerManager.containers.readContainerFile(containerId, path)
+  );
+
+  registerHandle(IPC_CHANNELS.Docker.Containers.Files.Upload, (containerId: string, path: string, data: Buffer) =>
+    dockerManager.containers.uploadContainerFile(containerId, path, data)
+  );
+
+  registerHandle(IPC_CHANNELS.Docker.Containers.Files.CreateDirectory, (containerId: string, path: string) =>
+    dockerManager.containers.createContainerDirectory(containerId, path)
+  );
+
+  registerHandle(IPC_CHANNELS.Docker.Containers.Files.Delete, (containerId: string, path: string) =>
+    dockerManager.containers.deleteContainerFile(containerId, path)
+  );
+
+  registerHandle(IPC_CHANNELS.Docker.Containers.Files.Rename, (containerId: string, path: string, newPath: string) =>
+    dockerManager.containers.renameContainerFile(containerId, path, newPath)
+  );
 }

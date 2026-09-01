@@ -10,7 +10,7 @@ import { SearchInputComponent } from '@components/search-input/search-input';
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
 import { TableSortHeaderComponent } from '@components/table-sort-header/table-sort-header';
 import { UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
-import { formatDockerBytes, formatDockerRelativeTime } from '@utils/docker-display.utils';
+import { formatDockerBytes } from '@utils/docker-display.utils';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import {
@@ -22,6 +22,7 @@ import {
   VolumeUsageFilter
 } from '@shared/types';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
+import { TooltipDateComponent } from '@components/tooltip-date/tooltip-date';
 
 @Component({
   selector: 'catbee-container-studio-volumes-page',
@@ -34,7 +35,8 @@ import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
     TableSortHeaderComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
-    CatbeeTooltip
+    CatbeeTooltip,
+    TooltipDateComponent
   ],
   templateUrl: './volumes-list.html',
   styleUrl: './volumes-list.scss'
@@ -341,12 +343,6 @@ export class VolumesPage {
   formatSize(bytes: number): string {
     if (bytes <= 0) return '--';
     return formatDockerBytes(bytes, 1);
-  }
-
-  formatCreated(createdAt: string | undefined): string {
-    if (!createdAt) return '--';
-    const d = new Date(createdAt);
-    return formatDockerRelativeTime(d);
   }
 
   isUsed(name: string): boolean {

@@ -69,7 +69,15 @@ const IPC_CHANNELS = {
       Ports: 'docker:containers:ports',
       Env: 'docker:containers:env',
       Mounts: 'docker:containers:mounts',
-      Networks: 'docker:containers:networks'
+      Networks: 'docker:containers:networks',
+      Files: {
+        List: 'docker:containers:files:list',
+        Read: 'docker:containers:files:read',
+        Upload: 'docker:containers:files:upload',
+        CreateDirectory: 'docker:containers:files:create-directory',
+        Delete: 'docker:containers:files:delete',
+        Rename: 'docker:containers:files:rename'
+      }
     },
     Images: {
       List: 'docker:images:list',
@@ -86,7 +94,13 @@ const IPC_CHANNELS = {
       Inspect: 'docker:volumes:inspect',
       Create: 'docker:volumes:create',
       Remove: 'docker:volumes:remove',
-      Prune: 'docker:volumes:prune'
+      Prune: 'docker:volumes:prune',
+      Files: {
+        List: 'docker:volumes:files:list',
+        Read: 'docker:volumes:files:read',
+        Write: 'docker:volumes:files:write',
+        Delete: 'docker:volumes:files:delete'
+      }
     },
     Networks: {
       List: 'docker:networks:list',
@@ -207,7 +221,21 @@ const electronBridge = {
       ports: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Ports, containerId),
       env: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Env, containerId),
       mounts: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Mounts, containerId),
-      networks: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Networks, containerId)
+      networks: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Networks, containerId),
+      files: {
+        list: (containerId: string, path?: string) =>
+          ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Files.List, containerId, path),
+        read: (containerId: string, path: string) =>
+          ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Files.Read, containerId, path),
+        upload: (containerId: string, path: string, data: Uint8Array) =>
+          ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Files.Upload, containerId, path, data),
+        createDirectory: (containerId: string, path: string) =>
+          ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Files.CreateDirectory, containerId, path),
+        delete: (containerId: string, path: string) =>
+          ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Files.Delete, containerId, path),
+        rename: (containerId: string, path: string, newPath: string) =>
+          ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Files.Rename, containerId, path, newPath)
+      }
     },
     images: {
       list: (options?: unknown) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Images.List, options),
@@ -227,7 +255,14 @@ const electronBridge = {
       inspect: (name: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.Inspect, name),
       create: (options: unknown) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.Create, options),
       remove: (name: string, force?: boolean) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.Remove, name, force),
-      prune: (filters?: unknown) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.Prune, filters)
+      prune: (filters?: unknown) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.Prune, filters),
+      files: {
+        list: (name: string, path?: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.Files.List, name, path),
+        read: (name: string, path: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.Files.Read, name, path),
+        write: (name: string, path: string, data: Uint8Array) =>
+          ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.Files.Write, name, path, data),
+        delete: (name: string, path: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Volumes.Files.Delete, name, path)
+      }
     },
     networks: {
       list: (options?: unknown) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Networks.List, options),

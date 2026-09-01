@@ -41,4 +41,47 @@
       border: 1px solid rgb(255 123 142 / 0.62);
     }
   }
+
+  &.small {
+    max-height: 5rem;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+
+    .catbee-error-message {
+      max-height: calc(5rem - 1rem);
+      font-size: clamp(0.7rem, 0.5vw + 0.65rem, 0.85rem);
+    }
+
+    .close-btn {
+      font-size: 0.9rem;
+      height: 1.2rem;
+      width: 1.2rem;
+    }
+  }
+
+  &.medium {
+    max-height: 7rem;
+    padding: 0.75rem;
+
+    .catbee-error-message {
+      max-height: calc(7rem - 1.5rem);
+      font-size: clamp(0.75rem, 0.5vw + 0.7rem, 0.9rem);
+    }
+  }
+
+  &.large {
+    max-height: 10rem;
+    padding: 1rem;
+
+    .catbee-error-message {
+      max-height: calc(10rem - 2rem);
+      font-size: clamp(0.8rem, 0.5vw + 0.75rem, 1rem);
+    }
+
+    .close-btn {
+      font-size: 1.2rem;
+      height: 1.5rem;
+      width: 1.5rem;
+    }
+  }
 }

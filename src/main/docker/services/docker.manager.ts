@@ -52,7 +52,7 @@ export class DockerManager {
     this.images = new DockerImageService(this.client);
     this.networks = new DockerNetworkService(this.client);
     this.system = new DockerSystemService(this.client);
-    this.volumes = new DockerVolumeService(this.client);
+    this.volumes = new DockerVolumeService(this.client, this.containers, this.images);
   }
 
   setRendererReady(): void {

@@ -1,0 +1,287 @@
+@let loading = isLoading();
+<section class="file-browser" [attr.aria-label]="ariaLabel()">
+  <header class="browser-toolbar">
+    <div class="navigation-tools">
+      <button
+        type="button"
+        class="catbee-action-btn icon-only"
+        aria-label="Go to parent directory"
+        title="Go up"
+        [disabled]="!canGoUp() || loading"
+        (click)="goUp()"
+      >
+        <span class="mat-icon-filled" aria-hidden="true">arrow_upward</span>
+      </button>
+      <button
+        type="button"
+        class="catbee-action-btn icon-only"
+        aria-label="Refresh directory"
+        title="Refresh"
+        [disabled]="loading"
+        (click)="refresh()"
+      >
+        <span class="mat-icon-filled" [class.spinning]="loading" aria-hidden="true">refresh</span>
+      </button>
+    </div>
+
+    <catbee-container-studio-breadcrumbs [path]="currentPath()" (pathChange)="loadDirectory($event)" />
+
+    <catbee-container-studio-search-input
+      #fileSearchInput
+      placeholder="Filter this folder"
+      ariaLabel="Filter files in current directory"
+      width="100%"
+      [value]="query()"
+      (valueChange)="query.set($event)"
+    />
+  </header>
+
+  <div>
+    @if (error(); as err) {
+      <div class="browser-error">
+        <catbee-container-studio-error-banner [errorMessage]="err" [closable]="false" size="small" />
+        <button type="button" class="catbee-action-btn" (click)="refresh()">
+          <span class="mat-icon-filled" aria-hidden="true">refresh</span>
+          Try again
+        </button>
+      </div>
+    }
+  </div>
+
+  <div
+    #browserContent
+    class="browser-content"
+    [class.resizing]="isResizingPanes()"
+    [style.--pane-columns]="paneColumns()"
+  >
+    <div
+      #directoryPanel
+      class="directory-panel"
+      [attr.aria-busy]="loading"
+      [style.overflow]="loading ? 'hidden' : 'auto'"
+    >
+      @if (unavailableState(); as unavailable) {
+        <catbee-container-studio-empty-state
+          icon="power_settings_new"
+          [message]="unavailable.message"
+          [hint]="unavailable.hint"
+          size="small"
+        />
+      } @else if (!loading && !error() && visibleEntries().length === 0) {
+        <catbee-container-studio-empty-state
+          icon="folder_off"
+          [message]="query() ? 'No files match this filter.' : 'This directory is empty.'"
+          [hint]="query() ? 'Try a different file name.' : 'There are no files or folders at this path.'"
+          size="small"
+        />
+      } @else {
+        <table class="catbee-table sm" aria-label="Directory contents">
+          <thead>
+            <tr>
+              <th scope="col" class="col-sortable name-column" [attr.aria-sort]="ariaSort('name')">
+                <catbee-container-studio-table-sort-header
+                  label="Name"
+                  [active]="isSortActive('name')"
+                  [indicator]="sortIndicator('name')"
+                  (sort)="toggleSort('name')"
+                />
+              </th>
+              <th scope="col" class="col-sortable size-column" [attr.aria-sort]="ariaSort('size')">
+                <catbee-container-studio-table-sort-header
+                  label="Size"
+                  [active]="isSortActive('size')"
+                  [indicator]="sortIndicator('size')"
+                  (sort)="toggleSort('size')"
+                />
+              </th>
+              <th scope="col" class="col-sortable modified-column" [attr.aria-sort]="ariaSort('modified')">
+                <catbee-container-studio-table-sort-header
+                  label="Modified"
+                  [active]="isSortActive('modified')"
+                  [indicator]="sortIndicator('modified')"
+                  (sort)="toggleSort('modified')"
+                />
+              </th>
+              <th scope="col" class="col-sortable mode-column" [attr.aria-sort]="ariaSort('mode')">
+                <catbee-container-studio-table-sort-header
+                  label="Mode"
+                  [active]="isSortActive('mode')"
+                  [indicator]="sortIndicator('mode')"
+                  (sort)="toggleSort('mode')"
+                />
+              </th>
+              @if (canDeleteEntries()) {
+                <th scope="col" class="actions-column">
+                  <span class="visually-hidden">Actions</span>
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (entry of visibleEntries(); track entry.path) {
+              <tr [class.selected]="selectedEntry()?.path === entry.path">
+                <td class="name-column pointer" (click)="openEntry(entry)">
+                  <button type="button" class="entry-button">
+                    <span
+                      class="mat-icon-filled entry-icon"
+                      [class.directory]="entry.type === 'directory'"
+                      aria-hidden="true"
+                    >
+                      {{ iconFor(entry) }}
+                    </span>
+                    <span>{{ entry.name }}</span>
+                  </button>
+                </td>
+                <td class="mono size-column">{{ formatSize(entry) }}</td>
+                <td class="modified-column">
+                  <catbee-container-studio-tooltip-date [date]="entry.modifiedAt" />
+                </td>
+                <td class="mono mode-column">
+                  <span
+                    [catbeeTooltip]="'Mode: ' + entry.mode"
+                    [catbeeTooltipPosition]="'top'"
+                    [catbeeTooltipDisabled]="!entry.mode"
+                    [catbeeTooltipDelay]="tooltipDelay"
+                  >
+                    {{ formatMode(entry.mode) }}
+                  </span>
+                </td>
+                @if (canDeleteEntries()) {
+                  <td class="actions-column">
+                    <button
+                      type="button"
+                      class="catbee-action-btn icon-only sm no-bg"
+                      [attr.aria-label]="'Delete ' + entry.name"
+                      [disabled]="isDeleting()"
+                      (click)="requestDeleteEntry(entry)"
+                      catbeeTooltip="Delete {{ entry.name }}"
+                      catbeeTooltipPosition="top"
+                    >
+                      <span class="mat-icon-filled" aria-hidden="true">delete</span>
+                    </button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+
+      @if (loading) {
+        <catbee-container-studio-empty-state
+          class="loading-overlay"
+          icon="folder_open"
+          message="Loading directory..."
+          size="small"
+          [showLoader]="true"
+        />
+      }
+    </div>
+
+    <div
+      class="pane-splitter"
+      role="separator"
+      tabindex="0"
+      aria-label="Resize file list and preview"
+      aria-orientation="vertical"
+      aria-valuemin="25"
+      aria-valuemax="75"
+      [attr.aria-valuenow]="directoryPanePercent()"
+      [attr.aria-valuetext]="'File list ' + directoryPanePercent().toFixed(0) + ' percent'"
+      (pointerdown)="startPaneResize($event)"
+      (pointermove)="continuePaneResize($event)"
+      (pointerup)="stopPaneResize($event)"
+      (pointercancel)="stopPaneResize($event)"
+      (keydown)="resizePanesWithKeyboard($event)"
+    >
+      <span aria-hidden="true"></span>
+    </div>
+
+    <aside class="preview-panel" aria-label="File preview" [attr.aria-busy]="isPreviewLoading()">
+      <header class="preview-header">
+        <span class="mat-icon-filled preview-icon" aria-hidden="true">preview</span>
+        <div class="preview-title">
+          <h3>{{ selectedEntry()?.name ?? 'Preview' }}</h3>
+          @if (selectedEntry(); as selected) {
+            <p>{{ editorLanguage() }} · {{ formatSize(selected) }} · {{ formatMode(selected.mode) }}</p>
+          }
+        </div>
+        @if (selectedEntry()) {
+          <div class="preview-actions">
+            @if (isEditing()) {
+              <button
+                type="button"
+                class="catbee-action-btn fix-height"
+                [disabled]="isSaving()"
+                (click)="cancelEditing()"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="catbee-action-btn fix-height action-start"
+                [disabled]="!hasUnsavedChanges() || isSaving()"
+                (click)="saveFile()"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">save</span>
+                {{ isSaving() ? 'Saving...' : 'Save' }}
+              </button>
+            } @else if (canEdit()) {
+              <button
+                type="button"
+                class="catbee-action-btn icon-only"
+                aria-label="Edit file"
+                (click)="startEditing()"
+                [catbeeTooltip]="'Edit file'"
+                [catbeeTooltipPosition]="'left'"
+                [catbeeTooltipDelay]="tooltipDelay"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">edit</span>
+              </button>
+            }
+          </div>
+        }
+      </header>
+
+      <div class="preview-body">
+        @if (actionError(); as err) {
+          <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="actionError.set(null)" size="small" />
+        }
+
+        @if (previewText() !== null) {
+          <ng-catbee-monaco-editor
+            class="file-editor"
+            height="100%"
+            width="100%"
+            [value]="editorText()"
+            [language]="editorLanguage()"
+            [options]="editorOptions()"
+            [disabled]="!isEditing()"
+            [autoFormat]="false"
+            (valueChange)="editorText.set($event)"
+            (initError)="onEditorInitError($event)"
+          />
+        } @else {
+          <catbee-container-studio-empty-state
+            class="preview-message"
+            icon="description"
+            [message]="previewMessage().message"
+            [hint]="previewMessage()?.hint"
+            size="small"
+            [showLoader]="isPreviewLoading()"
+          />
+        }
+      </div>
+    </aside>
+  </div>
+</section>
+
+<catbee-container-studio-confirm-dialog
+  [open]="deleteDialogOpen()"
+  title="Delete File"
+  [message]="deleteMessage()"
+  confirmLabel="Delete"
+  [dangerous]="true"
+  (confirm)="confirmDelete()"
+  (cancelAction)="cancelDelete()"
+/>

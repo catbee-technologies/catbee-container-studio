@@ -6,6 +6,7 @@ import {
   DockerContainerInspectInfo,
   DockerContainerStats,
   DockerExecSessionCreateResult,
+  DockerFileEntry,
   DockerImageHistoryInfo,
   DockerImageInfo,
   DockerImageInspectInfo,
@@ -99,6 +100,26 @@ export class DockerApiService extends ElectronBaseService {
     this.unwrapResult<unknown>(response);
   }
 
+  async listVolumeFiles(name: string, path = '/'): Promise<DockerFileEntry[]> {
+    const response = await this.bridge.docker.volumes.files.list(name, path);
+    return this.unwrapResult<DockerFileEntry[]>(response);
+  }
+
+  async readVolumeFile(name: string, path: string): Promise<Uint8Array> {
+    const response = await this.bridge.docker.volumes.files.read(name, path);
+    return this.unwrapResult<Uint8Array>(response);
+  }
+
+  async writeVolumeFile(name: string, path: string, data: Uint8Array): Promise<void> {
+    const response = await this.bridge.docker.volumes.files.write(name, path, data);
+    this.unwrapResult<void>(response);
+  }
+
+  async deleteVolumeFile(name: string, path: string): Promise<void> {
+    const response = await this.bridge.docker.volumes.files.delete(name, path);
+    this.unwrapResult<void>(response);
+  }
+
   async inspectContainer(containerId: string): Promise<DockerContainerInspectInfo> {
     const response = await this.bridge.docker.containers.inspect(containerId);
     return this.unwrapResult<DockerContainerInspectInfo>(response);
@@ -142,6 +163,36 @@ export class DockerApiService extends ElectronBaseService {
   async getContainerStats(containerId: string): Promise<DockerContainerStats> {
     const response = await this.bridge.docker.containers.stats(containerId);
     return this.unwrapResult<DockerContainerStats>(response);
+  }
+
+  async listContainerFiles(containerId: string, path = '/'): Promise<DockerFileEntry[]> {
+    const response = await this.bridge.docker.containers.files.list(containerId, path);
+    return this.unwrapResult<DockerFileEntry[]>(response);
+  }
+
+  async readContainerFile(containerId: string, path: string): Promise<Uint8Array> {
+    const response = await this.bridge.docker.containers.files.read(containerId, path);
+    return this.unwrapResult<Uint8Array>(response);
+  }
+
+  async uploadContainerFile(containerId: string, path: string, data: Uint8Array): Promise<void> {
+    const response = await this.bridge.docker.containers.files.upload(containerId, path, data);
+    this.unwrapResult<void>(response);
+  }
+
+  async createContainerDirectory(containerId: string, path: string): Promise<void> {
+    const response = await this.bridge.docker.containers.files.createDirectory(containerId, path);
+    this.unwrapResult<void>(response);
+  }
+
+  async deleteContainerFile(containerId: string, path: string): Promise<void> {
+    const response = await this.bridge.docker.containers.files.delete(containerId, path);
+    this.unwrapResult<void>(response);
+  }
+
+  async renameContainerFile(containerId: string, path: string, newPath: string): Promise<void> {
+    const response = await this.bridge.docker.containers.files.rename(containerId, path, newPath);
+    this.unwrapResult<void>(response);
   }
 
   async startLogsStream(
