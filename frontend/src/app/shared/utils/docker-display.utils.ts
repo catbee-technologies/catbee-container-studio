@@ -1,3 +1,5 @@
+export const DATE_FORMAT = 'MMM d, y, h:mm:ss a';
+
 export function formatDockerNames(names: string[]): string {
   return names.map(name => name.replace(/^\//, '')).join(', ');
 }
@@ -77,13 +79,27 @@ export function formatDockerRelativeTime(date: string | Date | undefined): strin
   return years === 1 ? '1 year ago' : `${years} years ago`;
 }
 
-export function formatBytes(bytes: number): string {
-  if (bytes <= 0) {
-    return '0 B';
+export function formatBytes(value: number): string {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${unitIndex === 0 ? value : value.toFixed(1)} ${units[unitIndex]}`;
+}
+
+export function formatMode(mode: string | null): string {
+  if (!mode || !/^[0-7]{3,4}$/.test(mode)) {
+    return mode || '--';
   }
 
-  const units = ['B', 'KB', 'MB', 'GB'];
-  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-
-  return `${(bytes / 1024 ** index).toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+  const permissions = mode.slice(-3);
+  return permissions
+    .split('')
+    .map(value => {
+      const bits = Number.parseInt(value, 8);
+      return `${bits & 4 ? 'r' : '-'}${bits & 2 ? 'w' : '-'}${bits & 1 ? 'x' : '-'}`;
+    })
+    .join('');
 }

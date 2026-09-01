@@ -40,10 +40,12 @@ export const UI_STORAGE_KEYS = {
   // Session storage keys
   CONTAINERS_SEARCH_QUERY: `${UI_STORAGE_PREFIX}containers.search-query`,
   CONTAINERS_SELECTED_TAB_PREFIX: `${UI_STORAGE_PREFIX}containers.selected-tab.`,
+  CONTAINERS_FILES_PATH_PREFIX: `${UI_STORAGE_PREFIX}containers.files-path.`,
   IMAGES_SEARCH_QUERY: `${UI_STORAGE_PREFIX}images.search-query`,
   IMAGES_SELECTED_TAB_PREFIX: `${UI_STORAGE_PREFIX}images.selected-tab.`,
   VOLUMES_SEARCH_QUERY: `${UI_STORAGE_PREFIX}volumes.search-query`,
   VOLUMES_SELECTED_TAB_PREFIX: `${UI_STORAGE_PREFIX}volumes.selected-tab.`,
+  VOLUMES_FILES_PATH_PREFIX: `${UI_STORAGE_PREFIX}volumes.files-path.`,
   DOCKER_INIT_STATUS: `${UI_STORAGE_PREFIX}docker-init-status`
 } as const;
 

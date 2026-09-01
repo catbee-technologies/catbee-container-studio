@@ -10,7 +10,7 @@ import { SegmentedFilterComponent, SegmentedFilterOption } from '@components/seg
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
 import { TableSortHeaderComponent } from '@components/table-sort-header/table-sort-header';
 import { UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
-import { formatDockerBytes, formatDockerRelativeTime } from '@utils/docker-display.utils';
+import { formatDockerBytes } from '@utils/docker-display.utils';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import {
@@ -23,6 +23,7 @@ import {
 } from '@shared/types';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
+import { TooltipDateComponent } from '@components/tooltip-date/tooltip-date';
 
 @Component({
   selector: 'catbee-container-studio-images-page',
@@ -36,7 +37,8 @@ import { CopyButtonComponent } from '@components/copy-button/copy-button';
     EmptyStateComponent,
     ErrorBannerComponent,
     CatbeeTooltip,
-    CopyButtonComponent
+    CopyButtonComponent,
+    TooltipDateComponent
   ],
   templateUrl: './images-list.html',
   styleUrl: './images-list.scss'
@@ -378,8 +380,8 @@ export class ImagesPage {
     return formatDockerBytes(bytes, 1);
   }
 
-  formatCreated(unixSeconds: number): string {
-    return formatDockerRelativeTime(new Date(unixSeconds * 1000));
+  formatCreated(unixSeconds: number): Date {
+    return new Date(unixSeconds * 1000);
   }
 
   isDangling(image: DockerImageInfo): boolean {

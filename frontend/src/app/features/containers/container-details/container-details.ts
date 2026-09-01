@@ -13,6 +13,7 @@ import { StatsTabComponent } from './components/stats-tab/stats-tab';
 import { InspectTabComponent } from './components/inspect-tab/inspect-tab';
 import { LogsTabComponent } from './components/logs-tab/logs-tab';
 import { ShellTabComponent } from './components/shell-tab/shell-tab';
+import { FilesTabComponent } from './components/files-tab/files-tab';
 import { TabsComponent, TabItem } from '@components/tabs/tabs';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
@@ -26,6 +27,7 @@ enum ContainerTab {
   Inspect = 'inspect',
   Env = 'env',
   Mounts = 'mounts',
+  Files = 'files',
   Shell = 'shell',
   Stats = 'stats'
 }
@@ -41,6 +43,7 @@ enum ContainerTab {
     InspectTabComponent,
     LogsTabComponent,
     ShellTabComponent,
+    FilesTabComponent,
     TabsComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
@@ -74,6 +77,7 @@ export class ContainerDetailsPage implements OnDestroy {
     { id: 'inspect', label: 'Inspect', icon: 'data_object' },
     { id: 'env', label: 'Env', icon: 'token' },
     { id: 'mounts', label: 'Mounts', icon: 'folder_open' },
+    { id: 'files', label: 'Files', icon: 'folder_copy' },
     { id: 'shell', label: 'Shell', icon: 'terminal' },
     { id: 'stats', label: 'Stats', icon: 'monitoring' }
   ];

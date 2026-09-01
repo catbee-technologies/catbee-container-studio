@@ -8,8 +8,10 @@ import { Component, input, output, signal } from '@angular/core';
 export class ErrorBannerComponent {
   readonly errorMessage = input.required();
   readonly closable = input<boolean>(true);
-  readonly visible = signal(true);
+  readonly size = input<'small' | 'medium' | 'large'>('medium');
   readonly closeErr = output<void>();
+
+  readonly visible = signal(true);
 
   onClose() {
     this.visible.set(false);

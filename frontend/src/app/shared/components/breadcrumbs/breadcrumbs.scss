@@ -1,0 +1,56 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.breadcrumbs {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+ol,
+li {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+ol {
+  min-width: max-content;
+}
+
+button,
+.current {
+  border: 0;
+  background: transparent;
+  color: var(--ink-200);
+  font-size: var(--font-size-base);
+  padding: 0.25rem 0.2rem;
+}
+
+catbee-container-studio-copy-button {
+  margin-left: 0.3rem;
+}
+
+button {
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--color-cyan-light);
+    text-decoration: underline;
+  }
+}
+
+.current {
+  color: var(--ink-100);
+  font-weight: 600;
+}
+
+.separator {
+  color: var(--ink-500);
+  font-size: 1rem;
+}

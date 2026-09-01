@@ -84,19 +84,48 @@ export class DockerBaseService {
     this.client.modem.demuxStream(source, stdout, stderr);
   }
 
-  async executeContainerCommand(containerId: string, command: string[]): Promise<{ stdout: string; stderr: string }> {
+  async executeContainerCommand(
+    containerId: string,
+    command: string[],
+    user?: string
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     const id = this.normalizeId(containerId, 'Container id');
     if (command.length === 0) throw new Error('Exec command is required.');
 
     const container = this.client.getContainer(id);
-    const exec = await container.exec({ AttachStdout: true, AttachStderr: true, Cmd: command, Tty: false });
+    const exec = await container.exec({
+      AttachStdout: true,
+      AttachStderr: true,
+      Cmd: command,
+      Tty: false,
+      ...(user ? { User: user } : {})
+    });
     const stream = await exec.start({ hijack: true, stdin: false, Tty: false });
 
     const stdoutStream = new PassThrough();
     const stderrStream = new PassThrough();
+    let outputsFinished = false;
+
+    const finishOutputs = (): void => {
+      if (outputsFinished) return;
+      outputsFinished = true;
+      stdoutStream.end();
+      stderrStream.end();
+    };
+
+    stream.on('end', finishOutputs);
+    stream.on('close', finishOutputs);
+    stream.on('error', error => {
+      if (outputsFinished) return;
+      outputsFinished = true;
+      stdoutStream.destroy(error);
+      stderrStream.destroy(error);
+    });
+
     this.demuxStream(stream, stdoutStream, stderrStream);
 
     const [stdout, stderr] = await Promise.all([this.streamToText(stdoutStream), this.streamToText(stderrStream)]);
-    return { stdout, stderr };
+    const inspection = await exec.inspect();
+    return { stdout, stderr, exitCode: inspection.ExitCode ?? -1 };
   }
 }

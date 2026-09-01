@@ -5,21 +5,30 @@ import { combineLatest } from 'rxjs';
 import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerInfo, DockerVolumeInfo } from '@shared/types/docker-api.types';
 import { TabsComponent, TabItem } from '@components/tabs/tabs';
-import { formatDockerNames } from '@utils/docker-display.utils';
+import { DATE_FORMAT, formatDockerNames } from '@utils/docker-display.utils';
 import { VolumeDetailsPrefetch } from './volume-details.resolver';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { SessionStorageService } from '@ng-catbee/storage';
 import { UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
+import { VolumeFilesTabComponent } from './components/volume-files-tab/volume-files-tab';
 
 enum VolumeDetailsTab {
-  Containers = 'containers'
+  Containers = 'containers',
+  Files = 'files'
 }
 
 @Component({
   selector: 'catbee-container-studio-volume-details-page',
-  imports: [CommonModule, TabsComponent, EmptyStateComponent, ErrorBannerComponent, CopyButtonComponent],
+  imports: [
+    CommonModule,
+    TabsComponent,
+    EmptyStateComponent,
+    ErrorBannerComponent,
+    CopyButtonComponent,
+    VolumeFilesTabComponent
+  ],
   templateUrl: './volume-details.html',
   styleUrl: './volume-details.scss'
 })
@@ -38,7 +47,8 @@ export class VolumeDetailsPage {
   readonly error = signal<string | null>(null);
   readonly activeTab = signal<VolumeDetailsTab>(VolumeDetailsTab.Containers);
   readonly tabs: readonly TabItem[] = [
-    { id: 'containers', label: 'Containers using this volume', icon: 'deployed_code' }
+    { id: 'containers', label: 'Containers using this volume', icon: 'deployed_code' },
+    { id: 'files', label: 'Files', icon: 'folder_copy' }
   ];
 
   readonly summaryItems = computed(() => {
@@ -52,9 +62,7 @@ export class VolumeDetailsPage {
       { label: 'Mountpoint', value: volume.Mountpoint },
       {
         label: 'Created',
-        value: volume.CreatedAt
-          ? (this.datePipe.transform(new Date(volume.CreatedAt), 'dd-MMM-yyyy hh:mm a') ?? '--')
-          : '--'
+        value: volume.CreatedAt ? (this.datePipe.transform(new Date(volume.CreatedAt), DATE_FORMAT) ?? '--') : '--'
       },
       { label: 'Size', value: this.formatBytes(volume.UsageData?.Size ?? 0) },
       { label: 'Ref Count', value: String(volume.UsageData?.RefCount ?? 0) }

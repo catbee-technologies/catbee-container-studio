@@ -4,7 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { combineLatest } from 'rxjs';
 import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerInfo, DockerImageHistoryInfo, DockerImageInspectInfo } from '@shared/types/docker-api.types';
-import { formatDockerBytes, formatDockerNames } from '@utils/docker-display.utils';
+import { DATE_FORMAT, formatDockerBytes, formatDockerNames } from '@utils/docker-display.utils';
 import { TabsComponent, TabItem } from '@components/tabs/tabs';
 import { ImageDetailsPrefetch } from './image-details.resolver';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
@@ -62,9 +62,7 @@ export class ImageDetailsPage {
     return [
       {
         label: 'Created',
-        value: inspect.Created
-          ? (this.datePipe.transform(new Date(inspect.Created), 'dd-MMM-yyyy hh:mm a') ?? '--')
-          : '--'
+        value: inspect.Created ? (this.datePipe.transform(new Date(inspect.Created), DATE_FORMAT) ?? '--') : '--'
       },
       { label: 'Author', value: inspect.Author ?? '--' },
       { label: 'OS / Arch', value: `${inspect.Os ?? '--'} / ${inspect.Architecture ?? '--'}` },

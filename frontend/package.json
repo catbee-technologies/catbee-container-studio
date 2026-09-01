@@ -24,11 +24,13 @@
     "@angular/platform-browser": "^22.1.0",
     "@angular/router": "^22.1.0",
     "@ng-catbee/loader": "^22.0.0",
+    "@ng-catbee/monaco-editor": "^22.0.0",
     "@ng-catbee/storage": "^22.0.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-search": "^0.16.0",
     "@xterm/xterm": "^6.0.0",
     "chart.js": "^4.5.1",
+    "monaco-editor": "^0.56.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

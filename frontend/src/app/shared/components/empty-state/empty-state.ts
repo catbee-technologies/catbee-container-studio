@@ -31,7 +31,8 @@ export class EmptyStateComponent {
           if (visible) {
             void this.loader.show(this.emptyStateLoaderName, {
               message,
-              fullscreen: false
+              fullscreen: false,
+              size: this.size()
             });
           } else {
             void this.loader.hide(this.emptyStateLoaderName);
