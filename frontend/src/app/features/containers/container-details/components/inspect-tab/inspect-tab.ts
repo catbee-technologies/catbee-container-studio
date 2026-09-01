@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, computed, input, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, effect, input, signal, viewChild } from '@angular/core';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { DockerContainerInspectInfo } from '@shared/types/docker-api.types';
+import { getSearchNavigationDirection, normalizeSearchMatchIndex } from '@utils/search-navigation.utils';
 import hljs from 'highlight.js/lib/core';
 import json from 'highlight.js/lib/languages/json';
 
@@ -90,7 +91,7 @@ export class InspectTabComponent {
       return null;
     }
 
-    const idx = this.normalizeMatchIndex(this.currentMatchIndex(), matches.length);
+    const idx = normalizeSearchMatchIndex(this.currentMatchIndex(), matches.length);
     return matches[idx] ?? null;
   });
 
@@ -111,12 +112,19 @@ export class InspectTabComponent {
       return '0/0';
     }
 
-    return `${this.normalizeMatchIndex(this.currentMatchIndex(), total) + 1}/${total}`;
+    return `${normalizeSearchMatchIndex(this.currentMatchIndex(), total) + 1}/${total}`;
   });
 
   readonly hasMatches = computed(() => this.inspectMatches().length > 0);
 
   private isSearchNavigationPrimed = false;
+
+  constructor() {
+    effect(() => {
+      this.inspectData();
+      queueMicrotask(() => this.selectNearestMatchFromViewport());
+    });
+  }
 
   focusAndSelectSearch(): void {
     this.inspectSearchInput()?.focusAndSelect();
@@ -124,17 +132,17 @@ export class InspectTabComponent {
 
   setSearch(value: string): void {
     this.inspectSearchTerm.set(value);
-    this.currentMatchIndex.set(0);
-    this.isSearchNavigationPrimed = false;
+    this.selectNearestMatchFromViewport();
   }
 
   onSearchKeydown(event: KeyboardEvent): void {
-    if (event.key !== 'Enter') {
+    const direction = getSearchNavigationDirection(event);
+    if (direction === null) {
       return;
     }
 
     event.preventDefault();
-    if (event.shiftKey) {
+    if (direction < 0) {
       this.prevMatch();
       return;
     }
@@ -150,12 +158,12 @@ export class InspectTabComponent {
 
     if (!this.isSearchNavigationPrimed) {
       this.isSearchNavigationPrimed = true;
-      this.currentMatchIndex.set(this.normalizeMatchIndex(this.currentMatchIndex(), total));
+      this.currentMatchIndex.set(normalizeSearchMatchIndex(this.currentMatchIndex(), total));
       this.scrollCurrentMatchIntoView();
       return;
     }
 
-    this.currentMatchIndex.set(this.normalizeMatchIndex(this.currentMatchIndex() + 1, total));
+    this.currentMatchIndex.set(normalizeSearchMatchIndex(this.currentMatchIndex() + 1, total));
     this.scrollCurrentMatchIntoView();
   }
 
@@ -167,12 +175,12 @@ export class InspectTabComponent {
 
     if (!this.isSearchNavigationPrimed) {
       this.isSearchNavigationPrimed = true;
-      this.currentMatchIndex.set(this.normalizeMatchIndex(this.currentMatchIndex(), total));
+      this.currentMatchIndex.set(normalizeSearchMatchIndex(this.currentMatchIndex(), total));
       this.scrollCurrentMatchIntoView();
       return;
     }
 
-    this.currentMatchIndex.set(this.normalizeMatchIndex(this.currentMatchIndex() - 1, total));
+    this.currentMatchIndex.set(normalizeSearchMatchIndex(this.currentMatchIndex() - 1, total));
     this.scrollCurrentMatchIntoView();
   }
 
@@ -255,11 +263,33 @@ export class InspectTabComponent {
     });
   }
 
-  private normalizeMatchIndex(index: number, total: number): number {
-    if (total === 0) {
-      return 0;
+  private selectNearestMatchFromViewport(): void {
+    const matches = this.inspectMatches();
+    const panel = this.inspectScrollArea()?.nativeElement;
+    if (matches.length === 0 || !panel) {
+      this.currentMatchIndex.set(0);
+      this.isSearchNavigationPrimed = false;
+      return;
     }
 
-    return ((index % total) + total) % total;
+    const code = panel.querySelector<HTMLElement>('code');
+    const lineHeight = Number.parseFloat(code ? getComputedStyle(code).lineHeight : '');
+    const paddingTop = Number.parseFloat(getComputedStyle(panel).paddingTop) || 0;
+    const visibleScrollTop = Math.max(panel.scrollTop - paddingTop, 0);
+    const firstVisibleLine =
+      Number.isFinite(lineHeight) && lineHeight > 0 ? Math.floor(visibleScrollTop / lineHeight) : 0;
+    const lastVisibleLine =
+      Number.isFinite(lineHeight) && lineHeight > 0
+        ? Math.ceil((visibleScrollTop + panel.clientHeight) / lineHeight)
+        : firstVisibleLine;
+    const visibleMatch = matches.findIndex(
+      match => match.lineIndex >= firstVisibleLine && match.lineIndex <= lastVisibleLine
+    );
+
+    this.currentMatchIndex.set(Math.max(visibleMatch, 0));
+    this.isSearchNavigationPrimed = true;
+    if (visibleMatch < 0) {
+      this.scrollCurrentMatchIntoView();
+    }
   }
 }

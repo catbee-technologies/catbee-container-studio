@@ -22,6 +22,12 @@ import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { LOG_TAIL_OPTIONS } from '@shared/types';
 import { ElectronApiService } from '@core/electron-api.service';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
+import {
+  escapeSearchHtml,
+  findVisibleMatchIndex,
+  getSearchNavigationDirection,
+  normalizeSearchMatchIndex
+} from '@utils/search-navigation.utils';
 
 export interface LogsSearchMode {
   caseSensitive: boolean;
@@ -195,7 +201,7 @@ export class LogsTabComponent implements AfterViewInit {
         prefix,
         ansiRaw: sanitizedRaw,
         plainWithPrefix: `${prefix}${this.stripAnsi(sanitizedRaw)}`,
-        htmlWithPrefix: `${this.escapeHtml(prefix)}${this.ansiToHtml(sanitizedRaw)}`
+        htmlWithPrefix: `${escapeSearchHtml(prefix)}${this.ansiToHtml(sanitizedRaw)}`
       };
     });
   });
@@ -296,7 +302,7 @@ export class LogsTabComponent implements AfterViewInit {
       return null;
     }
 
-    const idx = this.normalizeMatchIndex(this.currentMatchIndex(), matches.length);
+    const idx = normalizeSearchMatchIndex(this.currentMatchIndex(), matches.length);
     return matches[idx] ?? null;
   });
 
@@ -334,7 +340,7 @@ export class LogsTabComponent implements AfterViewInit {
       return '0/0';
     }
 
-    return `${this.normalizeMatchIndex(this.currentMatchIndex(), total) + 1}/${total}`;
+    return `${normalizeSearchMatchIndex(this.currentMatchIndex(), total) + 1}/${total}`;
   });
 
   readonly hasMatches = computed(() => this.logMatches().length > 0);
@@ -351,17 +357,17 @@ export class LogsTabComponent implements AfterViewInit {
 
   setSearch(value: string): void {
     this.logsSearchTerm.set(value);
-    this.currentMatchIndex.set(0);
-    this.isSearchNavigationPrimed = false;
+    this.selectNearestMatchFromViewport();
   }
 
   onSearchKeydown(event: KeyboardEvent): void {
-    if (event.key !== 'Enter') {
+    const direction = getSearchNavigationDirection(event);
+    if (direction === null) {
       return;
     }
 
     event.preventDefault();
-    if (event.shiftKey) {
+    if (direction < 0) {
       this.prevMatch();
       return;
     }
@@ -371,20 +377,17 @@ export class LogsTabComponent implements AfterViewInit {
 
   toggleCaseSensitive(): void {
     this.logsSearchMode.update(mode => ({ ...mode, caseSensitive: !mode.caseSensitive }));
-    this.currentMatchIndex.set(0);
-    this.isSearchNavigationPrimed = false;
+    this.selectNearestMatchFromViewport();
   }
 
   toggleWholeWord(): void {
     this.logsSearchMode.update(mode => ({ ...mode, wholeWord: !mode.wholeWord }));
-    this.currentMatchIndex.set(0);
-    this.isSearchNavigationPrimed = false;
+    this.selectNearestMatchFromViewport();
   }
 
   toggleRegex(): void {
     this.logsSearchMode.update(mode => ({ ...mode, regex: !mode.regex }));
-    this.currentMatchIndex.set(0);
-    this.isSearchNavigationPrimed = false;
+    this.selectNearestMatchFromViewport();
   }
 
   nextMatch(): void {
@@ -395,12 +398,12 @@ export class LogsTabComponent implements AfterViewInit {
 
     if (!this.isSearchNavigationPrimed) {
       this.isSearchNavigationPrimed = true;
-      this.currentMatchIndex.set(this.normalizeMatchIndex(this.currentMatchIndex(), total));
+      this.currentMatchIndex.set(normalizeSearchMatchIndex(this.currentMatchIndex(), total));
       this.scrollCurrentMatchIntoView();
       return;
     }
 
-    this.currentMatchIndex.set(this.normalizeMatchIndex(this.currentMatchIndex() + 1, total));
+    this.currentMatchIndex.set(normalizeSearchMatchIndex(this.currentMatchIndex() + 1, total));
     this.scrollCurrentMatchIntoView();
   }
 
@@ -412,12 +415,12 @@ export class LogsTabComponent implements AfterViewInit {
 
     if (!this.isSearchNavigationPrimed) {
       this.isSearchNavigationPrimed = true;
-      this.currentMatchIndex.set(this.normalizeMatchIndex(this.currentMatchIndex(), total));
+      this.currentMatchIndex.set(normalizeSearchMatchIndex(this.currentMatchIndex(), total));
       this.scrollCurrentMatchIntoView();
       return;
     }
 
-    this.currentMatchIndex.set(this.normalizeMatchIndex(this.currentMatchIndex() - 1, total));
+    this.currentMatchIndex.set(normalizeSearchMatchIndex(this.currentMatchIndex() - 1, total));
     this.scrollCurrentMatchIntoView();
   }
 
@@ -577,6 +580,25 @@ export class LogsTabComponent implements AfterViewInit {
     });
   }
 
+  private selectNearestMatchFromViewport(): void {
+    const matches = this.logMatches();
+    const panel = this.tabScrollArea()?.nativeElement;
+    if (matches.length === 0 || !panel) {
+      this.currentMatchIndex.set(0);
+      this.isSearchNavigationPrimed = false;
+      return;
+    }
+
+    const lines = panel.querySelectorAll<HTMLElement>('.log-line');
+    const visibleMatch = findVisibleMatchIndex(matches, lines, match => match.logIndex, panel);
+
+    this.currentMatchIndex.set(Math.max(visibleMatch, 0));
+    this.isSearchNavigationPrimed = true;
+    if (visibleMatch < 0) {
+      this.scrollCurrentMatchIntoView();
+    }
+  }
+
   private isPanelNearBottom(): boolean {
     const element = this.tabScrollArea()?.nativeElement;
     if (!element) {
@@ -676,7 +698,7 @@ export class LogsTabComponent implements AfterViewInit {
         return '';
       }
 
-      const escaped = this.escapeHtml(text);
+      const escaped = escapeSearchHtml(text);
 
       const styled = hasStyle ? `<span class="${classes.join(' ')}"${styleAttribute}>${escaped}</span>` : escaped;
 
@@ -710,7 +732,7 @@ export class LogsTabComponent implements AfterViewInit {
       html += renderText(text.slice(lastIndex, urlStart));
 
       if (url) {
-        const escapedUrl = this.escapeHtml(url);
+        const escapedUrl = escapeSearchHtml(url);
 
         html += `<a class="log-url" href="${escapedUrl}">${escapedUrl}<span class="mat-icon-filled" aria-hidden="true">open_in_new</span></a>`;
       }
@@ -844,14 +866,6 @@ export class LogsTabComponent implements AfterViewInit {
     return segments;
   }
 
-  private normalizeMatchIndex(index: number, total: number): number {
-    if (total <= 0) {
-      return 0;
-    }
-
-    return ((index % total) + total) % total;
-  }
-
   private isWholeWordBoundary(line: string, start: number, end: number): boolean {
     const before = start > 0 ? (line[start - 1] ?? '') : '';
     const after = end < line.length ? (line[end] ?? '') : '';
@@ -922,15 +936,6 @@ export class LogsTabComponent implements AfterViewInit {
     }
 
     return '#ffffff';
-  }
-
-  private escapeHtml(value: string): string {
-    return value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
 
   private async bindContainer(containerId: string): Promise<void> {
@@ -1055,6 +1060,10 @@ export class LogsTabComponent implements AfterViewInit {
       const maxLines = Math.max(this.logTailLines(), 1);
       return merged.slice(Math.max(merged.length - maxLines, 0));
     });
+
+    if (!this.isSearchNavigationPrimed && this.logsSearchTerm().trim().length > 0) {
+      queueMicrotask(() => this.selectNearestMatchFromViewport());
+    }
 
     if (shouldStickBottom) {
       this.requestScrollToBottom();
