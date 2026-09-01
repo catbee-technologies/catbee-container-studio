@@ -11,6 +11,23 @@
         <catbee-container-studio-copy-button [text]="imageId().replace('sha256:', '')" size="small" />
       </p>
     </div>
+
+    <div class="details-header-actions">
+      @if (inspectData(); as image) {
+        <div class="header-size" aria-label="Image size">
+          <span class="mat-icon-filled" aria-hidden="true">hard_drive</span>
+          <span class="header-size-text">
+            <span class="header-size-label">Size</span>
+            <strong>{{ formatSize(image.Size ?? 0) }}</strong>
+          </span>
+        </div>
+      }
+
+      <button type="button" class="catbee-action-btn action-start" (click)="openRunDialog()">
+        <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+        Run
+      </button>
+    </div>
   </header>
 
   @if (error(); as err) {
@@ -125,3 +142,10 @@
     </section>
   }
 </main>
+
+<catbee-container-studio-run-container-dialog
+  [open]="runDialogOpen()"
+  [image]="runImageReference()"
+  (closeDialog)="closeRunDialog()"
+  (created)="onContainerCreated($event)"
+/>

@@ -1,0 +1,47 @@
+<catbee-container-studio-dialog
+  [open]="open()"
+  title="Pull Image"
+  [style]="{ width: '32rem' }"
+  (closeDialog)="onClose()"
+>
+  <ng-container catbeeDialogBody>
+    <div class="pull-image-form">
+      @if (error(); as errorMessage) {
+        <catbee-container-studio-error-banner [errorMessage]="errorMessage" (closeErr)="error.set(null)" size="small" />
+      }
+
+      <label class="field">
+        <span class="field-label">Image reference</span>
+        <input
+          type="text"
+          class="field-input"
+          placeholder="e.g. nginx:latest"
+          [disabled]="isPulling()"
+          [value]="reference()"
+          (input)="reference.set($any($event.target).value)"
+        />
+      </label>
+
+      @if (progressLines().length > 0) {
+        <div class="progress-log" role="log" aria-label="Pull progress">
+          @for (line of progressLines(); track line.id) {
+            <p class="progress-line mono">{{ line.text }}</p>
+          }
+        </div>
+      }
+    </div>
+  </ng-container>
+
+  <ng-container catbeeDialogFooter>
+    <button type="button" class="catbee-action-btn" [disabled]="isPulling()" (click)="onClose()">Cancel</button>
+    <button
+      type="button"
+      class="catbee-action-btn action-start"
+      [disabled]="isPulling() || reference().trim().length === 0"
+      (click)="startPull()"
+    >
+      <span class="mat-icon-filled" aria-hidden="true">download</span>
+      {{ isPulling() ? 'Pulling...' : 'Pull' }}
+    </button>
+  </ng-container>
+</catbee-container-studio-dialog>

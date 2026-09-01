@@ -24,6 +24,8 @@ import {
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { TooltipDateComponent } from '@components/tooltip-date/tooltip-date';
+import { PullImageDialogComponent } from '@docker-images/pull-image-dialog/pull-image-dialog';
+import { RunContainerDialogComponent } from '@docker-images/run-container-dialog/run-container-dialog';
 
 @Component({
   selector: 'catbee-container-studio-images-page',
@@ -38,7 +40,9 @@ import { TooltipDateComponent } from '@components/tooltip-date/tooltip-date';
     ErrorBannerComponent,
     CatbeeTooltip,
     CopyButtonComponent,
-    TooltipDateComponent
+    TooltipDateComponent,
+    PullImageDialogComponent,
+    RunContainerDialogComponent
   ],
   templateUrl: './images-list.html',
   styleUrl: './images-list.scss'
@@ -83,6 +87,8 @@ export class ImagesPage {
 
   readonly pendingDeleteImageIds = signal<string[]>([]);
   readonly confirmPruneOpen = signal(false);
+  readonly pullDialogOpen = signal(false);
+  readonly runDialogImage = signal<string | null>(null);
   readonly usageFilterOptions: readonly SegmentedFilterOption[] = [
     { value: 'all', label: 'All' },
     { value: 'used', label: 'Used' },
@@ -362,6 +368,33 @@ export class ImagesPage {
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Failed to prune images.');
     }
+  }
+
+  openPullDialog(): void {
+    this.pullDialogOpen.set(true);
+  }
+
+  closePullDialog(): void {
+    this.pullDialogOpen.set(false);
+  }
+
+  onImagePulled(): void {
+    this.pullDialogOpen.set(false);
+    void this.loadImages();
+  }
+
+  openRunDialog(image: DockerImageInfo): void {
+    const [repository, tag] = this.repositoryAndTag(image);
+    this.runDialogImage.set(repository === '<none>' ? image.Id : `${repository}:${tag}`);
+  }
+
+  closeRunDialog(): void {
+    this.runDialogImage.set(null);
+  }
+
+  onContainerCreated(containerId: string): void {
+    this.runDialogImage.set(null);
+    void this.router.navigate(['/containers', containerId], { state: { returnTo: this.router.url } });
   }
 
   repositoryAndTag(image: DockerImageInfo): [string, string] {

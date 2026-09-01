@@ -1,0 +1,154 @@
+.image-name {
+  font-size: var(--font-size-sm);
+  font-family: var(--mono-font);
+  color: var(--ink-100);
+  margin: 0;
+  padding-bottom: 1rem;
+  position: sticky;
+  top: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.run-container-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .field-label {
+    font-size: var(--font-size-sm);
+    color: var(--ink-300);
+  }
+
+  .field-input,
+  .field-select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.45rem 0.6rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color-primary);
+    background: rgb(8 22 36 / 0.72);
+    color: var(--ink-100);
+    font: inherit;
+    font-size: var(--font-size-base);
+
+    &:focus-visible {
+      outline: none;
+      border-color: var(--border-color-hover);
+    }
+  }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-radius: 0.65rem;
+    border: 1px solid var(--border-color-primary);
+  }
+
+  .field-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .field-group-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    .catbee-action-btn:not(.icon-only) {
+      padding: 0.2rem 0.6rem;
+      font-size: var(--font-size-sm);
+    }
+  }
+
+  .field-group-title {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--ink-200);
+    text-transform: uppercase;
+    letter-spacing: var(--letter-spacing-wide);
+  }
+
+  .field-group-empty {
+    margin: 0;
+    color: var(--ink-400);
+    font-size: var(--font-size-sm);
+  }
+
+  .field-group-hint {
+    margin: 0;
+    color: var(--ink-400);
+    font-size: var(--font-size-sm);
+  }
+
+  .port-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    .port-input {
+      padding-right: 5.5rem;
+    }
+
+    .port-suffix {
+      position: absolute;
+      right: 0.6rem;
+      color: var(--ink-400);
+      font-size: var(--font-size-sm);
+      pointer-events: none;
+    }
+  }
+
+  .row-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    .field-input {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    .field-select {
+      flex: 0 0 auto;
+      width: auto;
+    }
+
+    .path-input {
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+
+      .field-input {
+        flex: 1 1 0;
+      }
+    }
+  }
+
+  .row-separator {
+    flex: 0 0 auto;
+    color: var(--ink-400);
+  }
+
+  .checkbox-field {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    white-space: nowrap;
+    font-size: var(--font-size-sm);
+    color: var(--ink-300);
+  }
+}

@@ -12,6 +12,7 @@ import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { SessionStorageService } from '@ng-catbee/storage';
 import { UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
+import { RunContainerDialogComponent } from '@docker-images/run-container-dialog/run-container-dialog';
 
 enum ImageDetailsTab {
   Layers = 'layers',
@@ -20,7 +21,14 @@ enum ImageDetailsTab {
 
 @Component({
   selector: 'catbee-container-studio-image-details-page',
-  imports: [CommonModule, TabsComponent, EmptyStateComponent, ErrorBannerComponent, CopyButtonComponent],
+  imports: [
+    CommonModule,
+    TabsComponent,
+    EmptyStateComponent,
+    ErrorBannerComponent,
+    CopyButtonComponent,
+    RunContainerDialogComponent
+  ],
   templateUrl: './image-details.html',
   styleUrl: './image-details.scss'
 })
@@ -39,10 +47,13 @@ export class ImageDetailsPage {
   readonly isLoading = signal(false);
   readonly error = signal<string | null>(null);
   readonly activeTab = signal<ImageDetailsTab>(ImageDetailsTab.Layers);
+  readonly runDialogOpen = signal(false);
   readonly tabs: readonly TabItem[] = [
     { id: 'layers', label: 'Layers', icon: 'layers' },
     { id: 'containers', label: 'Containers using this image', icon: 'deployed_code' }
   ];
+
+  readonly runImageReference = computed(() => this.inspectData()?.RepoTags?.[0] ?? this.imageId());
 
   readonly title = computed(() => {
     const tags = this.inspectData()?.RepoTags;
@@ -102,6 +113,19 @@ export class ImageDetailsPage {
 
   openContainer(containerId: string): void {
     void this.router.navigate(['/containers', containerId], { state: { returnTo: this.router.url } });
+  }
+
+  openRunDialog(): void {
+    this.runDialogOpen.set(true);
+  }
+
+  closeRunDialog(): void {
+    this.runDialogOpen.set(false);
+  }
+
+  onContainerCreated(containerId: string): void {
+    this.runDialogOpen.set(false);
+    this.openContainer(containerId);
   }
 
   formatContainerName(container: DockerContainerInfo): string {

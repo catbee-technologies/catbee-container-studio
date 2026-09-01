@@ -30,6 +30,22 @@ export class DockerVolumeService extends DockerBaseService {
     return this.client.getVolume(volumeName).inspect();
   }
 
+  async getVolumeUsage(name?: string): Promise<Record<string, { Size: number; RefCount: number }>> {
+    const volumeName = name ? this.normalizeId(name, 'Volume name') : null;
+    const diskUsage = (await this.client.df()) as {
+      Volumes?: Array<Docker.VolumeInspectInfo & { UsageData?: { Size: number; RefCount: number } | null }>;
+    };
+    const usageByName: Record<string, { Size: number; RefCount: number }> = {};
+
+    for (const volume of diskUsage.Volumes ?? []) {
+      if (volume.UsageData && (!volumeName || volume.Name === volumeName)) {
+        usageByName[volume.Name] = volume.UsageData;
+      }
+    }
+
+    return usageByName;
+  }
+
   async createVolume(options: Docker.VolumeCreateOptions): Promise<Docker.VolumeCreateResponse> {
     return this.client.createVolume(options);
   }
