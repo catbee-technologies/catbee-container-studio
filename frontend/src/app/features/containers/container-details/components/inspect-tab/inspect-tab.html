@@ -23,9 +23,5 @@
 </div>
 
 <div #inspectScrollArea class="inspect-scroll-panel">
-  <div class="json-block">
-    @for (lineHtml of renderedInspectLinesHtml(); track $index) {
-      <div class="json-line" [innerHTML]="lineHtml"></div>
-    }
-  </div>
+  <pre class="json-block"><code [innerHTML]="renderedInspectHtml()"></code></pre>
 </div>
