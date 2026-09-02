@@ -142,21 +142,15 @@
   </section>
 
   @if (error(); as err) {
-    <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" />
+    <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" size="small" />
   }
 
   <section class="catbee-container-list-layout">
     <div class="catbee-container-list-body catbee-base-panel" aria-label="Container list">
       @if (isLoading()) {
         <catbee-container-studio-empty-state [icon]="'deployed_code'" [message]="'Loading Containers...'" />
-      } @else if (visibleContainers().length === 0) {
-        <catbee-container-studio-empty-state
-          [icon]="'deployed_code'"
-          [message]="'No containers.'"
-          [hint]="'Containers will appear here once you pull and run an image.'"
-        />
       } @else {
-        <table class="catbee-table">
+        <table class="catbee-table" [class.is-empty]="visibleContainers().length === 0">
           <thead>
             <tr>
               <th scope="col" class="col-checkbox">
@@ -220,6 +214,21 @@
             </tr>
           </thead>
           <tbody>
+            @if (visibleContainers().length === 0) {
+              <tr class="table-empty-row">
+                <td colspan="8">
+                  <catbee-container-studio-empty-state
+                    [icon]="'deployed_code'"
+                    [message]="containers().length === 0 ? 'No containers.' : 'No containers match your filters.'"
+                    [hint]="
+                      containers().length === 0
+                        ? 'Containers will appear here once you pull and run an image.'
+                        : 'Try a different search term or turn off the running-only filter.'
+                    "
+                  />
+                </td>
+              </tr>
+            }
             @for (group of groupedContainers(); track group.id) {
               <tr class="group-row" [attr.aria-label]="group.name">
                 <td class="col-checkbox" (click)="$event.stopPropagation()">
