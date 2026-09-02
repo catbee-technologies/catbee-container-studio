@@ -3,12 +3,13 @@ table.catbee-table {
   --table-cell-x: 0.45rem;
 
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   height: fit-content;
 
   th,
   td {
-    border-bottom: 1px solid var(--border-color-primary);
+    border-bottom: 1px solid var(--bg-table-border);
     padding: var(--table-cell-y) var(--table-cell-x);
     vertical-align: top;
   }
@@ -24,7 +25,18 @@ table.catbee-table {
     position: sticky;
     top: 0;
     z-index: 2;
-    background: linear-gradient(160deg, rgb(14 30 45 / 0.98), rgb(9 23 36 / 0.98));
+    background: var(--bg-table-header);
+    border-right: 0;
+
+    &:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 25%;
+      right: 0;
+      width: 1px;
+      height: 50%;
+      background: var(--bg-table-header-border);
+    }
   }
 
   td {
@@ -32,6 +44,7 @@ table.catbee-table {
     line-height: var(--line-height-normal);
     font-weight: 400;
     color: var(--ink-100);
+    background: var(--bg-table-row);
   }
 
   &.sm {
@@ -74,11 +87,15 @@ table.catbee-table {
   }
 
   tbody tr.group-row:hover {
-    background: transparent;
+    td {
+      background: var(--bg-table-row-group);
+    }
   }
 
   tbody tr:hover {
-    background: var(--bg-table-row-hover);
+    td {
+      background: var(--bg-table-row-hover);
+    }
   }
 
   .col-checkbox {
@@ -118,8 +135,8 @@ table.catbee-table {
   tbody tr.table-empty-row {
     cursor: default;
 
-    &:hover {
-      background: transparent;
+    td:hover {
+      background: var(--bg-table-row);
     }
 
     td {
