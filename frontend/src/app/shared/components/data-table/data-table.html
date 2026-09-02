@@ -1,0 +1,158 @@
+<table
+  #tableElement
+  class="catbee-table catbee-data-table"
+  [class.is-empty]="isEmpty()"
+  [class.fixed-layout]="hasFixedLayout()"
+  [style.--data-table-frozen-start]="frozenStartWidth() + 'px'"
+  [attr.aria-label]="ariaLabel()"
+>
+  <colgroup>
+    @for (column of nonFrozenEndColumns(); track column.id) {
+      <col [style.width.px]="columnWidth(column)" />
+    }
+
+    @if (hasFrozenEndColumns()) {
+      <col class="data-table-spacer-col" />
+    }
+
+    @for (column of frozenEndColumns(); track column.id) {
+      <col [style.width.px]="columnWidth(column)" />
+    }
+  </colgroup>
+
+  <thead>
+    <tr>
+      @for (column of visibleColumns(); track column.id) {
+        @if (column.frozen === 'end' && visibleColumns()[$index - 1]?.frozen !== 'end') {
+          <th class="data-table-spacer" aria-hidden="true"></th>
+        }
+        <th
+          scope="col"
+          [attr.data-column-id]="column.id"
+          [class]="column.headerClass ?? ''"
+          [class.is-frozen]="isFrozen(column)"
+          [class.nowrap]="!isWrapped(column)"
+          [style.left.px]="frozenStart(column)"
+          [style.right.px]="frozenEnd(column)"
+          [style.width.px]="columnWidth(column)"
+        >
+          <div class="data-table-header">
+            @if (headerTemplate(column.id); as headerTpl) {
+              <ng-container [ngTemplateOutlet]="headerTpl" />
+            } @else if (column.sortable) {
+              <catbee-container-studio-table-sort-header
+                [label]="column.label"
+                [active]="sortKey() === column.id"
+                [indicator]="sortIndicator(column)"
+                (sort)="sortChange.emit(column.id)"
+              />
+            } @else {
+              <span class="data-table-header-label">{{ column.label }}</span>
+            }
+
+            @if ($last && showColumnPicker()) {
+              <catbee-container-studio-menu
+                class="column-picker"
+                [open]="showColumnMenu()"
+                [style]="{ width: '14rem' }"
+                (dismissed)="closeColumnMenu()"
+              >
+                <button
+                  menuTrigger
+                  type="button"
+                  class="column-picker-btn"
+                  (click)="toggleColumnMenu($event)"
+                  aria-label="Choose visible columns"
+                >
+                  <span class="mat-icon-filled" aria-hidden="true">view_column</span>
+                </button>
+
+                <div menuContent class="column-picker-menu">
+                  @for (pickerColumn of hideableColumns(); track pickerColumn.id) {
+                    <label class="menu-item menu-item-checkbox no-select pointer">
+                      <input
+                        type="checkbox"
+                        [checked]="isColumnVisible(pickerColumn.id)"
+                        (change)="toggleColumn(pickerColumn)"
+                      />
+                      {{ pickerColumn.label }}
+                    </label>
+                  }
+                  <button type="button" class="menu-item" (click)="resetColumns(); closeColumnMenu()">
+                    <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
+                    Reset columns
+                  </button>
+                </div>
+              </catbee-container-studio-menu>
+            }
+          </div>
+
+          @if (column.resizable === true) {
+            <span
+              class="column-resizer"
+              role="separator"
+              tabindex="0"
+              aria-orientation="vertical"
+              [attr.aria-label]="'Resize ' + column.label + ' column'"
+              (pointerdown)="onResizeStart($event, column)"
+              (keydown)="onResizeKeydown($event, column)"
+            ></span>
+          }
+        </th>
+      }
+    </tr>
+  </thead>
+
+  <tbody>
+    @if (isEmpty()) {
+      <tr class="table-empty-row">
+        <td [attr.colspan]="totalColumnCount()">
+          <catbee-container-studio-empty-state
+            [icon]="emptyIcon()"
+            [message]="emptyMessage()"
+            [hint]="emptyHint() ?? ''"
+          />
+        </td>
+      </tr>
+    } @else if (groups(); as groupList) {
+      @for (group of groupList; track group.id) {
+        @if (groupTemplate(); as groupTpl) {
+          <tr class="group-row">
+            <ng-container
+              [ngTemplateOutlet]="groupTpl"
+              [ngTemplateOutletContext]="{ $implicit: group, index: $index, columnCount: totalColumnCount() }"
+            />
+          </tr>
+        }
+        @for (row of group.rows; track trackRow($index, row)) {
+          <ng-container [ngTemplateOutlet]="rowTpl" [ngTemplateOutletContext]="{ $implicit: row, index: $index }" />
+        }
+      }
+    } @else {
+      @for (row of rows(); track trackRow($index, row)) {
+        <ng-container [ngTemplateOutlet]="rowTpl" [ngTemplateOutletContext]="{ $implicit: row, index: $index }" />
+      }
+    }
+  </tbody>
+</table>
+
+<ng-template #rowTpl let-row let-rowIndex="index">
+  <tr [class]="rowClasses(row)" [class.is-clickable]="clickableRows()" (click)="onRowClick($event, row)">
+    @for (column of visibleColumns(); track column.id) {
+      @if (column.frozen === 'end' && visibleColumns()[$index - 1]?.frozen !== 'end') {
+        <td class="data-table-spacer" aria-hidden="true"></td>
+      }
+      <td
+        [class]="column.cellClass ?? ''"
+        [class.is-frozen]="isFrozen(column)"
+        [class.nowrap]="!isWrapped(column)"
+        [style.left.px]="frozenStart(column)"
+        [style.right.px]="frozenEnd(column)"
+      >
+        @if (cellTemplate(column.id); as cellTpl) {
+          <ng-container [ngTemplateOutlet]="cellTpl" [ngTemplateOutletContext]="{ $implicit: row, index: rowIndex }" />
+        }
+      </td>
+    }
+  </tr>
+</ng-template>

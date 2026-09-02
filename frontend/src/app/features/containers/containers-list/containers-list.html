@@ -150,381 +150,244 @@
       @if (isLoading()) {
         <catbee-container-studio-empty-state [icon]="'deployed_code'" [message]="'Loading Containers...'" />
       } @else {
-        <table class="catbee-table" [class.is-empty]="visibleContainers().length === 0">
-          <thead>
-            <tr>
-              <th scope="col" class="col-checkbox">
-                <catbee-container-studio-table-checkbox
-                  [checked]="allVisibleSelected()"
-                  [indeterminate]="partiallyVisibleSelected()"
-                  [ariaLabel]="'Select all visible containers'"
-                  (checkedChange)="toggleSelectAllVisible()"
-                />
-              </th>
-              <th scope="col" class="col-sortable">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Name'"
-                  [active]="isSortActive('name')"
-                  [indicator]="sortIndicator('name')"
-                  (sort)="toggleSort('name')"
-                />
-              </th>
-              @if (isColumnVisible('image')) {
-                <th scope="col" class="col-sortable">
-                  <catbee-container-studio-table-sort-header
-                    [label]="'Image'"
-                    [active]="isSortActive('image')"
-                    [indicator]="sortIndicator('image')"
-                    (sort)="toggleSort('image')"
-                  />
-                </th>
-              }
-              @if (isColumnVisible('ports')) {
-                <th scope="col" class="col-sortable">
-                  <catbee-container-studio-table-sort-header
-                    [label]="'Ports'"
-                    [active]="isSortActive('ports')"
-                    [indicator]="sortIndicator('ports')"
-                    (sort)="toggleSort('ports')"
-                  />
-                </th>
-              }
-              @if (isColumnVisible('state')) {
-                <th scope="col" class="col-sortable">
-                  <catbee-container-studio-table-sort-header
-                    [label]="'State'"
-                    [active]="isSortActive('state')"
-                    [indicator]="sortIndicator('state')"
-                    (sort)="toggleSort('state')"
-                  />
-                </th>
-              }
-              @if (isColumnVisible('cpu')) {
-                <th scope="col" class="col-sortable">
-                  <catbee-container-studio-table-sort-header
-                    [label]="'CPU'"
-                    [active]="isSortActive('cpu')"
-                    [indicator]="sortIndicator('cpu')"
-                    (sort)="toggleSort('cpu')"
-                  />
-                </th>
-              }
-              @if (isColumnVisible('memory')) {
-                <th scope="col" class="col-sortable">
-                  <catbee-container-studio-table-sort-header
-                    [label]="'Memory'"
-                    [active]="isSortActive('memory')"
-                    [indicator]="sortIndicator('memory')"
-                    (sort)="toggleSort('memory')"
-                  />
-                </th>
-              }
-              @if (isColumnVisible('disk')) {
-                <th scope="col" class="col-sortable">
-                  <catbee-container-studio-table-sort-header
-                    [label]="'Disk R/W'"
-                    [active]="isSortActive('disk')"
-                    [indicator]="sortIndicator('disk')"
-                    (sort)="toggleSort('disk')"
-                  />
-                </th>
-              }
-              @if (isColumnVisible('network')) {
-                <th scope="col" class="col-sortable">
-                  <catbee-container-studio-table-sort-header
-                    [label]="'Network I/O'"
-                    [active]="isSortActive('network')"
-                    [indicator]="sortIndicator('network')"
-                    (sort)="toggleSort('network')"
-                  />
-                </th>
-              }
-              @if (isColumnVisible('pids')) {
-                <th scope="col" class="col-sortable">
-                  <catbee-container-studio-table-sort-header
-                    [label]="'PIDs'"
-                    [active]="isSortActive('pids')"
-                    [indicator]="sortIndicator('pids')"
-                    (sort)="toggleSort('pids')"
-                  />
-                </th>
-              }
-              <th scope="col" class="col-actions">
-                <div class="actions-header">
-                  <span>Actions</span>
-                  <catbee-container-studio-menu
-                    [open]="showColumnMenu()"
-                    [style]="{ width: '12rem' }"
-                    (dismissed)="closeColumnMenu()"
-                  >
-                    <button
-                      menuTrigger
-                      type="button"
-                      class="catbee-action-btn icon-only menu-trigger"
-                      (click)="toggleColumnMenu($event)"
-                      aria-label="Columns"
-                      [catbeeTooltip]="'Columns'"
-                      [catbeeTooltipDelay]="tooltipDelay"
-                      [catbeeTooltipPosition]="'top'"
-                    >
-                      <span class="mat-icon-filled" aria-hidden="true">view_column</span>
-                    </button>
+        <catbee-container-studio-data-table
+          [columns]="columns"
+          [groups]="groupedContainers()"
+          [rowKey]="containerKey"
+          [storageKey]="'containers'"
+          ariaLabel="Container list"
+          [clickableRows]="true"
+          [wrapCells]="true"
+          [sortKey]="sortKey()"
+          [sortDirection]="sortDirection()"
+          (sortChange)="onSortChange($event)"
+          (rowClick)="openContainer($event.Id)"
+          [emptyIcon]="'deployed_code'"
+          [emptyMessage]="containers().length === 0 ? 'No containers.' : 'No containers match your filters.'"
+          [emptyHint]="
+            containers().length === 0
+              ? 'Containers will appear here once you pull and run an image.'
+              : 'Try a different search term or turn off the running-only filter.'
+          "
+        >
+          <ng-template catbeeHeaderDef="checkbox">
+            <catbee-container-studio-table-checkbox
+              [checked]="allVisibleSelected()"
+              [indeterminate]="partiallyVisibleSelected()"
+              [ariaLabel]="'Select all visible containers'"
+              (checkedChange)="toggleSelectAllVisible()"
+            />
+          </ng-template>
 
-                    <div menuContent>
-                      @for (column of columnOptions; track column.key) {
-                        <label class="menu-item menu-item-checkbox no-select pointer">
-                          <input
-                            type="checkbox"
-                            [checked]="isColumnVisible(column.key)"
-                            (change)="toggleColumn(column.key)"
-                          />
-                          {{ column.label }}
-                        </label>
-                      }
-                    </div>
-                  </catbee-container-studio-menu>
-                </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            @if (visibleContainers().length === 0) {
-              <tr class="table-empty-row">
-                <td [attr.colspan]="visibleColumns().size + 2">
-                  <catbee-container-studio-empty-state
-                    [icon]="'deployed_code'"
-                    [message]="containers().length === 0 ? 'No containers.' : 'No containers match your filters.'"
-                    [hint]="
-                      containers().length === 0
-                        ? 'Containers will appear here once you pull and run an image.'
-                        : 'Try a different search term or turn off the running-only filter.'
-                    "
-                  />
-                </td>
-              </tr>
-            }
-            @for (group of groupedContainers(); track group.id) {
-              <tr class="group-row" [attr.aria-label]="group.name">
-                <td class="col-checkbox" (click)="$event.stopPropagation()">
-                  <catbee-container-studio-table-checkbox
-                    [checked]="isGroupSelected(group)"
-                    [indeterminate]="isGroupPartiallySelected(group)"
-                    [ariaLabel]="'Select group'"
-                    (checkedChange)="toggleGroupSelection(group)"
-                  />
-                </td>
-                <td [attr.colspan]="visibleColumns().size">
-                  <button type="button" class="group-toggle" (click)="toggleGroupCollapse(group.id)">
-                    <span class="mat-icon-filled" aria-hidden="true">
-                      {{ isGroupCollapsed(group.id) ? 'chevron_right' : 'expand_more' }}
-                    </span>
-                    @if (group.folder) {
-                      <span class="mat-icon-filled" aria-hidden="true">folder</span>
-                    }
-                    <span>{{ group.name }}</span>
-                  </button>
-                </td>
-                <td class="col-actions group-count">{{ group.containers.length }} containers</td>
-              </tr>
-
-              @if (!isGroupCollapsed(group.id)) {
-                @for (container of group.containers; track trackByContainerId($index, container)) {
-                  <tr (click)="openContainer(container.Id)">
-                    <td class="col-checkbox" (click)="$event.stopPropagation()">
-                      <catbee-container-studio-table-checkbox
-                        [checked]="isContainerSelected(container.Id)"
-                        [ariaLabel]="'Select container'"
-                        (checkedChange)="toggleContainerSelection(container.Id)"
-                      />
-                    </td>
-                    <td>
-                      <button type="button" class="link-btn" (click)="openContainer(container.Id)">
-                        {{ formatNames(container.Names) }}
-                      </button>
-                      <p class="unique-id">
-                        {{ container.Id.slice(0, 12) }}
-                        <catbee-container-studio-copy-button
-                          [text]="container.Id"
-                          size="small"
-                          (click)="$event.stopPropagation()"
-                        />
-                      </p>
-                    </td>
-                    @if (isColumnVisible('image')) {
-                      <td>
-                        <button
-                          type="button"
-                          class="link-btn"
-                          (click)="openImageDetails(container.ImageID!); $event.stopPropagation()"
-                        >
-                          {{ container.Image }}
-                        </button>
-                      </td>
-                    }
-                    @if (isColumnVisible('ports')) {
-                      <td class="col-ports">
-                        <catbee-container-studio-port-list
-                          [ports]="container.Ports"
-                          [containerState]="container.State"
-                        />
-                      </td>
-                    }
-                    @if (isColumnVisible('state')) {
-                      <td>
-                        <span
-                          class="container-status"
-                          [class.running]="container.State === 'running'"
-                          [class.stopped]="container.State !== 'running'"
-                        >
-                          {{ container.State }}
-                        </span>
-                        <p class="status-detail">{{ container.Status }}</p>
-                      </td>
-                    }
-                    @if (isColumnVisible('cpu')) {
-                      <td class="col-cpu">
-                        @if (containerRuntimeStats().get(container.Id); as stats) {
-                          {{ stats.cpuPercent === 0 ? '0' : stats.cpuPercent.toFixed(2) }}%
-                        } @else {
-                          --
-                        }
-                      </td>
-                    }
-                    @if (isColumnVisible('memory')) {
-                      <td class="col-memory">
-                        @if (containerRuntimeStats().get(container.Id); as stats) {
-                          {{ formatDockerBytes(stats.memoryUsage) }} /
-                          {{ formatDockerBytes(stats.memoryLimit) }}
-                        } @else {
-                          --
-                        }
-                      </td>
-                    }
-                    @if (isColumnVisible('disk')) {
-                      <td class="col-disk">
-                        @if (containerRuntimeStats().get(container.Id); as stats) {
-                          {{ formatDockerBytes(stats.diskReadBytesPerSecond) }}/s /
-                          {{ formatDockerBytes(stats.diskWriteBytesPerSecond) }}/s
-                        } @else {
-                          --
-                        }
-                      </td>
-                    }
-                    @if (isColumnVisible('network')) {
-                      <td class="col-network">
-                        @if (containerRuntimeStats().get(container.Id); as stats) {
-                          {{ formatIoRate(stats.networkRxBytesPerSecond) }} /
-                          {{ formatIoRate(stats.networkTxBytesPerSecond) }}
-                        } @else {
-                          --
-                        }
-                      </td>
-                    }
-                    @if (isColumnVisible('pids')) {
-                      <td class="col-pids">
-                        @if (containerRuntimeStats().get(container.Id); as stats) {
-                          {{ stats.pids }}
-                        } @else {
-                          --
-                        }
-                      </td>
-                    }
-                    <td class="col-actions">
-                      <div class="action-group">
-                        <button
-                          type="button"
-                          class="catbee-action-btn icon-only action-start"
-                          (click)="startContainer(container.Id); $event.stopPropagation()"
-                          [disabled]="activeActionContainerId() === container.Id || container.State === 'running'"
-                          aria-label="Start container"
-                          [catbeeTooltip]="'Start'"
-                          [catbeeTooltipDelay]="tooltipDelay"
-                          [catbeeTooltipPosition]="'top'"
-                        >
-                          <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
-                        </button>
-                        <button
-                          type="button"
-                          class="catbee-action-btn icon-only action-stop"
-                          (click)="stopContainer(container.Id); $event.stopPropagation()"
-                          [disabled]="activeActionContainerId() === container.Id || container.State !== 'running'"
-                          aria-label="Stop container"
-                          [catbeeTooltip]="'Stop'"
-                          [catbeeTooltipDelay]="tooltipDelay"
-                          [catbeeTooltipPosition]="'top'"
-                        >
-                          <span class="mat-icon-filled" aria-hidden="true">stop</span>
-                        </button>
-                        <button
-                          type="button"
-                          class="catbee-action-btn danger icon-only"
-                          (click)="requestDeleteContainer(container.Id); $event.stopPropagation()"
-                          [disabled]="activeActionContainerId() === container.Id"
-                          aria-label="Delete container"
-                          [catbeeTooltip]="'Delete'"
-                          [catbeeTooltipDelay]="tooltipDelay"
-                          [catbeeTooltipPosition]="'top'"
-                        >
-                          <span class="mat-icon-filled" aria-hidden="true">delete</span>
-                        </button>
-
-                        <catbee-container-studio-menu
-                          [open]="openContainerActionsMenuId() === container.Id"
-                          [style]="{ width: '12rem' }"
-                          (dismissed)="closeContainerActionsMenu()"
-                        >
-                          <button
-                            type="button"
-                            class="catbee-action-btn icon-only menu-trigger"
-                            menuTrigger
-                            (click)="toggleContainerActionsMenu($event, container.Id)"
-                            [disabled]="activeActionContainerId() === container.Id"
-                            aria-label="More actions"
-                            [catbeeTooltip]="'More actions'"
-                            [catbeeTooltipDelay]="tooltipDelay"
-                            [catbeeTooltipPosition]="'left'"
-                          >
-                            <span class="mat-icon-filled" aria-hidden="true">more_vert</span>
-                          </button>
-
-                          <div menuContent>
-                            <button
-                              type="button"
-                              class="menu-item"
-                              (click)="pauseContainer(container.Id); closeContainerActionsMenu()"
-                              [disabled]="activeActionContainerId() === container.Id || container.State !== 'running'"
-                            >
-                              <span class="mat-icon-filled" aria-hidden="true">pause</span>
-                              Pause
-                            </button>
-                            <button
-                              type="button"
-                              class="menu-item"
-                              (click)="unpauseContainer(container.Id); closeContainerActionsMenu()"
-                              [disabled]="activeActionContainerId() === container.Id || container.State !== 'paused'"
-                            >
-                              <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
-                              Unpause
-                            </button>
-                            <button
-                              type="button"
-                              class="menu-item"
-                              (click)="restartContainer(container.Id); closeContainerActionsMenu()"
-                              [disabled]="activeActionContainerId() === container.Id"
-                            >
-                              <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
-                              Restart
-                            </button>
-                          </div>
-                        </catbee-container-studio-menu>
-                      </div>
-                    </td>
-                  </tr>
+          <ng-template
+            catbeeGroupDef
+            [catbeeGroupDefGroups]="groupedContainers()"
+            let-group
+            let-columnCount="columnCount"
+          >
+            <td class="col-checkbox">
+              <catbee-container-studio-table-checkbox
+                [checked]="isGroupSelected(group)"
+                [indeterminate]="isGroupPartiallySelected(group)"
+                [ariaLabel]="'Select group'"
+                (checkedChange)="toggleGroupSelection(group)"
+              />
+            </td>
+            <td [attr.colspan]="columnCount - 2">
+              <button type="button" class="group-toggle" (click)="toggleGroupCollapse(group.id)">
+                <span class="mat-icon-filled" aria-hidden="true">
+                  {{ isGroupCollapsed(group.id) ? 'chevron_right' : 'expand_more' }}
+                </span>
+                @if (group.folder) {
+                  <span class="mat-icon-filled" aria-hidden="true">folder</span>
                 }
-              }
+                <span>{{ group.name }}</span>
+              </button>
+            </td>
+            <td class="col-actions group-count">{{ group.count }} containers</td>
+          </ng-template>
+
+          <ng-template catbeeColumnDef="checkbox" [catbeeColumnDefRows]="visibleContainers()" let-container>
+            <catbee-container-studio-table-checkbox
+              [checked]="isContainerSelected(container.Id)"
+              [ariaLabel]="'Select container'"
+              (checkedChange)="toggleContainerSelection(container.Id)"
+            />
+          </ng-template>
+
+          <ng-template catbeeColumnDef="name" [catbeeColumnDefRows]="visibleContainers()" let-container>
+            <button type="button" class="link-btn" (click)="openContainer(container.Id)">
+              {{ formatNames(container.Names) }}
+            </button>
+            <p class="unique-id">
+              {{ container.Id.slice(0, 12) }}
+              <catbee-container-studio-copy-button
+                [text]="container.Id"
+                size="small"
+                (click)="$event.stopPropagation()"
+              />
+            </p>
+          </ng-template>
+
+          <ng-template catbeeColumnDef="image" [catbeeColumnDefRows]="visibleContainers()" let-container>
+            <button
+              type="button"
+              class="link-btn"
+              (click)="openImageDetails(container.ImageID!); $event.stopPropagation()"
+            >
+              {{ container.Image }}
+            </button>
+          </ng-template>
+
+          <ng-template catbeeColumnDef="ports" [catbeeColumnDefRows]="visibleContainers()" let-container>
+            <catbee-container-studio-port-list [ports]="container.Ports" [containerState]="container.State" />
+          </ng-template>
+
+          <ng-template catbeeColumnDef="state" [catbeeColumnDefRows]="visibleContainers()" let-container>
+            <span
+              class="container-status"
+              [class.running]="container.State === 'running'"
+              [class.stopped]="container.State !== 'running'"
+            >
+              {{ container.State }}
+            </span>
+            <p class="status-detail">{{ container.Status }}</p>
+          </ng-template>
+
+          <ng-template catbeeColumnDef="cpu" [catbeeColumnDefRows]="visibleContainers()" let-container>
+            @if (containerRuntimeStats().get(container.Id); as stats) {
+              {{ stats.cpuPercent.toFixed(2) }}%
+            } @else {
+              --
             }
-          </tbody>
-        </table>
+          </ng-template>
+
+          <ng-template catbeeColumnDef="memory" [catbeeColumnDefRows]="visibleContainers()" let-container>
+            @if (containerRuntimeStats().get(container.Id); as stats) {
+              {{ formatDockerBytes(stats.memoryUsage) }} /
+              {{ formatDockerBytes(stats.memoryLimit) }}
+            } @else {
+              --
+            }
+          </ng-template>
+
+          <ng-template catbeeColumnDef="disk" [catbeeColumnDefRows]="visibleContainers()" let-container>
+            @if (containerRuntimeStats().get(container.Id); as stats) {
+              {{ formatDockerBytes(stats.diskReadBytesPerSecond) }} /
+              {{ formatDockerBytes(stats.diskWriteBytesPerSecond) }}
+            } @else {
+              --
+            }
+          </ng-template>
+
+          <ng-template catbeeColumnDef="network" [catbeeColumnDefRows]="visibleContainers()" let-container>
+            @if (containerRuntimeStats().get(container.Id); as stats) {
+              {{ formatIoRate(stats.networkRxBytesPerSecond) }} /
+              {{ formatIoRate(stats.networkTxBytesPerSecond) }}
+            } @else {
+              --
+            }
+          </ng-template>
+
+          <ng-template catbeeColumnDef="pids" [catbeeColumnDefRows]="visibleContainers()" let-container>
+            @if (containerRuntimeStats().get(container.Id); as stats) {
+              {{ stats.pids }}
+            } @else {
+              --
+            }
+          </ng-template>
+
+          <ng-template catbeeColumnDef="actions" [catbeeColumnDefRows]="visibleContainers()" let-container>
+            <div class="action-group">
+              <button
+                type="button"
+                class="catbee-action-btn icon-only action-start"
+                (click)="startContainer(container.Id); $event.stopPropagation()"
+                [disabled]="activeActionContainerId() === container.Id || container.State === 'running'"
+                aria-label="Start container"
+                [catbeeTooltip]="'Start'"
+                [catbeeTooltipDelay]="tooltipDelay"
+                [catbeeTooltipPosition]="'top'"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+              </button>
+              <button
+                type="button"
+                class="catbee-action-btn icon-only action-stop"
+                (click)="stopContainer(container.Id); $event.stopPropagation()"
+                [disabled]="activeActionContainerId() === container.Id || container.State !== 'running'"
+                aria-label="Stop container"
+                [catbeeTooltip]="'Stop'"
+                [catbeeTooltipDelay]="tooltipDelay"
+                [catbeeTooltipPosition]="'top'"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">stop</span>
+              </button>
+              <button
+                type="button"
+                class="catbee-action-btn danger icon-only"
+                (click)="requestDeleteContainer(container.Id); $event.stopPropagation()"
+                [disabled]="activeActionContainerId() === container.Id"
+                aria-label="Delete container"
+                [catbeeTooltip]="'Delete'"
+                [catbeeTooltipDelay]="tooltipDelay"
+                [catbeeTooltipPosition]="'top'"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">delete</span>
+              </button>
+
+              <catbee-container-studio-menu
+                [open]="openContainerActionsMenuId() === container.Id"
+                [style]="{ width: '12rem' }"
+                (dismissed)="closeContainerActionsMenu()"
+              >
+                <button
+                  type="button"
+                  class="catbee-action-btn icon-only menu-trigger"
+                  menuTrigger
+                  (click)="toggleContainerActionsMenu($event, container.Id)"
+                  [disabled]="activeActionContainerId() === container.Id"
+                  aria-label="More actions"
+                  [catbeeTooltip]="'More actions'"
+                  [catbeeTooltipDelay]="tooltipDelay"
+                  [catbeeTooltipPosition]="'left'"
+                >
+                  <span class="mat-icon-filled" aria-hidden="true">more_vert</span>
+                </button>
+
+                <div menuContent>
+                  <button
+                    type="button"
+                    class="menu-item"
+                    (click)="pauseContainer(container.Id); closeContainerActionsMenu()"
+                    [disabled]="activeActionContainerId() === container.Id || container.State !== 'running'"
+                  >
+                    <span class="mat-icon-filled" aria-hidden="true">pause</span>
+                    Pause
+                  </button>
+                  <button
+                    type="button"
+                    class="menu-item"
+                    (click)="unpauseContainer(container.Id); closeContainerActionsMenu()"
+                    [disabled]="activeActionContainerId() === container.Id || container.State !== 'paused'"
+                  >
+                    <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
+                    Unpause
+                  </button>
+                  <button
+                    type="button"
+                    class="menu-item"
+                    (click)="restartContainer(container.Id); closeContainerActionsMenu()"
+                    [disabled]="activeActionContainerId() === container.Id"
+                  >
+                    <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
+                    Restart
+                  </button>
+                </div>
+              </catbee-container-studio-menu>
+            </div>
+          </ng-template>
+        </catbee-container-studio-data-table>
       }
     </div>
   </section>

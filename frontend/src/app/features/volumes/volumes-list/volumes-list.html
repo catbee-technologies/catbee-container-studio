@@ -66,121 +66,79 @@
       @if (isLoading()) {
         <catbee-container-studio-empty-state [icon]="'database'" [message]="'Loading Volumes...'" />
       } @else {
-        <table class="catbee-table" aria-label="Volumes table" [class.is-empty]="sortedVolumes().length === 0">
-          <thead>
-            <tr>
-              <th scope="col" class="col-checkbox">
-                <catbee-container-studio-table-checkbox
-                  [checked]="allVisibleSelected()"
-                  [indeterminate]="partiallyVisibleSelected()"
-                  [ariaLabel]="'Select all visible volumes'"
-                  (checkedChange)="toggleSelectAllVisible()"
-                />
-              </th>
-              <th scope="col" class="col-used">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Used'"
-                  [active]="isSortActive('used')"
-                  [indicator]="sortIndicator('used')"
-                  (sort)="toggleSort('used')"
-                />
-              </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Name'"
-                  [active]="isSortActive('name')"
-                  [indicator]="sortIndicator('name')"
-                  (sort)="toggleSort('name')"
-                />
-              </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Driver'"
-                  [active]="isSortActive('driver')"
-                  [indicator]="sortIndicator('driver')"
-                  (sort)="toggleSort('driver')"
-                />
-              </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Size'"
-                  [active]="isSortActive('size')"
-                  [indicator]="sortIndicator('size')"
-                  (sort)="toggleSort('size')"
-                />
-              </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Created'"
-                  [active]="isSortActive('created')"
-                  [indicator]="sortIndicator('created')"
-                  (sort)="toggleSort('created')"
-                />
-              </th>
-              <th scope="col" class="col-actions">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @if (sortedVolumes().length === 0) {
-              <tr class="table-empty-row">
-                <td colspan="7">
-                  <catbee-container-studio-empty-state
-                    [icon]="'database'"
-                    [message]="volumes().length === 0 ? 'No volumes found.' : 'No volumes match your search.'"
-                    [hint]="
-                      volumes().length === 0
-                        ? 'Volumes will appear here once they are created.'
-                        : 'Try a different search term or filter.'
-                    "
-                  />
-                </td>
-              </tr>
-            }
-            @for (volume of sortedVolumes(); track volume.Name) {
-              <tr (click)="openVolumeDetails(volume.Name)">
-                <td class="col-checkbox" (click)="$event.stopPropagation()">
-                  <catbee-container-studio-table-checkbox
-                    [checked]="selectedVolumeNames().has(volume.Name)"
-                    [ariaLabel]="'Select volume'"
-                    (checkedChange)="toggleVolumeSelection(volume.Name)"
-                  />
-                </td>
-                <td class="col-used">
-                  <span
-                    class="usage-dot"
-                    [class.used]="isUsed(volume.Name)"
-                    [class.unused]="!isUsed(volume.Name)"
-                  ></span>
-                </td>
-                <td>
-                  <button type="button" class="link-btn" (click)="openVolumeDetails(volume.Name)">
-                    {{ volume.Name }}
-                  </button>
-                </td>
-                <td>
-                  <span class="badge small driver-badge">{{ volume.Driver }}</span>
-                </td>
-                <td>{{ formatSize(volume.UsageData?.Size ?? 0) }}</td>
-                <td>
-                  <catbee-container-studio-tooltip-date [date]="volume.CreatedAt" />
-                </td>
-                <td class="col-actions" (click)="$event.stopPropagation()">
-                  <button
-                    type="button"
-                    class="catbee-action-btn icon-only danger"
-                    (click)="requestDeleteSingle(volume.Name)"
-                    aria-label="Delete volume"
-                    [catbeeTooltip]="'Delete'"
-                    [catbeeTooltipPosition]="'left'"
-                    [catbeeTooltipDelay]="tooltipDelay"
-                  >
-                    <span class="mat-icon-filled" aria-hidden="true">delete</span>
-                  </button>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+        <catbee-container-studio-data-table
+          [columns]="columns"
+          [rows]="sortedVolumes()"
+          [rowKey]="volumeKey"
+          [storageKey]="'volumes'"
+          ariaLabel="Volumes table"
+          [clickableRows]="true"
+          [wrapCells]="false"
+          [sortKey]="sortKey()"
+          [sortDirection]="sortDirection()"
+          (sortChange)="onSortChange($event)"
+          (rowClick)="openVolumeDetails($event.Name)"
+          [emptyIcon]="'database'"
+          [emptyMessage]="volumes().length === 0 ? 'No volumes found.' : 'No volumes match your search.'"
+          [emptyHint]="
+            volumes().length === 0
+              ? 'Volumes will appear here once they are created.'
+              : 'Try a different search term or filter.'
+          "
+        >
+          <ng-template catbeeHeaderDef="checkbox">
+            <catbee-container-studio-table-checkbox
+              [checked]="allVisibleSelected()"
+              [indeterminate]="partiallyVisibleSelected()"
+              [ariaLabel]="'Select all visible volumes'"
+              (checkedChange)="toggleSelectAllVisible()"
+            />
+          </ng-template>
+
+          <ng-template catbeeColumnDef="checkbox" [catbeeColumnDefRows]="sortedVolumes()" let-volume>
+            <catbee-container-studio-table-checkbox
+              [checked]="selectedVolumeNames().has(volume.Name)"
+              [ariaLabel]="'Select volume'"
+              (checkedChange)="toggleVolumeSelection(volume.Name)"
+            />
+          </ng-template>
+
+          <ng-template catbeeColumnDef="used" [catbeeColumnDefRows]="sortedVolumes()" let-volume>
+            <span class="usage-dot" [class.used]="isUsed(volume.Name)" [class.unused]="!isUsed(volume.Name)"></span>
+          </ng-template>
+
+          <ng-template catbeeColumnDef="name" [catbeeColumnDefRows]="sortedVolumes()" let-volume>
+            <button type="button" class="link-btn" (click)="openVolumeDetails(volume.Name)">
+              {{ volume.Name }}
+            </button>
+          </ng-template>
+
+          <ng-template catbeeColumnDef="driver" [catbeeColumnDefRows]="sortedVolumes()" let-volume>
+            <span class="badge small driver-badge">{{ volume.Driver }}</span>
+          </ng-template>
+
+          <ng-template catbeeColumnDef="size" [catbeeColumnDefRows]="sortedVolumes()" let-volume>
+            {{ formatSize(volume.UsageData?.Size ?? 0) }}
+          </ng-template>
+
+          <ng-template catbeeColumnDef="created" [catbeeColumnDefRows]="sortedVolumes()" let-volume>
+            <catbee-container-studio-tooltip-date [date]="volume.CreatedAt" />
+          </ng-template>
+
+          <ng-template catbeeColumnDef="actions" [catbeeColumnDefRows]="sortedVolumes()" let-volume>
+            <button
+              type="button"
+              class="catbee-action-btn icon-only danger"
+              (click)="requestDeleteSingle(volume.Name)"
+              aria-label="Delete volume"
+              [catbeeTooltip]="'Delete'"
+              [catbeeTooltipPosition]="'left'"
+              [catbeeTooltipDelay]="tooltipDelay"
+            >
+              <span class="mat-icon-filled" aria-hidden="true">delete</span>
+            </button>
+          </ng-template>
+        </catbee-container-studio-data-table>
       }
     </div>
   </div>

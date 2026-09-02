@@ -77,157 +77,115 @@
       @if (isLoading()) {
         <catbee-container-studio-empty-state [icon]="'image'" [message]="'Loading Images...'" />
       } @else {
-        <table class="catbee-table" aria-label="Images table" [class.is-empty]="sortedImages().length === 0">
-          <thead>
-            <tr>
-              <th scope="col" class="col-checkbox">
-                <catbee-container-studio-table-checkbox
-                  [checked]="allVisibleSelected()"
-                  [indeterminate]="partiallyVisibleSelected()"
-                  [ariaLabel]="'Select all visible images'"
-                  (checkedChange)="toggleSelectAllVisible()"
-                />
-              </th>
-              <th scope="col" class="col-used">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Used'"
-                  [active]="isSortActive('used')"
-                  [indicator]="sortIndicator('used')"
-                  (sort)="toggleSort('used')"
-                />
-              </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Repository'"
-                  [active]="isSortActive('repository')"
-                  [indicator]="sortIndicator('repository')"
-                  (sort)="toggleSort('repository')"
-                />
-              </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Tag'"
-                  [active]="isSortActive('tag')"
-                  [indicator]="sortIndicator('tag')"
-                  (sort)="toggleSort('tag')"
-                />
-              </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'ID'"
-                  [active]="isSortActive('id')"
-                  [indicator]="sortIndicator('id')"
-                  (sort)="toggleSort('id')"
-                />
-              </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Size'"
-                  [active]="isSortActive('size')"
-                  [indicator]="sortIndicator('size')"
-                  (sort)="toggleSort('size')"
-                />
-              </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Created'"
-                  [active]="isSortActive('created')"
-                  [indicator]="sortIndicator('created')"
-                  (sort)="toggleSort('created')"
-                />
-              </th>
-              <th scope="col" class="col-actions">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            @if (sortedImages().length === 0) {
-              <tr class="table-empty-row">
-                <td colspan="8">
-                  <catbee-container-studio-empty-state
-                    [icon]="'image'"
-                    [message]="images().length === 0 ? 'No images found.' : 'No images match your search.'"
-                    [hint]="
-                      images().length === 0
-                        ? 'Images will appear here once you pull or build one.'
-                        : 'Try a different search term or filter.'
-                    "
-                  />
-                </td>
-              </tr>
+        <catbee-container-studio-data-table
+          [columns]="columns"
+          [rows]="sortedImages()"
+          [rowKey]="imageKey"
+          [rowClass]="imageRowClass"
+          [storageKey]="'images'"
+          ariaLabel="Images table"
+          [clickableRows]="true"
+          [wrapCells]="false"
+          [sortKey]="sortKey()"
+          [sortDirection]="sortDirection()"
+          (sortChange)="onSortChange($event)"
+          (rowClick)="openImageDetails($event.Id)"
+          [emptyIcon]="'image'"
+          [emptyMessage]="images().length === 0 ? 'No images found.' : 'No images match your search.'"
+          [emptyHint]="
+            images().length === 0
+              ? 'Images will appear here once you pull or build one.'
+              : 'Try a different search term or filter.'
+          "
+        >
+          <ng-template catbeeHeaderDef="checkbox">
+            <catbee-container-studio-table-checkbox
+              [checked]="allVisibleSelected()"
+              [indeterminate]="partiallyVisibleSelected()"
+              [ariaLabel]="'Select all visible images'"
+              (checkedChange)="toggleSelectAllVisible()"
+            />
+          </ng-template>
+
+          <ng-template catbeeColumnDef="checkbox" [catbeeColumnDefRows]="sortedImages()" let-image>
+            <catbee-container-studio-table-checkbox
+              [checked]="selectedImageIds().has(image.Id)"
+              [ariaLabel]="'Select image'"
+              (checkedChange)="toggleImageSelection(image.Id)"
+            />
+          </ng-template>
+
+          <ng-template catbeeColumnDef="used" [catbeeColumnDefRows]="sortedImages()" let-image>
+            <span class="usage-dot" [class.used]="isUsed(image)" [class.unused]="!isUsed(image)"></span>
+          </ng-template>
+
+          <ng-template catbeeColumnDef="repository" [catbeeColumnDefRows]="sortedImages()" let-image>
+            <button type="button" class="link-btn" (click)="openImageDetails(image.Id)">
+              {{ repositoryAndTag(image)[0] }}
+              @if (isDangling(image)) {
+                <span class="badge dangling small">dangling</span>
+              }
+            </button>
+            <p class="unique-id">
+              {{ shortId(image) }}
+              <catbee-container-studio-copy-button
+                [text]="image.Id.replace('sha256:', '')"
+                size="small"
+                (click)="$event.stopPropagation()"
+              />
+            </p>
+          </ng-template>
+
+          <ng-template catbeeColumnDef="tag" [catbeeColumnDefRows]="sortedImages()" let-image>
+            {{ repositoryAndTag(image)[1] }}
+            @if ((image.RepoTags?.length ?? 0) > 1) {
+              <div class="tags-wrap">
+                @for (tag of image.RepoTags?.slice(1) ?? []; track tag) {
+                  <span class="tag-extra">{{ tag }}</span>
+                }
+              </div>
             }
-            @for (image of sortedImages(); track image.Id) {
-              <tr [class.is-dangling]="isDangling(image)" (click)="openImageDetails(image.Id)">
-                <td class="col-checkbox" (click)="$event.stopPropagation()">
-                  <catbee-container-studio-table-checkbox
-                    [checked]="selectedImageIds().has(image.Id)"
-                    [ariaLabel]="'Select image'"
-                    (checkedChange)="toggleImageSelection(image.Id)"
-                  />
-                </td>
-                <td class="col-used">
-                  <span class="usage-dot" [class.used]="isUsed(image)" [class.unused]="!isUsed(image)"></span>
-                </td>
-                <td>
-                  <button type="button" class="link-btn" (click)="openImageDetails(image.Id)">
-                    {{ repositoryAndTag(image)[0] }}
-                    @if (isDangling(image)) {
-                      <span class="badge dangling small">dangling</span>
-                    }
-                  </button>
-                  <p class="unique-id">
-                    {{ shortId(image) }}
-                    <catbee-container-studio-copy-button
-                      [text]="image.Id.replace('sha256:', '')"
-                      size="small"
-                      (click)="$event.stopPropagation()"
-                    />
-                  </p>
-                </td>
-                <td>
-                  {{ repositoryAndTag(image)[1] }}
-                  @if ((image.RepoTags?.length ?? 0) > 1) {
-                    <div class="tags-wrap">
-                      @for (tag of image.RepoTags?.slice(1) ?? []; track tag) {
-                        <span class="tag-extra">{{ tag }}</span>
-                      }
-                    </div>
-                  }
-                </td>
-                <td>{{ shortId(image) }}</td>
-                <td>{{ formatSize(image.Size) }}</td>
-                <td>
-                  <catbee-container-studio-tooltip-date [date]="formatCreated(image.Created)" />
-                </td>
-                <td class="col-actions" (click)="$event.stopPropagation()">
-                  <div>
-                    <button
-                      type="button"
-                      class="catbee-action-btn icon-only"
-                      (click)="openRunDialog(image)"
-                      aria-label="Run container from this image"
-                      [catbeeTooltip]="'Run'"
-                      [catbeeTooltipDelay]="tooltipDelay"
-                      [catbeeTooltipPosition]="'left'"
-                    >
-                      <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
-                    </button>
-                    <button
-                      type="button"
-                      class="catbee-action-btn icon-only danger"
-                      (click)="requestDeleteSingle(image.Id)"
-                      aria-label="Delete image"
-                      [catbeeTooltip]="'Delete'"
-                      [catbeeTooltipDelay]="tooltipDelay"
-                      [catbeeTooltipPosition]="'left'"
-                    >
-                      <span class="mat-icon-filled" aria-hidden="true">delete</span>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+          </ng-template>
+
+          <ng-template catbeeColumnDef="id" [catbeeColumnDefRows]="sortedImages()" let-image>
+            {{ shortId(image) }}
+          </ng-template>
+
+          <ng-template catbeeColumnDef="size" [catbeeColumnDefRows]="sortedImages()" let-image>
+            {{ formatSize(image.Size) }}
+          </ng-template>
+
+          <ng-template catbeeColumnDef="created" [catbeeColumnDefRows]="sortedImages()" let-image>
+            <catbee-container-studio-tooltip-date [date]="formatCreated(image.Created)" />
+          </ng-template>
+
+          <ng-template catbeeColumnDef="actions" [catbeeColumnDefRows]="sortedImages()" let-image>
+            <div class="action-group">
+              <button
+                type="button"
+                class="catbee-action-btn icon-only"
+                (click)="openRunDialog(image)"
+                aria-label="Run container from this image"
+                [catbeeTooltip]="'Run'"
+                [catbeeTooltipDelay]="tooltipDelay"
+                [catbeeTooltipPosition]="'left'"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+              </button>
+              <button
+                type="button"
+                class="catbee-action-btn icon-only danger"
+                (click)="requestDeleteSingle(image.Id)"
+                aria-label="Delete image"
+                [catbeeTooltip]="'Delete'"
+                [catbeeTooltipDelay]="tooltipDelay"
+                [catbeeTooltipPosition]="'left'"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">delete</span>
+              </button>
+            </div>
+          </ng-template>
+        </catbee-container-studio-data-table>
       }
     </div>
   </div>

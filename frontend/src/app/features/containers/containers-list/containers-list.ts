@@ -9,7 +9,6 @@ import { MenuComponent } from '@components/menu/menu';
 import { PortListComponent } from '@components/port-list/port-list';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
-import { TableSortHeaderComponent } from '@components/table-sort-header/table-sort-header';
 import { formatDockerBytes, formatDockerNames } from '@utils/docker-display.utils';
 import { UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { SwitchInputComponent } from '@components/switch-input/switch-input';
@@ -18,14 +17,22 @@ import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { CONTAINER_SORT_KEYS, ContainerSortKey, SORT_DIRECTIONS, SortDirection } from '@shared/types';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
+import { DataTableComponent } from '@components/data-table/data-table';
+import {
+  DataTableColumnDef,
+  DataTableGroupDef,
+  DataTableHeaderDef
+} from '@components/data-table/data-table-defs.directive';
+import { DataTableColumn, DataTableGroup } from '@components/data-table/data-table.types';
 
 type ContainerColumn = 'name' | 'image' | 'ports' | 'state' | 'cpu' | 'memory' | 'disk' | 'network' | 'pids';
 
-interface ContainerGroup {
+interface ContainerGroup extends DataTableGroup<DockerContainerInfo> {
   id: string;
   name: string;
   folder: string | null;
-  containers: DockerContainerInfo[];
+  count: number;
+  rows: DockerContainerInfo[];
 }
 
 @Component({
@@ -37,12 +44,15 @@ interface ContainerGroup {
     PortListComponent,
     MenuComponent,
     TableCheckboxComponent,
-    TableSortHeaderComponent,
     SwitchInputComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
     CatbeeTooltip,
-    CopyButtonComponent
+    CopyButtonComponent,
+    DataTableComponent,
+    DataTableColumnDef,
+    DataTableGroupDef,
+    DataTableHeaderDef
   ],
   templateUrl: './containers-list.html',
   styleUrl: './containers-list.scss'
@@ -51,6 +61,68 @@ export class ContainersPage {
   private static readonly STATS_POLL_MS = 10_000;
 
   readonly UI_STORAGE_KEYS = UI_STORAGE_KEYS;
+
+  readonly columns: readonly DataTableColumn[] = [
+    {
+      id: 'checkbox',
+      label: 'Select',
+      hideable: false,
+      minWidth: 10,
+      width: 10,
+      headerClass: 'col-checkbox',
+      cellClass: 'col-checkbox'
+    },
+    {
+      id: 'name',
+      label: 'Name',
+      sortable: true,
+      hideable: false,
+      minWidth: 160,
+      width: 240
+    },
+    {
+      id: 'image',
+      label: 'Image',
+      sortable: true,
+      minWidth: 140
+    },
+    { id: 'ports', label: 'Ports', sortable: true, minWidth: 120, wrap: true, cellClass: 'col-ports' },
+    { id: 'state', label: 'State', sortable: true, minWidth: 110 },
+    { id: 'cpu', label: 'CPU', sortable: true, width: 90, cellClass: 'col-cpu' },
+    { id: 'memory', label: 'Memory', sortable: true, width: 140, cellClass: 'col-memory' },
+    {
+      id: 'disk',
+      label: 'Disk',
+      sortable: true,
+      width: 100,
+      cellClass: 'col-disk'
+    },
+    {
+      id: 'network',
+      label: 'Network',
+      sortable: true,
+      width: 120,
+      cellClass: 'col-network'
+    },
+    {
+      id: 'pids',
+      label: 'PIDs',
+      sortable: true,
+      width: 80,
+      cellClass: 'col-pids'
+    },
+    {
+      id: 'actions',
+      label: 'Actions',
+      hideable: false,
+      // frozen: 'end',
+      width: 160,
+      headerClass: 'col-actions',
+      cellClass: 'col-actions'
+    }
+  ];
+
+  readonly containerKey = (container: DockerContainerInfo): string => container.Id;
 
   private readonly dockerApi = inject(DockerApiService);
   private readonly router = inject(Router);
@@ -161,7 +233,9 @@ export class ContainersPage {
   });
 
   readonly groupedContainers = computed<ContainerGroup[]>(() =>
-    this.groupContainersByCompose(this.sortedContainers(this.visibleContainers()))
+    this.groupContainersByCompose(this.sortedContainers(this.visibleContainers())).map(group =>
+      this.collapsedGroupIds().has(group.id) ? { ...group, rows: [] } : group
+    )
   );
 
   readonly selectedContainers = computed(() => {
@@ -368,6 +442,12 @@ export class ContainersPage {
     });
   }
 
+  onSortChange(columnId: string): void {
+    if ((CONTAINER_SORT_KEYS as readonly string[]).includes(columnId)) {
+      this.toggleSort(columnId as ContainerSortKey);
+    }
+  }
+
   toggleSort(key: ContainerSortKey): void {
     if (this.sortKey() === key) {
       this.sortDirection.update(direction => {
@@ -419,7 +499,7 @@ export class ContainersPage {
   }
 
   toggleGroupSelection(group: ContainerGroup): void {
-    const ids = group.containers.map(container => container.Id);
+    const ids = group.rows.map(container => container.Id);
     const current = this.selectedContainerIds();
     const allSelected = ids.length > 0 && ids.every(id => current.has(id));
 
@@ -438,18 +518,18 @@ export class ContainersPage {
   }
 
   isGroupSelected(group: ContainerGroup): boolean {
-    if (group.containers.length === 0) {
+    if (group.rows.length === 0) {
       return false;
     }
 
     const selected = this.selectedContainerIds();
-    return group.containers.every(container => selected.has(container.Id));
+    return group.rows.every(container => selected.has(container.Id));
   }
 
   isGroupPartiallySelected(group: ContainerGroup): boolean {
     const selected = this.selectedContainerIds();
-    const selectedCount = group.containers.filter(container => selected.has(container.Id)).length;
-    return selectedCount > 0 && selectedCount < group.containers.length;
+    const selectedCount = group.rows.filter(container => selected.has(container.Id)).length;
+    return selectedCount > 0 && selectedCount < group.rows.length;
   }
 
   toggleContainerSelection(containerId: string): void {
@@ -718,10 +798,12 @@ export class ContainersPage {
         id: groupId,
         name: composeProject ? `${composeProject}` : 'Standalone Containers',
         folder,
-        containers: []
+        count: 0,
+        rows: []
       };
 
-      group.containers.push(container);
+      group.rows.push(container);
+      group.count = group.rows.length;
       groups.set(groupId, group);
     }
 

@@ -8,7 +8,6 @@ import { LocalStorageService, SessionStorageService } from '@ng-catbee/storage';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { SegmentedFilterComponent, SegmentedFilterOption } from '@components/segmented-filter/segmented-filter';
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
-import { TableSortHeaderComponent } from '@components/table-sort-header/table-sort-header';
 import { UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { formatDockerBytes } from '@utils/docker-display.utils';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
@@ -26,6 +25,9 @@ import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { TooltipDateComponent } from '@components/tooltip-date/tooltip-date';
 import { PullImageDialogComponent } from '@docker-images/pull-image-dialog/pull-image-dialog';
 import { RunContainerDialogComponent } from '@docker-images/run-container-dialog/run-container-dialog';
+import { DataTableComponent } from '@components/data-table/data-table';
+import { DataTableColumnDef, DataTableHeaderDef } from '@components/data-table/data-table-defs.directive';
+import { DataTableColumn } from '@components/data-table/data-table.types';
 
 @Component({
   selector: 'catbee-container-studio-images-page',
@@ -35,19 +37,56 @@ import { RunContainerDialogComponent } from '@docker-images/run-container-dialog
     ConfirmDialogComponent,
     SegmentedFilterComponent,
     TableCheckboxComponent,
-    TableSortHeaderComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
     CatbeeTooltip,
     CopyButtonComponent,
     TooltipDateComponent,
     PullImageDialogComponent,
-    RunContainerDialogComponent
+    RunContainerDialogComponent,
+    DataTableComponent,
+    DataTableColumnDef,
+    DataTableHeaderDef
   ],
   templateUrl: './images-list.html',
   styleUrl: './images-list.scss'
 })
 export class ImagesPage {
+  readonly columns: readonly DataTableColumn[] = [
+    {
+      id: 'checkbox',
+      label: 'Select',
+      hideable: false,
+      width: 38,
+      headerClass: 'col-checkbox',
+      cellClass: 'col-checkbox'
+    },
+    { id: 'used', label: 'Used', sortable: true, width: 64, headerClass: 'col-used', cellClass: 'col-used' },
+    {
+      id: 'repository',
+      label: 'Repository',
+      sortable: true,
+      hideable: false,
+      minWidth: 160,
+      width: 260
+    },
+    { id: 'tag', label: 'Tag', sortable: true, minWidth: 110, wrap: true },
+    { id: 'id', label: 'ID', sortable: true, minWidth: 110 },
+    { id: 'size', label: 'Size', sortable: true, minWidth: 90 },
+    { id: 'created', label: 'Created', sortable: true, minWidth: 120 },
+    {
+      id: 'actions',
+      label: 'Actions',
+      hideable: false,
+      // frozen: 'end',
+      width: 120,
+      headerClass: 'col-actions',
+      cellClass: 'col-actions'
+    }
+  ];
+
+  readonly imageKey = (image: DockerImageInfo): string => image.Id;
+  readonly imageRowClass = (image: DockerImageInfo): string => (this.isDangling(image) ? 'is-dangling' : '');
   private readonly dockerApi = inject(DockerApiService);
   private readonly router = inject(Router);
   private readonly localStorage = inject(LocalStorageService);
@@ -259,6 +298,12 @@ export class ImagesPage {
     }
 
     return this.sortDirection() === 'asc' ? 'north' : 'south';
+  }
+
+  onSortChange(columnId: string): void {
+    if ((IMAGE_SORT_KEYS as readonly string[]).includes(columnId)) {
+      this.toggleSort(columnId as ImageSortKey);
+    }
   }
 
   toggleSort(key: ImageSortKey): void {

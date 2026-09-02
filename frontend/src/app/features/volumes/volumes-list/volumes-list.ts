@@ -8,7 +8,6 @@ import { LocalStorageService, SessionStorageService } from '@ng-catbee/storage';
 import { SegmentedFilterComponent, SegmentedFilterOption } from '@components/segmented-filter/segmented-filter';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
-import { TableSortHeaderComponent } from '@components/table-sort-header/table-sort-header';
 import { UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { formatDockerBytes } from '@utils/docker-display.utils';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
@@ -23,6 +22,9 @@ import {
 } from '@shared/types';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { TooltipDateComponent } from '@components/tooltip-date/tooltip-date';
+import { DataTableComponent } from '@components/data-table/data-table';
+import { DataTableColumnDef, DataTableHeaderDef } from '@components/data-table/data-table-defs.directive';
+import { DataTableColumn } from '@components/data-table/data-table.types';
 
 @Component({
   selector: 'catbee-container-studio-volumes-page',
@@ -32,16 +34,44 @@ import { TooltipDateComponent } from '@components/tooltip-date/tooltip-date';
     ConfirmDialogComponent,
     SegmentedFilterComponent,
     TableCheckboxComponent,
-    TableSortHeaderComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
     CatbeeTooltip,
-    TooltipDateComponent
+    TooltipDateComponent,
+    DataTableComponent,
+    DataTableColumnDef,
+    DataTableHeaderDef
   ],
   templateUrl: './volumes-list.html',
   styleUrl: './volumes-list.scss'
 })
 export class VolumesPage {
+  readonly columns: readonly DataTableColumn[] = [
+    {
+      id: 'checkbox',
+      label: 'Select',
+      hideable: false,
+      width: 38,
+      headerClass: 'col-checkbox',
+      cellClass: 'col-checkbox'
+    },
+    { id: 'used', label: 'Used', sortable: true, width: 64, headerClass: 'col-used', cellClass: 'col-used' },
+    { id: 'name', label: 'Name', sortable: true, hideable: false, minWidth: 140, width: 260 },
+    { id: 'driver', label: 'Driver', sortable: true, minWidth: 90 },
+    { id: 'size', label: 'Size', sortable: true, minWidth: 90 },
+    { id: 'created', label: 'Created', sortable: true, minWidth: 120 },
+    {
+      id: 'actions',
+      label: 'Actions',
+      hideable: false,
+      // frozen: 'end',
+      width: 90,
+      headerClass: 'col-actions',
+      cellClass: 'col-actions'
+    }
+  ];
+
+  readonly volumeKey = (volume: DockerVolumeInfo): string => volume.Name;
   private readonly dockerApi = inject(DockerApiService);
   private readonly router = inject(Router);
   private readonly localStorage = inject(LocalStorageService);
@@ -223,6 +253,12 @@ export class VolumesPage {
     if (this.isVolumeUsageFilter(filter)) {
       this.usageFilter.set(filter);
       this.localStorage.set(UI_STORAGE_KEYS.VOLUMES_USAGE_FILTER, filter);
+    }
+  }
+
+  onSortChange(columnId: string): void {
+    if ((VOLUME_SORT_KEYS as readonly string[]).includes(columnId)) {
+      this.toggleSort(columnId as VolumeSortKey);
     }
   }
 
