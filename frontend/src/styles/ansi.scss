@@ -1,69 +1,73 @@
+@use 'sass:map';
+@use 'sass:math';
+@use 'sass:list';
+
 .ansi {
   &.ansi-bold {
     font-weight: 600;
   }
 
-  &.ansi-fg-30 {
-    color: #8b949e;
+  $base-colors: (
+    // Normal colors (0-7)
+    0: #8b949e,
+    1: #ff7e7e,
+    2: #65db72,
+    3: #ebbf57,
+    4: #6bafff,
+    5: #c89eff,
+    6: #50dbff,
+    7: #f1f6fa,
+
+    // Bright colors (8-15)
+    8: #9ca5b0,
+    9: #ff7b72,
+    10: #7ee787,
+    11: #f2cc60,
+    12: #79c0ff,
+    13: #d2a8ff,
+    14: #56d4dd,
+    15: #ffffff
+  );
+
+  // 2. Generate the basic fg-30 to fg-37  and fg-90 to fg-97 classes
+  @for $i from 0 through 7 {
+    // Standard (30-37)
+    &.ansi-fg-#{30 + $i} {
+      color: map.get($base-colors, $i);
+    }
+
+    // Bright (90-97)
+    &.ansi-fg-#{90 + $i} {
+      color: map.get($base-colors, $i + 8);
+    }
   }
 
-  &.ansi-fg-31 {
-    color: #ff6b6b;
-  }
+  // 3. Generate ANSI 256 (xterm-0 to xterm-255)
+  @for $i from 0 through 255 {
+    &.ansi-fg-xterm-#{$i} {
+      @if $i < 16 {
+        // 0-15: Use your custom theme colors from above!
+        color: map.get($base-colors, $i);
+      } @else if $i < 232 {
+        // 16-231: 6x6x6 RGB color cube
+        $cube-index: $i - 16;
+        $r-step: math.floor(math.div($cube-index, 36));
+        $g-step: math.floor(math.div($cube-index % 36, 6));
+        $b-step: $cube-index % 6;
 
-  &.ansi-fg-32 {
-    color: #56d364;
-  }
+        $color-values: (0, 95, 135, 175, 215, 255);
+        $r: list.nth($color-values, $r-step + 1);
+        $g: list.nth($color-values, $g-step + 1);
+        $b: list.nth($color-values, $b-step + 1);
 
-  &.ansi-fg-33 {
-    color: #e3b341;
-  }
+        color: rgb($r, $g, $b);
+      } @else {
+        // 232-255: Grayscale from black to white
+        $gray-step: $i - 232;
+        $lightness: 8 + ($gray-step * 10);
 
-  &.ansi-fg-34 {
-    color: #58a6ff;
-  }
-
-  &.ansi-fg-35 {
-    color: #bc8cff;
-  }
-
-  &.ansi-fg-36 {
-    color: #39d5ff;
-  }
-
-  &.ansi-fg-37 {
-    color: #e6edf3;
-  }
-
-  &.ansi-fg-90 {
-    color: #8b949e;
-  }
-
-  &.ansi-fg-91 {
-    color: #ff7b72;
-  }
-
-  &.ansi-fg-92 {
-    color: #7ee787;
-  }
-
-  &.ansi-fg-93 {
-    color: #f2cc60;
-  }
-
-  &.ansi-fg-94 {
-    color: #79c0ff;
-  }
-
-  &.ansi-fg-95 {
-    color: #d2a8ff;
-  }
-
-  &.ansi-fg-96 {
-    color: #56d4dd;
-  }
-
-  &.ansi-fg-97 {
-    color: #ffffff;
+        color: rgb($lightness, $lightness, $lightness);
+      }
+    }
   }
 }

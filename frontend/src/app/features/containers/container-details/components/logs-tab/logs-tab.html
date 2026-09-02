@@ -89,6 +89,10 @@
           <input type="checkbox" [checked]="wrapLogLines()" (change)="toggleWrapLines()" />
           Wrap lines
         </label>
+        <label class="menu-item menu-item-checkbox no-select pointer">
+          <input type="checkbox" [checked]="convertDatesToLocal()" (change)="toggleConvertDatesToLocal()" />
+          Local dates
+        </label>
         <label class="menu-item menu-item-select no-select" for="logs-tail-lines-select">
           Tail lines
           <select id="logs-tail-lines-select" class="logs-tail-select pointer" (change)="onTailLinesChange($event)">
