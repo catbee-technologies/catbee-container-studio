@@ -135,7 +135,11 @@ export class ContainersPage {
         return true;
       }
 
-      return this.primaryName(container).toLowerCase().includes(query);
+      const name = this.primaryName(container).toLowerCase();
+      const id = container.Id;
+      const image = container.Image.toLowerCase();
+
+      return name.includes(query) || id.toLowerCase().includes(query) || image.includes(query);
     });
   });
 

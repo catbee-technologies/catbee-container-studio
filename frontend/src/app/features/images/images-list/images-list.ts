@@ -118,7 +118,7 @@ export class ImagesPage {
       if (!query) return true;
       const [repo, tag] = this.repositoryAndTag(img);
       const tags = (img.RepoTags ?? []).join(' ').toLowerCase();
-      const id = img.Id.replace('sha256:', '').slice(0, 12).toLowerCase();
+      const id = img.Id;
       return (
         tags.includes(query) ||
         id.includes(query) ||
