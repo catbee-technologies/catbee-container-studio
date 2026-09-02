@@ -27,6 +27,7 @@ table.catbee-table {
     z-index: 2;
     background: var(--bg-table-header);
     border-right: 0;
+    vertical-align: middle;
 
     &:not(:last-child)::after {
       content: '';
@@ -40,7 +41,7 @@ table.catbee-table {
   }
 
   td {
-    font-size: var(--font-size-base);
+    font-size: 0.875rem;
     line-height: var(--line-height-normal);
     font-weight: 400;
     color: var(--ink-100);

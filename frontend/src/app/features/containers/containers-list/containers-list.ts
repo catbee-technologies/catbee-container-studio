@@ -19,6 +19,8 @@ import { CONTAINER_SORT_KEYS, ContainerSortKey, SORT_DIRECTIONS, SortDirection }
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
 
+type ContainerColumn = 'name' | 'image' | 'ports' | 'state' | 'cpu' | 'memory' | 'disk' | 'network' | 'pids';
+
 interface ContainerGroup {
   id: string;
   name: string;
@@ -109,13 +111,28 @@ export class ContainersPage {
   readonly memoryUsageSummary = signal('--');
   readonly cpuUsagePercent = signal<number | null>(null);
   readonly memoryUsagePercent = signal<number | null>(null);
-  readonly containerCpuUsage = signal<Map<string, number>>(new Map());
-  readonly containerMemoryUsage = signal<
+  private readonly previousContainerIoStats = new Map<
+    string,
+    {
+      timestamp: number;
+      diskReadBytes: number;
+      diskWriteBytes: number;
+      networkRxBytes: number;
+      networkTxBytes: number;
+    }
+  >();
+  readonly containerRuntimeStats = signal<
     Map<
       string,
       {
-        usage: number;
-        limit: number;
+        cpuPercent: number;
+        memoryUsage: number;
+        memoryLimit: number;
+        diskReadBytesPerSecond: number;
+        diskWriteBytesPerSecond: number;
+        networkRxBytesPerSecond: number;
+        networkTxBytesPerSecond: number;
+        pids: number;
       }
     >
   >(new Map());
@@ -198,6 +215,21 @@ export class ContainersPage {
     return this.containers().find(container => container.Id === pendingId) ?? null;
   });
 
+  readonly showColumnMenu = signal(false);
+
+  columnOptions: { key: ContainerColumn; label: string }[] = [
+    { key: 'image', label: 'Image' },
+    { key: 'ports', label: 'Ports' },
+    { key: 'state', label: 'State' },
+    { key: 'cpu', label: 'CPU' },
+    { key: 'memory', label: 'Memory' },
+    { key: 'disk', label: 'Disk R/W' },
+    { key: 'network', label: 'Network I/O' },
+    { key: 'pids', label: 'PIDs' }
+  ];
+
+  readonly visibleColumns = signal<Set<ContainerColumn>>(this.loadVisibleColumns());
+
   constructor() {
     void this.loadContainers(true);
     void this.startEventStream();
@@ -220,6 +252,48 @@ export class ContainersPage {
       if (this.eventsStreamId) {
         void this.dockerApi.stopStream(this.eventsStreamId);
       }
+    });
+  }
+
+  private loadVisibleColumns(): Set<ContainerColumn> {
+    return new Set([
+      'name',
+      ...this.localStorage.getArrayWithDefault<ContainerColumn>(UI_STORAGE_KEYS.CONTAINERS_VISIBLE_COLUMNS, [
+        'image',
+        'ports',
+        'state',
+        'cpu',
+        'memory'
+      ] as ContainerColumn[])
+    ]);
+  }
+
+  isColumnVisible(column: ContainerColumn): boolean {
+    return this.visibleColumns().has(column);
+  }
+
+  toggleColumnMenu(event: MouseEvent): void {
+    event.stopPropagation();
+    this.showColumnMenu.update(open => !open);
+  }
+
+  closeColumnMenu(): void {
+    this.showColumnMenu.set(false);
+  }
+
+  toggleColumn(column: ContainerColumn): void {
+    this.visibleColumns.update(current => {
+      const next = new Set(current);
+
+      if (next.has(column)) {
+        next.delete(column);
+      } else {
+        next.add(column);
+      }
+
+      this.localStorage.set(UI_STORAGE_KEYS.CONTAINERS_VISIBLE_COLUMNS, JSON.stringify([...next]));
+
+      return next;
     });
   }
 
@@ -680,14 +754,25 @@ export class ContainersPage {
       } else if (key === 'state') {
         result = left.State.localeCompare(right.State);
       } else if (key === 'cpu') {
-        const leftCpu = this.containerCpuUsage().get(left.Id) ?? 0;
-        const rightCpu = this.containerCpuUsage().get(right.Id) ?? 0;
+        const leftCpu = this.containerRuntimeStats().get(left.Id)?.cpuPercent ?? 0;
+        const rightCpu = this.containerRuntimeStats().get(right.Id)?.cpuPercent ?? 0;
         result = leftCpu - rightCpu;
       } else if (key === 'memory') {
-        const leftMemory = this.containerMemoryUsage().get(left.Id)?.usage ?? 0;
-        const rightMemory = this.containerMemoryUsage().get(right.Id)?.usage ?? 0;
-
+        const leftMemory = this.containerRuntimeStats().get(left.Id)?.memoryUsage ?? 0;
+        const rightMemory = this.containerRuntimeStats().get(right.Id)?.memoryUsage ?? 0;
         result = leftMemory - rightMemory;
+      } else if (key === 'disk') {
+        const leftDisk = this.containerRuntimeStats().get(left.Id)?.diskReadBytesPerSecond ?? 0;
+        const rightDisk = this.containerRuntimeStats().get(right.Id)?.diskReadBytesPerSecond ?? 0;
+        result = leftDisk - rightDisk;
+      } else if (key === 'network') {
+        const leftNetwork = this.containerRuntimeStats().get(left.Id)?.networkTxBytesPerSecond ?? 0;
+        const rightNetwork = this.containerRuntimeStats().get(right.Id)?.networkTxBytesPerSecond ?? 0;
+        result = leftNetwork - rightNetwork;
+      } else if (key === 'pids') {
+        const leftPids = this.containerRuntimeStats().get(left.Id)?.pids ?? 0;
+        const rightPids = this.containerRuntimeStats().get(right.Id)?.pids ?? 0;
+        result = leftPids - rightPids;
       }
 
       if (result === 0) {
@@ -758,8 +843,8 @@ export class ContainersPage {
     this.memoryUsagePercent.set(null);
     this.cpuUsageSummary.set('--');
     this.memoryUsageSummary.set('--');
-    this.containerCpuUsage.set(new Map());
-    this.containerMemoryUsage.set(new Map());
+    this.containerRuntimeStats.set(new Map());
+    this.previousContainerIoStats.clear();
   }
 
   private async updateRuntimeSummaries(containers: DockerContainerInfo[]): Promise<void> {
@@ -771,6 +856,7 @@ export class ContainersPage {
 
     const running = containers.filter(container => container.State === 'running');
     const snapshotIds = new Set(containers.map(container => container.Id));
+
     try {
       if (running.length === 0) {
         this.resetRuntimeSummaries();
@@ -797,15 +883,34 @@ export class ContainersPage {
       );
 
       const currentIds = new Set(this.containers().map(container => container.Id));
+
+      /*
+       * Do not apply this stats result if the container list changed
+       * while the requests were running.
+       */
       if (currentIds.size !== snapshotIds.size || [...snapshotIds].some(id => !currentIds.has(id))) {
         return;
       }
 
-      const cpuUsage = new Map<string, number>();
-      const memoryUsage = new Map<string, { usage: number; limit: number }>();
+      const now = Date.now();
+
+      const runtimeStats = new Map<
+        string,
+        {
+          cpuPercent: number;
+          memoryUsage: number;
+          memoryLimit: number;
+          diskReadBytesPerSecond: number;
+          diskWriteBytesPerSecond: number;
+          networkRxBytesPerSecond: number;
+          networkTxBytesPerSecond: number;
+          pids: number;
+        }
+      >();
 
       let cpuPercentSum = 0;
       let maxAvailableCpus = 1;
+
       let memoryUsageSum = 0;
       let memoryLimitMax = 0;
 
@@ -813,12 +918,17 @@ export class ContainersPage {
         if (!result) {
           continue;
         }
+
         const { containerId, stats } = result;
+
+        /* CPU */
         const cpuDelta =
           (stats.cpu_stats?.cpu_usage?.total_usage ?? 0) - (stats.precpu_stats?.cpu_usage?.total_usage ?? 0);
+
         const systemDelta = (stats.cpu_stats?.system_cpu_usage ?? 0) - (stats.precpu_stats?.system_cpu_usage ?? 0);
 
         const onlineCpus = stats.cpu_stats?.online_cpus ?? stats.cpu_stats?.cpu_usage?.percpu_usage?.length ?? 1;
+
         let cpuPercent = 0;
 
         if (cpuDelta > 0 && systemDelta > 0 && onlineCpus > 0) {
@@ -826,34 +936,156 @@ export class ContainersPage {
           cpuPercentSum += cpuPercent;
         }
 
-        cpuUsage.set(containerId, cpuPercent);
-
         if (onlineCpus > maxAvailableCpus) {
           maxAvailableCpus = onlineCpus;
         }
 
-        const usage = stats.memory_stats?.usage ?? 0;
-        const limit = stats.memory_stats?.limit ?? 0;
-        memoryUsage.set(containerId, { usage, limit });
-        memoryUsageSum += usage;
-        if (limit > memoryLimitMax) {
-          memoryLimitMax = limit;
+        /* Memory */
+        const memoryUsage = stats.memory_stats?.usage ?? 0;
+        const memoryLimit = stats.memory_stats?.limit ?? 0;
+
+        memoryUsageSum += memoryUsage;
+
+        if (memoryLimit > memoryLimitMax) {
+          memoryLimitMax = memoryLimit;
+        }
+
+        /* Disk I/O */
+        let diskReadBytes = 0;
+        let diskWriteBytes = 0;
+
+        const blkioEntries = stats.blkio_stats?.io_service_bytes_recursive ?? [];
+
+        for (const entry of blkioEntries) {
+          const value = Number(entry.value ?? 0);
+
+          if (!Number.isFinite(value) || value < 0) {
+            continue;
+          }
+
+          if (entry.op?.toLowerCase() === 'read') {
+            diskReadBytes += value;
+          } else if (entry.op?.toLowerCase() === 'write') {
+            diskWriteBytes += value;
+          }
+        }
+
+        /* Network I/O */
+        let networkRxBytes = 0;
+        let networkTxBytes = 0;
+
+        for (const network of Object.values(
+          (stats.networks ?? {}) as Record<
+            string,
+            {
+              rx_bytes?: number;
+              tx_bytes?: number;
+            }
+          >
+        )) {
+          networkRxBytes += Number(network.rx_bytes ?? 0);
+          networkTxBytes += Number(network.tx_bytes ?? 0);
+        }
+
+        /*
+         * Calculate I/O rates from the previous cumulative counters.
+         */
+        let diskReadBytesPerSecond = 0;
+        let diskWriteBytesPerSecond = 0;
+        let networkRxBytesPerSecond = 0;
+        let networkTxBytesPerSecond = 0;
+
+        const previous = this.previousContainerIoStats.get(containerId);
+
+        if (previous) {
+          const elapsedSeconds = (now - previous.timestamp) / 1000;
+
+          if (elapsedSeconds > 0) {
+            const diskReadDelta = diskReadBytes - previous.diskReadBytes;
+            const diskWriteDelta = diskWriteBytes - previous.diskWriteBytes;
+            const networkRxDelta = networkRxBytes - previous.networkRxBytes;
+            const networkTxDelta = networkTxBytes - previous.networkTxBytes;
+
+            /*
+             * A negative delta means Docker reset the cumulative counter,
+             * usually because the container restarted. Do not calculate
+             * a rate from that invalid interval.
+             */
+            if (diskReadDelta >= 0) {
+              diskReadBytesPerSecond = diskReadDelta / elapsedSeconds;
+            }
+
+            if (diskWriteDelta >= 0) {
+              diskWriteBytesPerSecond = diskWriteDelta / elapsedSeconds;
+            }
+
+            if (networkRxDelta >= 0) {
+              networkRxBytesPerSecond = networkRxDelta / elapsedSeconds;
+            }
+
+            if (networkTxDelta >= 0) {
+              networkTxBytesPerSecond = networkTxDelta / elapsedSeconds;
+            }
+          }
+        }
+
+        /*
+         * Store the current cumulative counters as the baseline
+         * for the next polling interval.
+         */
+        this.previousContainerIoStats.set(containerId, {
+          timestamp: now,
+          diskReadBytes,
+          diskWriteBytes,
+          networkRxBytes,
+          networkTxBytes
+        });
+
+        /* PIDs */
+        const pids = stats.pids_stats?.current ?? 0;
+
+        runtimeStats.set(containerId, {
+          cpuPercent,
+          memoryUsage,
+          memoryLimit,
+          diskReadBytesPerSecond,
+          diskWriteBytesPerSecond,
+          networkRxBytesPerSecond,
+          networkTxBytesPerSecond,
+          pids
+        });
+      }
+
+      /*
+       * Remove I/O baselines for containers that no longer exist.
+       */
+      for (const containerId of this.previousContainerIoStats.keys()) {
+        if (!currentIds.has(containerId)) {
+          this.previousContainerIoStats.delete(containerId);
         }
       }
 
-      // Update per-container values
-      this.containerCpuUsage.set(cpuUsage);
-      this.containerMemoryUsage.set(memoryUsage);
+      this.containerRuntimeStats.set(runtimeStats);
 
+      /*
+       * CPU summary
+       */
       const cpuCapacityPercent = maxAvailableCpus * 100;
+
       this.cpuUsagePercent.set(cpuCapacityPercent > 0 ? (cpuPercentSum / cpuCapacityPercent) * 100 : null);
 
       this.cpuUsageSummary.set(
         `${cpuPercentSum.toFixed(2)}% / ${(maxAvailableCpus * 100).toFixed(0)}% (${maxAvailableCpus} CPUs available)`
       );
 
+      /*
+       * Memory summary
+       *
+       * Keep the existing aggregate behavior unchanged.
+       */
       if (memoryLimitMax > 0) {
         this.memoryUsagePercent.set((memoryUsageSum / memoryLimitMax) * 100);
+
         this.memoryUsageSummary.set(`${formatDockerBytes(memoryUsageSum)} / ${formatDockerBytes(memoryLimitMax)}`);
       } else {
         this.memoryUsagePercent.set(null);
@@ -866,6 +1098,16 @@ export class ContainersPage {
 
   formatDockerBytes(bytes: number): string {
     return formatDockerBytes(bytes);
+  }
+
+  formatIoRate(bytesPerSecond: number): string {
+    if (!Number.isFinite(bytesPerSecond) || bytesPerSecond <= 0) {
+      return '0 B/s';
+    }
+    if (bytesPerSecond < 1024) {
+      return `${bytesPerSecond.toFixed(2)} B/s`;
+    }
+    return `${formatDockerBytes(bytesPerSecond)}/s`;
   }
 
   @HostListener('window:keydown', ['$event'])

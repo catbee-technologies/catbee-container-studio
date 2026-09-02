@@ -138,6 +138,9 @@ export interface DockerContainerStats {
       value?: number;
     }[];
   };
+  pids_stats?: {
+    current?: number;
+  };
 }
 
 export interface StreamStartResult {

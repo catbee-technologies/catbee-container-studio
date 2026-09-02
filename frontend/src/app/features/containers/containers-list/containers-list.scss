@@ -66,9 +66,17 @@ tbody tr {
   max-width: 120px;
 }
 
-.col-memory {
-  font-family: var(--mono-font);
-  font-size: 0.8rem;
+.col-memory,
+.col-disk,
+.col-network,
+.col-pids {
   max-width: 120px;
   overflow-wrap: anywhere;
+}
+
+.actions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
 }

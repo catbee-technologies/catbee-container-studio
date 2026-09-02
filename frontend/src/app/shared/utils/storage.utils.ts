@@ -32,6 +32,7 @@ export const UI_STORAGE_KEYS = {
   CONTAINERS_SORT_KEY: `${UI_STORAGE_PREFIX}containers.sort-key`,
   CONTAINERS_SORT_DIRECTION: `${UI_STORAGE_PREFIX}containers.sort-direction`,
   CONTAINERS_RUNNING_ONLY: `${UI_STORAGE_PREFIX}containers.running-only`,
+  CONTAINERS_VISIBLE_COLUMNS: `${UI_STORAGE_PREFIX}containers.visible-columns`,
   IMAGES_SORT_KEY: `${UI_STORAGE_PREFIX}images.sort-key`,
   IMAGES_SORT_DIRECTION: `${UI_STORAGE_PREFIX}images.sort-direction`,
   IMAGES_USAGE_FILTER: `${UI_STORAGE_PREFIX}images.usage-filter`,

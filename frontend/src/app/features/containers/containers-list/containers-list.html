@@ -169,54 +169,128 @@
                   (sort)="toggleSort('name')"
                 />
               </th>
+              @if (isColumnVisible('image')) {
+                <th scope="col" class="col-sortable">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'Image'"
+                    [active]="isSortActive('image')"
+                    [indicator]="sortIndicator('image')"
+                    (sort)="toggleSort('image')"
+                  />
+                </th>
+              }
+              @if (isColumnVisible('ports')) {
+                <th scope="col" class="col-sortable">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'Ports'"
+                    [active]="isSortActive('ports')"
+                    [indicator]="sortIndicator('ports')"
+                    (sort)="toggleSort('ports')"
+                  />
+                </th>
+              }
+              @if (isColumnVisible('state')) {
+                <th scope="col" class="col-sortable">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'State'"
+                    [active]="isSortActive('state')"
+                    [indicator]="sortIndicator('state')"
+                    (sort)="toggleSort('state')"
+                  />
+                </th>
+              }
+              @if (isColumnVisible('cpu')) {
+                <th scope="col" class="col-sortable">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'CPU'"
+                    [active]="isSortActive('cpu')"
+                    [indicator]="sortIndicator('cpu')"
+                    (sort)="toggleSort('cpu')"
+                  />
+                </th>
+              }
+              @if (isColumnVisible('memory')) {
+                <th scope="col" class="col-sortable">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'Memory'"
+                    [active]="isSortActive('memory')"
+                    [indicator]="sortIndicator('memory')"
+                    (sort)="toggleSort('memory')"
+                  />
+                </th>
+              }
+              @if (isColumnVisible('disk')) {
+                <th scope="col" class="col-sortable">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'Disk R/W'"
+                    [active]="isSortActive('disk')"
+                    [indicator]="sortIndicator('disk')"
+                    (sort)="toggleSort('disk')"
+                  />
+                </th>
+              }
+              @if (isColumnVisible('network')) {
+                <th scope="col" class="col-sortable">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'Network I/O'"
+                    [active]="isSortActive('network')"
+                    [indicator]="sortIndicator('network')"
+                    (sort)="toggleSort('network')"
+                  />
+                </th>
+              }
+              @if (isColumnVisible('pids')) {
+                <th scope="col" class="col-sortable">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'PIDs'"
+                    [active]="isSortActive('pids')"
+                    [indicator]="sortIndicator('pids')"
+                    (sort)="toggleSort('pids')"
+                  />
+                </th>
+              }
+              <th scope="col" class="col-actions">
+                <div class="actions-header">
+                  <span>Actions</span>
+                  <catbee-container-studio-menu
+                    [open]="showColumnMenu()"
+                    [style]="{ width: '12rem' }"
+                    (dismissed)="closeColumnMenu()"
+                  >
+                    <button
+                      menuTrigger
+                      type="button"
+                      class="catbee-action-btn icon-only menu-trigger"
+                      (click)="toggleColumnMenu($event)"
+                      aria-label="Columns"
+                      [catbeeTooltip]="'Columns'"
+                      [catbeeTooltipDelay]="tooltipDelay"
+                      [catbeeTooltipPosition]="'top'"
+                    >
+                      <span class="mat-icon-filled" aria-hidden="true">view_column</span>
+                    </button>
 
-              <th scope="col" class="col-sortable">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Image'"
-                  [active]="isSortActive('image')"
-                  [indicator]="sortIndicator('image')"
-                  (sort)="toggleSort('image')"
-                />
+                    <div menuContent>
+                      @for (column of columnOptions; track column.key) {
+                        <label class="menu-item menu-item-checkbox no-select pointer">
+                          <input
+                            type="checkbox"
+                            [checked]="isColumnVisible(column.key)"
+                            (change)="toggleColumn(column.key)"
+                          />
+                          {{ column.label }}
+                        </label>
+                      }
+                    </div>
+                  </catbee-container-studio-menu>
+                </div>
               </th>
-              <th scope="col" class="col-sortable">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Ports'"
-                  [active]="isSortActive('ports')"
-                  [indicator]="sortIndicator('ports')"
-                  (sort)="toggleSort('ports')"
-                />
-              </th>
-              <th scope="col" class="col-sortable">
-                <catbee-container-studio-table-sort-header
-                  [label]="'State'"
-                  [active]="isSortActive('state')"
-                  [indicator]="sortIndicator('state')"
-                  (sort)="toggleSort('state')"
-                />
-              </th>
-              <th scope="col" class="col-sortable">
-                <catbee-container-studio-table-sort-header
-                  [label]="'CPU'"
-                  [active]="isSortActive('cpu')"
-                  [indicator]="sortIndicator('cpu')"
-                  (sort)="toggleSort('cpu')"
-                />
-              </th>
-              <th scope="col" class="col-sortable">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Memory'"
-                  [active]="isSortActive('memory')"
-                  [indicator]="sortIndicator('memory')"
-                  (sort)="toggleSort('memory')"
-                />
-              </th>
-              <th scope="col" class="col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
             @if (visibleContainers().length === 0) {
               <tr class="table-empty-row">
-                <td colspan="8">
+                <td [attr.colspan]="visibleColumns().size + 2">
                   <catbee-container-studio-empty-state
                     [icon]="'deployed_code'"
                     [message]="containers().length === 0 ? 'No containers.' : 'No containers match your filters.'"
@@ -239,7 +313,7 @@
                     (checkedChange)="toggleGroupSelection(group)"
                   />
                 </td>
-                <td colspan="6">
+                <td [attr.colspan]="visibleColumns().size">
                   <button type="button" class="group-toggle" (click)="toggleGroupCollapse(group.id)">
                     <span class="mat-icon-filled" aria-hidden="true">
                       {{ isGroupCollapsed(group.id) ? 'chevron_right' : 'expand_more' }}
@@ -276,43 +350,85 @@
                         />
                       </p>
                     </td>
-                    <td>
-                      <button
-                        type="button"
-                        class="link-btn"
-                        (click)="openImageDetails(container.ImageID!); $event.stopPropagation()"
-                      >
-                        {{ container.Image }}
-                      </button>
-                    </td>
-                    <td class="col-ports">
-                      <catbee-container-studio-port-list [ports]="container.Ports" [containerState]="container.State" />
-                    </td>
-                    <td>
-                      <span
-                        class="container-status"
-                        [class.running]="container.State === 'running'"
-                        [class.stopped]="container.State !== 'running'"
-                      >
-                        {{ container.State }}
-                      </span>
-                      <p class="status-detail">{{ container.Status }}</p>
-                    </td>
-                    <td class="col-cpu">
-                      @if (containerCpuUsage().has(container.Id)) {
-                        {{ containerCpuUsage().get(container.Id)!.toFixed(2) }}%
-                      } @else {
-                        --
-                      }
-                    </td>
-                    <td class="col-memory">
-                      @if (containerMemoryUsage().get(container.Id); as memory) {
-                        {{ formatDockerBytes(memory.usage) }} /
-                        {{ formatDockerBytes(memory.limit) }}
-                      } @else {
-                        --
-                      }
-                    </td>
+                    @if (isColumnVisible('image')) {
+                      <td>
+                        <button
+                          type="button"
+                          class="link-btn"
+                          (click)="openImageDetails(container.ImageID!); $event.stopPropagation()"
+                        >
+                          {{ container.Image }}
+                        </button>
+                      </td>
+                    }
+                    @if (isColumnVisible('ports')) {
+                      <td class="col-ports">
+                        <catbee-container-studio-port-list
+                          [ports]="container.Ports"
+                          [containerState]="container.State"
+                        />
+                      </td>
+                    }
+                    @if (isColumnVisible('state')) {
+                      <td>
+                        <span
+                          class="container-status"
+                          [class.running]="container.State === 'running'"
+                          [class.stopped]="container.State !== 'running'"
+                        >
+                          {{ container.State }}
+                        </span>
+                        <p class="status-detail">{{ container.Status }}</p>
+                      </td>
+                    }
+                    @if (isColumnVisible('cpu')) {
+                      <td class="col-cpu">
+                        @if (containerRuntimeStats().get(container.Id); as stats) {
+                          {{ stats.cpuPercent === 0 ? '0' : stats.cpuPercent.toFixed(2) }}%
+                        } @else {
+                          --
+                        }
+                      </td>
+                    }
+                    @if (isColumnVisible('memory')) {
+                      <td class="col-memory">
+                        @if (containerRuntimeStats().get(container.Id); as stats) {
+                          {{ formatDockerBytes(stats.memoryUsage) }} /
+                          {{ formatDockerBytes(stats.memoryLimit) }}
+                        } @else {
+                          --
+                        }
+                      </td>
+                    }
+                    @if (isColumnVisible('disk')) {
+                      <td class="col-disk">
+                        @if (containerRuntimeStats().get(container.Id); as stats) {
+                          {{ formatDockerBytes(stats.diskReadBytesPerSecond) }}/s /
+                          {{ formatDockerBytes(stats.diskWriteBytesPerSecond) }}/s
+                        } @else {
+                          --
+                        }
+                      </td>
+                    }
+                    @if (isColumnVisible('network')) {
+                      <td class="col-network">
+                        @if (containerRuntimeStats().get(container.Id); as stats) {
+                          {{ formatIoRate(stats.networkRxBytesPerSecond) }} /
+                          {{ formatIoRate(stats.networkTxBytesPerSecond) }}
+                        } @else {
+                          --
+                        }
+                      </td>
+                    }
+                    @if (isColumnVisible('pids')) {
+                      <td class="col-pids">
+                        @if (containerRuntimeStats().get(container.Id); as stats) {
+                          {{ stats.pids }}
+                        } @else {
+                          --
+                        }
+                      </td>
+                    }
                     <td class="col-actions">
                       <div class="action-group">
                         <button
