@@ -5,7 +5,7 @@ import { combineLatest } from 'rxjs';
 import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerInfo, DockerVolumeInfo } from '@shared/types/docker-api.types';
 import { TabsComponent, TabItem } from '@components/tabs/tabs';
-import { DATE_FORMAT, formatDockerNames } from '@utils/docker-display.utils';
+import { DATE_FORMAT, formatBytes, formatDockerNames } from '@utils/docker-display.utils';
 import { VolumeDetailsPrefetch } from './volume-details.resolver';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
@@ -121,24 +121,15 @@ export class VolumeDetailsPage {
     return typeof state?.returnTo === 'string' && state.returnTo.length > 0 ? state.returnTo : fallback;
   }
 
+  openImageDetails(imageRef: string): void {
+    if (!imageRef) {
+      return;
+    }
+    void this.router.navigate(['/images', imageRef], { state: { returnTo: this.router.url } });
+  }
+
   private formatBytes(bytes: number): string {
-    if (bytes <= 0) {
-      return '--';
-    }
-
-    if (bytes < 1024) {
-      return `${bytes} B`;
-    }
-
-    const units = ['KB', 'MB', 'GB', 'TB'];
-    let value = bytes / 1024;
-    let unit = 0;
-    while (value >= 1024 && unit < units.length - 1) {
-      value /= 1024;
-      unit += 1;
-    }
-
-    return `${value.toFixed(1)} ${units[unit]}`;
+    return formatBytes(bytes);
   }
 
   private async load(preloaded: VolumeDetailsPrefetch | null = null): Promise<void> {
@@ -162,6 +153,7 @@ export class VolumeDetailsPage {
 
         this.volume.set(preloaded.volume);
         this.containersInUse.set(preloaded.containersInUse);
+        console.log('Using preloaded volume details:', preloaded.containersInUse);
         void this.refreshVolumeUsage(name);
         return;
       }

@@ -85,7 +85,16 @@
                         />
                       </p>
                     </td>
-                    <td>{{ container.Image }}</td>
+                    <td>
+                      <button
+                        type="button"
+                        class="link-btn"
+                        (click)="openImageDetails(container.ImageID!); $event.stopPropagation()"
+                      >
+                        {{ container.Image }}
+                        <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
+                      </button>
+                    </td>
                     <td>
                       <span
                         class="container-status"
