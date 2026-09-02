@@ -26,7 +26,7 @@
   </header>
 
   @if (error(); as err) {
-    <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" />
+    <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" size="small" />
   }
 
   <section class="catbee-list-toolbar catbee-base-panel" aria-label="Volume controls">
@@ -65,13 +65,8 @@
     <div class="catbee-container-list-body catbee-base-panel">
       @if (isLoading()) {
         <catbee-container-studio-empty-state [icon]="'database'" [message]="'Loading Volumes...'" />
-      } @else if (sortedVolumes().length === 0) {
-        <catbee-container-studio-empty-state
-          [icon]="'database'"
-          [message]="volumes().length === 0 ? 'No volumes found.' : 'No volumes match your search.'"
-        />
       } @else {
-        <table class="catbee-table" aria-label="Volumes table">
+        <table class="catbee-table" aria-label="Volumes table" [class.is-empty]="sortedVolumes().length === 0">
           <thead>
             <tr>
               <th scope="col" class="col-checkbox">
@@ -126,6 +121,21 @@
             </tr>
           </thead>
           <tbody>
+            @if (sortedVolumes().length === 0) {
+              <tr class="table-empty-row">
+                <td colspan="7">
+                  <catbee-container-studio-empty-state
+                    [icon]="'database'"
+                    [message]="volumes().length === 0 ? 'No volumes found.' : 'No volumes match your search.'"
+                    [hint]="
+                      volumes().length === 0
+                        ? 'Volumes will appear here once they are created.'
+                        : 'Try a different search term or filter.'
+                    "
+                  />
+                </td>
+              </tr>
+            }
             @for (volume of sortedVolumes(); track volume.Name) {
               <tr (click)="openVolumeDetails(volume.Name)">
                 <td class="col-checkbox" (click)="$event.stopPropagation()">

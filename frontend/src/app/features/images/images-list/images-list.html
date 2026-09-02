@@ -31,7 +31,7 @@
   </header>
 
   @if (error(); as err) {
-    <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" />
+    <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" size="small" />
   }
 
   <section class="catbee-list-toolbar catbee-base-panel" aria-label="Image controls">
@@ -71,13 +71,8 @@
     <div class="catbee-container-list-body catbee-base-panel">
       @if (isLoading()) {
         <catbee-container-studio-empty-state [icon]="'image'" [message]="'Loading Images...'" />
-      } @else if (sortedImages().length === 0) {
-        <catbee-container-studio-empty-state
-          [icon]="'image'"
-          [message]="images().length === 0 ? 'No images found.' : 'No images match your search.'"
-        />
       } @else {
-        <table class="catbee-table" aria-label="Images table">
+        <table class="catbee-table" aria-label="Images table" [class.is-empty]="sortedImages().length === 0">
           <thead>
             <tr>
               <th scope="col" class="col-checkbox">
@@ -140,6 +135,21 @@
             </tr>
           </thead>
           <tbody>
+            @if (sortedImages().length === 0) {
+              <tr class="table-empty-row">
+                <td colspan="8">
+                  <catbee-container-studio-empty-state
+                    [icon]="'image'"
+                    [message]="images().length === 0 ? 'No images found.' : 'No images match your search.'"
+                    [hint]="
+                      images().length === 0
+                        ? 'Images will appear here once you pull or build one.'
+                        : 'Try a different search term or filter.'
+                    "
+                  />
+                </td>
+              </tr>
+            }
             @for (image of sortedImages(); track image.Id) {
               <tr [class.is-dangling]="isDangling(image)" (click)="openImageDetails(image.Id)">
                 <td class="col-checkbox" (click)="$event.stopPropagation()">

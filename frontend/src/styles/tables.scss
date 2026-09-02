@@ -110,4 +110,23 @@ table.catbee-table {
     width: 2.6rem;
     text-align: center;
   }
+
+  &.is-empty {
+    height: 100%;
+  }
+
+  tbody tr.table-empty-row {
+    cursor: default;
+
+    &:hover {
+      background: transparent;
+    }
+
+    td {
+      border-bottom: 0;
+      padding: 0;
+      height: 100%;
+      vertical-align: middle;
+    }
+  }
 }
