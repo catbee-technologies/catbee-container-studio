@@ -108,8 +108,12 @@
   --bg-active: linear-gradient(120deg, rgb(24 101 118 / 0.5), rgb(27 140 122 / 0.28));
 
   // Table Row Backgrounds
-  --bg-table-row-group: linear-gradient(150deg, rgb(11 28 44 / 0.86), rgb(8 22 37 / 0.76));
-  --bg-table-row-hover: linear-gradient(90deg, rgb(76 154 223 / 0.14), rgb(57 205 182 / 0.08));
+  --bg-table-header: linear-gradient(to bottom, #0b1926 0%, #081521 100%);
+  --bg-table-row: #040b12;
+  --bg-table-row-group: #07131e;
+  --bg-table-row-hover: #0b1b27;
+  --bg-table-header-border: #1a3042;
+  --bg-table-border: #142838;
 
   // BORDER COLORS
   --border-color-light: rgb(140 170 192 / 0.2);
