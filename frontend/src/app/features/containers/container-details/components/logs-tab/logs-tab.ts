@@ -53,6 +53,7 @@ interface StyledTextSegment {
   fgClass: string | null;
   fgColorHex: string | null;
   bold: boolean;
+  extraClass?: string | null;
 }
 
 interface LogMatch {
@@ -81,6 +82,8 @@ export class LogsTabComponent implements AfterViewInit {
   private readonly ansiCodePattern = new RegExp(`${LogsTabComponent.ESC}\\[([0-9;]*)m`, 'g');
   private readonly ansiStripPattern = new RegExp(`${LogsTabComponent.ESC}\\[[0-9;]*m`, 'g');
   private readonly urlPattern = /\bhttps?(?:\\?:\/\/)[^\s<>"'`]+/gi;
+  private readonly isoDatePattern =
+    /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?\s*(?:Z|UTC|[+-]\d{2}:?\d{2})/g;
 
   private readonly logsSearchInput = viewChild<SearchInputComponent>('logsSearchInput');
   private readonly tabScrollArea = viewChild<ElementRef<HTMLElement>>('tabScrollArea');
@@ -119,6 +122,9 @@ export class LogsTabComponent implements AfterViewInit {
   );
   readonly wrapLogLines = signal(
     this.localStorage.getBooleanWithDefault(LOGS_STORAGE_KEYS.WRAP_LINES, LOGS_STORAGE_DEFAULTS.WRAP_LINES)
+  );
+  readonly convertDatesToLocal = signal(
+    this.localStorage.getBooleanWithDefault(LOGS_STORAGE_KEYS.LOCAL_DATES, LOGS_STORAGE_DEFAULTS.LOCAL_DATES)
   );
   readonly isNearBottom = signal(true);
   readonly logs = signal<ContainerLogEntry[]>([]);
@@ -191,17 +197,18 @@ export class LogsTabComponent implements AfterViewInit {
   }
 
   readonly displayLogLines = computed<DisplayLogLine[]>(() => {
+    const localDates = this.convertDatesToLocal();
+
     return this.logs().map(entry => {
-      const prefix = this.showLogTimestamps()
-        ? `[${new Date(entry.timestamp).toLocaleTimeString()}] (${entry.channel === 'stderr' ? 'err' : 'out'}) `
-        : '';
-      const sanitizedRaw = this.stripDockerTimestampPrefix(entry.raw);
+      const prefix = this.showLogTimestamps() ? `[${new Date(entry.timestamp).toLocaleTimeString()}] ` : '';
+      const strippedRaw = this.stripDockerTimestampPrefix(entry.raw);
+      const sanitizedRaw = localDates ? this.convertIsoDatesToLocal(strippedRaw) : strippedRaw;
 
       return {
         prefix,
         ansiRaw: sanitizedRaw,
         plainWithPrefix: `${prefix}${this.stripAnsi(sanitizedRaw)}`,
-        htmlWithPrefix: `${escapeSearchHtml(prefix)}${this.ansiToHtml(sanitizedRaw)}`
+        htmlWithPrefix: `${this.renderPrefixHtml(prefix)}${this.ansiToHtml(sanitizedRaw)}`
       };
     });
   });
@@ -449,6 +456,16 @@ export class LogsTabComponent implements AfterViewInit {
     });
   }
 
+  toggleConvertDatesToLocal(): void {
+    this.convertDatesToLocal.update(value => {
+      const next = !value;
+      this.localStorage.set(LOGS_STORAGE_KEYS.LOCAL_DATES, next ? 'true' : 'false');
+      return next;
+    });
+
+    this.selectNearestMatchFromViewport();
+  }
+
   async onTailLinesChange(event: Event): Promise<void> {
     const target = event.target as HTMLSelectElement | null;
     const nextValue = Number.parseInt(target?.value ?? '', 10);
@@ -621,7 +638,8 @@ export class LogsTabComponent implements AfterViewInit {
       text: line.prefix,
       fgClass: null,
       fgColorHex: null,
-      bold: false
+      bold: false,
+      extraClass: 'log-timestamp'
     };
 
     const styledSegments: StyledTextSegment[] = [prefixSegment, ...this.ansiToStyledSegments(line.ansiRaw)];
@@ -677,6 +695,14 @@ export class LogsTabComponent implements AfterViewInit {
     return html;
   }
 
+  private renderPrefixHtml(prefix: string): string {
+    if (!prefix) {
+      return '';
+    }
+
+    return `<span class="log-timestamp">${escapeSearchHtml(prefix)}</span>`;
+  }
+
   private renderStyledText(segmentText: string, style: StyledTextSegment, markClass?: string): string {
     if (!segmentText) {
       return '';
@@ -689,8 +715,11 @@ export class LogsTabComponent implements AfterViewInit {
     if (style.bold) {
       classes.push('ansi-bold');
     }
+    if (style.extraClass) {
+      classes.push(style.extraClass);
+    }
 
-    const hasStyle = style.fgClass !== null || style.fgColorHex !== null || style.bold;
+    const hasStyle = style.fgClass !== null || style.fgColorHex !== null || style.bold || Boolean(style.extraClass);
     const styleAttribute = style.fgColorHex ? ` style="color:${style.fgColorHex}"` : '';
 
     const renderPart = (text: string): string => {
@@ -704,6 +733,10 @@ export class LogsTabComponent implements AfterViewInit {
 
       return markClass ? `<mark class="${markClass}">${styled}</mark>` : styled;
     };
+
+    if (markClass) {
+      return renderPart(segmentText);
+    }
 
     return this.renderUrls(segmentText, renderPart);
   }
@@ -830,11 +863,12 @@ export class LogsTabComponent implements AfterViewInit {
           if (mode === 5) {
             const colorIndex = normalizedCodes[idx + 2];
             if (Number.isFinite(colorIndex)) {
-              fgClass = null;
-              fgColorHex = this.xtermColorToHex(colorIndex);
+              fgClass = `ansi-fg-xterm-${colorIndex}`;
+              fgColorHex = null;
             }
 
             idx += 2;
+            continue;
           }
 
           if (mode === 2) {
@@ -885,6 +919,40 @@ export class LogsTabComponent implements AfterViewInit {
     return value.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\s+/, '');
   }
 
+  private convertIsoDatesToLocal(value: string): string {
+    this.isoDatePattern.lastIndex = 0;
+
+    return value.replace(this.isoDatePattern, match => {
+      const normalized = match
+        .replace(/\s+UTC$/, 'Z')
+        .replace(/\s+([+-]\d{2}:?\d{2})$/, '$1')
+        .replace(' ', 'T');
+
+      const parsed = new Date(normalized);
+
+      if (Number.isNaN(parsed.getTime())) {
+        return match;
+      }
+
+      return this.formatLocalDate(parsed, match.includes('.'));
+    });
+  }
+
+  private formatLocalDate(date: Date, withMilliseconds: boolean): string {
+    const pad = (value: number, size = 2) => String(value).padStart(size, '0');
+
+    const offsetMinutes = -date.getTimezoneOffset();
+    const offsetSign = offsetMinutes < 0 ? '-' : '+';
+    const absoluteOffset = Math.abs(offsetMinutes);
+    const offset = `${offsetSign}${pad(Math.floor(absoluteOffset / 60))}:${pad(absoluteOffset % 60)}`;
+    const fraction = withMilliseconds ? `.${pad(date.getMilliseconds(), 3)}` : '';
+
+    return (
+      `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+      ` ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}${fraction} (${offset})`
+    );
+  }
+
   private ansiToHtml(value: string): string {
     return this.ansiToStyledSegments(value)
       .map(segment => this.renderStyledText(segment.text, segment))
@@ -895,47 +963,6 @@ export class LogsTabComponent implements AfterViewInit {
     const clamp = (value: number) => Math.max(0, Math.min(255, Math.trunc(value)));
     const toHex = (value: number) => clamp(value).toString(16).padStart(2, '0');
     return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
-  }
-
-  private xtermColorToHex(index: number): string {
-    const systemPalette: string[] = [
-      '#000000',
-      '#800000',
-      '#008000',
-      '#808000',
-      '#000080',
-      '#800080',
-      '#008080',
-      '#c0c0c0',
-      '#808080',
-      '#ff0000',
-      '#00ff00',
-      '#ffff00',
-      '#0000ff',
-      '#ff00ff',
-      '#00ffff',
-      '#ffffff'
-    ];
-
-    if (index >= 0 && index <= 15) {
-      return systemPalette[index] ?? '#ffffff';
-    }
-
-    if (index >= 16 && index <= 231) {
-      const i = index - 16;
-      const r = Math.floor(i / 36);
-      const g = Math.floor((i % 36) / 6);
-      const b = i % 6;
-      const levels = [0, 95, 135, 175, 215, 255];
-      return this.rgbToHex(levels[r] ?? 0, levels[g] ?? 0, levels[b] ?? 0);
-    }
-
-    if (index >= 232 && index <= 255) {
-      const level = 8 + (index - 232) * 10;
-      return this.rgbToHex(level, level, level);
-    }
-
-    return '#ffffff';
   }
 
   private async bindContainer(containerId: string): Promise<void> {

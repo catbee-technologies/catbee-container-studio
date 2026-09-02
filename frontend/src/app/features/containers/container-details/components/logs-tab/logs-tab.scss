@@ -77,6 +77,11 @@
       display: block;
       margin: 0.5rem 0;
 
+      ::ng-deep .log-timestamp {
+        color: var(--ink-300);
+        opacity: 0.85;
+      }
+
       ::ng-deep a.log-url {
         color: var(--color-cyan-base);
         text-decoration: underline;

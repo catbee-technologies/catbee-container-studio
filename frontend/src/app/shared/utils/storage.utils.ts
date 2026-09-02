@@ -16,13 +16,15 @@ export const LOGS_STORAGE_KEYS = {
   TAIL_LINES: `${GLOBAL_STORAGE_PREFIX}tail-lines`,
   SHOW_TIMESTAMPS: `${GLOBAL_STORAGE_PREFIX}show-timestamps`,
   WRAP_LINES: `${GLOBAL_STORAGE_PREFIX}wrap-lines`,
+  LOCAL_DATES: `${GLOBAL_STORAGE_PREFIX}local-dates`,
   CLEARED_SINCE_PREFIX: `${GLOBAL_STORAGE_PREFIX}cleared-since.`
 } as const;
 
 export const LOGS_STORAGE_DEFAULTS = {
   TAIL_LINES: 500 as LogTailOption,
   SHOW_TIMESTAMPS: false,
-  WRAP_LINES: true
+  WRAP_LINES: true,
+  LOCAL_DATES: false
 } as const;
 
 export const UI_STORAGE_KEYS = {
