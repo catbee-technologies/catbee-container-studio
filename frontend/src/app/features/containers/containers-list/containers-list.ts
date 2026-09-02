@@ -46,6 +46,8 @@ interface ContainerGroup {
   styleUrl: './containers-list.scss'
 })
 export class ContainersPage {
+  private static readonly STATS_POLL_MS = 10_000;
+
   readonly UI_STORAGE_KEYS = UI_STORAGE_KEYS;
 
   private readonly dockerApi = inject(DockerApiService);
@@ -56,6 +58,7 @@ export class ContainersPage {
   private isRuntimeSummaryUpdating = false;
   private eventsStreamId: string | null = null;
   private autoRefreshDebounce: ReturnType<typeof setTimeout> | null = null;
+  private statsPollTimer: ReturnType<typeof setInterval> | null = null;
 
   private readonly containerSearchInput = viewChild<SearchInputComponent>('containerSearchInput');
 
@@ -196,10 +199,19 @@ export class ContainersPage {
     void this.startEventStream();
 
     const unsubscribe = this.dockerApi.onStreamEvent(event => this.onDockerEvent(event));
+
+    this.statsPollTimer = setInterval(() => {
+      void this.updateRuntimeSummaries(this.containers());
+    }, ContainersPage.STATS_POLL_MS);
+
     this.destroyRef.onDestroy(() => {
       unsubscribe();
       if (this.autoRefreshDebounce) {
         clearTimeout(this.autoRefreshDebounce);
+      }
+      if (this.statsPollTimer) {
+        clearInterval(this.statsPollTimer);
+        this.statsPollTimer = null;
       }
       if (this.eventsStreamId) {
         void this.dockerApi.stopStream(this.eventsStreamId);
