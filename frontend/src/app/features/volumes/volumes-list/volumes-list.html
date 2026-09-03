@@ -91,31 +91,50 @@
                   (sort)="toggleSort('name')"
                 />
               </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Driver'"
-                  [active]="isSortActive('driver')"
-                  [indicator]="sortIndicator('driver')"
-                  (sort)="toggleSort('driver')"
-                />
+              @if (visibleColumns().has('driver')) {
+                <th scope="col">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'Driver'"
+                    [active]="isSortActive('driver')"
+                    [indicator]="sortIndicator('driver')"
+                    (sort)="toggleSort('driver')"
+                  />
+                </th>
+              }
+              @if (visibleColumns().has('size')) {
+                <th scope="col">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'Size'"
+                    [active]="isSortActive('size')"
+                    [indicator]="sortIndicator('size')"
+                    (sort)="toggleSort('size')"
+                  />
+                </th>
+              }
+              @if (visibleColumns().has('created')) {
+                <th scope="col">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'Created'"
+                    [active]="isSortActive('created')"
+                    [indicator]="sortIndicator('created')"
+                    (sort)="toggleSort('created')"
+                  />
+                </th>
+              }
+              <th scope="col" class="col-actions">
+                <div class="actions-header">
+                  <span>Actions</span>
+                  <catbee-container-studio-table-column-actions-menu
+                    [columns]="columnOptions"
+                    [defaultVisible]="defaultVisibleColumns"
+                    [requiredColumns]="['name']"
+                    [storageKey]="UI_STORAGE_KEYS.VOLUMES_VISIBLE_COLUMNS"
+                    [(visibleColumns)]="visibleColumns"
+                    [tooltipDelay]="tooltipDelay"
+                    [showReset]="false"
+                  />
+                </div>
               </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Size'"
-                  [active]="isSortActive('size')"
-                  [indicator]="sortIndicator('size')"
-                  (sort)="toggleSort('size')"
-                />
-              </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Created'"
-                  [active]="isSortActive('created')"
-                  [indicator]="sortIndicator('created')"
-                  (sort)="toggleSort('created')"
-                />
-              </th>
-              <th scope="col" class="col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -155,13 +174,19 @@
                     {{ volume.Name }}
                   </button>
                 </td>
-                <td>
-                  <span class="badge small driver-badge">{{ volume.Driver }}</span>
-                </td>
-                <td>{{ formatSize(volume.UsageData?.Size ?? 0) }}</td>
-                <td>
-                  <catbee-container-studio-tooltip-date [date]="volume.CreatedAt" />
-                </td>
+                @if (visibleColumns().has('driver')) {
+                  <td>
+                    <span class="badge small driver-badge">{{ volume.Driver }}</span>
+                  </td>
+                }
+                @if (visibleColumns().has('size')) {
+                  <td>{{ formatSize(volume.UsageData?.Size ?? 0) }}</td>
+                }
+                @if (visibleColumns().has('created')) {
+                  <td>
+                    <catbee-container-studio-tooltip-date [date]="volume.CreatedAt" />
+                  </td>
+                }
                 <td class="col-actions" (click)="$event.stopPropagation()">
                   <button
                     type="button"

@@ -100,39 +100,60 @@
                   (sort)="toggleSort('repository')"
                 />
               </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Tag'"
-                  [active]="isSortActive('tag')"
-                  [indicator]="sortIndicator('tag')"
-                  (sort)="toggleSort('tag')"
-                />
+              @if (visibleColumns().has('tag')) {
+                <th scope="col">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'Tag'"
+                    [active]="isSortActive('tag')"
+                    [indicator]="sortIndicator('tag')"
+                    (sort)="toggleSort('tag')"
+                  />
+                </th>
+              }
+              @if (visibleColumns().has('id')) {
+                <th scope="col">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'ID'"
+                    [active]="isSortActive('id')"
+                    [indicator]="sortIndicator('id')"
+                    (sort)="toggleSort('id')"
+                  />
+                </th>
+              }
+              @if (visibleColumns().has('size')) {
+                <th scope="col">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'Size'"
+                    [active]="isSortActive('size')"
+                    [indicator]="sortIndicator('size')"
+                    (sort)="toggleSort('size')"
+                  />
+                </th>
+              }
+              @if (visibleColumns().has('created')) {
+                <th scope="col">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'Created'"
+                    [active]="isSortActive('created')"
+                    [indicator]="sortIndicator('created')"
+                    (sort)="toggleSort('created')"
+                  />
+                </th>
+              }
+              <th scope="col" class="col-actions">
+                <div class="actions-header">
+                  <span>Actions</span>
+                  <catbee-container-studio-table-column-actions-menu
+                    [columns]="columnOptions"
+                    [defaultVisible]="defaultVisibleColumns"
+                    [requiredColumns]="['repo']"
+                    [storageKey]="UI_STORAGE_KEYS.IMAGES_VISIBLE_COLUMNS"
+                    [(visibleColumns)]="visibleColumns"
+                    [tooltipDelay]="tooltipDelay"
+                    [showReset]="false"
+                  />
+                </div>
               </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'ID'"
-                  [active]="isSortActive('id')"
-                  [indicator]="sortIndicator('id')"
-                  (sort)="toggleSort('id')"
-                />
-              </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Size'"
-                  [active]="isSortActive('size')"
-                  [indicator]="sortIndicator('size')"
-                  (sort)="toggleSort('size')"
-                />
-              </th>
-              <th scope="col">
-                <catbee-container-studio-table-sort-header
-                  [label]="'Created'"
-                  [active]="isSortActive('created')"
-                  [indicator]="sortIndicator('created')"
-                  (sort)="toggleSort('created')"
-                />
-              </th>
-              <th scope="col" class="col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -179,23 +200,31 @@
                     />
                   </p>
                 </td>
-                <td>
-                  {{ repositoryAndTag(image)[1] }}
-                  @if ((image.RepoTags?.length ?? 0) > 1) {
-                    <div class="tags-wrap">
-                      @for (tag of image.RepoTags?.slice(1) ?? []; track tag) {
-                        <span class="tag-extra">{{ tag }}</span>
-                      }
-                    </div>
-                  }
-                </td>
-                <td>{{ shortId(image) }}</td>
-                <td>{{ formatSize(image.Size) }}</td>
-                <td>
-                  <catbee-container-studio-tooltip-date [date]="formatCreated(image.Created)" />
-                </td>
+                @if (visibleColumns().has('tag')) {
+                  <td>
+                    {{ repositoryAndTag(image)[1] }}
+                    @if ((image.RepoTags?.length ?? 0) > 1) {
+                      <div class="tags-wrap">
+                        @for (tag of image.RepoTags?.slice(1) ?? []; track tag) {
+                          <span class="tag-extra">{{ tag }}</span>
+                        }
+                      </div>
+                    }
+                  </td>
+                }
+                @if (visibleColumns().has('id')) {
+                  <td>{{ shortId(image) }}</td>
+                }
+                @if (visibleColumns().has('size')) {
+                  <td>{{ formatSize(image.Size) }}</td>
+                }
+                @if (visibleColumns().has('created')) {
+                  <td>
+                    <catbee-container-studio-tooltip-date [date]="formatCreated(image.Created)" />
+                  </td>
+                }
                 <td class="col-actions" (click)="$event.stopPropagation()">
-                  <div>
+                  <div class="action-group">
                     <button
                       type="button"
                       class="catbee-action-btn icon-only"

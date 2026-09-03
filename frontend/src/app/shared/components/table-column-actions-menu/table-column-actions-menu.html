@@ -1,0 +1,40 @@
+<catbee-container-studio-menu [open]="open()" [style]="style()" (dismissed)="open.set(false)">
+  <button
+    menuTrigger
+    type="button"
+    class="catbee-action-btn icon-only menu-trigger no-bg"
+    (click)="toggleMenu($event)"
+    aria-label="Columns"
+    [catbeeTooltip]="'Columns'"
+    [catbeeTooltipDelay]="tooltipDelay()"
+    [catbeeTooltipPosition]="'top'"
+  >
+    <span class="mat-icon-filled" aria-hidden="true">view_column</span>
+  </button>
+
+  <div menuContent>
+    <div class="column-menu-actions">
+      @if (showSelectAll()) {
+        <button type="button" class="catbee-action-btn" (click)="selectAll()">Select All</button>
+      }
+      @if (showRemoveAll()) {
+        <button type="button" class="catbee-action-btn" (click)="removeAll()">Remove All</button>
+      }
+      @if (showReset()) {
+        <button type="button" class="catbee-action-btn" (click)="reset()">Reset</button>
+      }
+    </div>
+
+    @for (column of columns(); track column.key) {
+      <label class="menu-item menu-item-checkbox no-select pointer">
+        <catbee-container-studio-table-checkbox
+          [checked]="isVisible(column.key)"
+          (checkedChange)="toggle(column.key)"
+          size="small"
+        />
+
+        {{ column.label }}
+      </label>
+    }
+  </div>
+</catbee-container-studio-menu>

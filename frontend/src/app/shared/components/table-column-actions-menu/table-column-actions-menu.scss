@@ -1,0 +1,16 @@
+.column-menu-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+
+  button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  // When there are 3 buttons, make the last one span both columns
+  button:last-child:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+}
