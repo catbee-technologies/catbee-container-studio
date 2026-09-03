@@ -23,6 +23,12 @@ import {
 } from '@shared/types';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { TooltipDateComponent } from '@components/tooltip-date/tooltip-date';
+import {
+  ColumnOption,
+  TableColumnActionsMenuComponent
+} from '@components/table-column-actions-menu/table-column-actions-menu';
+
+type VolumeColumn = 'name' | 'driver' | 'size' | 'created';
 
 @Component({
   selector: 'catbee-container-studio-volumes-page',
@@ -36,7 +42,8 @@ import { TooltipDateComponent } from '@components/tooltip-date/tooltip-date';
     EmptyStateComponent,
     ErrorBannerComponent,
     CatbeeTooltip,
-    TooltipDateComponent
+    TooltipDateComponent,
+    TableColumnActionsMenuComponent
   ],
   templateUrl: './volumes-list.html',
   styleUrl: './volumes-list.scss'
@@ -49,6 +56,7 @@ export class VolumesPage {
 
   private readonly volumeSearchInput = viewChild<SearchInputComponent>('volumeSearchInput');
 
+  readonly UI_STORAGE_KEYS = UI_STORAGE_KEYS;
   readonly tooltipDelay = 300;
 
   readonly volumes = signal<DockerVolumeInfo[]>([]);
@@ -168,6 +176,24 @@ export class VolumesPage {
     if (names.length === 1) return names[0] ?? '';
     return `${names.length} volumes`;
   });
+
+  readonly columnOptions: ColumnOption<VolumeColumn>[] = [
+    { key: 'driver', label: 'Driver' },
+    { key: 'size', label: 'Size' },
+    { key: 'created', label: 'Created' }
+  ];
+
+  readonly defaultVisibleColumns: VolumeColumn[] = ['name', 'driver', 'size', 'created'];
+
+  readonly visibleColumns = signal<Set<VolumeColumn>>(
+    new Set([
+      'name',
+      ...this.localStorage.getArrayWithDefault<VolumeColumn>(
+        UI_STORAGE_KEYS.VOLUMES_VISIBLE_COLUMNS,
+        this.defaultVisibleColumns
+      )
+    ])
+  );
 
   constructor() {
     void this.loadVolumes();

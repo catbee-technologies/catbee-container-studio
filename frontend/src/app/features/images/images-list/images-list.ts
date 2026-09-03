@@ -26,6 +26,12 @@ import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { TooltipDateComponent } from '@components/tooltip-date/tooltip-date';
 import { PullImageDialogComponent } from '@docker-images/pull-image-dialog/pull-image-dialog';
 import { RunContainerDialogComponent } from '@docker-images/run-container-dialog/run-container-dialog';
+import {
+  ColumnOption,
+  TableColumnActionsMenuComponent
+} from '@components/table-column-actions-menu/table-column-actions-menu';
+
+type ImageColumn = 'used' | 'repo' | 'tag' | 'id' | 'size' | 'created';
 
 @Component({
   selector: 'catbee-container-studio-images-page',
@@ -42,7 +48,8 @@ import { RunContainerDialogComponent } from '@docker-images/run-container-dialog
     CopyButtonComponent,
     TooltipDateComponent,
     PullImageDialogComponent,
-    RunContainerDialogComponent
+    RunContainerDialogComponent,
+    TableColumnActionsMenuComponent
   ],
   templateUrl: './images-list.html',
   styleUrl: './images-list.scss'
@@ -55,6 +62,7 @@ export class ImagesPage {
 
   private readonly imageSearchInput = viewChild<SearchInputComponent>('imageSearchInput');
 
+  readonly UI_STORAGE_KEYS = UI_STORAGE_KEYS;
   readonly tooltipDelay = 300;
 
   readonly images = signal<DockerImageInfo[]>([]);
@@ -193,6 +201,25 @@ export class ImagesPage {
 
     return `${ids.length} images`;
   });
+
+  readonly columnOptions: ColumnOption<ImageColumn>[] = [
+    { key: 'tag', label: 'Tag' },
+    { key: 'id', label: 'ID' },
+    { key: 'size', label: 'Size' },
+    { key: 'created', label: 'Created' }
+  ];
+
+  readonly defaultVisibleColumns: ImageColumn[] = ['repo', 'tag', 'id', 'size', 'created'];
+
+  readonly visibleColumns = signal<Set<ImageColumn>>(
+    new Set([
+      'repo',
+      ...this.localStorage.getArrayWithDefault<ImageColumn>(
+        UI_STORAGE_KEYS.IMAGES_VISIBLE_COLUMNS,
+        this.defaultVisibleColumns
+      )
+    ])
+  );
 
   constructor() {
     void this.loadImages();

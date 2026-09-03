@@ -18,6 +18,12 @@ import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { CONTAINER_SORT_KEYS, ContainerSortKey, SORT_DIRECTIONS, SortDirection } from '@shared/types';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
+import {
+  ColumnOption,
+  TableColumnActionsMenuComponent
+} from '@components/table-column-actions-menu/table-column-actions-menu';
+
+type ContainerColumn = 'name' | 'image' | 'ports' | 'state' | 'cpu' | 'memory' | 'disk' | 'network' | 'pids';
 
 interface ContainerGroup {
   id: string;
@@ -40,7 +46,8 @@ interface ContainerGroup {
     EmptyStateComponent,
     ErrorBannerComponent,
     CatbeeTooltip,
-    CopyButtonComponent
+    CopyButtonComponent,
+    TableColumnActionsMenuComponent
   ],
   templateUrl: './containers-list.html',
   styleUrl: './containers-list.scss'
@@ -212,6 +219,29 @@ export class ContainersPage {
 
     return this.containers().find(container => container.Id === pendingId) ?? null;
   });
+
+  readonly columnOptions: ColumnOption<ContainerColumn>[] = [
+    { key: 'image', label: 'Image' },
+    { key: 'ports', label: 'Ports' },
+    { key: 'state', label: 'State' },
+    { key: 'cpu', label: 'CPU' },
+    { key: 'memory', label: 'Memory' },
+    { key: 'disk', label: 'Disk R/W' },
+    { key: 'network', label: 'Network I/O' },
+    { key: 'pids', label: 'PIDs' }
+  ];
+
+  readonly defaultVisibleColumns: ContainerColumn[] = ['name', 'image', 'ports', 'state', 'cpu', 'memory'];
+
+  readonly visibleColumns = signal<Set<ContainerColumn>>(
+    new Set([
+      'name',
+      ...this.localStorage.getArrayWithDefault<ContainerColumn>(
+        UI_STORAGE_KEYS.CONTAINERS_VISIBLE_COLUMNS,
+        this.defaultVisibleColumns
+      )
+    ])
+  );
 
   constructor() {
     void this.loadContainers(true);
