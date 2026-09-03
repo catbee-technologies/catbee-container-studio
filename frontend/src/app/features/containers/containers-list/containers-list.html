@@ -211,13 +211,37 @@
                   (sort)="toggleSort('memory')"
                 />
               </th>
+              <th scope="col" class="col-sortable">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Disk R/W'"
+                  [active]="isSortActive('disk')"
+                  [indicator]="sortIndicator('disk')"
+                  (sort)="toggleSort('disk')"
+                />
+              </th>
+              <th scope="col" class="col-sortable">
+                <catbee-container-studio-table-sort-header
+                  [label]="'Network I/O'"
+                  [active]="isSortActive('network')"
+                  [indicator]="sortIndicator('network')"
+                  (sort)="toggleSort('network')"
+                />
+              </th>
+              <th scope="col" class="col-sortable">
+                <catbee-container-studio-table-sort-header
+                  [label]="'PIDs'"
+                  [active]="isSortActive('pids')"
+                  [indicator]="sortIndicator('pids')"
+                  (sort)="toggleSort('pids')"
+                />
+              </th>
               <th scope="col" class="col-actions">Actions</th>
             </tr>
           </thead>
           <tbody>
             @if (visibleContainers().length === 0) {
               <tr class="table-empty-row">
-                <td colspan="8">
+                <td colspan="12">
                   <catbee-container-studio-empty-state
                     [icon]="'deployed_code'"
                     [message]="containers().length === 0 ? 'No containers.' : 'No containers match your filters.'"
@@ -240,7 +264,7 @@
                     (checkedChange)="toggleGroupSelection(group)"
                   />
                 </td>
-                <td colspan="6">
+                <td colspan="9">
                   <button type="button" class="group-toggle" (click)="toggleGroupCollapse(group.id)">
                     <span class="mat-icon-filled" aria-hidden="true">
                       {{ isGroupCollapsed(group.id) ? 'chevron_right' : 'expand_more' }}
@@ -300,16 +324,39 @@
                       <p class="status-detail">{{ container.Status }}</p>
                     </td>
                     <td class="col-cpu">
-                      @if (containerCpuUsage().has(container.Id)) {
-                        {{ containerCpuUsage().get(container.Id)!.toFixed(2) }}%
+                      @if (containerRuntimeStats().get(container.Id); as stats) {
+                        {{ stats.cpuPercent === 0 ? '0' : stats.cpuPercent.toFixed(2) }}%
                       } @else {
                         --
                       }
                     </td>
                     <td class="col-memory">
-                      @if (containerMemoryUsage().get(container.Id); as memory) {
-                        {{ formatDockerBytes(memory.usage) }} /
-                        {{ formatDockerBytes(memory.limit) }}
+                      @if (containerRuntimeStats().get(container.Id); as stats) {
+                        {{ formatDockerBytes(stats.memoryUsage) }} /
+                        {{ formatDockerBytes(stats.memoryLimit) }}
+                      } @else {
+                        --
+                      }
+                    </td>
+                    <td class="col-disk">
+                      @if (containerRuntimeStats().get(container.Id); as stats) {
+                        {{ formatDockerBytes(stats.diskReadBytesPerSecond) }}/s /
+                        {{ formatDockerBytes(stats.diskWriteBytesPerSecond) }}/s
+                      } @else {
+                        --
+                      }
+                    </td>
+                    <td class="col-network">
+                      @if (containerRuntimeStats().get(container.Id); as stats) {
+                        {{ formatIoRate(stats.networkRxBytesPerSecond) }} /
+                        {{ formatIoRate(stats.networkTxBytesPerSecond) }}
+                      } @else {
+                        --
+                      }
+                    </td>
+                    <td class="col-pids">
+                      @if (containerRuntimeStats().get(container.Id); as stats) {
+                        {{ stats.pids }}
                       } @else {
                         --
                       }
