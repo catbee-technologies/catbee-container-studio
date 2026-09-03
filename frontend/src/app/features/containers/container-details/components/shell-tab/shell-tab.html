@@ -1,7 +1,5 @@
 <section class="shell-panel">
   <div class="shell-toolbar">
-    <h3>Shell Session</h3>
-    <span class="shell-status" [class.connected]="shellConnected()">{{ shellStatus() }}</span>
     <div class="shell-find" role="search" aria-label="Find in terminal output">
       <catbee-container-studio-search-input
         #shellFindInput
@@ -9,7 +7,7 @@
         [value]="findTerm()"
         [placeholder]="'Find in terminal'"
         [ariaLabel]="'Find in terminal output'"
-        [width]="'min(420px, 100%)'"
+        width="20rem"
         (valueChange)="updateFindTerm($event)"
         (inputKeydown)="onFindKeydown($event)"
       />
@@ -37,12 +35,15 @@
         }
       </div>
     </div>
+
+    <span class="shell-status" [class.connected]="shellConnected()">{{ shellStatus() }}</span>
     <button
       type="button"
       class="catbee-action-btn reconnect-btn"
       (click)="reconnectShellSession()"
       [disabled]="shellConnecting()"
     >
+      <span class="mat-icon-filled" aria-hidden="true">refresh</span>
       Reconnect
     </button>
   </div>

@@ -193,8 +193,11 @@ export class VolumesPage {
     this.error.set(null);
 
     try {
+      const previousUsageByName = new Map(this.volumes().map(volume => [volume.Name, volume.UsageData]));
       const volumes = await this.dockerApi.listVolumes();
-      this.volumes.set(volumes);
+      this.volumes.set(
+        volumes.map(volume => ({ ...volume, UsageData: volume.UsageData ?? previousUsageByName.get(volume.Name) }))
+      );
       this.clearSelection();
       void this.refreshVolumeUsage();
       void this.refreshUsedVolumes();
@@ -342,7 +345,6 @@ export class VolumesPage {
   }
 
   formatSize(bytes: number): string {
-    if (bytes <= 0) return '--';
     return formatDockerBytes(bytes, 1);
   }
 

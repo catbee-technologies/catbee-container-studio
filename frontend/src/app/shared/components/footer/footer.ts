@@ -3,7 +3,7 @@ import { Component, input, signal } from '@angular/core';
 import { UpdaterComponent } from '@components/updater/updater';
 import { environment } from '@environments/environment';
 import { UpdateDownloadProgress } from '@shared/types';
-import { formatBytes } from '@utils/docker-display.utils';
+import { formatDockerBytes } from '@utils/docker-display.utils';
 
 @Component({
   selector: 'catbee-container-studio-footer',
@@ -35,7 +35,7 @@ export class FooterComponent {
     this.updateDownloaded.set(true);
   }
 
-  formatBytes(bytes: number): string {
-    return formatBytes(bytes);
+  formatDockerBytes(bytes: number): string {
+    return formatDockerBytes(bytes);
   }
 }

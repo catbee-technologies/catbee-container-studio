@@ -7,7 +7,7 @@
       [value]="envSearchTerm()"
       (valueChange)="setSearch($event)"
       (inputKeydown)="onSearchKeydown($event)"
-      width="285px"
+      width="20rem"
     />
   }
 
@@ -54,6 +54,7 @@
                   [text]="row.value"
                   [disabled]="row.value.length === 0"
                   [ariaLabel]="'Copy value for ' + row.key"
+                  style="padding-right: 0.5rem"
                 />
               </div>
             </td>

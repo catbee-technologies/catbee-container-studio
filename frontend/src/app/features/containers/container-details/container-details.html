@@ -107,6 +107,7 @@
         (activeTabChange)="setActiveTab($event)"
       />
 
+      <!-- Logs tab: always mounted to keep the logs stream alive -->
       <catbee-container-studio-container-logs-tab
         [containerId]="containerId()"
         [active]="activeTab() === 'logs'"
@@ -125,13 +126,18 @@
         (streamError)="error.set($event)"
       />
 
-      @if (activeTab() !== 'logs' && activeTab() !== 'stats') {
-        <section
-          #tabScrollArea
-          class="catbee-container-list-layout tab-panel"
-          [class.shell-tab-panel]="activeTab() === 'shell'"
-          role="tabpanel"
-        >
+      <!-- Shell tab: always mounted to keep the shell session alive -->
+      <catbee-container-studio-container-shell-tab
+        [containerId]="containerId()"
+        class="shell-tab-panel"
+        [class.hidden]="activeTab() !== 'shell'"
+        [active]="activeTab() === 'shell'"
+        (unavailable)="onShellUnavailable()"
+        (shellError)="error.set($event)"
+      />
+
+      @if (activeTab() !== 'logs' && activeTab() !== 'stats' && activeTab() !== 'shell') {
+        <section #tabScrollArea class="catbee-container-list-layout {{ activeTab() }}-section" role="tabpanel">
           @if (activeTab() === 'inspect') {
             <catbee-container-studio-container-inspect-tab [inspectData]="inspectData()" />
           }
@@ -143,14 +149,6 @@
           }
           @if (activeTab() === 'files') {
             <catbee-container-studio-container-files-tab [containerId]="containerId()" />
-          }
-          @if (activeTab() === 'shell') {
-            <catbee-container-studio-container-shell-tab
-              [containerId]="containerId()"
-              [active]="activeTab() === 'shell'"
-              (unavailable)="onShellUnavailable()"
-              (shellError)="error.set($event)"
-            />
           }
         </section>
       }

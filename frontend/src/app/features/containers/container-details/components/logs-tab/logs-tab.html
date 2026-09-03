@@ -7,7 +7,7 @@
       [value]="logsSearchTerm()"
       (valueChange)="setSearch($event)"
       (inputKeydown)="onSearchKeydown($event)"
-      width="auto"
+      width="20rem"
     >
       <button
         type="button"
@@ -82,15 +82,27 @@
 
       <div menuContent class="logs-options-menu">
         <label class="menu-item menu-item-checkbox no-select pointer">
-          <input type="checkbox" [checked]="showLogTimestamps()" (change)="toggleLogTimestamps()" />
+          <catbee-container-studio-table-checkbox
+            [checked]="showLogTimestamps()"
+            (checkedChange)="toggleLogTimestamps()"
+            size="small"
+          />
           Show timestamp
         </label>
         <label class="menu-item menu-item-checkbox no-select pointer">
-          <input type="checkbox" [checked]="wrapLogLines()" (change)="toggleWrapLines()" />
+          <catbee-container-studio-table-checkbox
+            [checked]="wrapLogLines()"
+            (checkedChange)="toggleWrapLines()"
+            size="small"
+          />
           Wrap lines
         </label>
         <label class="menu-item menu-item-checkbox no-select pointer">
-          <input type="checkbox" [checked]="convertDatesToLocal()" (change)="toggleConvertDatesToLocal()" />
+          <catbee-container-studio-table-checkbox
+            [checked]="convertDatesToLocal()"
+            (checkedChange)="toggleConvertDatesToLocal()"
+            size="small"
+          />
           Local dates
         </label>
         <label class="menu-item menu-item-select no-select" for="logs-tail-lines-select">

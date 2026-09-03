@@ -14,14 +14,15 @@
   .shell-toolbar {
     display: flex;
     flex-wrap: wrap;
+    gap: 0.45rem;
     align-items: center;
-    gap: 0.5rem;
-    position: sticky;
-    top: 0;
-    z-index: 1;
 
-    h3 {
-      margin: 0;
+    .shell-find {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      flex: 1 1 22rem;
+      min-width: min(100%, 22rem);
     }
 
     .shell-status {
@@ -30,6 +31,13 @@
       border: 1px solid rgb(126 161 191 / 0.35);
       border-radius: 999px;
       padding: 0.15rem 0.5rem;
+      height: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 6rem;
+      cursor: default;
+      user-select: none;
 
       &.connected {
         color: #cbffe8;
@@ -42,13 +50,6 @@
       height: 2rem;
     }
   }
-}
-
-.shell-find {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-left: auto;
 }
 
 .terminal-wrap {

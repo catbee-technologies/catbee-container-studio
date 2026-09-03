@@ -16,7 +16,7 @@
       <span class="stat-card_label">Memory</span>
       <span class="stat-card_value">
         @if (latest(); as s) {
-          {{ formatBytes(s.memUsage) }} / {{ s.memLimit > 0 ? formatBytes(s.memLimit) : '—' }}
+          {{ formatDockerBytes(s.memUsage) }} / {{ s.memLimit > 0 ? formatDockerBytes(s.memLimit) : '—' }}
           <span class="stat-card_sub">({{ s.memPct.toFixed(1) }}%)</span>
         } @else {
           —
@@ -34,8 +34,8 @@
       <span class="stat-card_label">Network</span>
       <span class="stat-card_value">
         @if (latest(); as s) {
-          <span class="badge rx">Rx {{ formatBytes(s.netRx) }}</span>
-          <span class="badge tx">Tx {{ formatBytes(s.netTx) }}</span>
+          <span class="badge rx">Rx {{ formatDockerBytes(s.netRx) }}</span>
+          <span class="badge tx">Tx {{ formatDockerBytes(s.netTx) }}</span>
         } @else {
           —
         }
@@ -52,8 +52,8 @@
       <span class="stat-card_label">Block I/O</span>
       <span class="stat-card_value">
         @if (latest(); as s) {
-          <span class="badge read">R {{ formatBytes(s.blkRead) }}</span>
-          <span class="badge write">W {{ formatBytes(s.blkWrite) }}</span>
+          <span class="badge read">R {{ formatDockerBytes(s.blkRead) }}</span>
+          <span class="badge write">W {{ formatDockerBytes(s.blkWrite) }}</span>
         } @else {
           —
         }

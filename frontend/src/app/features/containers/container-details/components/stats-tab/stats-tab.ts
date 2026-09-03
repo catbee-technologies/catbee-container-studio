@@ -151,7 +151,7 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
     this.initCharts();
   }
 
-  formatBytes(value: number): string {
+  formatDockerBytes(value: number): string {
     return formatDockerBytes(value, 1);
   }
 

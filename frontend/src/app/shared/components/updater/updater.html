@@ -50,7 +50,7 @@
             [attr.aria-valuenow]="status.percent"
             aria-valuemin="0"
             aria-valuemax="100"
-            [attr.aria-valuetext]="formatBytes(status.transferred) + ' of ' + formatBytes(status.total)"
+            [attr.aria-valuetext]="formatDockerBytes(status.transferred) + ' of ' + formatDockerBytes(status.total)"
           >
             <div class="catbee-updater-progress-bar" [style.width.%]="status.percent"></div>
           </div>
@@ -59,12 +59,12 @@
             <span> {{ status.percent | number: '1.0-0' }}% </span>
 
             <span>
-              {{ formatBytes(status.transferred) }}
+              {{ formatDockerBytes(status.transferred) }}
               /
-              {{ formatBytes(status.total) }}
+              {{ formatDockerBytes(status.total) }}
             </span>
 
-            <span> {{ formatBytes(status.bytesPerSecond) }}/s </span>
+            <span> {{ formatDockerBytes(status.bytesPerSecond) }}/s </span>
           </div>
         </div>
       }

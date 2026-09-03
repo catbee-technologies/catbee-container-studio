@@ -44,7 +44,7 @@ export default tseslint.config(
       "@angular-eslint/prefer-standalone": "warn",
       "@typescript-eslint/no-empty-function": "error",
       "@angular-eslint/no-output-native": "error",
-      '@angular-eslint/prefer-signals': 'error', 
+      '@angular-eslint/prefer-signals': 'error',
     },
     plugins: {
       '@angular-eslint': eslintPluginAngular,
@@ -56,6 +56,8 @@ export default tseslint.config(
       ...angular.configs.templateRecommended,
       ...angular.configs.templateAccessibility,
     ],
-    rules: {},
+    rules: {
+      "@angular-eslint/template/label-has-associated-control": "off",
+    }
   }
 );
