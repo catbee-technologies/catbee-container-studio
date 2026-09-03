@@ -22,9 +22,9 @@
         <span class="update-progress">
           <span class="update-progress-percent"> {{ progress.percent | number: '1.0-0' }}% </span>
           <span class="update-progress-size">
-            {{ formatBytes(progress.transferred) }}
+            {{ formatDockerBytes(progress.transferred) }}
             /
-            {{ formatBytes(progress.total) }}
+            {{ formatDockerBytes(progress.total) }}
           </span>
           <span class="downloading-icon" aria-hidden="true">
             <span class="mat-icon-filled" aria-hidden="true">download</span>

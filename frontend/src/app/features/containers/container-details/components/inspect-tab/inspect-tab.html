@@ -6,7 +6,7 @@
     [value]="inspectSearchTerm()"
     (valueChange)="setSearch($event)"
     (inputKeydown)="onSearchKeydown($event)"
-    width="auto"
+    width="20rem"
   />
 
   @if (inspectSearchTerm().trim().length > 0) {

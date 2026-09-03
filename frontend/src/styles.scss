@@ -375,11 +375,6 @@ input {
   background: radial-gradient(circle at top right, rgba(11, 32, 48, 0.72), rgb(0 0 0) 68%);
   padding: 0.75rem;
 
-  &.shell-tab-panel {
-    overflow: hidden;
-    display: block;
-  }
-
   &.stats-tab-panel {
     overflow: hidden;
     padding: 0;
@@ -414,16 +409,16 @@ input {
 
 .search-nav {
   display: inline-flex;
-  align-items: center;
   gap: 0.2rem;
+  align-items: baseline;
 
   .search-nav-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.8rem;
-    height: 1.8rem;
-    border-radius: 999px;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 0.6rem;
     border: 1px solid var(--ink-400);
     color: var(--ink-300);
     cursor: pointer;

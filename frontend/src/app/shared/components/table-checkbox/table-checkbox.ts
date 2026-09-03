@@ -10,6 +10,7 @@ import { Component, input, output } from '@angular/core';
 export class TableCheckboxComponent {
   readonly checked = input(false);
   readonly indeterminate = input(false);
+  readonly size = input<'small' | 'medium' | 'large'>('medium');
   readonly ariaLabel = input('Select row');
 
   readonly checkedChange = output<void>();

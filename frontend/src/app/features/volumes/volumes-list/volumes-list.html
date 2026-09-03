@@ -18,9 +18,7 @@
       </button>
       <div class="badges-row">
         <span class="badge total">Total: {{ volumes().length }}</span>
-        @if (totalUsedSize() > 0) {
-          <span class="badge size">{{ formatSize(totalUsedSize()) }}</span>
-        }
+        <span class="badge size">{{ formatSize(totalUsedSize()) }}</span>
       </div>
     </div>
   </header>

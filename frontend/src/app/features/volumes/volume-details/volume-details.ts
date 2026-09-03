@@ -5,7 +5,7 @@ import { combineLatest } from 'rxjs';
 import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerInfo, DockerVolumeInfo } from '@shared/types/docker-api.types';
 import { TabsComponent, TabItem } from '@components/tabs/tabs';
-import { DATE_FORMAT, formatBytes, formatDockerNames } from '@utils/docker-display.utils';
+import { DATE_FORMAT, formatDockerBytes, formatDockerNames } from '@utils/docker-display.utils';
 import { VolumeDetailsPrefetch } from './volume-details.resolver';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
@@ -68,7 +68,7 @@ export class VolumeDetailsPage {
     ];
   });
 
-  readonly volumeSize = computed(() => this.formatBytes(this.volume()?.UsageData?.Size ?? 0));
+  readonly volumeSize = computed(() => this.formatDockerBytes(this.volume()?.UsageData?.Size ?? 0));
 
   constructor() {
     const routeSub = combineLatest([this.route.paramMap, this.route.data]).subscribe(([params, data]) => {
@@ -128,8 +128,8 @@ export class VolumeDetailsPage {
     void this.router.navigate(['/images', imageRef], { state: { returnTo: this.router.url } });
   }
 
-  private formatBytes(bytes: number): string {
-    return formatBytes(bytes);
+  private formatDockerBytes(bytes: number): string {
+    return formatDockerBytes(bytes);
   }
 
   private async load(preloaded: VolumeDetailsPrefetch | null = null): Promise<void> {
@@ -153,7 +153,6 @@ export class VolumeDetailsPage {
 
         this.volume.set(preloaded.volume);
         this.containersInUse.set(preloaded.containersInUse);
-        console.log('Using preloaded volume details:', preloaded.containersInUse);
         void this.refreshVolumeUsage(name);
         return;
       }

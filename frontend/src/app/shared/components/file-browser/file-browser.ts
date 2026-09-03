@@ -8,7 +8,7 @@ import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
 import { CatbeeMonacoEditor, MonacoEditorOptions } from '@ng-catbee/monaco-editor';
 import { SortDirection } from '@shared/types';
 import { TableSortHeaderComponent } from '@components/table-sort-header/table-sort-header';
-import { formatBytes, formatDockerRelativeTime, formatMode } from '@utils/docker-display.utils';
+import { formatDockerBytes, formatDockerRelativeTime, formatMode } from '@utils/docker-display.utils';
 import { SessionStorageService } from '@ng-catbee/storage';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { TooltipDateComponent } from '@components/tooltip-date/tooltip-date';
@@ -416,7 +416,7 @@ export class FileBrowserComponent {
     if (entry.type === 'directory') {
       return '--';
     }
-    return formatBytes(entry.size);
+    return formatDockerBytes(entry.size);
   }
 
   formatMode(mode: string | null): string {

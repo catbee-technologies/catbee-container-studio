@@ -28,6 +28,7 @@ import {
   getSearchNavigationDirection,
   normalizeSearchMatchIndex
 } from '@utils/search-navigation.utils';
+import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
 
 export interface LogsSearchMode {
   caseSensitive: boolean;
@@ -64,7 +65,14 @@ interface LogMatch {
 
 @Component({
   selector: 'catbee-container-studio-container-logs-tab',
-  imports: [CommonModule, SearchInputComponent, MenuComponent, EmptyStateComponent, CatbeeTooltip],
+  imports: [
+    CommonModule,
+    SearchInputComponent,
+    MenuComponent,
+    EmptyStateComponent,
+    CatbeeTooltip,
+    TableCheckboxComponent
+  ],
   templateUrl: './logs-tab.html',
   styleUrl: './logs-tab.scss'
 })

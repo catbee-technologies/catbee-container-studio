@@ -3,7 +3,7 @@ import { Component, DestroyRef, effect, inject, input, model, output, signal } f
 import { ElectronApiService } from '@core/electron-api.service';
 import { AutoUpdaterStatus, UpdateDownloadProgress } from '@shared/types';
 import { DialogComponent } from '@components/dialog/dialog';
-import { formatBytes } from '@utils/docker-display.utils';
+import { formatDockerBytes } from '@utils/docker-display.utils';
 
 @Component({
   selector: 'catbee-container-studio-updater',
@@ -89,8 +89,8 @@ export class UpdaterComponent {
     this.updaterDialogOpen.set(false);
   }
 
-  formatBytes(bytes: number): string {
-    return formatBytes(bytes);
+  formatDockerBytes(bytes: number): string {
+    return formatDockerBytes(bytes);
   }
 
   downloadInBackground(): void {
