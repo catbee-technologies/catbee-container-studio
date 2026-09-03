@@ -26,7 +26,7 @@
   }
 
   &.active {
-    color: #b6f4ff;
+    color: var(--color-cyan-text);
 
     .mat-icon-filled {
       opacity: 1;

@@ -1,10 +1,12 @@
 import { Component, inject, OnDestroy, signal } from '@angular/core';
 import { ElectronApiService } from '@core/electron-api.service';
+import { ThemeSwitchComponent } from '@components/theme-switch/theme-switch';
 
 @Component({
   selector: 'catbee-container-studio-window-header',
   templateUrl: './window-header.html',
-  styleUrl: './window-header.scss'
+  styleUrl: './window-header.scss',
+  imports: [ThemeSwitchComponent]
 })
 export class WindowHeaderComponent implements OnDestroy {
   readonly electronApi = inject(ElectronApiService);

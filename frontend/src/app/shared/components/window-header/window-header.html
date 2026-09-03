@@ -22,8 +22,15 @@
     <span class="product-name">CatBee Container Studio</span>
   </div>
 
+  @if (isMacOS) {
+    <div class="titlebar-actions no-drag" aria-label="Theme switcher">
+      <catbee-container-studio-theme-switch />
+    </div>
+  }
+
   @if (!isMacOS) {
     <div class="titlebar-actions no-drag" aria-label="Window controls">
+      <catbee-container-studio-theme-switch />
       <button type="button" class="window-btn" (click)="minimizeWindow()" aria-label="Minimize window">
         <span class="mat-icon-filled" aria-hidden="true">horizontal_rule</span>
       </button>

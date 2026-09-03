@@ -10,8 +10,8 @@ $height: var(--window-header-height);
   align-items: center;
   justify-content: space-between;
   padding: 0 0 0 0.75rem;
-  border-bottom: 1px solid rgb(140 170 192 / 0.2);
-  background: linear-gradient(180deg, rgb(9 22 37 / 0.92), rgb(8 18 31 / 0.88));
+  border-bottom: 1px solid var(--border-color-light);
+  background: var(--bg-window-header);
   backdrop-filter: blur(8px);
   height: $height;
 
@@ -38,6 +38,7 @@ $height: var(--window-header-height);
     align-items: center;
     gap: 0.55rem;
     user-select: none;
+    flex: 1;
 
     .brand-icon {
       width: 1.5rem;
@@ -60,7 +61,7 @@ $height: var(--window-header-height);
       cursor: pointer;
 
       &:hover {
-        color: var(--primary-500);
+        color: var(--color-primary-base);
       }
     }
   }
@@ -82,12 +83,12 @@ $height: var(--window-header-height);
       cursor: pointer;
 
       &:hover {
-        background: rgb(125 154 178 / 0.25);
+        background: var(--bg-window-control-hover);
       }
 
       &.danger:hover {
-        background: #e81123;
-        color: #fff;
+        background: var(--bg-window-control-danger);
+        color: var(--color-checkmark);
       }
 
       .mat-icon-filled {

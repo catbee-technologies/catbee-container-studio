@@ -7,23 +7,23 @@
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    border: 1px solid rgb(106 152 196 / 0.45);
-    background: linear-gradient(180deg, rgb(30 52 75 / 0.56), rgb(20 36 56 / 0.62));
-    color: #b9d7f5;
+    border: 1px solid var(--border-color-accent);
+    background: var(--bg-surface);
+    color: var(--ink-200);
     border-radius: 999px;
     padding: 0.28rem 0.58rem;
     cursor: pointer;
     font-size: var(--font-size-base);
 
     &:hover {
-      color: #e0f2ff;
-      border-color: rgb(150 210 255 / 0.74);
+      color: var(--color-hover-text);
+      border-color: var(--border-color-hover);
     }
 
     &.is-active {
-      color: #f3fffb;
-      border-color: rgb(107 240 202 / 0.72);
-      background: linear-gradient(120deg, rgb(30 120 146 / 0.7), rgb(30 151 120 / 0.45));
+      color: var(--color-active-text);
+      border-color: var(--color-active-border);
+      background: var(--bg-active);
     }
   }
 }

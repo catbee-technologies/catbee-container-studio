@@ -71,3 +71,38 @@
     }
   }
 }
+
+html[data-theme='light'] .ansi {
+  $base-colors: (
+    0: #526273,
+    1: #b42318,
+    2: #1a7f37,
+    3: #9a6700,
+    4: #0969da,
+    5: #8250df,
+    6: #087ea4,
+    7: #17212b,
+    8: #6b7b8b,
+    9: #cf222e,
+    10: #17835f,
+    11: #b57600,
+    12: #0969da,
+    13: #8250df,
+    14: #087ea4,
+    15: #17212b
+  );
+
+  @for $i from 0 through 7 {
+    &.ansi-fg-#{30 + $i} {
+      color: map.get($base-colors, $i);
+    }
+
+    &.ansi-fg-#{90 + $i} {
+      color: map.get($base-colors, $i + 8);
+    }
+  }
+}
+
+html[data-theme='light'] .ansi[class*='ansi-fg-'] {
+  filter: saturate(1.1) brightness(0.72);
+}

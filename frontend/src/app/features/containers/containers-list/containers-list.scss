@@ -19,16 +19,16 @@ tbody tr {
 
     span {
       &.normal {
-        color: #9cf2c9;
+        color: var(--color-running-text);
       }
       &.warning {
-        color: #f6d365;
+        color: var(--color-warning-base);
       }
       &.high {
-        color: #ffad66;
+        color: var(--color-stop-base);
       }
       &.critical {
-        color: #ff7070;
+        color: var(--color-danger-base);
       }
     }
   }

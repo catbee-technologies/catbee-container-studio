@@ -16,13 +16,13 @@
   }
 
   &.is-copied {
-    color: #bdfad0;
-    border-color: rgb(74 189 119 / 0.6);
+    color: var(--color-copy-success);
+    border-color: var(--border-color-success);
   }
 
   &.is-failed {
-    color: #ffd2d2;
-    border-color: rgb(210 91 91 / 0.6);
+    color: var(--color-copy-failure);
+    border-color: var(--border-color-danger);
   }
 
   &.small {

@@ -1,0 +1,15 @@
+<button
+  type="button"
+  class="catbee-theme-switch"
+  (click)="toggleTheme()"
+  [catbeeTooltip]="isDeviceDefault() ? 'System' : lightMode() ? 'Light' : 'Dark'"
+  [catbeeTooltipPosition]="'left'"
+>
+  @if (isDeviceDefault()) {
+    <span class="mat-icon-filled" aria-hidden="true">brightness_medium</span>
+  } @else if (lightMode()) {
+    <span class="mat-icon-filled" aria-hidden="true">light_mode</span>
+  } @else {
+    <span class="mat-icon-filled" aria-hidden="true">dark_mode</span>
+  }
+</button>
