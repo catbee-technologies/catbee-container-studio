@@ -14,7 +14,7 @@
     "preversion": "node -e \"console.error('Do not run npm version from frontend directory.\\nRun it from the project root.\\n'); process.exit(1)\""
   },
   "private": true,
-  "packageManager": "npm@10.9.8",
+  "packageManager": "npm@12.0.2",
   "dependencies": {
     "@angular/cdk": "^22.1.3",
     "@angular/common": "^22.1.0",
@@ -44,7 +44,7 @@
     "angular-eslint": "22.1.0",
     "eslint": "^10.6.0",
     "prettier": "^3.8.1",
-    "typescript": "~6.0.2",
+    "typescript": "~7.0.2",
     "typescript-eslint": "8.62.1"
   }
 }
