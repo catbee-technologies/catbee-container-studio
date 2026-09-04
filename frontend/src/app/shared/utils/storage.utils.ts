@@ -30,6 +30,8 @@ export const LOGS_STORAGE_DEFAULTS = {
 
 export const UI_STORAGE_KEYS = {
   SIDEBAR_COLLAPSED: `${APP_UI_STORAGE_PREFIX}sidebar-collapsed`,
+  THEME: `${APP_UI_STORAGE_PREFIX}theme`,
+  IS_DEFAULT_THEME: `${APP_UI_STORAGE_PREFIX}default`,
 
   CONTAINERS_SORT_KEY: `${DOCKER_UI_STORAGE_PREFIX}containers.sort-key`,
   CONTAINERS_SORT_DIRECTION: `${DOCKER_UI_STORAGE_PREFIX}containers.sort-direction`,

@@ -14,6 +14,7 @@ import {
 import { DockerApiService } from '@core/docker-api.service';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { DockerStreamEventEnvelope } from '@shared/types/docker-api.types';
+import { ThemeService } from '@services/theme.service';
 import { FitAddon } from '@xterm/addon-fit';
 import { SearchAddon } from '@xterm/addon-search';
 import { Terminal } from '@xterm/xterm';
@@ -27,6 +28,7 @@ import { Terminal } from '@xterm/xterm';
 export class ShellTabComponent {
   private readonly dockerApi = inject(DockerApiService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly themeService = inject(ThemeService);
   private readonly shellTerminalHost = viewChild<ElementRef<HTMLElement>>('shellTerminalHost');
   private readonly shellFindInput = viewChild<SearchInputComponent>('shellFindInput');
 
@@ -90,6 +92,13 @@ export class ShellTabComponent {
         this.fitShellTerminal();
         void this.ensureShellSession();
       });
+    });
+
+    effect(() => {
+      this.themeService.isLightMode();
+      if (this.shellTerminal) {
+        this.shellTerminal.options.theme = this.shellTheme;
+      }
     });
   }
 
@@ -328,11 +337,7 @@ export class ShellTabComponent {
       fontFamily: 'JetBrains Mono, monospace',
       fontSize: 13,
       lineHeight: 1.35,
-      theme: {
-        background: '#050d17',
-        foreground: '#cce9ff',
-        cursor: '#98f8dc'
-      }
+      theme: this.shellTheme
     });
 
     this.shellTerminal.loadAddon(this.shellFitAddon);
@@ -373,6 +378,22 @@ export class ShellTabComponent {
     this.shellTerminal = null;
     this.shellFitAddon = null;
     this.shellSearchAddon = null;
+  }
+
+  private get shellTheme() {
+    return this.themeService.isLightMode()
+      ? {
+          background: '#f8fafc',
+          foreground: '#17212b',
+          cursor: '#087ea4',
+          selectionBackground: '#2188ff33'
+        }
+      : {
+          background: '#050d17',
+          foreground: '#cce9ff',
+          cursor: '#98f8dc',
+          selectionBackground: '#39d5ff33'
+        };
   }
 
   private resetShellSearchAddon(): void {

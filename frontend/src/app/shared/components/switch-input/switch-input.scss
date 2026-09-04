@@ -17,8 +17,8 @@
     width: 2.2rem;
     height: 1.25rem;
     border-radius: 999px;
-    border: 1px solid rgb(143 170 193 / 0.35);
-    background: rgb(35 58 79 / 0.4);
+    border: 1px solid var(--border-color-control);
+    background: var(--bg-toggle);
     position: relative;
     transition: background-color 140ms ease;
 
@@ -31,15 +31,15 @@
       height: 0.84rem;
       border-radius: 50%;
       transform: translateY(-50%);
-      background: #d7e4f2;
+      background: var(--ink-100);
       transition: transform 140ms ease;
     }
   }
 }
 
 .switch-toggle input:checked + .switch-slider {
-  background: rgb(24 133 118 / 0.65);
-  border-color: rgb(81 203 168 / 0.55);
+  background: var(--bg-toggle-active);
+  border-color: var(--border-color-selected);
 }
 
 .switch-toggle input:checked + .switch-slider::after {

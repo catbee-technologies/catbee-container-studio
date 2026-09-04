@@ -28,6 +28,7 @@ import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerStats, DockerStreamEventEnvelope } from '@shared/types/docker-api.types';
 import { formatDockerBytes } from '@utils/docker-display.utils';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
+import { ThemeService } from '@services/theme.service';
 
 Chart.register(CategoryScale, LinearScale, LineController, LineElement, PointElement, Filler, Tooltip);
 
@@ -44,43 +45,6 @@ interface StatsSample {
 }
 
 const HISTORY_SIZE = 60;
-const CHART_OPTS = {
-  animation: false as const,
-  responsive: true,
-  maintainAspectRatio: false,
-  interaction: { intersect: false, mode: 'index' as const },
-  plugins: {
-    legend: { display: false },
-    tooltip: {
-      enabled: true
-    }
-  },
-  scales: {
-    x: {
-      display: true,
-      border: { display: false },
-      grid: { display: false },
-      ticks: {
-        color: '#6fa0bf',
-        font: { size: 10 },
-        maxTicksLimit: 4,
-        autoSkip: true,
-        maxRotation: 0
-      }
-    },
-    y: {
-      display: true,
-      border: { display: false },
-      ticks: {
-        color: '#6fa0bf',
-        font: { size: 11 },
-        maxTicksLimit: 5
-      },
-      grid: { color: 'rgb(90 130 165 / 0.14)' }
-    }
-  }
-};
-
 @Component({
   selector: 'catbee-container-studio-container-stats-tab',
   imports: [CommonModule, EmptyStateComponent],
@@ -94,6 +58,7 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   private readonly zone = inject(NgZone);
   private readonly hostRef = inject(ElementRef<HTMLElement>);
+  private readonly themeService = inject(ThemeService);
 
   private readonly cpuCanvas = viewChild<ElementRef<HTMLCanvasElement>>('cpuCanvas');
   private readonly memCanvas = viewChild<ElementRef<HTMLCanvasElement>>('memCanvas');
@@ -144,6 +109,13 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
       const h = this.history();
       if (!this.chartsReady || h.length === 0) return;
       this.zone.runOutsideAngular(() => this.updateCharts(h));
+    });
+
+    effect(() => {
+      this.themeService.isLightMode();
+      if (this.chartsReady) {
+        this.zone.runOutsideAngular(() => this.applyChartTheme());
+      }
     });
   }
 
@@ -274,6 +246,8 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
     const blkEl = this.blkCanvas()?.nativeElement;
     if (!cpuEl || !memEl || !netEl || !blkEl) return;
 
+    const chartOptions = this.createChartOptions();
+
     const baseDataset = (color: string, fill: string) => ({
       data: [] as number[],
       borderColor: color,
@@ -289,22 +263,24 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
       type: 'line',
       data: {
         labels: [],
-        datasets: [{ ...baseDataset('#56d364', 'rgb(86 211 100 / 0.10)'), label: 'CPU %' }]
+        datasets: [
+          { ...baseDataset(this.themeColor('--chart-cpu'), this.themeColor('--chart-cpu-fill')), label: 'CPU %' }
+        ]
       },
       options: {
-        ...CHART_OPTS,
+        ...chartOptions,
         scales: {
-          ...CHART_OPTS.scales,
+          ...chartOptions.scales,
           y: {
-            ...CHART_OPTS.scales.y,
+            ...chartOptions.scales.y,
             ticks: {
-              ...CHART_OPTS.scales.y.ticks,
+              ...chartOptions.scales.y.ticks,
               callback: value => this.formatPercentage(Number(value))
             }
           }
         },
         plugins: {
-          ...CHART_OPTS.plugins,
+          ...chartOptions.plugins,
           tooltip: {
             enabled: true,
             callbacks: {
@@ -324,25 +300,25 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
         labels: [],
         datasets: [
           {
-            ...baseDataset('#58a6ff', 'rgb(88 166 255 / 0.10)'),
+            ...baseDataset(this.themeColor('--chart-memory'), this.themeColor('--chart-memory-fill')),
             label: 'Memory'
           }
         ]
       },
       options: {
-        ...CHART_OPTS,
+        ...chartOptions,
         scales: {
-          ...CHART_OPTS.scales,
+          ...chartOptions.scales,
           y: {
-            ...CHART_OPTS.scales.y,
+            ...chartOptions.scales.y,
             ticks: {
-              ...CHART_OPTS.scales.y.ticks,
+              ...chartOptions.scales.y.ticks,
               callback: value => formatDockerBytes(Number(value), 1)
             }
           }
         },
         plugins: {
-          ...CHART_OPTS.plugins,
+          ...chartOptions.plugins,
           tooltip: {
             enabled: true,
             callbacks: {
@@ -366,19 +342,19 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
         labels: [],
         datasets: [
           {
-            ...baseDataset('#56d364', 'rgb(86 211 100 / 0.06)'),
+            ...baseDataset(this.themeColor('--chart-cpu'), this.themeColor('--chart-cpu-fill')),
             label: 'Rx'
           },
           {
-            ...baseDataset('#e3b341', 'rgb(227 179 65 / 0.06)'),
+            ...baseDataset(this.themeColor('--chart-transfer-write'), this.themeColor('--chart-transfer-write-fill')),
             label: 'Tx'
           }
         ]
       },
       options: {
-        ...CHART_OPTS,
+        ...chartOptions,
         plugins: {
-          ...CHART_OPTS.plugins,
+          ...chartOptions.plugins,
           tooltip: {
             enabled: true,
             callbacks: {
@@ -390,11 +366,11 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
           }
         },
         scales: {
-          ...CHART_OPTS.scales,
+          ...chartOptions.scales,
           y: {
-            ...CHART_OPTS.scales.y,
+            ...chartOptions.scales.y,
             ticks: {
-              ...CHART_OPTS.scales.y.ticks,
+              ...chartOptions.scales.y.ticks,
               callback: value => formatDockerBytes(Number(value), 0)
             }
           }
@@ -408,19 +384,19 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
         labels: [],
         datasets: [
           {
-            ...baseDataset('#58a6ff', 'rgb(88 166 255 / 0.06)'),
+            ...baseDataset(this.themeColor('--chart-memory'), this.themeColor('--chart-memory-fill')),
             label: 'Read'
           },
           {
-            ...baseDataset('#bc8cff', 'rgb(188 140 255 / 0.06)'),
+            ...baseDataset(this.themeColor('--chart-block-write'), this.themeColor('--chart-block-write-fill')),
             label: 'Write'
           }
         ]
       },
       options: {
-        ...CHART_OPTS,
+        ...chartOptions,
         plugins: {
-          ...CHART_OPTS.plugins,
+          ...chartOptions.plugins,
           tooltip: {
             enabled: true,
             callbacks: {
@@ -432,11 +408,11 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
           }
         },
         scales: {
-          ...CHART_OPTS.scales,
+          ...chartOptions.scales,
           y: {
-            ...CHART_OPTS.scales.y,
+            ...chartOptions.scales.y,
             ticks: {
-              ...CHART_OPTS.scales.y.ticks,
+              ...chartOptions.scales.y.ticks,
               callback: value => formatDockerBytes(Number(value), 0)
             }
           }
@@ -588,6 +564,97 @@ export class StatsTabComponent implements AfterViewInit, OnDestroy {
       this.blkChart.data.datasets[1]!.data = h.map(s => s.blkWrite);
       this.blkChart.update('none');
     }
+  }
+
+  private createChartOptions() {
+    const axisText = this.themeColor('--chart-axis-text');
+
+    return {
+      animation: false as const,
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' as const },
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: true }
+      },
+      scales: {
+        x: {
+          display: true,
+          border: { display: false },
+          grid: { display: false },
+          ticks: {
+            color: axisText,
+            font: { size: 10 },
+            maxTicksLimit: 4,
+            autoSkip: true,
+            maxRotation: 0
+          }
+        },
+        y: {
+          display: true,
+          border: { display: false },
+          ticks: {
+            color: axisText,
+            font: { size: 11 },
+            maxTicksLimit: 5
+          },
+          grid: { color: this.themeColor('--chart-grid') }
+        }
+      }
+    };
+  }
+
+  private applyChartTheme(): void {
+    const charts = [this.cpuChart, this.memChart, this.netChart, this.blkChart];
+    const palette = [
+      [this.themeColor('--chart-cpu'), this.themeColor('--chart-cpu-fill')],
+      [this.themeColor('--chart-memory'), this.themeColor('--chart-memory-fill')],
+      [
+        this.themeColor('--chart-cpu'),
+        this.themeColor('--chart-cpu-fill'),
+        this.themeColor('--chart-transfer-write'),
+        this.themeColor('--chart-transfer-write-fill')
+      ],
+      [
+        this.themeColor('--chart-memory'),
+        this.themeColor('--chart-memory-fill'),
+        this.themeColor('--chart-block-write'),
+        this.themeColor('--chart-block-write-fill')
+      ]
+    ];
+    const axisText = this.themeColor('--chart-axis-text');
+    const grid = this.themeColor('--chart-grid');
+
+    charts.forEach((chart, chartIndex) => {
+      if (!chart) {
+        return;
+      }
+
+      const colors = palette[chartIndex]!;
+      chart.data.datasets.forEach((dataset, datasetIndex) => {
+        dataset.borderColor = colors[datasetIndex * 2]!;
+        dataset.backgroundColor = colors[datasetIndex * 2 + 1]!;
+      });
+
+      const xScale = chart.options.scales?.['x'];
+      const yScale = chart.options.scales?.['y'];
+      if (xScale?.ticks) {
+        xScale.ticks.color = axisText;
+      }
+      if (yScale?.ticks) {
+        yScale.ticks.color = axisText;
+      }
+      if (yScale?.grid) {
+        yScale.grid.color = grid;
+      }
+
+      chart.update('none');
+    });
+  }
+
+  private themeColor(name: string): string {
+    return getComputedStyle(this.hostRef.nativeElement).getPropertyValue(name).trim();
   }
 
   formatPercentage(value: number): string {

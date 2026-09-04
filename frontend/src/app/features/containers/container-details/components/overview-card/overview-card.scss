@@ -17,8 +17,8 @@
     gap: 0.35rem;
     padding: 0.28rem 0.55rem;
     border-radius: var(--radius-full);
-    border: 1px solid rgb(123 181 222 / 0.2);
-    background: linear-gradient(165deg, rgb(12 31 47 / 0.52), rgb(7 21 35 / 0.48));
+    border: 1px solid var(--border-color-section);
+    background: var(--bg-panel-elevated);
   }
 
   .metric-status {
@@ -47,9 +47,9 @@
     align-items: center;
     font-family: var(--mono-font);
     font-size: var(--font-size-sm);
-    color: #7ff3ff;
-    background: rgb(0 180 200 / 0.1);
-    border: 1px solid rgb(127 243 255 / 0.25);
+    color: var(--color-port);
+    background: var(--bg-port);
+    border: 1px solid var(--border-color-port);
     border-radius: var(--radius-full);
     padding: 0.25rem;
     white-space: nowrap;
@@ -59,9 +59,9 @@
       cursor: pointer;
 
       &:hover {
-        color: #b0ffff;
-        border-color: rgb(176 255 255 / 0.5);
-        background: rgb(0 200 220 / 0.18);
+        color: var(--color-port-hover);
+        border-color: var(--border-color-port-hover);
+        background: var(--bg-port-hover);
       }
     }
   }
@@ -73,8 +73,8 @@
     font-size: var(--font-size-xs);
     font-family: var(--mono-font);
     color: var(--ink-200);
-    background: rgb(114 167 208 / 0.12);
-    border: 1px solid rgb(114 167 208 / 0.28);
+    background: var(--bg-ports-button);
+    border: 1px solid var(--border-color-ports-button);
     border-radius: var(--radius-full);
     padding: 0.18rem 0.55rem 0.18rem 0.45rem;
     cursor: pointer;
@@ -93,8 +93,8 @@
 
     &:hover {
       color: var(--ink-100);
-      border-color: rgb(149 197 237 / 0.55);
-      background: rgb(114 167 208 / 0.2);
+      border-color: var(--border-color-ports-button-hover);
+      background: var(--bg-ports-button-hover);
     }
   }
 
@@ -122,22 +122,22 @@
     }
 
     &.port-link {
-      color: #7ff3ff;
+      color: var(--color-port);
       cursor: pointer;
 
       .mat-icon-filled {
-        color: #7ff3ff;
+        color: var(--color-port);
         opacity: 0.8;
       }
 
       &:hover {
-        background: rgb(0 180 200 / 0.14);
-        color: #b0ffff;
+        background: var(--bg-port-menu-hover);
+        color: var(--color-port-hover);
       }
     }
 
     &:not(.port-link):hover {
-      background: rgb(114 167 208 / 0.1);
+      background: var(--bg-ports-menu-hover);
     }
   }
 

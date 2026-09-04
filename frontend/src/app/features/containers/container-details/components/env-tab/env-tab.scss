@@ -21,7 +21,7 @@ table.env-table {
 
   th,
   td {
-    border-bottom: 1px solid rgb(147 179 210 / 0.18);
+    border-bottom: 1px solid var(--border-color-primary);
     padding: 0.55rem 0.45rem;
     text-align: left;
     vertical-align: top;

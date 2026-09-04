@@ -12,6 +12,8 @@ import { formatDockerBytes, formatDockerRelativeTime, formatMode } from '@utils/
 import { SessionStorageService } from '@ng-catbee/storage';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { TooltipDateComponent } from '@components/tooltip-date/tooltip-date';
+import { ThemeService } from '@services/theme.service';
+import { EditorTheme } from '@utils/monaco-editor.utils';
 
 type FileSortKey = 'name' | 'size' | 'mode' | 'modified';
 
@@ -51,6 +53,7 @@ const DIRECTORY_LOAD_TIMEOUT_MS = DIRECTORY_LOAD_TIMEOUT_SECONDS * 1000;
 })
 export class FileBrowserComponent {
   private readonly sessionStorage = inject(SessionStorageService);
+  private readonly themeService = inject(ThemeService);
 
   private readonly browserContent = viewChild<ElementRef<HTMLElement>>('browserContent');
   private readonly directoryPanel = viewChild<ElementRef<HTMLElement>>('directoryPanel');
@@ -129,7 +132,8 @@ export class FileBrowserComponent {
     folding: true,
     glyphMargin: false,
     overviewRulerLanes: 0,
-    hideCursorInOverviewRuler: true
+    hideCursorInOverviewRuler: true,
+    theme: this.themeService.isLightMode() ? EditorTheme.LIGHT : EditorTheme.DARK
   }));
   readonly deleteMessage = computed(() => {
     const entry = this.entryPendingDelete();

@@ -6,9 +6,9 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  border: 1px solid rgb(255 123 142 / 0.62);
-  background: linear-gradient(145deg, rgb(142 26 56 / 0.58), rgb(91 18 46 / 0.62));
-  color: #ffe8ef;
+  border: 1px solid var(--border-color-error);
+  background: var(--bg-error-banner);
+  color: var(--color-error-banner);
   border-radius: 0.75rem;
   padding: 0.75rem;
   margin: 0;
@@ -29,16 +29,16 @@
     flex: 0 0 auto;
     background: transparent;
     border: none;
-    color: #ffe8ef;
+    color: var(--color-error-banner);
     font-size: 1.2rem;
     cursor: pointer;
     transition: opacity 0.2s ease-in-out;
 
     &:hover {
       opacity: 0.8;
-      background: rgb(255 123 142 / 0.2);
+      background: var(--bg-error-hover);
       border-radius: 50%;
-      border: 1px solid rgb(255 123 142 / 0.62);
+      border: 1px solid var(--border-color-error);
     }
   }
 
