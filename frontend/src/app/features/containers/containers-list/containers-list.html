@@ -128,6 +128,15 @@
               <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
               Unpause selected
             </button>
+            <button
+              type="button"
+              class="menu-item"
+              (click)="restartSelectedContainers(); closeBulkActionsMenu()"
+              [disabled]="activeBulkAction() !== null"
+            >
+              <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
+              Restart selected
+            </button>
           </div>
         </catbee-container-studio-menu>
         <button
