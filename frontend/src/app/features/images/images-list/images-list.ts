@@ -362,19 +362,26 @@ export class ImagesPage {
     if (ids.length === 0) return;
 
     this.pendingDeleteImageIds.set([]);
+    const failedImages: string[] = [];
 
     for (const id of ids) {
       try {
         await this.dockerApi.removeImage(id, false);
       } catch {
-        // Continue removing remaining images and show a final refresh/error state.
+        const image = this.images().find(item => item.Id === id);
+        if (image) {
+          const [repository, tag] = this.repositoryAndTag(image);
+          failedImages.push(repository === '<none>' ? image.Id : `${repository}:${tag}`);
+        } else {
+          failedImages.push(id);
+        }
       }
     }
 
-    try {
-      await this.loadImages();
-    } catch (err) {
-      this.error.set(err instanceof Error ? err.message : 'Failed to delete image.');
+    await this.loadImages();
+
+    if (failedImages.length > 0) {
+      this.error.set(`Could not delete image${failedImages.length === 1 ? '' : 's'}: ${failedImages.join(', ')}`);
     }
   }
 

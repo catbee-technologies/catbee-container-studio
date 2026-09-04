@@ -335,19 +335,20 @@ export class VolumesPage {
     if (names.length === 0) return;
 
     this.pendingDeleteVolumeNames.set([]);
+    const failedVolumes: string[] = [];
 
     for (const name of names) {
       try {
         await this.dockerApi.removeVolume(name, false);
       } catch {
-        // Continue removing remaining volumes and refresh state afterwards.
+        failedVolumes.push(name);
       }
     }
 
-    try {
-      await this.loadVolumes();
-    } catch (err) {
-      this.error.set(err instanceof Error ? err.message : 'Failed to delete volume.');
+    await this.loadVolumes();
+
+    if (failedVolumes.length > 0) {
+      this.error.set(`Could not delete volume${failedVolumes.length === 1 ? '' : 's'}: ${failedVolumes.join(', ')}`);
     }
   }
 
