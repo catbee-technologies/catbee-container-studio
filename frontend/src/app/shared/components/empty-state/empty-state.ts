@@ -36,7 +36,7 @@ export class EmptyStateComponent {
             void this.loader.show(this.emptyStateLoaderName, {
               message,
               fullscreen: false,
-              size: this.size(),
+              size: this.size() === 'large' ? 'medium' : this.size(),
               loaderColor: isLightMode ? '#087ea4' : '#d9f7ff'
             });
           } else {

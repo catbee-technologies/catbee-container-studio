@@ -13,6 +13,7 @@
   padding: 0 0.2rem 0 0.3rem;
   box-shadow: var(--shadow-control-inset);
   height: 2.25rem;
+  margin: 2px;
 
   &:focus-within {
     border-color: var(--border-color-hover);
@@ -22,7 +23,7 @@
 
 .search-icon {
   font-size: 1rem;
-  color: var(--color-cyan-base);
+  color: var(--ink-100);
 }
 
 .search-input {

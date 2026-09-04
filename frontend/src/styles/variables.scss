@@ -32,12 +32,12 @@
   --ink-400: #5a6f85; // Quaternary text
   --ink-500: #4b6073; // Muted text
 
-  // PRIMARY COLORS (Blues & Cyans)
-  --color-primary-base: #58a6ff;
+  // PRIMARY COLORS (Cyan-led)
+  --color-primary-base: #39d5ff;
   --color-primary-text: #8beeff;
 
   // Accent/Info Colors
-  --color-info-base: #79c0ff;
+  --color-info-base: #39d5ff;
   --color-info-text: #c8e9ff;
 
   // Cyan/Teal Colors
@@ -52,7 +52,7 @@
   --color-mint-text: #bfffe8;
 
   // Running/Active State (bright teal)
-  --color-running-text: #cbffe8;
+  --color-running-text: #92f59d;
 
   // WARNING COLORS (Yellows & Oranges)
   --color-warning-base: #f2cc60;
@@ -79,6 +79,7 @@
   --bg-surface: linear-gradient(180deg, rgb(30 52 75 / 0.56), rgb(20 36 56 / 0.62));
   --bg-panel: rgb(8 20 31 / 0.7);
   --bg-panel-elevated: linear-gradient(165deg, rgb(12 31 47 / 0.62), rgb(7 21 35 / 0.62));
+  --bg-menu: linear-gradient(165deg, #0c2638, #071923);
   --bg-tab-panel: radial-gradient(circle at top right, rgb(11 32 48 / 0.72), rgb(0 0 0) 68%);
   --bg-body:
     radial-gradient(circle at 15% 55%, rgb(199 199 199 / 0.03) 0 15%, transparent 15%),
@@ -89,11 +90,11 @@
   --bg-overlay: radial-gradient(circle at center, rgb(0 0 0), rgb(4 16 27 / 0.8));
   --bg-control-hover: rgb(255 255 255 / 0.04);
   --bg-search-match: rgb(255 210 93 / 0.42);
-  --bg-search-match-current: rgb(74 148 255 / 0.78);
+  --bg-search-match-current: rgb(57 213 255 / 0.78);
   --bg-input: rgb(8 22 36 / 0.72);
   --bg-console: rgb(4 12 21 / 0.85);
-  --bg-selected-row: rgb(50 139 184 / 0.17);
-  --bg-control-selected: linear-gradient(135deg, rgb(73 147 217 / 0.62), rgb(34 105 167 / 0.65));
+  --bg-selected-row: rgb(57 213 255 / 0.17);
+  --bg-control-selected: linear-gradient(135deg, rgb(57 213 255 / 0.5), rgb(18 117 145 / 0.65));
   --bg-toggle: rgb(35 58 79 / 0.4);
   --bg-toggle-active: rgb(24 133 118 / 0.65);
   --bg-checkbox: rgb(9 21 34 / 0.9);
@@ -103,12 +104,12 @@
   --bg-port: rgb(0 180 200 / 0.1);
   --bg-port-hover: rgb(0 200 220 / 0.18);
   --bg-port-menu-hover: rgb(0 180 200 / 0.14);
-  --bg-ports-button: rgb(114 167 208 / 0.12);
-  --bg-ports-button-hover: rgb(114 167 208 / 0.2);
-  --bg-ports-menu-hover: rgb(114 167 208 / 0.1);
+  --bg-ports-button: rgb(57 213 255 / 0.12);
+  --bg-ports-button-hover: rgb(57 213 255 / 0.2);
+  --bg-ports-menu-hover: rgb(57 213 255 / 0.1);
   --bg-filter-control: rgb(8 24 38 / 0.88);
-  --bg-filter-active: linear-gradient(120deg, #73f3c8, #8fe1ff);
-  --bg-window-control-hover: rgb(125 154 178 / 0.25);
+  --bg-filter-active: linear-gradient(120deg, #0d8297, #0b657a);
+  --bg-window-control-hover: rgb(57 213 255 / 0.18);
   --bg-window-control-danger: #e81123;
   --bg-window-header: linear-gradient(180deg, rgb(9 22 37 / 0.92), rgb(8 18 31 / 0.88));
   --bg-access-read: linear-gradient(120deg, rgb(27 184 140 / 0.35), rgb(16 126 102 / 0.3));
@@ -117,7 +118,7 @@
   --bg-transfer-write: linear-gradient(120deg, rgb(204 153 71 / 0.32), rgb(139 100 46 / 0.26));
 
   // Component Backgrounds
-  --bg-hover: rgb(97 170 231 / 0.2);
+  --bg-hover: rgb(57 213 255 / 0.16);
   --bg-active: linear-gradient(120deg, rgb(24 101 118 / 0.5), rgb(27 140 122 / 0.28));
 
   // Table Row Backgrounds
@@ -132,12 +133,12 @@
   --border-color-light: rgb(140 170 192 / 0.2);
   --border-color-primary: rgb(147 179 210 / 0.18);
   --border-color-accent: rgb(143 170 193 / 0.35);
-  --border-color-hover: rgb(149 197 237 / 0.75);
+  --border-color-hover: rgb(127 243 255 / 0.68);
   --border-color-panel: rgb(144 170 194 / 0.2);
   --border-color-section: rgb(123 181 222 / 0.3);
-  --border-color-tab-panel: rgb(114 167 208 / 0.32);
+  --border-color-tab-panel: rgb(57 213 255 / 0.32);
   --border-color-search-match: rgb(255 210 93 / 0.55);
-  --border-color-search-match-current: rgb(189 224 255 / 0.9);
+  --border-color-search-match-current: rgb(195 252 255 / 0.9);
   --border-color-scrollbar: rgb(12 27 43 / 0.55);
   --border-color-control: rgb(143 170 193 / 0.4);
   --border-color-selected: rgb(81 203 168 / 0.55);
@@ -145,10 +146,10 @@
   --border-color-checkbox-active: rgb(81 203 168 / 0.75);
   --border-color-port: rgb(127 243 255 / 0.25);
   --border-color-port-hover: rgb(176 255 255 / 0.5);
-  --border-color-ports-button: rgb(114 167 208 / 0.28);
-  --border-color-ports-button-hover: rgb(149 197 237 / 0.55);
-  --border-color-filter: rgb(114 167 208 / 0.35);
-  --border-color-filter-separator: rgb(114 167 208 / 0.22);
+  --border-color-ports-button: rgb(57 213 255 / 0.28);
+  --border-color-ports-button-hover: rgb(127 243 255 / 0.55);
+  --border-color-filter: rgb(57 213 255 / 0.35);
+  --border-color-filter-separator: rgb(57 213 255 / 0.22);
 
   // State-specific Borders
   --border-color-success: rgb(74 223 169 / 0.58);
@@ -180,9 +181,9 @@
   --btn-danger-text: #ffe2d5;
 
   // Info/Restart Button
-  --btn-info-gradient: linear-gradient(180deg, rgb(54 101 176 / 0.9), rgb(37 71 132 / 0.92));
-  --btn-info-border: rgb(123 176 255 / 0.66);
-  --btn-info-text: #deeeff;
+  --btn-info-gradient: linear-gradient(180deg, rgb(25 151 181 / 0.92), rgb(13 101 130 / 0.94));
+  --btn-info-border: rgb(127 243 255 / 0.6);
+  --btn-info-text: #d9faff;
 
   // Unpause Button (secondary teal)
   --btn-unpause-gradient: linear-gradient(180deg, rgb(28 130 108 / 0.88), rgb(17 95 82 / 0.9));
@@ -207,9 +208,9 @@
   --badge-stopped-text: #ffe0cd;
 
   // Total Badge (info)
-  --badge-total-gradient: linear-gradient(140deg, rgb(73 145 213 / 0.28), rgb(38 96 162 / 0.3));
-  --badge-total-border: rgb(100 175 255 / 0.55);
-  --badge-total-text: #c8e9ff;
+  --badge-total-gradient: linear-gradient(140deg, rgb(57 213 255 / 0.25), rgb(13 119 147 / 0.3));
+  --badge-total-border: rgb(127 243 255 / 0.55);
+  --badge-total-text: #c8f8ff;
 
   // Size Badge (purple)
   --badge-size-gradient: linear-gradient(140deg, rgb(130 80 190 / 0.28), rgb(90 50 140 / 0.3));
@@ -229,11 +230,12 @@
   // Hover
   --color-hover-text: #ebfcff;
   --color-control-selected: #efffff;
-  --color-filter-active: #0b2731;
+  --color-filter-active: #e8fbff;
   --color-port: #7ff3ff;
   --color-port-hover: #b0ffff;
   --color-error-banner: #ffe8ef;
   --color-checkmark: #effff9;
+  --color-checkmark-indeterminate: #effff9;
   --color-copy-success: #bdfad0;
   --color-copy-failure: #ffd2d2;
   --color-access-read: #cbffe8;
@@ -244,8 +246,8 @@
   --chart-grid: rgb(90 130 165 / 0.14);
   --chart-cpu: #56d364;
   --chart-cpu-fill: rgb(86 211 100 / 0.1);
-  --chart-memory: #58a6ff;
-  --chart-memory-fill: rgb(88 166 255 / 0.1);
+  --chart-memory: #39d5ff;
+  --chart-memory-fill: rgb(57 213 255 / 0.1);
   --chart-transfer-write: #e3b341;
   --chart-transfer-write-fill: rgb(227 179 65 / 0.06);
   --chart-block-write: #bc8cff;
@@ -263,7 +265,7 @@
   --shadow-color-subtle: rgb(2 8 20 / 0.28);
   --shadow-color-strong: rgb(2 8 20 / 0.52);
   --shadow-control-inset: inset 0 1px 0 rgb(162 214 255 / 0.12);
-  --shadow-control-focus: 0 0 0 2px rgb(89 180 242 / 0.24);
+  --shadow-control-focus: 0 0 0 2px rgb(57 213 255 / 0.24);
   --heading-gradient: linear-gradient(100deg, #c9f4ff, #86f3ff 35%, #8af7cd 85%);
   --usage-used-bg: #5be2ae;
   --usage-used-border: #87f4cb;

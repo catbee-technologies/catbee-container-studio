@@ -36,7 +36,7 @@
     top: 0.5rem;
     width: 0.58rem;
     height: 0.15rem;
-    background: var(--color-checkmark);
+    background: var(--color-checkmark-indeterminate);
   }
 
   &.small {
@@ -46,7 +46,7 @@
     &:checked {
       &::after {
         left: 0.3rem;
-        top: 0.15rem;
+        top: 0.1rem;
         width: 0.18rem;
         height: 0.36rem;
       }

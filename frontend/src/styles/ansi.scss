@@ -1,6 +1,71 @@
+@use 'sass:color';
+@use 'sass:list';
 @use 'sass:map';
 @use 'sass:math';
-@use 'sass:list';
+
+/**
+ * Generate the standard xterm-256 color.
+ *
+ * 0-15   : ANSI base colors (handled by theme palettes)
+ * 16-231 : 6x6x6 RGB color cube
+ * 232-255: grayscale
+ */
+@function xterm-color($i) {
+  @if $i < 16 {
+    @return null;
+  }
+
+  @if $i < 232 {
+    $cube-index: $i - 16;
+
+    $r-step: math.floor(math.div($cube-index, 36));
+    $g-step: math.floor(math.div($cube-index % 36, 6));
+    $b-step: $cube-index % 6;
+
+    $color-values: (0, 95, 135, 175, 215, 255);
+
+    $r: list.nth($color-values, $r-step + 1);
+    $g: list.nth($color-values, $g-step + 1);
+    $b: list.nth($color-values, $b-step + 1);
+
+    @return rgb($r, $g, $b);
+  }
+
+  // 232-255: xterm grayscale
+  $gray-step: $i - 232;
+  $gray: 8 + ($gray-step * 10);
+
+  @return rgb($gray, $gray, $gray);
+}
+
+/**
+ * Adjust xterm colors for a light background.
+ *
+ * Dark colors are lifted slightly so they don't become
+ * unnecessarily harsh or difficult to distinguish on a
+ * light application background.
+ */
+@function light-mode-ansi($color) {
+  $lightness: color.channel($color, 'lightness', $space: hsl);
+
+  // Keep dark colors unchanged.
+  @if $lightness <=35% {
+    @return $color;
+  }
+
+  // Medium colors: darken slightly.
+  @if $lightness <=55% {
+    @return color.adjust($color, $lightness: -10%, $saturation: -5%);
+  }
+
+  // Light colors: darken significantly.
+  @if $lightness <=75% {
+    @return color.adjust($color, $lightness: -25%, $saturation: -8%);
+  }
+
+  // Extremely light colors.
+  @return color.adjust($color, $lightness: -40%, $saturation: -10%);
+}
 
 .ansi {
   &.ansi-bold {
@@ -29,44 +94,29 @@
     15: #ffffff
   );
 
-  // 2. Generate the basic fg-30 to fg-37  and fg-90 to fg-97 classes
   @for $i from 0 through 7 {
-    // Standard (30-37)
     &.ansi-fg-#{30 + $i} {
       color: map.get($base-colors, $i);
     }
 
-    // Bright (90-97)
     &.ansi-fg-#{90 + $i} {
       color: map.get($base-colors, $i + 8);
     }
   }
 
-  // 3. Generate ANSI 256 (xterm-0 to xterm-255)
+  /* ----------------------------------------------------------
+   * ANSI 256 foreground colors
+   *
+   * 0-15   = theme palette
+   * 16-231 = xterm RGB cube
+   * 232-255 = xterm grayscale
+   * ---------------------------------------------------------- */
   @for $i from 0 through 255 {
     &.ansi-fg-xterm-#{$i} {
       @if $i < 16 {
-        // 0-15: Use your custom theme colors from above!
         color: map.get($base-colors, $i);
-      } @else if $i < 232 {
-        // 16-231: 6x6x6 RGB color cube
-        $cube-index: $i - 16;
-        $r-step: math.floor(math.div($cube-index, 36));
-        $g-step: math.floor(math.div($cube-index % 36, 6));
-        $b-step: $cube-index % 6;
-
-        $color-values: (0, 95, 135, 175, 215, 255);
-        $r: list.nth($color-values, $r-step + 1);
-        $g: list.nth($color-values, $g-step + 1);
-        $b: list.nth($color-values, $b-step + 1);
-
-        color: rgb($r, $g, $b);
       } @else {
-        // 232-255: Grayscale from black to white
-        $gray-step: $i - 232;
-        $lightness: 8 + ($gray-step * 10);
-
-        color: rgb($lightness, $lightness, $lightness);
+        color: xterm-color($i);
       }
     }
   }
@@ -74,24 +124,30 @@
 
 html[data-theme='light'] .ansi {
   $base-colors: (
-    0: #526273,
-    1: #b42318,
-    2: #1a7f37,
-    3: #9a6700,
-    4: #0969da,
-    5: #8250df,
-    6: #087ea4,
-    7: #17212b,
-    8: #6b7b8b,
-    9: #cf222e,
-    10: #17835f,
-    11: #b57600,
-    12: #0969da,
-    13: #8250df,
-    14: #087ea4,
+    0: #5b6875,
+    1: #c23b3b,
+    2: #2f7d46,
+    3: #9a6b00,
+    4: #1769aa,
+    5: #7a4db3,
+    6: #087f8c,
+    7: #24313d,
+    8: #7a8793,
+    9: #d64545,
+    10: #3c9557,
+    11: #b17b00,
+    12: #2878bd,
+    13: #8d5bc2,
+    14: #1595a3,
     15: #17212b
   );
 
+  /* ----------------------------------------------------------
+   * Standard ANSI foreground colors
+   *
+   * 30-37  = normal
+   * 90-97  = bright
+   * ---------------------------------------------------------- */
   @for $i from 0 through 7 {
     &.ansi-fg-#{30 + $i} {
       color: map.get($base-colors, $i);
@@ -101,8 +157,27 @@ html[data-theme='light'] .ansi {
       color: map.get($base-colors, $i + 8);
     }
   }
-}
 
-html[data-theme='light'] .ansi[class*='ansi-fg-'] {
-  filter: saturate(1.1) brightness(0.72);
+  /* ----------------------------------------------------------
+   * ANSI 256 foreground colors
+   *
+   * 0-15:
+   *   Use light-mode theme colors
+   *
+   * 16-255:
+   *   Generate the normal xterm color and adapt it
+   *   for the light background.
+   * ---------------------------------------------------------- */
+
+  @for $i from 0 through 255 {
+    &.ansi-fg-xterm-#{$i} {
+      @if $i < 16 {
+        color: map.get($base-colors, $i);
+      } @else {
+        $color: xterm-color($i);
+
+        color: light-mode-ansi($color);
+      }
+    }
+  }
 }
