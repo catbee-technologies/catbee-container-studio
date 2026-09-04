@@ -588,6 +588,16 @@ export class ContainersPage {
     );
   }
 
+  async restartSelectedContainers(): Promise<void> {
+    await this.runBulkAction(
+      'restart',
+      async container => {
+        await this.dockerApi.restartContainer(container.Id);
+      },
+      () => true
+    );
+  }
+
   async pauseSelectedContainers(): Promise<void> {
     await this.runBulkAction(
       'pause',
@@ -664,11 +674,23 @@ export class ContainersPage {
 
     try {
       const targets = this.selectedContainers().filter(predicate);
+      const failedContainers: string[] = [];
+
       for (const container of targets) {
-        await action(container);
+        try {
+          await action(container);
+        } catch {
+          failedContainers.push(this.primaryName(container));
+        }
       }
 
       await this.loadContainers();
+
+      if (failedContainers.length > 0) {
+        this.error.set(
+          `Failed to ${actionName} ${failedContainers.length === 1 ? 'container' : 'containers'}: ${failedContainers.join(', ')}`
+        );
+      }
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Bulk action failed.');
     } finally {
