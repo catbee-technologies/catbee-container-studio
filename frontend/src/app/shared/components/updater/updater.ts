@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, effect, inject, input, model, output, signal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, input, model, output, signal } from '@angular/core';
 import { ElectronApiService } from '@core/electron-api.service';
 import { AutoUpdaterStatus, UpdateDownloadProgress } from '@shared/types';
 import { DialogComponent } from '@components/dialog/dialog';
 import { formatDockerBytes } from '@utils/docker-display.utils';
+import { ThemeService } from '@services/theme.service';
 
 @Component({
   selector: 'catbee-container-studio-updater',
@@ -13,6 +14,7 @@ import { formatDockerBytes } from '@utils/docker-display.utils';
 })
 export class UpdaterComponent {
   private readonly electronApi = inject(ElectronApiService);
+  private readonly themeService = inject(ThemeService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly updaterDialogOpen = model.required<boolean>();
@@ -25,6 +27,10 @@ export class UpdaterComponent {
   readonly githubRepoUrl = 'https://github.com/catbee-technologies/catbee-container-studio';
 
   readonly isMacOS = signal(false);
+  readonly isMicrosoftStore = signal(false);
+  readonly microsoftStoreImageUrl = computed(
+    () => `https://get.microsoft.com/images/en-us%20${this.themeService.isLightMode() ? 'light' : 'dark'}.svg`
+  );
 
   private downloadInProgress = false;
 
@@ -42,6 +48,9 @@ export class UpdaterComponent {
   private async initialize(): Promise<void> {
     const platform = await this.electronApi.getPlatform();
     this.isMacOS.set(platform === 'darwin');
+
+    const microsoftStore = await this.electronApi.isMicrosoftStoreInstallation();
+    this.isMicrosoftStore.set(microsoftStore);
 
     const unsubscribe = this.electronApi.onUpdaterStatus(status => {
       this.updaterStatus.set(status);
@@ -72,7 +81,7 @@ export class UpdaterComponent {
   }
 
   async downloadUpdate(): Promise<void> {
-    if (this.isMacOS()) {
+    if (this.isMacOS() || this.isMicrosoftStore()) {
       return;
     }
     await this.electronApi.downloadUpdate();
@@ -102,12 +111,16 @@ export class UpdaterComponent {
     this.electronApi.openExternalUrl(changelogUrl);
   }
 
-  openLatestRelease(): void {
+  openGithubLatestRelease(): void {
     const status = this.updaterStatus();
     if (status.status !== 'available') {
       return;
     }
     this.electronApi.openExternalUrl(`${this.githubRepoUrl}/releases/tag/v${status.version}`);
+  }
+
+  openMicrosoftStorePage(): void {
+    this.electronApi.openExternalUrl('ms-windows-store://pdp/?productid=9NX6H3J2RNX2');
   }
 
   updaterTitle(): string {

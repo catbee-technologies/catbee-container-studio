@@ -23,6 +23,12 @@
             <strong>{{ status.version }}</strong>
           </div>
 
+          @if (isMicrosoftStore()) {
+            <p class="catbee-updater-hint info">
+              Updates are managed by the Microsoft Store. Open the Microsoft Store to install the latest version.
+            </p>
+          }
+
           @if (isMacOS()) {
             <p class="catbee-updater-hint info">
               Automatic updates aren't available on macOS yet. Download the latest version from GitHub and replace your
@@ -99,8 +105,17 @@
   <ng-container catbeeDialogFooter>
     @switch (status.status) {
       @case ('available') {
-        @if (isMacOS()) {
-          <button type="button" class="catbee-action-btn primary" (click)="openLatestRelease()">
+        @if (isMicrosoftStore()) {
+          <button
+            type="button"
+            class="microsoft-store-button"
+            (click)="openMicrosoftStorePage()"
+            aria-label="Open Microsoft Store"
+          >
+            <img [src]="microsoftStoreImageUrl()" alt="" class="microsoft-store-logo" />
+          </button>
+        } @else if (isMacOS()) {
+          <button type="button" class="catbee-action-btn primary" (click)="openGithubLatestRelease()">
             <span class="mat-icon-filled" aria-hidden="true">download</span>
             Download Latest Version
           </button>

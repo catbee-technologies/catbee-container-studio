@@ -78,4 +78,9 @@ export class ElectronApiService extends ElectronBaseService {
     const response = await this.bridge.app?.platform?.get();
     return this.unwrapResult<string>(response);
   }
+
+  async isMicrosoftStoreInstallation(): Promise<boolean> {
+    const response = await this.bridge.app?.updater?.isMicrosoftStore();
+    return this.unwrapResult<boolean>(response);
+  }
 }

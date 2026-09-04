@@ -40,7 +40,8 @@ const IPC_CHANNELS = {
       CheckForUpdates: 'app:updater:check-for-updates',
       DownloadUpdate: 'app:updater:download-update',
       RestartAndInstallUpdate: 'app:updater:restart-and-install-update',
-      Status: 'app:updater:status'
+      Status: 'app:updater:status',
+      IsMicrosoftStore: 'app:updater:is-microsoft-store'
     }
   },
   Docker: {
@@ -192,7 +193,8 @@ const electronBridge = {
         return () => {
           ipcRenderer.removeListener(IPC_CHANNELS.App.Updater.Status, listener);
         };
-      }
+      },
+      isMicrosoftStore: () => ipcRenderer.invoke(IPC_CHANNELS.App.Updater.IsMicrosoftStore)
     }
   },
   docker: {

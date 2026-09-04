@@ -126,6 +126,7 @@ export interface ElectronBridge {
       downloadUpdate: () => IpcPromise<void>;
       restartAndInstallUpdate: () => IpcPromise<void>;
       onStatus: (callback: (status: AutoUpdaterStatus) => void) => () => void;
+      isMicrosoftStore: () => IpcPromise<boolean>;
     };
   };
   docker: {

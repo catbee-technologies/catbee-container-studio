@@ -32,7 +32,8 @@ export const IPC_CHANNELS = {
       CheckForUpdates: 'app:updater:check-for-updates',
       DownloadUpdate: 'app:updater:download-update',
       RestartAndInstallUpdate: 'app:updater:restart-and-install-update',
-      Status: 'app:updater:status'
+      Status: 'app:updater:status',
+      IsMicrosoftStore: 'app:updater:is-microsoft-store'
     }
   },
   Docker: {

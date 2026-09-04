@@ -78,6 +78,13 @@ export function initializeAutoUpdater(window: BrowserWindow): void {
   });
 }
 
+export function isMicrosoftStoreInstallation(): boolean {
+  if (process.platform !== 'win32' || isDev) {
+    return false;
+  }
+  return process.execPath.toLowerCase().includes('\\windowsapps\\');
+}
+
 export async function checkForUpdates(): Promise<void> {
   if (isDev) {
     logger.info('[AutoUpdater] Skipping update check in development.');

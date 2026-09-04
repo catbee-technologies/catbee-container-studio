@@ -12,7 +12,8 @@ export function registerExternalHandlers(): void {
       }
       try {
         const parsedUrl = new URL(url);
-        if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        const allowedProtocols = ['http:', 'https:', 'ms-windows-store:'];
+        if (!allowedProtocols.includes(parsedUrl.protocol)) {
           return fail(new Error('Unsupported URL protocol.'));
         }
         await shell.openExternal(parsedUrl.href);
