@@ -6,8 +6,8 @@
   border: 1px solid var(--border-color-accent);
   border-radius: var(--radius-sm);
   box-shadow:
-    0 8px 24px rgb(2 8 20 / 0.42),
-    0 2px 8px rgb(2 8 20 / 0.28);
+    0 8px 24px var(--shadow-color),
+    0 2px 8px var(--shadow-color-subtle);
   color: var(--ink-100);
   font-size: var(--font-size-sm);
   font-weight: 500;

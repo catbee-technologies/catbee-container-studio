@@ -1,0 +1,270 @@
+html[data-theme='light'] {
+  // Text Colors (Ink palette)
+  --ink-100: #17212b; // Primary text
+  --ink-200: #2f3e4d; // Secondary text
+  --ink-300: #526273; // Tertiary text
+  --ink-400: #6b7b8b; // Quaternary text
+  --ink-500: #7c8b99; // Muted text
+
+  // PRIMARY COLORS
+  --color-primary-base: #0b91b0;
+  --color-primary-text: #087a9d;
+
+  // Accent/Info Colors
+  --color-info-base: #118eac;
+  --color-info-text: #087a9d;
+
+  // Cyan/Teal Colors
+  --color-cyan-light: #d9fbff;
+  --color-cyan-base: #0b91b0;
+  --color-cyan-text: #087a9d;
+
+  // SUCCESS COLORS (Greens & Teals)
+  --color-success-base: #2da44e;
+
+  // Mint/Teal Success States
+  --color-mint-text: #17835f;
+
+  // Running/Active State
+  --color-running-text: #059241;
+
+  // WARNING COLORS (Yellows & Oranges)
+  --color-warning-base: #d99a00;
+  --color-warning-text: #9a6700;
+
+  // DANGER/ERROR COLORS (Reds & Oranges)
+  --color-danger-base: #e55353;
+  --color-danger-text: #cf222e;
+
+  --color-stop-base: #e85d4a;
+
+  // Error Banner
+  --color-error-base: #e55353;
+  --color-error-dark: #cf222e;
+  --color-error-text: #cf222e;
+
+  // BACKGROUND COLORS
+  // Main application backgrounds
+  --bg-dark-secondary: rgb(241 245 249 / 0.88);
+  --bg-dark-tertiary: rgb(255 255 255 / 0.98);
+
+  // Sidebar & Navigation
+  --bg-sidebar: linear-gradient(180deg, rgb(248 250 252 / 0.96), rgb(238 243 248 / 0.94));
+
+  // Component surfaces
+  --bg-surface: linear-gradient(180deg, rgb(255 255 255 / 0.96), rgb(246 249 252 / 0.98));
+  --bg-panel: rgb(255 255 255 / 0.82);
+  --bg-panel-elevated: linear-gradient(165deg, rgb(255 255 255 / 0.96), rgb(242 247 251 / 0.96));
+  --bg-menu: linear-gradient(165deg, #ffffff, #edf9fc);
+  --bg-tab-panel: radial-gradient(circle at top right, rgb(232 246 255 / 0.86), rgb(255 255 255) 68%);
+  --bg-body:
+    radial-gradient(circle at 15% 55%, rgb(8 143 171 / 0.035) 0 15%, transparent 15%),
+    radial-gradient(circle at 89% 23%, rgb(8 143 171 / 0.035) 0 60%, transparent 60%),
+    radial-gradient(circle at 58% 94%, rgb(45 164 78 / 0.03) 0 48%, transparent 48%),
+    radial-gradient(circle at 54% 93%, rgb(8 143 171 / 0.025) 0 42%, transparent 42%),
+    radial-gradient(circle at 53% 32%, rgb(8 143 171 / 0.025) 0 24%, transparent 24%), #f8fafc;
+  --bg-overlay: radial-gradient(circle at center, rgb(36 52 67 / 0.25), rgb(36 52 67 / 0.58));
+  --bg-control-hover: rgb(8 143 171 / 0.08);
+  --bg-search-match: rgb(255 211 92 / 0.46);
+  --bg-search-match-current: rgb(8 143 171 / 0.74);
+  --bg-input: rgb(255 255 255 / 0.9);
+  --bg-console: rgb(241 245 249 / 0.96);
+  --bg-selected-row: rgb(8 143 171 / 0.1);
+  --bg-control-selected: linear-gradient(135deg, rgb(8 143 171 / 0.78), rgb(7 116 145 / 0.76));
+  --bg-toggle: rgb(100 116 139 / 0.22);
+  --bg-toggle-active: rgb(40 197 150 / 0.5);
+  --bg-checkbox: rgb(218 232 238 / 0.94);
+  --bg-checkbox-active: rgb(40 197 150);
+  --bg-error-banner: linear-gradient(145deg, rgb(255 232 236 / 0.96), rgb(255 220 227 / 0.96));
+  --bg-error-hover: rgb(229 83 83 / 0.12);
+  --bg-port: rgb(8 143 171 / 0.1);
+  --bg-port-hover: rgb(8 143 171 / 0.22);
+  --bg-port-menu-hover: rgb(8 143 171 / 0.12);
+  --bg-ports-button: rgb(8 143 171 / 0.09);
+  --bg-ports-button-hover: rgb(8 143 171 / 0.16);
+  --bg-ports-menu-hover: rgb(8 143 171 / 0.08);
+  --bg-filter-control: rgb(255 255 255 / 0.88);
+  --bg-filter-active: linear-gradient(120deg, #c4f0f5, #afe3ec);
+  --bg-window-control-hover: rgb(8 143 171 / 0.12);
+  --bg-window-control-danger: #cf222e;
+  --bg-window-header: linear-gradient(180deg, rgb(255 255 255 / 0.94), rgb(239 245 250 / 0.92));
+  --bg-access-read: linear-gradient(120deg, rgb(45 164 78 / 0.16), rgb(40 197 150 / 0.13));
+  --bg-access-write: linear-gradient(120deg, rgb(217 154 0 / 0.16), rgb(198 138 12 / 0.13));
+  --bg-transfer-read: linear-gradient(120deg, rgb(45 164 78 / 0.15), rgb(40 197 150 / 0.12));
+  --bg-transfer-write: linear-gradient(120deg, rgb(217 154 0 / 0.16), rgb(198 138 12 / 0.12));
+
+  // Component Backgrounds
+  --bg-hover: rgb(8 143 171 / 0.09);
+
+  --bg-active: linear-gradient(120deg, rgb(8 143 171 / 0.16), rgb(29 202 187 / 0.1));
+
+  // Table Row Backgrounds
+  --bg-table-header: linear-gradient(to bottom, #f3f6f9 0%, #e9eef3 100%);
+
+  --bg-table-row: #ffffff;
+  --bg-table-row-group: #f5f8fa;
+  --bg-table-row-hover: #eef6ff;
+
+  --bg-table-header-border: #d4dde5;
+  --bg-table-border: #dce4eb;
+
+  // BORDER COLORS
+  --border-color-light: rgb(74 96 116 / 0.12);
+  --border-color-primary: rgb(74 96 116 / 0.16);
+  --border-color-accent: rgb(74 96 116 / 0.26);
+  --border-color-hover: rgb(7 116 145 / 0.55);
+  --border-color-panel: rgb(74 96 116 / 0.2);
+  --border-color-section: rgb(74 96 116 / 0.24);
+  --border-color-tab-panel: rgb(74 96 116 / 0.28);
+  --border-color-search-match: rgb(191 134 0 / 0.62);
+  --border-color-search-match-current: rgb(215 250 255 / 0.92);
+  --border-color-scrollbar: rgb(100 116 139 / 0.3);
+  --border-color-control: rgb(74 96 116 / 0.26);
+  --border-color-selected: rgb(8 143 171 / 0.45);
+  --border-color-checkbox: rgb(74 96 116 / 0.34);
+  --border-color-checkbox-active: rgb(23 131 95 / 0.55);
+  --border-color-port: rgb(7 116 145 / 0.42);
+  --border-color-port-hover: rgb(7 116 145 / 0.68);
+  --border-color-ports-button: rgb(8 143 171 / 0.24);
+  --border-color-ports-button-hover: rgb(7 116 145 / 0.5);
+  --border-color-filter: rgb(74 96 116 / 0.28);
+  --border-color-filter-separator: rgb(74 96 116 / 0.18);
+
+  // State-specific Borders
+  --border-color-success: rgb(45 164 78 / 0.42);
+  --border-color-danger: rgb(229 83 83 / 0.48);
+  --border-color-error: rgb(229 83 83 / 0.45);
+
+  // BUTTON COLORS & GRADIENTS
+
+  // Default Button
+  --btn-default-gradient: linear-gradient(180deg, #ffffff 0%, #eef2f6 100%);
+
+  --btn-default-gradient-hover: linear-gradient(180deg, #f3f7fa 0%, #e2e8ee 100%);
+  --btn-refresh-gradient: linear-gradient(180deg, #eff7fb 0%, #dcecf4 100%);
+  --btn-refresh-gradient-hover: linear-gradient(180deg, #e0f2fa 0%, #cbe5f1 100%);
+  --btn-refresh-border: rgb(7 116 145 / 0.52);
+  --btn-refresh-text: #075985;
+
+  // Success/Start Button
+  --btn-success-gradient: linear-gradient(180deg, #39b95b 0%, #249447 100%);
+
+  --btn-success-border: rgb(26 127 55 / 0.52);
+  --btn-success-text: #ffffff;
+
+  // Warning/Pause Button
+  --btn-warning-gradient: linear-gradient(180deg, #e4ae35 0%, #c68a0c 100%);
+
+  --btn-warning-border: rgb(154 103 0 / 0.48);
+  --btn-warning-text: #ffffff;
+
+  // Danger/Stop Button
+  --btn-danger-gradient: linear-gradient(180deg, #e86658 0%, #d84c3d 100%);
+
+  --btn-danger-border: rgb(207 34 46 / 0.48);
+  --btn-danger-text: #ffffff;
+
+  // Info/Restart Button
+  --btn-info-gradient: linear-gradient(180deg, #28c5e5 0%, #0d98bd 100%);
+
+  --btn-info-border: rgb(7 116 145 / 0.48);
+  --btn-info-text: #ffffff;
+
+  // Unpause Button
+  --btn-unpause-gradient: linear-gradient(180deg, #35bd96 0%, #209d7a 100%);
+
+  --btn-unpause-border: rgb(23 131 95 / 0.48);
+  --btn-unpause-text: #ffffff;
+
+  // Destructive/Delete Button
+  --btn-delete-gradient: linear-gradient(180deg, #e45b72 0%, #d33f5b 100%);
+
+  --btn-delete-border: rgb(207 34 46 / 0.5);
+  --btn-delete-text: #ffffff;
+
+  --btn-delete-hover: linear-gradient(180deg, #e9677c 0%, #cf304f 100%);
+
+  // BADGE COLORS
+
+  // Running Badge
+  --badge-running-gradient: linear-gradient(140deg, rgb(45 164 78 / 0.24), rgb(40 197 150 / 0.18));
+
+  --badge-running-border: rgb(45 164 78 / 0.52);
+  --badge-running-text: #176b32;
+
+  // Stopped Badge
+  --badge-stopped-gradient: linear-gradient(140deg, rgb(232 93 74 / 0.23), rgb(207 63 46 / 0.17));
+
+  --badge-stopped-border: rgb(207 63 46 / 0.5);
+  --badge-stopped-text: #a93628;
+
+  // Total Badge (info)
+  --badge-total-gradient: linear-gradient(140deg, rgb(8 143 171 / 0.13), rgb(7 116 145 / 0.08));
+
+  --badge-total-border: rgb(7 116 145 / 0.42);
+  --badge-total-text: #087a9d;
+
+  // Size Badge (purple)
+  --badge-size-gradient: linear-gradient(140deg, rgb(130 80 190 / 0.12), rgb(90 50 140 / 0.08));
+
+  --badge-size-border: rgb(130 80 190 / 0.38);
+  --badge-size-text: #7040a5;
+
+  // Dangling Badge
+  --badge-dangling-gradient: linear-gradient(140deg, rgb(232 93 74 / 0.23), rgb(207 63 46 / 0.17));
+
+  --badge-dangling-border: rgb(207 63 46 / 0.5);
+  --badge-dangling-text: #a93628;
+
+  // STATE COLORS
+
+  // Active/Selected
+  --color-active-text: #087a9d;
+  --color-active-border: rgb(8 143 171 / 0.45);
+
+  // Hover
+  --color-hover-text: #087a9d;
+  --color-control-selected: #ffffff;
+  --color-filter-active: #07566c;
+  --color-port: #087a9d;
+  --color-port-hover: #075985;
+  --color-error-banner: #a93645;
+  --color-checkmark: #ffffff;
+  --color-checkmark-indeterminate: #17212b;
+  --color-copy-success: #17835f;
+  --color-copy-failure: #cf222e;
+  --color-access-read: #176b32;
+  --color-access-write: #8a5a00;
+  --color-transfer-read: #176b32;
+  --color-transfer-write: #8a5a00;
+  --chart-axis-text: #526273;
+  --chart-grid: rgb(74 96 116 / 0.2);
+  --chart-cpu: #1a7f37;
+  --chart-cpu-fill: rgb(45 164 78 / 0.14);
+  --chart-memory: #087a9d;
+  --chart-memory-fill: rgb(8 143 171 / 0.14);
+  --chart-transfer-write: #9a6700;
+  --chart-transfer-write-fill: rgb(217 154 0 / 0.14);
+  --chart-block-write: #7040a5;
+  --chart-block-write-fill: rgb(130 80 190 / 0.12);
+
+  // Disabled
+  --color-disabled-opacity: 0.55;
+
+  // SCROLLBAR COLORS
+  --scrollbar-border-color: rgb(100 116 139 / 0.3);
+  --scrollbar-thumb-gradient: linear-gradient(180deg, rgb(100 116 139 / 0.62), rgb(71 85 105 / 0.56));
+  --scrollbar-thumb-hover-gradient: linear-gradient(180deg, rgb(71 85 105 / 0.72), rgb(51 65 85 / 0.72));
+  --scrollbar-track-gradient: rgb(148 163 184 / 0.35);
+  --shadow-color: rgb(51 65 85 / 0.2);
+  --shadow-color-subtle: rgb(51 65 85 / 0.12);
+  --shadow-color-strong: rgb(51 65 85 / 0.28);
+  --shadow-control-inset: inset 0 1px 0 rgb(255 255 255 / 0.72);
+  --shadow-control-focus: 0 0 0 2px rgb(8 143 171 / 0.24);
+  --heading-gradient: linear-gradient(100deg, #087a9d, #0b91b0 48%, #17835f);
+  --usage-used-bg: #28c596;
+  --usage-used-border: #17835f;
+  --usage-used-shadow: rgb(40 197 150 / 0.34);
+  --usage-unused-bg: rgb(100 116 139 / 0.16);
+  --usage-unused-border: rgb(100 116 139 / 0.42);
+}

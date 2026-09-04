@@ -17,10 +17,10 @@
     gap: 0.5rem;
 
     article {
-      border: 1px solid rgb(123 181 222 / 0.35);
+      border: 1px solid var(--border-color-section);
       border-radius: 0.7rem;
       padding: 0.6rem;
-      background: linear-gradient(165deg, rgb(12 31 47 / 0.84), rgb(7 21 35 / 0.8));
+      background: var(--bg-panel-elevated);
     }
 
     h3 {
@@ -45,7 +45,7 @@ table.mounts-table {
 
   th,
   td {
-    border-bottom: 1px solid rgb(147 179 210 / 0.18);
+    border-bottom: 1px solid var(--border-color-primary);
     padding: 0.52rem 0.45rem;
     text-align: left;
     vertical-align: top;
@@ -57,7 +57,7 @@ table.mounts-table {
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--ink-300);
-    background: linear-gradient(160deg, rgb(12 30 46 / 0.95), rgb(8 22 35 / 0.95));
+    background: var(--bg-panel-elevated);
     position: sticky;
     top: 0;
     z-index: 1;
@@ -78,7 +78,7 @@ table.mounts-table {
     word-break: break-all;
 
     &:hover {
-      color: var(--accent, #7bb5de);
+      color: var(--color-cyan-text);
     }
 
     .mount-source-text {
@@ -107,13 +107,13 @@ table.mounts-table {
     text-transform: uppercase;
 
     &.rw {
-      color: #cbffe8;
-      background: linear-gradient(120deg, rgb(27 184 140 / 0.35), rgb(16 126 102 / 0.3));
+      color: var(--color-access-read);
+      background: var(--bg-access-read);
     }
 
     &.ro {
-      color: #ffe6c7;
-      background: linear-gradient(120deg, rgb(204 113 71 / 0.32), rgb(139 75 46 / 0.3));
+      color: var(--color-access-write);
+      background: var(--bg-access-write);
     }
   }
 }

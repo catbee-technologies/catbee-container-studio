@@ -56,6 +56,16 @@
                 "glob": "**/*",
                 "input": "node_modules/monaco-editor/min/vs",
                 "output": "/assets/monaco-editor/vs"
+              },
+              {
+                "glob": "vs-dark.css",
+                "input": "node_modules/highlight.js/styles",
+                "output": "/assets/highlight.js"
+              },
+              {
+                "glob": "vs.css",
+                "input": "node_modules/highlight.js/styles",
+                "output": "/assets/highlight.js"
               }
             ],
             "styles": [

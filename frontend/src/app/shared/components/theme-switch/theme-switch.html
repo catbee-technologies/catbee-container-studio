@@ -1,0 +1,17 @@
+@let label = isDeviceDefault() ? 'System Theme' : lightMode() ? 'Light Theme' : 'Dark Theme';
+<button
+  type="button"
+  class="catbee-theme-switch"
+  [attr.aria-label]="label"
+  (click)="toggleTheme()"
+  [catbeeTooltip]="label"
+  [catbeeTooltipPosition]="'left'"
+>
+  @if (isDeviceDefault()) {
+    <span class="mat-icon-filled" aria-hidden="true">brightness_medium</span>
+  } @else if (lightMode()) {
+    <span class="mat-icon-filled" aria-hidden="true">light_mode</span>
+  } @else {
+    <span class="mat-icon-filled" aria-hidden="true">dark_mode</span>
+  }
+</button>

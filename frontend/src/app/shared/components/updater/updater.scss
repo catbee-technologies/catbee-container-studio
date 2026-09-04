@@ -2,7 +2,7 @@
   margin: 0;
   padding: 0.75rem;
   border-radius: 0.6rem;
-  background: rgb(255 255 255 / 0.04);
+  background: var(--bg-control-hover);
   line-height: 1.45;
   color: var(--ink-400);
   border-left: 0.25rem solid var(--ink-400);
@@ -24,7 +24,7 @@
     border-left-color: var(--color-error-dark);
 
     p {
-      color: var(--color-error-light);
+      color: var(--color-error-text);
     }
   }
 }
@@ -36,7 +36,7 @@
   gap: 1rem;
   padding: 0.65rem 0.75rem;
   border-radius: 0.6rem;
-  background: rgb(255 255 255 / 0.04);
+  background: var(--bg-control-hover);
 
   span {
     color: var(--ink-300);
@@ -53,7 +53,7 @@
   height: 0.45rem;
   overflow: hidden;
   border-radius: 999px;
-  background: rgb(255 255 255 / 0.08);
+  background: var(--bg-hover);
 }
 
 .catbee-updater-progress-bar {
@@ -91,7 +91,7 @@
   width: 1.25rem;
   height: 1.25rem;
   align-self: center;
-  border: 2px solid rgb(255 255 255 / 0.15);
+  border: 2px solid var(--border-color-light);
   border-top-color: var(--ink-100);
   border-radius: 50%;
   animation: catbee-updater-spin 700ms linear infinite;

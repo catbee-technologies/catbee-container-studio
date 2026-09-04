@@ -7,7 +7,7 @@
       size="medium"
       [fullscreen]="false"
       [backgroundColor]="'transparent'"
-      [loaderColor]="'#fff'"
+      [loaderColor]="loaderColor() ? '#087ea4' : '#d9f7ff'"
     />
   } @else {
     <span class="mat-icon-filled empty-icon" aria-hidden="true">

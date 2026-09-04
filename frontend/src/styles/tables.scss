@@ -87,8 +87,8 @@ table.catbee-table {
 
   tbody tr.group-row td {
     background: var(--bg-table-row-group);
-    border-top: 1px solid rgb(122 173 212 / 0.28);
-    border-bottom: 1px solid rgb(122 173 212 / 0.28);
+    border-top: 1px solid var(--border-color-primary);
+    border-bottom: 1px solid var(--border-color-primary);
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
     vertical-align: middle;

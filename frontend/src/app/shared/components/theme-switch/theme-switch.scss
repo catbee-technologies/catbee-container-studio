@@ -1,0 +1,15 @@
+.catbee-theme-switch {
+  height: var(--window-header-height);
+  width: var(--window-header-height);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-200);
+
+  &:hover {
+    color: var(--ink-300);
+  }
+}

@@ -20,7 +20,7 @@
   gap: 0.75rem;
   padding: 0.65rem 0.75rem;
   border-bottom: 1px solid var(--border-color-primary);
-  background: rgb(8 22 36 / 0.72);
+  background: var(--bg-input);
 }
 
 .navigation-tools {
@@ -68,7 +68,7 @@
   min-width: 0.4rem;
   cursor: col-resize;
   touch-action: none;
-  background: rgb(8 22 36 / 0.72);
+  background: var(--bg-input);
   border-inline: 1px solid var(--border-color-primary);
   transition:
     border-color var(--transition-fast),
@@ -115,7 +115,7 @@
   }
 
   &:focus-visible {
-    color: var(--color-cyan-light);
+    color: var(--color-cyan-text);
     text-decoration: underline;
   }
 }
@@ -131,7 +131,7 @@
 }
 
 tr.selected td {
-  background: rgb(50 139 184 / 0.17);
+  background: var(--bg-selected-row);
 }
 
 .name-column {
@@ -175,7 +175,7 @@ tr.selected td {
 .loading-overlay {
   position: absolute;
   inset: 2rem 0 0;
-  background: rgb(7 16 29 / 0.78);
+  background: var(--bg-dark-secondary);
 }
 
 .preview-panel {
@@ -183,7 +183,7 @@ tr.selected td {
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
-  background: rgb(5 16 27 / 0.58);
+  background: var(--bg-panel);
 
   .preview-header {
     display: flex;

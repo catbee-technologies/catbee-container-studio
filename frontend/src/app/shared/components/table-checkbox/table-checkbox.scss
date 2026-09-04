@@ -6,15 +6,15 @@
   appearance: none;
   width: 1.25rem;
   height: 1.25rem;
-  border: 1px solid rgb(143 170 193 / 0.5);
+  border: 1px solid var(--border-color-checkbox);
   border-radius: 0.25rem;
-  background: rgb(9 21 34 / 0.9);
+  background: var(--bg-checkbox);
   cursor: pointer;
   position: relative;
 
   &:checked {
-    border-color: rgb(81 203 168 / 0.75);
-    background: rgb(24 133 118 / 0.8);
+    border-color: var(--border-color-checkbox-active);
+    background: var(--bg-checkbox-active);
 
     &::after {
       content: '';
@@ -23,7 +23,7 @@
       top: 0.17rem;
       width: 0.24rem;
       height: 0.48rem;
-      border: solid #effff9;
+      border: solid var(--color-checkmark);
       border-width: 0 2px 2px 0;
       transform: rotate(45deg);
     }
@@ -36,7 +36,7 @@
     top: 0.5rem;
     width: 0.58rem;
     height: 0.15rem;
-    background: #effff9;
+    background: var(--color-checkmark-indeterminate);
   }
 
   &.small {
@@ -46,7 +46,7 @@
     &:checked {
       &::after {
         left: 0.3rem;
-        top: 0.15rem;
+        top: 0.1rem;
         width: 0.18rem;
         height: 0.36rem;
       }

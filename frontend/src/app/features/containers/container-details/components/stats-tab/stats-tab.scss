@@ -12,10 +12,10 @@
   height: 100%;
 
   .stat-card {
-    border: 1px solid rgb(123 181 222 / 0.35);
+    border: 1px solid var(--border-color-section);
     border-radius: 0.85rem;
     padding: 0.7rem 0.85rem 0.6rem;
-    background: linear-gradient(165deg, rgb(12 31 47 / 0.88), rgb(7 21 35 / 0.84));
+    background: var(--bg-panel-elevated);
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
@@ -82,13 +82,13 @@
 
   &.rx,
   &.read {
-    color: #cbffe8;
-    background: linear-gradient(120deg, rgb(27 184 140 / 0.32), rgb(16 126 102 / 0.26));
+    color: var(--color-transfer-read);
+    background: var(--bg-transfer-read);
   }
 
   &.tx,
   &.write {
-    color: #fff0c6;
-    background: linear-gradient(120deg, rgb(204 153 71 / 0.32), rgb(139 100 46 / 0.26));
+    color: var(--color-transfer-write);
+    background: var(--bg-transfer-write);
   }
 }

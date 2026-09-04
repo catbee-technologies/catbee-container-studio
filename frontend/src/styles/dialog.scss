@@ -5,8 +5,8 @@
   flex-direction: column;
   box-sizing: border-box;
   border-radius: 0.95rem;
-  border: 1px solid rgb(130 178 220 / 0.32);
-  box-shadow: 0 20px 56px rgb(2 8 20 / 0.52);
+  border: 1px solid var(--border-color-accent);
+  box-shadow: 0 20px 56px var(--shadow-color-strong);
   color: var(--ink-100);
   padding: 0 !important;
 
@@ -55,7 +55,7 @@
         color 120ms ease;
 
       &:hover {
-        background: rgb(255 255 255 / 0.08);
+        background: var(--bg-control-hover);
         color: var(--ink-100);
       }
 
@@ -96,7 +96,7 @@
 }
 
 .cdk-overlay-backdrop.catbee-dialog-backdrop {
-  background: radial-gradient(circle at center, rgb(0 0 0), rgb(4 16 27 / 0.8));
+  background: var(--bg-overlay);
 
   animation: dialog-backdrop-enter 180ms ease-out both;
 }

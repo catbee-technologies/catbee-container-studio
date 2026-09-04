@@ -28,7 +28,7 @@
     .shell-status {
       font-size: 0.78rem;
       color: var(--ink-300);
-      border: 1px solid rgb(126 161 191 / 0.35);
+      border: 1px solid var(--border-color-accent);
       border-radius: 999px;
       padding: 0.15rem 0.5rem;
       height: 2rem;
@@ -40,9 +40,9 @@
       user-select: none;
 
       &.connected {
-        color: #cbffe8;
-        border-color: rgb(74 223 169 / 0.58);
-        background: linear-gradient(140deg, rgb(42 188 134 / 0.2), rgb(21 130 101 / 0.2));
+        color: var(--badge-running-text);
+        border-color: var(--badge-running-border);
+        background: var(--badge-running-gradient);
       }
     }
 
@@ -53,9 +53,9 @@
 }
 
 .terminal-wrap {
-  border: 1px solid rgb(114 167 208 / 0.32);
+  border: 1px solid var(--border-color-tab-panel);
   border-radius: 0.7rem;
-  background: #050d17;
+  background: var(--bg-console);
   padding: 0.45rem;
   min-height: 0;
   overflow: hidden;

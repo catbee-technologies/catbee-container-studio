@@ -8,16 +8,16 @@ tbody tr {
 }
 
 .driver-badge {
-  background: rgb(73 145 213 / 0.2);
-  border-color: rgb(100 175 255 / 0.4);
-  color: #c8e9ff;
+  background: var(--badge-total-gradient);
+  border-color: var(--badge-total-border);
+  color: var(--badge-total-text);
   text-transform: uppercase;
 }
 
 .scope-badge {
-  background: rgb(42 188 134 / 0.18);
-  border-color: rgb(74 223 169 / 0.4);
-  color: #cbffe8;
+  background: var(--badge-running-gradient);
+  border-color: var(--badge-running-border);
+  color: var(--badge-running-text);
   text-transform: uppercase;
 }
 

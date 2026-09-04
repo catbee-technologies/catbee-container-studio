@@ -44,8 +44,8 @@
   margin-right: 0.2rem;
 
   &.active {
-    color: #efffff;
-    background: linear-gradient(135deg, rgb(73 147 217 / 0.62), rgb(34 105 167 / 0.65));
+    color: var(--color-control-selected);
+    background: var(--bg-control-selected);
   }
 }
 
@@ -53,8 +53,8 @@
   min-height: 0;
   overflow: auto;
   border-radius: 0.7rem;
-  border: 1px solid rgb(114 167 208 / 0.32);
-  background: radial-gradient(circle at top right, rgb(11 32 48 / 72%), rgb(0 0 0) 68%);
+  border: 1px solid var(--border-color-tab-panel);
+  background: var(--bg-tab-panel);
   padding: 0.75rem;
 
   .log-terminal {
@@ -105,13 +105,13 @@
         }
 
         &:hover {
-          color: var(--color-primary-light);
+          color: var(--color-primary-text);
           background-color: var(--bg-hover);
-          text-decoration-color: var(--color-primary-light);
+          text-decoration-color: var(--color-primary-text);
         }
 
         &:active {
-          color: var(--color-cyan-light);
+          color: var(--color-cyan-text);
           background-color: var(--bg-active);
         }
 
@@ -126,8 +126,8 @@
 }
 
 .logs-tail-select {
-  border: 1px solid rgb(143 170 193 / 0.4);
-  background: linear-gradient(180deg, rgb(23 41 60 / 0.9), rgb(15 30 47 / 0.92));
+  border: 1px solid var(--border-color-control);
+  background: var(--bg-surface);
   color: var(--ink-100);
   border-radius: 0.4rem;
   padding: 0.2rem 0.35rem;
@@ -136,12 +136,12 @@
   font-size: 0.74rem;
 
   &:focus-visible {
-    outline: 1px solid rgb(149 197 237 / 0.75);
+    outline: 1px solid var(--border-color-hover);
     outline-offset: 1px;
   }
 
   option {
-    background: rgb(23 41 60 / 0.9);
+    background: var(--bg-input);
     color: var(--ink-100);
   }
 }
