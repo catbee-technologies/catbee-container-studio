@@ -1,0 +1,130 @@
+<main class="catbee-outer-container logs-page" aria-label="Container logs">
+  <header class="catbee-container-list-header">
+    <div>
+      <h1>Logs</h1>
+    </div>
+    <div class="actions">
+      <catbee-container-studio-menu
+        [open]="showContainerMenu()"
+        [style]="{ width: '20rem', overflow: 'hidden', maxHeight: 'unset' }"
+        (dismissed)="showContainerMenu.set(false)"
+      >
+        <button
+          menuTrigger
+          type="button"
+          class="catbee-action-btn"
+          (click)="toggleContainerMenu($event)"
+          aria-label="Select containers"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">filter_list</span>
+          Containers ({{ selectedCount() }})
+        </button>
+        <div menuContent class="container-menu">
+          <catbee-container-studio-search-input
+            placeholder="Search containers"
+            ariaLabel="Search containers"
+            [value]="containerSearch()"
+            (valueChange)="containerSearch.set($event)"
+          />
+          <div class="container-menu-actions">
+            @if (hasContainerSearch()) {
+              <button
+                type="button"
+                class="catbee-action-btn"
+                (click)="toggleSelectAllVisible()"
+                [disabled]="!hasVisibleContainers() || allVisibleSelected()"
+              >
+                Select filtered
+              </button>
+              <button
+                type="button"
+                class="catbee-action-btn"
+                (click)="removeFilteredContainers()"
+                [disabled]="!hasSelectedVisibleContainers()"
+              >
+                Remove filtered
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="catbee-action-btn"
+                (click)="selectAllContainers()"
+                [disabled]="!hasVisibleContainers() || allVisibleSelected()"
+              >
+                Select All
+              </button>
+              <button
+                type="button"
+                class="catbee-action-btn"
+                (click)="clearSelection()"
+                [disabled]="selectedCount() === 0"
+              >
+                Remove All
+              </button>
+            }
+          </div>
+          <div class="container-options" role="group" aria-label="Available containers">
+            @for (container of visibleContainers(); track container.Id) {
+              <label class="menu-item menu-item-checkbox no-select pointer">
+                <catbee-container-studio-table-checkbox
+                  [checked]="selectedContainerIds().has(container.Id)"
+                  [ariaLabel]="'Select ' + containerName(container)"
+                  (checkedChange)="toggleContainer(container.Id)"
+                  size="small"
+                />
+                <span
+                  class="container-color-dot"
+                  [class]="'container-color-dot ' + containerColorClass(container.Id)"
+                  aria-hidden="true"
+                ></span>
+                <span>{{ containerName(container) }}</span>
+              </label>
+            } @empty {
+              <p class="no-containers">No matching containers.</p>
+            }
+          </div>
+        </div>
+      </catbee-container-studio-menu>
+      <button
+        type="button"
+        class="refresh-btn"
+        (click)="loadContainers()"
+        [disabled]="isLoading()"
+        aria-label="Refresh containers"
+        [catbeeTooltip]="'Refresh'"
+        [catbeeTooltipDelay]="tooltipDelay"
+      >
+        <span class="mat-icon-filled" [class.is-refreshing]="isLoading()" aria-hidden="true">refresh</span>
+      </button>
+    </div>
+  </header>
+
+  @if (error(); as err) {
+    <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" size="small" />
+  }
+
+  <section class="catbee-base-panel logs-page-panel">
+    @if (selectedCount() === 0 && !isLoading()) {
+      <catbee-container-studio-empty-state
+        icon="filter_list_off"
+        message="No containers selected."
+        hint="Select one or more containers from the filter menu to view their logs."
+      />
+    } @else {
+      <catbee-container-studio-container-logs-tab
+        [containerId]="''"
+        [active]="true"
+        [externalLogs]="logs()"
+        [externalLoading]="isLoading()"
+        [externalTailLines]="logTailLines()"
+        [tailLineOptions]="globalTailLineOptions"
+        [externalDisplayOptions]="displayOptions()"
+        [externalInitialFollow]="initialFollowPending()"
+        (externalClear)="clearLogs()"
+        (externalTailLinesChange)="onTailLinesChange($event)"
+        (externalDisplayOptionsChange)="updateDisplayOptions($event)"
+        (externalInitialFollowComplete)="completeInitialFollow()"
+      />
+    }
+  </section>
+</main>

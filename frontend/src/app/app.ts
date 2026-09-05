@@ -65,7 +65,8 @@ export class App implements OnInit {
   readonly navItems = [
     { label: 'Containers', icon: 'deployed_code', route: '/containers' },
     { label: 'Images', icon: 'image', route: '/images' },
-    { label: 'Volumes', icon: 'database', route: '/volumes' }
+    { label: 'Volumes', icon: 'database', route: '/volumes' },
+    { label: 'Logs', icon: 'article', route: '/logs' }
   ];
 
   ngOnInit(): void {

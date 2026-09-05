@@ -4,7 +4,7 @@
       #logsSearchInput
       placeholder="Search Logs"
       ariaLabel="Search Logs"
-      [value]="logsSearchTerm()"
+      [value]="logsSearchInputTerm()"
       (valueChange)="setSearch($event)"
       (inputKeydown)="onSearchKeydown($event)"
       width="20rem"
@@ -49,7 +49,7 @@
         .*
       </button>
     </catbee-container-studio-search-input>
-    @if (logsSearchTerm().trim().length > 0) {
+    @if (logsSearchInputTerm().trim().length > 0) {
       <div class="search-nav">
         <button type="button" class="catbee-action-btn search-nav-btn" (click)="prevMatch()" [disabled]="!hasMatches()">
           <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_up</span>
@@ -83,7 +83,7 @@
       <div menuContent class="logs-options-menu">
         <label class="menu-item menu-item-checkbox no-select pointer">
           <catbee-container-studio-table-checkbox
-            [checked]="showLogTimestamps()"
+            [checked]="displayOptions().showTimestamps"
             (checkedChange)="toggleLogTimestamps()"
             size="small"
           />
@@ -91,7 +91,7 @@
         </label>
         <label class="menu-item menu-item-checkbox no-select pointer">
           <catbee-container-studio-table-checkbox
-            [checked]="wrapLogLines()"
+            [checked]="displayOptions().wrapLines"
             (checkedChange)="toggleWrapLines()"
             size="small"
           />
@@ -99,7 +99,7 @@
         </label>
         <label class="menu-item menu-item-checkbox no-select pointer">
           <catbee-container-studio-table-checkbox
-            [checked]="convertDatesToLocal()"
+            [checked]="displayOptions().localDates"
             (checkedChange)="toggleConvertDatesToLocal()"
             size="small"
           />
@@ -108,8 +108,8 @@
         <label class="menu-item menu-item-select no-select" for="logs-tail-lines-select">
           Tail lines
           <select id="logs-tail-lines-select" class="logs-tail-select pointer" (change)="onTailLinesChange($event)">
-            @for (lines of logTailLineOptions; track lines) {
-              <option [value]="lines" [selected]="lines === logTailLines()">{{ lines }}</option>
+            @for (lines of tailLineOptions(); track lines) {
+              <option [value]="lines" [selected]="lines === selectedTailLines()">{{ lines }}</option>
             }
           </select>
         </label>
@@ -119,17 +119,19 @@
 </div>
 
 <section #tabScrollArea class="logs-scroll-panel" role="tabpanel" (scroll)="onPanelScroll()">
-  @if (logs().length === 0) {
+  @if (logEntries().length === 0) {
     <catbee-container-studio-empty-state
       [icon]="'article'"
-      [message]="isLoading() ? 'Loading logs...' : 'No logs yet.'"
+      [message]="(externalLogs() !== null ? externalLoading() : isLoading()) ? 'Loading logs...' : 'No logs yet.'"
       [hint]="
-        isLoading() ? 'Connecting to container log stream...' : 'Logs will appear here once the container emits output.'
+        (externalLogs() !== null ? externalLoading() : isLoading())
+          ? 'Connecting to container log stream...'
+          : 'Logs will appear here once the container emits output.'
       "
     />
   } @else {
     <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
-    <div class="log-terminal" [class.wrap-off]="!wrapLogLines()" (click)="onLogClick($event)">
+    <div class="log-terminal" [class.wrap-off]="!displayOptions().wrapLines" (click)="onLogClick($event)">
       @for (lineHtml of renderedLogLinesHtml(); track $index) {
         <div class="log-line" [innerHTML]="lineHtml"></div>
       }
