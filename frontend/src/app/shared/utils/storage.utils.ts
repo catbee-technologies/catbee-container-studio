@@ -18,7 +18,14 @@ export const LOGS_STORAGE_KEYS = {
   SHOW_TIMESTAMPS: `${LOGS_STORAGE_PREFIX}show-timestamps`,
   WRAP_LINES: `${LOGS_STORAGE_PREFIX}wrap-lines`,
   LOCAL_DATES: `${LOGS_STORAGE_PREFIX}local-dates`,
-  CLEARED_SINCE_PREFIX: `${LOGS_STORAGE_PREFIX}cleared-since.`
+  CLEARED_SINCE_PREFIX: `${LOGS_STORAGE_PREFIX}cleared-since.`,
+  GLOBAL_CLEARED_SINCE_PREFIX: `${LOGS_STORAGE_PREFIX}global-cleared-since.`,
+  GLOBAL_SELECTED_CONTAINERS: `${LOGS_STORAGE_PREFIX}global-selected-containers`,
+  GLOBAL_SELECTION_INITIALIZED: `${LOGS_STORAGE_PREFIX}global-selection-initialized`,
+  GLOBAL_TAIL_LINES: `${LOGS_STORAGE_PREFIX}global-tail-lines`,
+  GLOBAL_SHOW_TIMESTAMPS: `${LOGS_STORAGE_PREFIX}global-show-timestamps`,
+  GLOBAL_WRAP_LINES: `${LOGS_STORAGE_PREFIX}global-wrap-lines`,
+  GLOBAL_LOCAL_DATES: `${LOGS_STORAGE_PREFIX}global-local-dates`
 } as const;
 
 export const LOGS_STORAGE_DEFAULTS = {

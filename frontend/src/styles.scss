@@ -7,6 +7,7 @@
 @use './styles/toolbar';
 @use './styles/menu';
 @use './styles/ansi';
+@use './styles/container-log-colors';
 @use './styles/dialog';
 @use './styles/tooltip';
 @use './styles/light-theme';
@@ -111,6 +112,17 @@ input {
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 0.5rem;
+
+    span.note {
+      color: var(--ink-300);
+      font-size: var(--font-size-sm);
+      max-width: 70ch;
+      font-weight: 400;
+    }
   }
 
   .eyebrow {

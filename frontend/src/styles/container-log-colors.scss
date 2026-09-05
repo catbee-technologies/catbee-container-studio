@@ -1,0 +1,18 @@
+@use 'sass:list';
+
+$container-log-colors: (#5ee4ff, #6ee7a0, #ffd166, #9bbcff, #8fc7ff, #e1a6ff, #6fe3d1, #ffae70);
+$container-log-colors-light: (#007c99, #197b3c, #8a5b00, #3f5fbc, #1769aa, #7540a0, #08766a, #a64b00);
+
+@mixin container-log-prefix-colors($colors) {
+  @for $index from 0 to list.length($colors) {
+    .log-container-color-#{$index} {
+      color: list.nth($colors, $index + 1);
+    }
+  }
+}
+
+@include container-log-prefix-colors($container-log-colors);
+
+html[data-theme='light'] {
+  @include container-log-prefix-colors($container-log-colors-light);
+}

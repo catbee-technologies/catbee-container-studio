@@ -82,6 +82,10 @@
         opacity: 0.85;
       }
 
+      ::ng-deep .log-container-prefix {
+        font-weight: 700;
+      }
+
       ::ng-deep a.log-url {
         color: var(--color-cyan-base);
         text-decoration: underline;

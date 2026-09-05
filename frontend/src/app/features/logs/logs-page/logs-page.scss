@@ -1,0 +1,62 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.logs-page-panel {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+::ng-deep {
+  .menu-item {
+    align-items: start;
+  }
+}
+
+.container-menu {
+  $max-height: 20rem;
+  display: grid;
+  gap: var(--spacing-sm);
+
+  .container-menu-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+
+    button {
+      flex: 1 1 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  .container-options {
+    max-height: $max-height;
+    overflow: auto;
+
+    ::ng-deep input[type='checkbox'] {
+      margin-top: 2px;
+    }
+
+    .container-color-dot {
+      flex: 0 0 auto;
+      width: 0.55rem;
+      height: 0.55rem;
+      margin-top: 6px;
+      margin-left: 0.5rem;
+      border-radius: 50%;
+      background: currentcolor;
+    }
+  }
+}
+
+.no-containers {
+  color: var(--ink-300);
+  font-size: var(--font-size-sm);
+  margin: var(--spacing-sm);
+  text-align: center;
+}

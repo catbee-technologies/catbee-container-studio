@@ -14,6 +14,10 @@ export const routes: Routes = [
     loadComponent: () => import('@docker-containers/containers-list/containers-list').then(m => m.ContainersPage)
   },
   {
+    path: 'logs',
+    loadComponent: () => import('@features/logs/logs-page/logs-page').then(m => m.LogsPage)
+  },
+  {
     path: 'containers/:id',
     resolve: {
       preloadedContainerDetails: containerDetailsResolver

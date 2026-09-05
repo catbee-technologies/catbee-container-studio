@@ -4,6 +4,8 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -36,14 +38,27 @@ export interface LogsSearchMode {
   regex: boolean;
 }
 
+export interface LogsDisplayOptions {
+  showTimestamps: boolean;
+  wrapLines: boolean;
+  localDates: boolean;
+}
+
 export interface ContainerLogEntry {
   raw: string;
   channel: DockerLogChannel;
   timestamp: string;
+  containerId?: string;
+  containerName?: string;
+  containerColor?: string;
 }
 
 interface DisplayLogLine {
+  key: string;
   prefix: string;
+  timestampPrefix: string;
+  containerPrefix: string;
+  containerColorClass?: string;
   ansiRaw: string;
   plainWithPrefix: string;
   htmlWithPrefix: string;
@@ -63,6 +78,11 @@ interface LogMatch {
   end: number;
 }
 
+interface LogScrollAnchor {
+  key: string;
+  offset: number;
+}
+
 @Component({
   selector: 'catbee-container-studio-container-logs-tab',
   imports: [
@@ -79,12 +99,14 @@ interface LogMatch {
 export class LogsTabComponent implements AfterViewInit {
   // private static readonly MAX_RECONNECT_ATTEMPTS = 10;
   private static readonly LOGS_BOOTSTRAP_SETTLE_MS = 500;
+  private static readonly EXTERNAL_INITIAL_FOLLOW_MS = 1_200;
 
   private static readonly ESC = String.fromCharCode(27);
 
   private readonly dockerApi = inject(DockerApiService);
   private readonly electronApi = inject(ElectronApiService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
   private readonly localStorage = inject(LocalStorageService);
 
   private readonly ansiCodePattern = new RegExp(`${LogsTabComponent.ESC}\\[([0-9;]*)m`, 'g');
@@ -92,6 +114,8 @@ export class LogsTabComponent implements AfterViewInit {
   private readonly urlPattern = /\bhttps?(?:\\?:\/\/)[^\s<>"'`]+/gi;
   private readonly isoDatePattern =
     /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?\s*(?:Z|UTC|[+-]\d{2}:?\d{2})/g;
+  private readonly logEntryKeys = new WeakMap<ContainerLogEntry, string>();
+  private nextLogEntryKey = 0;
 
   private readonly logsSearchInput = viewChild<SearchInputComponent>('logsSearchInput');
   private readonly tabScrollArea = viewChild<ElementRef<HTMLElement>>('tabScrollArea');
@@ -100,12 +124,25 @@ export class LogsTabComponent implements AfterViewInit {
 
   readonly containerId = input.required<string>();
   readonly active = input(false);
+  readonly externalLogs = input<ContainerLogEntry[] | null>(null);
+  readonly externalLoading = input(false);
+  readonly externalTailLines = input<number | null>(null);
+  readonly tailLineOptions = input<readonly number[]>(LOG_TAIL_OPTIONS);
+  readonly externalDisplayOptions = input<LogsDisplayOptions | null>(null);
+  readonly externalInitialFollow = input(false);
+  readonly externalFollow = input(false);
   private hasActivatedLogs = false;
 
   readonly unavailable = output<void>();
   readonly streamError = output<string>();
+  readonly externalClear = output<void>();
+  readonly externalTailLinesChange = output<number>();
+  readonly externalDisplayOptionsChange = output<LogsDisplayOptions>();
+  readonly externalInitialFollowComplete = output<void>();
+  readonly nearBottomChange = output<boolean>();
 
   readonly logsSearchTerm = signal('');
+  readonly logsSearchInputTerm = signal('');
   readonly logsSearchMode = signal<LogsSearchMode>({
     caseSensitive: false,
     wholeWord: false,
@@ -125,6 +162,7 @@ export class LogsTabComponent implements AfterViewInit {
     )
   );
   readonly logTailLineOptions = LOG_TAIL_OPTIONS;
+  readonly selectedTailLines = computed(() => this.externalTailLines() ?? this.logTailLines());
   readonly showLogTimestamps = signal(
     this.localStorage.getBooleanWithDefault(LOGS_STORAGE_KEYS.SHOW_TIMESTAMPS, LOGS_STORAGE_DEFAULTS.SHOW_TIMESTAMPS)
   );
@@ -134,9 +172,18 @@ export class LogsTabComponent implements AfterViewInit {
   readonly convertDatesToLocal = signal(
     this.localStorage.getBooleanWithDefault(LOGS_STORAGE_KEYS.LOCAL_DATES, LOGS_STORAGE_DEFAULTS.LOCAL_DATES)
   );
+  readonly displayOptions = computed<LogsDisplayOptions>(
+    () =>
+      this.externalDisplayOptions() ?? {
+        showTimestamps: this.showLogTimestamps(),
+        wrapLines: this.wrapLogLines(),
+        localDates: this.convertDatesToLocal()
+      }
+  );
   readonly isNearBottom = signal(true);
   readonly logs = signal<ContainerLogEntry[]>([]);
   readonly isLoading = signal(false);
+  readonly logEntries = computed(() => this.externalLogs() ?? this.logs());
 
   readonly copyButtonLabel = signal('Copy');
   readonly clearButtonLabel = signal('Clear Logs');
@@ -159,6 +206,8 @@ export class LogsTabComponent implements AfterViewInit {
 
   private copyResetTimer: ReturnType<typeof setTimeout> | null = null;
   private clearResetTimer: ReturnType<typeof setTimeout> | null = null;
+  private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private externalInitialFollowTimer: ReturnType<typeof setTimeout> | null = null;
   private isSearchNavigationPrimed = false;
 
   constructor() {
@@ -169,10 +218,16 @@ export class LogsTabComponent implements AfterViewInit {
       this.clearReconnectTimer();
       this.clearLogsBootstrapTimer();
       this.clearActionTimers();
+      this.clearSearchDebounceTimer();
+      this.clearExternalInitialFollowTimer();
       void this.stopLogsStream();
     });
 
     effect(() => {
+      if (this.externalLogs() !== null) {
+        return;
+      }
+
       const containerId = this.containerId();
       if (!containerId) {
         return;
@@ -202,21 +257,56 @@ export class LogsTabComponent implements AfterViewInit {
         }
       });
     });
+
+    effect(() => {
+      if (!this.active() || this.logEntries().length === 0) {
+        return;
+      }
+
+      const forceInitialFollow = this.externalInitialFollow() || this.externalFollow();
+      const wasNearBottom = this.isNearBottom();
+      if (!forceInitialFollow && !wasNearBottom) {
+        return;
+      }
+
+      requestAnimationFrame(() => {
+        if (this.isDisposed || !this.active() || (!forceInitialFollow && !this.isNearBottom())) {
+          return;
+        }
+
+        requestAnimationFrame(() => {
+          if (this.isDisposed || !this.active() || (!forceInitialFollow && !this.isNearBottom())) {
+            return;
+          }
+          this.scrollToBottom();
+          if (forceInitialFollow) {
+            this.scheduleExternalInitialFollowComplete();
+          }
+        });
+      });
+    });
   }
 
   readonly displayLogLines = computed<DisplayLogLine[]>(() => {
-    const localDates = this.convertDatesToLocal();
+    const options = this.displayOptions();
+    const localDates = options.localDates;
 
-    return this.logs().map(entry => {
-      const prefix = this.showLogTimestamps() ? `[${new Date(entry.timestamp).toLocaleTimeString()}] ` : '';
+    return this.logEntries().map(entry => {
+      const timestampPrefix = options.showTimestamps ? `[${new Date(entry.timestamp).toLocaleTimeString()}] ` : '';
+      const containerPrefix = entry.containerName ? `[${entry.containerName}] ` : '';
+      const prefix = `${timestampPrefix}${containerPrefix}`;
       const strippedRaw = this.stripDockerTimestampPrefix(entry.raw);
       const sanitizedRaw = localDates ? this.convertIsoDatesToLocal(strippedRaw) : strippedRaw;
 
       return {
+        key: this.logEntryKey(entry),
         prefix,
+        timestampPrefix,
+        containerPrefix,
+        containerColorClass: entry.containerColor,
         ansiRaw: sanitizedRaw,
         plainWithPrefix: `${prefix}${this.stripAnsi(sanitizedRaw)}`,
-        htmlWithPrefix: `${this.renderPrefixHtml(prefix)}${this.ansiToHtml(sanitizedRaw)}`
+        htmlWithPrefix: `${this.renderPrefixHtml(timestampPrefix)}${this.renderContainerPrefixHtml(containerPrefix, entry.containerColor)}${this.ansiToHtml(sanitizedRaw)}`
       };
     });
   });
@@ -321,14 +411,14 @@ export class LogsTabComponent implements AfterViewInit {
     return matches[idx] ?? null;
   });
 
-  readonly renderedLogLinesHtml = computed<string[]>(() => {
+  readonly renderedLogLines = computed(() => {
     const lines = this.displayLogLines();
     const term = this.logsSearchTerm().trim();
     const hasSearch = term.length > 0 && !this.hasRegexError();
     const current = this.currentMatch();
 
     if (!hasSearch) {
-      return lines.map(line => line.htmlWithPrefix);
+      return lines.map(line => ({ key: line.key, html: line.htmlWithPrefix }));
     }
 
     const byLine = new Map<number, { start: number; end: number; current: boolean }[]>();
@@ -345,7 +435,7 @@ export class LogsTabComponent implements AfterViewInit {
 
     return lines.map((line, index) => {
       const marks = byLine.get(index) ?? [];
-      return this.renderHighlightedAnsiLine(line, marks);
+      return { key: line.key, html: this.renderHighlightedAnsiLine(line, marks) };
     });
   });
 
@@ -371,8 +461,13 @@ export class LogsTabComponent implements AfterViewInit {
   }
 
   setSearch(value: string): void {
-    this.logsSearchTerm.set(value);
-    this.selectNearestMatchFromViewport();
+    this.logsSearchInputTerm.set(value);
+    this.clearSearchDebounceTimer();
+    this.searchDebounceTimer = setTimeout(() => {
+      this.searchDebounceTimer = null;
+      this.logsSearchTerm.set(value);
+      this.selectNearestMatchFromViewport();
+    }, 180);
   }
 
   onSearchKeydown(event: KeyboardEvent): void {
@@ -449,6 +544,10 @@ export class LogsTabComponent implements AfterViewInit {
   }
 
   toggleLogTimestamps(): void {
+    if (this.externalDisplayOptions() !== null) {
+      this.updateExternalDisplayOptions({ showTimestamps: !this.displayOptions().showTimestamps });
+      return;
+    }
     this.showLogTimestamps.update(value => {
       const next = !value;
       this.localStorage.set(LOGS_STORAGE_KEYS.SHOW_TIMESTAMPS, next ? 'true' : 'false');
@@ -457,6 +556,10 @@ export class LogsTabComponent implements AfterViewInit {
   }
 
   toggleWrapLines(): void {
+    if (this.externalDisplayOptions() !== null) {
+      this.updateExternalDisplayOptions({ wrapLines: !this.displayOptions().wrapLines });
+      return;
+    }
     this.wrapLogLines.update(value => {
       const next = !value;
       this.localStorage.set(LOGS_STORAGE_KEYS.WRAP_LINES, next ? 'true' : 'false');
@@ -465,6 +568,11 @@ export class LogsTabComponent implements AfterViewInit {
   }
 
   toggleConvertDatesToLocal(): void {
+    if (this.externalDisplayOptions() !== null) {
+      this.updateExternalDisplayOptions({ localDates: !this.displayOptions().localDates });
+      this.selectNearestMatchFromViewport();
+      return;
+    }
     this.convertDatesToLocal.update(value => {
       const next = !value;
       this.localStorage.set(LOGS_STORAGE_KEYS.LOCAL_DATES, next ? 'true' : 'false');
@@ -478,17 +586,21 @@ export class LogsTabComponent implements AfterViewInit {
     const target = event.target as HTMLSelectElement | null;
     const nextValue = Number.parseInt(target?.value ?? '', 10);
 
-    if (!LOG_TAIL_OPTIONS.includes(nextValue as (typeof LOG_TAIL_OPTIONS)[number])) {
+    if (!this.tailLineOptions().includes(nextValue)) {
       if (target) {
-        target.value = String(this.logTailLines());
+        target.value = String(this.selectedTailLines());
       }
       return;
     }
 
-    if (nextValue === this.logTailLines()) {
+    if (nextValue === this.selectedTailLines()) {
       return;
     }
 
+    if (this.externalLogs() !== null) {
+      this.externalTailLinesChange.emit(nextValue);
+      return;
+    }
     this.logTailLines.set(nextValue);
     this.localStorage.set(LOGS_STORAGE_KEYS.TAIL_LINES, String(nextValue));
     this.logs.set([]);
@@ -526,8 +638,17 @@ export class LogsTabComponent implements AfterViewInit {
   }
 
   clearLogs(): void {
-    if (this.logs().length === 0) {
+    if (this.logEntries().length === 0) {
       this.clearButtonLabel.set('No Logs');
+      this.scheduleClearButtonReset();
+      return;
+    }
+
+    if (this.externalLogs() !== null) {
+      this.externalClear.emit();
+      this.currentMatchIndex.set(0);
+      this.isSearchNavigationPrimed = false;
+      this.clearButtonLabel.set('Cleared');
       this.scheduleClearButtonReset();
       return;
     }
@@ -551,12 +672,12 @@ export class LogsTabComponent implements AfterViewInit {
 
   onPanelScroll(): void {
     const area = this.tabScrollArea()?.nativeElement;
-    if (!area || this.logs().length === 0) {
+    if (!area || this.logEntries().length === 0) {
       this.isScrollable.set(false);
       return;
     }
     this.isScrollable.set(area.scrollHeight > area.clientHeight);
-    this.isNearBottom.set(this.isPanelNearBottom());
+    this.setNearBottom(this.isPanelNearBottom());
   }
 
   scrollToTop(): void {
@@ -566,11 +687,50 @@ export class LogsTabComponent implements AfterViewInit {
     }
 
     area.scrollTop = 0;
-    this.isNearBottom.set(false);
+    this.setNearBottom(false);
   }
 
   getScrollAreaElement(): HTMLElement | null {
     return this.tabScrollArea()?.nativeElement ?? null;
+  }
+
+  captureScrollAnchor(): LogScrollAnchor | null {
+    const area = this.getScrollAreaElement();
+    if (!area) {
+      return null;
+    }
+
+    const lines = area.querySelectorAll<HTMLElement>('.log-line');
+    const areaTop = area.getBoundingClientRect().top;
+    for (const line of lines) {
+      const lineTop = line.getBoundingClientRect().top - areaTop + area.scrollTop;
+      if (lineTop + line.offsetHeight > area.scrollTop) {
+        return { key: line.dataset['logKey'] ?? '', offset: area.scrollTop - lineTop };
+      }
+    }
+
+    return null;
+  }
+
+  restoreScrollAnchor(anchor: LogScrollAnchor): void {
+    if (!anchor.key) {
+      return;
+    }
+
+    afterNextRender(
+      () => {
+        const area = this.getScrollAreaElement();
+        const line = area?.querySelector<HTMLElement>(`[data-log-key="${anchor.key}"]`);
+        if (!area || !line) {
+          return;
+        }
+
+        const lineTop = line.getBoundingClientRect().top - area.getBoundingClientRect().top + area.scrollTop;
+        area.scrollTop = Math.max(lineTop + anchor.offset, 0);
+        this.onPanelScroll();
+      },
+      { injector: this.injector }
+    );
   }
 
   scrollToBottom(): void {
@@ -580,7 +740,7 @@ export class LogsTabComponent implements AfterViewInit {
     }
 
     area.scrollTop = area.scrollHeight;
-    this.isNearBottom.set(true);
+    this.setNearBottom(true);
   }
 
   private scrollCurrentMatchIntoView(): void {
@@ -642,15 +802,26 @@ export class LogsTabComponent implements AfterViewInit {
       return line.htmlWithPrefix;
     }
 
-    const prefixSegment: StyledTextSegment = {
-      text: line.prefix,
+    const timestampPrefixSegment: StyledTextSegment = {
+      text: line.timestampPrefix,
       fgClass: null,
       fgColorHex: null,
       bold: false,
       extraClass: 'log-timestamp'
     };
+    const containerPrefixSegment: StyledTextSegment = {
+      text: line.containerPrefix,
+      fgClass: null,
+      fgColorHex: null,
+      bold: true,
+      extraClass: `log-container-prefix${line.containerColorClass ? ` ${line.containerColorClass}` : ''}`
+    };
 
-    const styledSegments: StyledTextSegment[] = [prefixSegment, ...this.ansiToStyledSegments(line.ansiRaw)];
+    const styledSegments: StyledTextSegment[] = [
+      timestampPrefixSegment,
+      containerPrefixSegment,
+      ...this.ansiToStyledSegments(line.ansiRaw)
+    ];
 
     const normalizedMarks = [...marks].sort((a, b) => a.start - b.start);
     let markIndex = 0;
@@ -709,6 +880,15 @@ export class LogsTabComponent implements AfterViewInit {
     }
 
     return `<span class="log-timestamp">${escapeSearchHtml(prefix)}</span>`;
+  }
+
+  private renderContainerPrefixHtml(prefix: string, colorClass: string | undefined): string {
+    if (!prefix) {
+      return '';
+    }
+
+    const classes = `log-container-prefix${colorClass ? ` ${colorClass}` : ''}`;
+    return `<span class="${classes}">${escapeSearchHtml(prefix)}</span>`;
   }
 
   private renderStyledText(segmentText: string, style: StyledTextSegment, markClass?: string): string {
@@ -1086,15 +1266,28 @@ export class LogsTabComponent implements AfterViewInit {
   }
 
   private shouldStickBottom(): boolean {
-    return this.forceScrollToBottomOnNextBatch || this.isBootstrappingLogs || this.isPanelNearBottom();
+    return (
+      this.externalFollow() ||
+      this.forceScrollToBottomOnNextBatch ||
+      this.isBootstrappingLogs ||
+      this.isPanelNearBottom()
+    );
   }
 
   private appendLogEntries(entries: ContainerLogEntry[], shouldStickBottom: boolean): void {
+    const currentLogs = this.logs();
+    const maxLines = Math.max(this.logTailLines(), 1);
+    const removedLineCount = Math.max(currentLogs.length + entries.length - maxLines, 0);
+    const anchor = !shouldStickBottom && removedLineCount > 0 ? this.captureScrollAnchor() : null;
+
     this.logs.update(current => {
       const merged = [...current, ...entries];
-      const maxLines = Math.max(this.logTailLines(), 1);
       return merged.slice(Math.max(merged.length - maxLines, 0));
     });
+
+    if (anchor) {
+      this.restoreScrollAnchor(anchor);
+    }
 
     if (!this.isSearchNavigationPrimed && this.logsSearchTerm().trim().length > 0) {
       queueMicrotask(() => this.selectNearestMatchFromViewport());
@@ -1116,9 +1309,30 @@ export class LogsTabComponent implements AfterViewInit {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         element.scrollTop = element.scrollHeight;
-        this.isNearBottom.set(true);
+        this.setNearBottom(true);
       });
     });
+  }
+
+  private setNearBottom(value: boolean): void {
+    if (this.isNearBottom() === value) {
+      return;
+    }
+
+    this.isNearBottom.set(value);
+    this.nearBottomChange.emit(value);
+  }
+
+  private logEntryKey(entry: ContainerLogEntry): string {
+    const existingKey = this.logEntryKeys.get(entry);
+    if (existingKey) {
+      return existingKey;
+    }
+
+    const key = String(this.nextLogEntryKey);
+    this.nextLogEntryKey += 1;
+    this.logEntryKeys.set(entry, key);
+    return key;
   }
 
   private clearChannelBuffers(): void {
@@ -1311,5 +1525,34 @@ export class LogsTabComponent implements AfterViewInit {
       clearTimeout(this.clearResetTimer);
       this.clearResetTimer = null;
     }
+  }
+
+  private clearSearchDebounceTimer(): void {
+    if (this.searchDebounceTimer) {
+      clearTimeout(this.searchDebounceTimer);
+      this.searchDebounceTimer = null;
+    }
+  }
+
+  private scheduleExternalInitialFollowComplete(): void {
+    if (this.externalInitialFollowTimer) {
+      return;
+    }
+
+    this.externalInitialFollowTimer = setTimeout(() => {
+      this.externalInitialFollowTimer = null;
+      this.externalInitialFollowComplete.emit();
+    }, LogsTabComponent.EXTERNAL_INITIAL_FOLLOW_MS);
+  }
+
+  private clearExternalInitialFollowTimer(): void {
+    if (this.externalInitialFollowTimer) {
+      clearTimeout(this.externalInitialFollowTimer);
+      this.externalInitialFollowTimer = null;
+    }
+  }
+
+  private updateExternalDisplayOptions(update: Partial<LogsDisplayOptions>): void {
+    this.externalDisplayOptionsChange.emit({ ...this.displayOptions(), ...update });
   }
 }
