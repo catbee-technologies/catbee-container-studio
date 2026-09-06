@@ -35,6 +35,22 @@ export const LOGS_STORAGE_DEFAULTS = {
   LOCAL_DATES: false
 } as const;
 
+export function removeStalePrefixedStorageEntries(prefix: string, existingIds: Iterable<string>): void {
+  const validIds = new Set(existingIds);
+  const staleKeys: string[] = [];
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith(prefix) && !validIds.has(key.slice(prefix.length))) {
+      staleKeys.push(key);
+    }
+  }
+
+  for (const key of staleKeys) {
+    localStorage.removeItem(key);
+  }
+}
+
 export const UI_STORAGE_KEYS = {
   SIDEBAR_COLLAPSED: `${APP_UI_STORAGE_PREFIX}sidebar-collapsed`,
   THEME: `${APP_UI_STORAGE_PREFIX}theme`,

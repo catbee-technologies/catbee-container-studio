@@ -9,7 +9,7 @@ import { SegmentedFilterComponent, SegmentedFilterOption } from '@components/seg
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
 import { TableSortHeaderComponent } from '@components/table-sort-header/table-sort-header';
-import { UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
+import { removeStalePrefixedStorageEntries, UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { formatDockerBytes } from '@utils/docker-display.utils';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
@@ -221,6 +221,14 @@ export class VolumesPage {
     try {
       const previousUsageByName = new Map(this.volumes().map(volume => [volume.Name, volume.UsageData]));
       const volumes = await this.dockerApi.listVolumes();
+      removeStalePrefixedStorageEntries(
+        UI_STORAGE_KEYS.VOLUMES_SELECTED_TAB_PREFIX,
+        volumes.map(volume => volume.Name)
+      );
+      removeStalePrefixedStorageEntries(
+        UI_STORAGE_KEYS.VOLUMES_FILES_PATH_PREFIX,
+        volumes.map(volume => volume.Name)
+      );
       this.volumes.set(
         volumes.map(volume => ({ ...volume, UsageData: volume.UsageData ?? previousUsageByName.get(volume.Name) }))
       );

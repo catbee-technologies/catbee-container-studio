@@ -9,7 +9,7 @@ import { SearchInputComponent } from '@components/search-input/search-input';
 import { SegmentedFilterComponent, SegmentedFilterOption } from '@components/segmented-filter/segmented-filter';
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
 import { TableSortHeaderComponent } from '@components/table-sort-header/table-sort-header';
-import { UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
+import { removeStalePrefixedStorageEntries, UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { formatDockerBytes } from '@utils/docker-display.utils';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
@@ -247,6 +247,10 @@ export class ImagesPage {
     try {
       const images = await this.dockerApi.listImages();
       this.images.set(images);
+      removeStalePrefixedStorageEntries(
+        UI_STORAGE_KEYS.IMAGES_SELECTED_TAB_PREFIX,
+        images.map(image => image.Id)
+      );
       this.clearSelection();
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Failed to load images.');

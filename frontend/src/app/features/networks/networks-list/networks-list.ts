@@ -28,7 +28,7 @@ import {
   SORT_DIRECTIONS,
   SortDirection
 } from '@shared/types';
-import { UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
+import { removeStalePrefixedStorageEntries, UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
 
 type NetworkColumn = 'id' | 'driver' | 'subnet' | 'flags' | 'containers' | 'created';
 
@@ -203,6 +203,10 @@ export class NetworksPage {
         })
       );
       this.networks.set(inspectedNetworks);
+      removeStalePrefixedStorageEntries(
+        UI_STORAGE_KEYS.NETWORKS_SELECTED_TAB_PREFIX,
+        inspectedNetworks.map(network => network.Id)
+      );
       this.clearSelection();
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Failed to load networks.');
