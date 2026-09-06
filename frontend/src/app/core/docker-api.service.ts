@@ -10,6 +10,7 @@ import {
   DockerImageHistoryInfo,
   DockerImageInfo,
   DockerImageInspectInfo,
+  DockerNetworkInfo,
   DockerStreamEventEnvelope,
   DockerVolumeInfo,
   DockerVolumeUsage,
@@ -78,6 +79,31 @@ export class DockerApiService extends ElectronBaseService {
   async pruneImages(filters?: Record<string, string[]>): Promise<void> {
     const response = await this.bridge.docker.images.prune(filters);
     this.unwrapResult<unknown>(response);
+  }
+
+  async listNetworks(options?: Docker.NetworkListOptions): Promise<DockerNetworkInfo[]> {
+    const response = await this.bridge.docker.networks.list(options);
+    return this.unwrapResult<DockerNetworkInfo[]>(response);
+  }
+
+  async inspectNetwork(networkId: string): Promise<DockerNetworkInfo> {
+    const response = await this.bridge.docker.networks.inspect(networkId);
+    return this.unwrapResult<DockerNetworkInfo>(response);
+  }
+
+  async createNetwork(options: Docker.NetworkCreateOptions): Promise<DockerNetworkInfo> {
+    const response = await this.bridge.docker.networks.create(options);
+    return this.unwrapResult<DockerNetworkInfo>(response);
+  }
+
+  async removeNetwork(networkId: string): Promise<void> {
+    const response = await this.bridge.docker.networks.remove(networkId);
+    this.unwrapResult<void>(response);
+  }
+
+  async pruneNetworks(): Promise<void> {
+    const response = await this.bridge.docker.networks.prune();
+    this.unwrapResult<void>(response);
   }
 
   async listVolumes(options?: Docker.VolumeListOptions): Promise<DockerVolumeInfo[]> {

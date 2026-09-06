@@ -66,6 +66,7 @@ export class App implements OnInit {
     { label: 'Containers', icon: 'deployed_code', route: '/containers' },
     { label: 'Images', icon: 'image', route: '/images' },
     { label: 'Volumes', icon: 'database', route: '/volumes' },
+    { label: 'Networks', icon: 'lan', route: '/networks' },
     { label: 'Logs', icon: 'article', route: '/logs' }
   ];
 

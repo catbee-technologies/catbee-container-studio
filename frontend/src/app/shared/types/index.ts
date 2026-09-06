@@ -31,3 +31,9 @@ export type VolumeSortKey = (typeof VOLUME_SORT_KEYS)[number];
 
 export const VOLUME_USAGE_FILTERS = ['all', 'used', 'unused'] as const;
 export type VolumeUsageFilter = (typeof VOLUME_USAGE_FILTERS)[number];
+
+export const NETWORK_SORT_KEYS = ['used', 'name', 'id', 'driver', 'subnet', 'containers', 'created'] as const;
+export type NetworkSortKey = (typeof NETWORK_SORT_KEYS)[number];
+
+export const NETWORK_USAGE_FILTERS = ['all', 'used', 'unused'] as const;
+export type NetworkUsageFilter = (typeof NETWORK_USAGE_FILTERS)[number];
