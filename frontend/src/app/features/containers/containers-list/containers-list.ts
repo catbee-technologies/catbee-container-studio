@@ -11,7 +11,12 @@ import { SearchInputComponent } from '@components/search-input/search-input';
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
 import { TableSortHeaderComponent } from '@components/table-sort-header/table-sort-header';
 import { formatDockerBytes, formatDockerNames } from '@utils/docker-display.utils';
-import { UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
+import {
+  LOGS_STORAGE_KEYS,
+  removeStalePrefixedStorageEntries,
+  UI_STORAGE_DEFAULTS,
+  UI_STORAGE_KEYS
+} from '@utils/storage.utils';
 import { SwitchInputComponent } from '@components/switch-input/switch-input';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
@@ -314,6 +319,11 @@ export class ContainersPage {
     try {
       const containers = await this.dockerApi.listContainers();
       this.containers.set(containers);
+      const containerIds = containers.map(container => container.Id);
+      removeStalePrefixedStorageEntries(UI_STORAGE_KEYS.CONTAINERS_SELECTED_TAB_PREFIX, containerIds);
+      removeStalePrefixedStorageEntries(UI_STORAGE_KEYS.CONTAINERS_FILES_PATH_PREFIX, containerIds);
+      removeStalePrefixedStorageEntries(LOGS_STORAGE_KEYS.CLEARED_SINCE_PREFIX, containerIds);
+      removeStalePrefixedStorageEntries(LOGS_STORAGE_KEYS.GLOBAL_CLEARED_SINCE_PREFIX, containerIds);
       this.syncCollapsedGroups(this.groupContainersByCompose(containers));
       this.syncSelectedContainers(containers);
       this.updateRuntimeSummaries(containers);
