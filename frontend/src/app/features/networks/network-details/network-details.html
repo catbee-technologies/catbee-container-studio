@@ -1,0 +1,185 @@
+<main class="catbee-details-container" aria-label="Network details">
+  <header class="catbee-details-container-header">
+    <button type="button" class="back-btn" (click)="backToNetworks()">
+      <span class="mat-icon-filled" aria-hidden="true">chevron_left</span>
+    </button>
+    <div class="title-wrap">
+      <h1>{{ network()?.Name ?? networkId() }}</h1>
+      <p>{{ shortId(networkId()) }} <catbee-container-studio-copy-button [text]="networkId()" size="small" /></p>
+    </div>
+  </header>
+  @if (error(); as errorMessage) {
+    <catbee-container-studio-error-banner [errorMessage]="errorMessage" (closeErr)="error.set(null)" />
+  }
+  @if (isLoading()) {
+    <catbee-container-studio-empty-state icon="hourglass_empty" message="Loading network details..." />
+  } @else if (network()) {
+    <section class="catbee-base-panel summary">
+      @for (item of summaryItems(); track item.label) {
+        <article>
+          <p class="label">{{ item.label }}</p>
+          @if (item.label === 'Driver') {
+            <p class="value">
+              <span class="badge small driver-badge">{{ item.value }}</span>
+            </p>
+          } @else {
+            <p class="value">{{ item.value }}</p>
+          }
+        </article>
+      }
+    </section>
+    <section class="catbee-base-panel tabs" aria-label="Network tabs">
+      <catbee-container-studio-tabs
+        [tabs]="tabs"
+        [activeTab]="activeTab()"
+        ariaLabel="Network detail tabs"
+        (activeTabChange)="setActiveTab($event)"
+      />
+      <section class="catbee-container-list-layout tab-panel" role="tabpanel">
+        @if (activeTab() === 'containers') {
+          @if (connectedContainers().length === 0) {
+            <catbee-container-studio-empty-state icon="lan" message="No containers are connected to this network." />
+          } @else {
+            <div class="catbee-container-list-body catbee-base-panel">
+              <table class="catbee-table">
+                <thead>
+                  <tr>
+                    <th>Name ({{ connectedContainers().length }})</th>
+                    <th>Image</th>
+                    <th>Address</th>
+                    <th>State</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (container of connectedContainers(); track container.Id) {
+                    <tr>
+                      <td>
+                        <button type="button" class="link-btn" (click)="openContainer(container.Id)">
+                          {{ formatContainerName(container) }}
+                          <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
+                        </button>
+                        <p class="unique-id">
+                          {{ shortId(container.Id) }}
+                          <catbee-container-studio-copy-button [text]="container.Id" size="small" />
+                        </p>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          class="link-btn"
+                          (click)="openImageDetails(container.ImageID ?? container.Image)"
+                        >
+                          {{ container.Image }}
+                          <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
+                        </button>
+                      </td>
+                      <td class="mono">{{ endpointAddress(container.Id) }}</td>
+                      <td>
+                        <span
+                          class="container-status"
+                          [class.running]="container.State === 'running'"
+                          [class.stopped]="container.State !== 'running'"
+                          >{{ container.State }}</span
+                        >
+                        <p class="status-detail">{{ container.Status }}</p>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        } @else {
+          <div class="configuration-grid">
+            <section class="configuration-panel network-settings-panel">
+              <header>
+                <span class="mat-icon-filled" aria-hidden="true">tune</span>
+                <h2>Network Settings</h2>
+              </header>
+              <dl class="configuration-list">
+                @for (setting of networkSettings(); track setting.label) {
+                  <div>
+                    <dt>{{ setting.label }}</dt>
+                    <dd [class.enabled]="setting.value === 'Enabled'" [class.disabled]="setting.value === 'Disabled'">
+                      {{ setting.value }}
+                    </dd>
+                  </div>
+                }
+              </dl>
+            </section>
+            <section class="configuration-panel ipam-panel">
+              <header>
+                <span class="mat-icon-filled" aria-hidden="true">lan</span>
+                <h2>IP Address Management</h2>
+              </header>
+              <dl class="configuration-list compact">
+                <div>
+                  <dt>Driver</dt>
+                  <dd>{{ network()?.IPAM?.Driver ?? '--' }}</dd>
+                </div>
+              </dl>
+              @if (ipamConfig().length === 0) {
+                <p class="configuration-empty">No address pools configured.</p>
+              } @else {
+                <table class="configuration-table">
+                  <thead>
+                    <tr>
+                      <th>Subnet</th>
+                      <th>Gateway</th>
+                      <th>IP Range</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (config of ipamConfig(); track config.Subnet) {
+                      <tr>
+                        <td>{{ config.Subnet ?? '--' }}</td>
+                        <td>{{ config.Gateway ?? '--' }}</td>
+                        <td>{{ config.IPRange ?? '--' }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </section>
+            <section class="configuration-panel metadata-panel">
+              <header>
+                <span class="mat-icon-filled" aria-hidden="true">label</span>
+                <h2>Labels</h2>
+              </header>
+              @if (labels().length === 0) {
+                <p class="configuration-empty">No labels configured.</p>
+              } @else {
+                <dl class="metadata-list">
+                  @for (label of labels(); track label[0]) {
+                    <div>
+                      <dt>{{ label[0] }}</dt>
+                      <dd>{{ label[1] }}</dd>
+                    </div>
+                  }
+                </dl>
+              }
+            </section>
+            <section class="configuration-panel metadata-panel">
+              <header>
+                <span class="mat-icon-filled" aria-hidden="true">settings</span>
+                <h2>Driver Options</h2>
+              </header>
+              @if (options().length === 0) {
+                <p class="configuration-empty">No driver options configured.</p>
+              } @else {
+                <dl class="metadata-list">
+                  @for (option of options(); track option[0]) {
+                    <div>
+                      <dt>{{ option[0] }}</dt>
+                      <dd>{{ option[1] }}</dd>
+                    </div>
+                  }
+                </dl>
+              }
+            </section>
+          </div>
+        }
+      </section>
+    </section>
+  }
+</main>

@@ -1,4 +1,4 @@
-import { LogTailOption } from './../types/index';
+import { LogTailOption, NetworkSortKey, NetworkUsageFilter } from './../types/index';
 import {
   ContainerSortKey,
   ImageSortKey,
@@ -52,6 +52,10 @@ export const UI_STORAGE_KEYS = {
   VOLUMES_SORT_DIRECTION: `${DOCKER_UI_STORAGE_PREFIX}volumes.sort-direction`,
   VOLUMES_USAGE_FILTER: `${DOCKER_UI_STORAGE_PREFIX}volumes.usage-filter`,
   VOLUMES_VISIBLE_COLUMNS: `${DOCKER_UI_STORAGE_PREFIX}volumes.visible-columns`,
+  NETWORKS_SORT_KEY: `${DOCKER_UI_STORAGE_PREFIX}networks.sort-key`,
+  NETWORKS_SORT_DIRECTION: `${DOCKER_UI_STORAGE_PREFIX}networks.sort-direction`,
+  NETWORKS_USAGE_FILTER: `${DOCKER_UI_STORAGE_PREFIX}networks.usage-filter`,
+  NETWORKS_VISIBLE_COLUMNS: `${DOCKER_UI_STORAGE_PREFIX}networks.visible-columns`,
 
   // Session storage keys
   CONTAINERS_SEARCH_QUERY: `${DOCKER_UI_STORAGE_PREFIX}containers.search-query`,
@@ -62,6 +66,8 @@ export const UI_STORAGE_KEYS = {
   VOLUMES_SEARCH_QUERY: `${DOCKER_UI_STORAGE_PREFIX}volumes.search-query`,
   VOLUMES_SELECTED_TAB_PREFIX: `${DOCKER_UI_STORAGE_PREFIX}volumes.selected-tab.`,
   VOLUMES_FILES_PATH_PREFIX: `${DOCKER_UI_STORAGE_PREFIX}volumes.files-path.`,
+  NETWORKS_SEARCH_QUERY: `${DOCKER_UI_STORAGE_PREFIX}networks.search-query`,
+  NETWORKS_SELECTED_TAB_PREFIX: `${DOCKER_UI_STORAGE_PREFIX}networks.selected-tab.`,
   DOCKER_INIT_STATUS: `${DOCKER_UI_STORAGE_PREFIX}docker-init-status`
 } as const;
 
@@ -75,5 +81,8 @@ export const UI_STORAGE_DEFAULTS = {
   IMAGES_USAGE_FILTER: 'all' as ImageUsageFilter,
   VOLUMES_SORT_KEY: 'used' as VolumeSortKey,
   VOLUMES_SORT_DIRECTION: 'desc' as SortDirection,
-  VOLUMES_USAGE_FILTER: 'all' as VolumeUsageFilter
+  VOLUMES_USAGE_FILTER: 'all' as VolumeUsageFilter,
+  NETWORKS_SORT_KEY: 'used' as NetworkSortKey,
+  NETWORKS_SORT_DIRECTION: 'desc' as SortDirection,
+  NETWORKS_USAGE_FILTER: 'all' as NetworkUsageFilter
 } as const;

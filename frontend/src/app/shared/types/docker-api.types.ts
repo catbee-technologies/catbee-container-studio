@@ -201,6 +201,45 @@ export interface DockerVolumeInfo {
 
 export type DockerVolumeUsage = NonNullable<DockerVolumeInfo['UsageData']>;
 
+export interface DockerNetworkInfo {
+  Name: string;
+  Id: string;
+  Created?: string;
+  Scope: string;
+  Driver: string;
+  EnableIPv4?: boolean;
+  EnableIPv6?: boolean;
+  Internal: boolean;
+  Attachable: boolean;
+  Ingress: boolean;
+  ConfigFrom?: {
+    Network?: string;
+  };
+  ConfigOnly?: boolean;
+  Options: Record<string, string> | null;
+  Labels: Record<string, string> | null;
+  IPAM?: {
+    Driver?: string;
+    Config?:
+      | {
+          Subnet?: string;
+          Gateway?: string;
+          IPRange?: string;
+        }[]
+      | null;
+  };
+  Containers?: Record<
+    string,
+    {
+      Name?: string;
+      EndpointID?: string;
+      MacAddress?: string;
+      IPv4Address?: string;
+      IPv6Address?: string;
+    }
+  >;
+}
+
 export type DockerFileType = 'file' | 'directory' | 'symlink';
 
 export interface DockerFileEntry {

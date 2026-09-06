@@ -1,0 +1,57 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+tbody tr {
+  cursor: pointer;
+}
+
+.driver-badge {
+  background: var(--badge-total-gradient);
+  border-color: var(--badge-total-border);
+  color: var(--badge-total-text);
+  text-transform: uppercase;
+}
+
+table.catbee-table .col-actions {
+  width: 1rem;
+}
+
+.network-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field-label,
+.check-field {
+  color: var(--ink-300);
+  font-size: var(--font-size-sm);
+}
+
+.field-input {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-color-primary);
+  border-radius: 0.5rem;
+  background: var(--bg-input);
+  color: var(--ink-100);
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--border-color-hover);
+  }
+}
+
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}

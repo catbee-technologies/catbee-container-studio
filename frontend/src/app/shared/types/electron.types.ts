@@ -9,6 +9,7 @@ import {
   DockerImageHistoryInfo,
   DockerImageInfo,
   DockerImageInspectInfo,
+  DockerNetworkInfo,
   DockerVolumeInfo,
   DockerVolumeUsage,
   IpcResult,
@@ -190,6 +191,15 @@ export interface ElectronBridge {
         write: (name: string, path: string, data: Uint8Array) => IpcPromise<void>;
         delete: (name: string, path: string) => IpcPromise<void>;
       };
+    };
+    networks: {
+      list: (options?: Docker.NetworkListOptions) => IpcPromise<DockerNetworkInfo[]>;
+      inspect: (networkId: string) => IpcPromise<DockerNetworkInfo>;
+      create: (options: Docker.NetworkCreateOptions) => IpcPromise<DockerNetworkInfo>;
+      remove: (networkId: string) => IpcPromise<void>;
+      connect: (networkId: string, containerId: string) => IpcPromise<void>;
+      disconnect: (networkId: string, containerId: string, force?: boolean) => IpcPromise<void>;
+      prune: () => IpcPromise<unknown>;
     };
     execSession: {
       create: (containerId: string, command: string[], tty?: boolean) => IpcPromise<DockerExecSessionCreateResult>;

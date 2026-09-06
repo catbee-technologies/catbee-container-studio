@@ -1,0 +1,307 @@
+<main class="catbee-outer-container" aria-label="Docker networks">
+  <header class="catbee-container-list-header">
+    <div><h1>Networks</h1></div>
+    <div class="actions">
+      <button type="button" class="catbee-action-btn action-start" (click)="openCreateDialog()">
+        <span class="mat-icon-filled" aria-hidden="true">add</span>Create Network
+      </button>
+      <button
+        type="button"
+        class="refresh-btn"
+        (click)="loadNetworks()"
+        [disabled]="isRefreshing()"
+        aria-label="Refresh networks"
+        [catbeeTooltip]="'Refresh'"
+        [catbeeTooltipPosition]="'left'"
+        [catbeeTooltipDelay]="tooltipDelay"
+      >
+        <span class="mat-icon-filled" [class.is-refreshing]="isRefreshing()" aria-hidden="true">refresh</span>
+      </button>
+      <div class="badges-row">
+        <span class="badge total">Total: {{ networks().length }}</span>
+      </div>
+    </div>
+  </header>
+  @if (error(); as errorMessage) {
+    <catbee-container-studio-error-banner [errorMessage]="errorMessage" (closeErr)="error.set(null)" size="small" />
+  }
+  <section class="catbee-list-toolbar catbee-base-panel" aria-label="Network controls">
+    <div class="catbee-list-toolbar-left">
+      <catbee-container-studio-search-input
+        #networkSearchInput
+        placeholder="Search Networks"
+        ariaLabel="Search Networks"
+        width="20rem"
+        [value]="searchTerm()"
+        (valueChange)="setSearchTerm($event)"
+      />
+    </div>
+    <div class="catbee-list-toolbar-right">
+      <catbee-container-studio-segmented-filter
+        ariaLabel="Filter networks by usage"
+        [options]="usageFilterOptions"
+        [activeValue]="usageFilter()"
+        (valueChange)="setUsageFilter($event)"
+      />
+      @if (selectedCount() > 0) {
+        <span class="selection-count">Selected: {{ selectedCount() }}</span
+        ><button type="button" class="catbee-action-btn danger" (click)="requestDeleteSelected()">
+          <span class="mat-icon-filled" aria-hidden="true">delete</span>Delete Selected
+        </button>
+      }
+      <button type="button" class="catbee-action-btn danger" (click)="confirmPruneOpen.set(true)">
+        <span class="mat-icon-filled" aria-hidden="true">delete_sweep</span>Prune Unused
+      </button>
+    </div>
+  </section>
+  <div class="catbee-container-list-layout">
+    <div class="catbee-container-list-body catbee-base-panel">
+      @if (isLoading()) {
+        <catbee-container-studio-empty-state icon="lan" message="Loading Networks..." />
+      } @else {
+        <table class="catbee-table" aria-label="Networks table" [class.is-empty]="sortedNetworks().length === 0">
+          <thead>
+            <tr>
+              <th scope="col" class="col-checkbox">
+                <catbee-container-studio-table-checkbox
+                  [checked]="allVisibleSelected()"
+                  [indeterminate]="partiallyVisibleSelected()"
+                  ariaLabel="Select all visible networks"
+                  (checkedChange)="toggleSelectAllVisible()"
+                />
+              </th>
+              <th scope="col" class="col-used">
+                <catbee-container-studio-table-sort-header
+                  label="Used"
+                  [active]="isSortActive('used')"
+                  [indicator]="sortIndicator('used')"
+                  (sort)="toggleSort('used')"
+                />
+              </th>
+              <th scope="col">
+                <catbee-container-studio-table-sort-header
+                  label="Name"
+                  [active]="isSortActive('name')"
+                  [indicator]="sortIndicator('name')"
+                  (sort)="toggleSort('name')"
+                />
+              </th>
+              @if (visibleColumns().has('id')) {
+                <th scope="col">
+                  <catbee-container-studio-table-sort-header
+                    label="ID"
+                    [active]="isSortActive('id')"
+                    [indicator]="sortIndicator('id')"
+                    (sort)="toggleSort('id')"
+                  />
+                </th>
+              }
+              @if (visibleColumns().has('driver')) {
+                <th scope="col">
+                  <catbee-container-studio-table-sort-header
+                    label="Driver"
+                    [active]="isSortActive('driver')"
+                    [indicator]="sortIndicator('driver')"
+                    (sort)="toggleSort('driver')"
+                  />
+                </th>
+              }
+              @if (visibleColumns().has('subnet')) {
+                <th scope="col">
+                  <catbee-container-studio-table-sort-header
+                    label="Subnet / Gateway"
+                    [active]="isSortActive('subnet')"
+                    [indicator]="sortIndicator('subnet')"
+                    (sort)="toggleSort('subnet')"
+                  />
+                </th>
+              }
+              @if (visibleColumns().has('flags')) {
+                <th scope="col">Flags</th>
+              }
+              @if (visibleColumns().has('containers')) {
+                <th scope="col">
+                  <catbee-container-studio-table-sort-header
+                    label="Containers"
+                    [active]="isSortActive('containers')"
+                    [indicator]="sortIndicator('containers')"
+                    (sort)="toggleSort('containers')"
+                  />
+                </th>
+              }
+              @if (visibleColumns().has('created')) {
+                <th scope="col">
+                  <catbee-container-studio-table-sort-header
+                    label="Created"
+                    [active]="isSortActive('created')"
+                    [indicator]="sortIndicator('created')"
+                    (sort)="toggleSort('created')"
+                  />
+                </th>
+              }
+              <th scope="col" class="col-actions">
+                <div class="actions-header">
+                  <span>Actions</span>
+                  <catbee-container-studio-table-column-actions-menu
+                    [columns]="columnOptions"
+                    [defaultVisible]="defaultVisibleColumns"
+                    [storageKey]="UI_STORAGE_KEYS.NETWORKS_VISIBLE_COLUMNS"
+                    [(visibleColumns)]="visibleColumns"
+                    [tooltipDelay]="tooltipDelay"
+                    [showReset]="false"
+                  />
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (sortedNetworks().length === 0) {
+              <tr class="table-empty-row">
+                <td colspan="10">
+                  <catbee-container-studio-empty-state
+                    icon="lan"
+                    [message]="networks().length === 0 ? 'No networks found.' : 'No networks match your search.'"
+                    [hint]="
+                      networks().length === 0
+                        ? 'Networks will appear here once they are created.'
+                        : 'Try a different search term or filter.'
+                    "
+                  />
+                </td>
+              </tr>
+            }
+            @for (network of sortedNetworks(); track network.Id) {
+              <tr (click)="openNetworkDetails(network.Id)">
+                <td class="col-checkbox" (click)="$event.stopPropagation()">
+                  <catbee-container-studio-table-checkbox
+                    [checked]="selectedNetworkIds().has(network.Id)"
+                    ariaLabel="Select network"
+                    (checkedChange)="toggleNetworkSelection(network.Id)"
+                  />
+                </td>
+                <td class="col-used">
+                  <span class="usage-dot" [class.used]="isUsed(network)" [class.unused]="!isUsed(network)"></span>
+                </td>
+                <td>
+                  <button type="button" class="link-btn" (click)="openNetworkDetails(network.Id)">
+                    {{ network.Name }}
+                  </button>
+                  <p class="unique-id">
+                    {{ network.Id.slice(0, 12) }}
+                    <catbee-container-studio-copy-button
+                      [text]="network.Id"
+                      size="small"
+                      (click)="$event.stopPropagation()"
+                    />
+                  </p>
+                </td>
+                @if (visibleColumns().has('id')) {
+                  <td>{{ network.Id.slice(0, 12) }}</td>
+                }
+                @if (visibleColumns().has('driver')) {
+                  <td>
+                    <span class="badge small driver-badge">{{ network.Driver }}</span>
+                  </td>
+                }
+                @if (visibleColumns().has('subnet')) {
+                  <td>{{ networkAddress(network) }}</td>
+                }
+                @if (visibleColumns().has('flags')) {
+                  <td>{{ networkFlags(network) }}</td>
+                }
+                @if (visibleColumns().has('containers')) {
+                  <td>{{ connectedContainerCount(network) }}</td>
+                }
+                @if (visibleColumns().has('created')) {
+                  <td><catbee-container-studio-tooltip-date [date]="network.Created" /></td>
+                }
+                <td class="col-actions" (click)="$event.stopPropagation()">
+                  <button
+                    type="button"
+                    class="catbee-action-btn icon-only danger"
+                    (click)="requestDeleteSingle(network.Id)"
+                    aria-label="Delete network"
+                    [catbeeTooltip]="'Delete'"
+                    [catbeeTooltipPosition]="'left'"
+                    [catbeeTooltipDelay]="tooltipDelay"
+                  >
+                    <span class="mat-icon-filled" aria-hidden="true">delete</span>
+                  </button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </div>
+</main>
+<catbee-container-studio-confirm-dialog
+  [open]="pendingDeleteNetworkIds().length > 0"
+  [title]="pendingDeleteNetworkIds().length > 1 ? 'Delete Networks' : 'Delete Network'"
+  [message]="'Delete ' + pendingDeleteLabel() + '?\nConnected containers must be disconnected first.'"
+  confirmLabel="Delete"
+  [dangerous]="true"
+  (confirm)="confirmDelete()"
+  (cancelAction)="cancelDelete()"
+/>
+<catbee-container-studio-confirm-dialog
+  [open]="confirmPruneOpen()"
+  title="Prune Unused Networks"
+  message="Delete all unused networks?\nThis cannot be undone."
+  confirmLabel="Prune"
+  [dangerous]="true"
+  (confirm)="confirmPrune()"
+  (cancelAction)="confirmPruneOpen.set(false)"
+/>
+<catbee-container-studio-dialog
+  [open]="createDialogOpen()"
+  title="Create Network"
+  [style]="{ width: '30rem' }"
+  (closeDialog)="closeCreateDialog()"
+  ><div catbeeDialogBody class="network-form">
+    @if (createError(); as errorMessage) {
+      <catbee-container-studio-error-banner
+        [errorMessage]="errorMessage"
+        (closeErr)="createError.set(null)"
+        size="small"
+      />
+    }
+    <label class="field"
+      ><span class="field-label">Name</span
+      ><input
+        class="field-input"
+        type="text"
+        placeholder="e.g. app-network"
+        [value]="networkName()"
+        [disabled]="isCreating()"
+        (input)="networkName.set($any($event.target).value)" /></label
+    ><label class="field"
+      ><span class="field-label">Driver</span
+      ><select
+        class="field-input"
+        [value]="networkDriver()"
+        [disabled]="isCreating()"
+        (change)="networkDriver.set($any($event.target).value)"
+      >
+        <option value="bridge">Bridge</option>
+        <option value="macvlan">Macvlan</option>
+        <option value="ipvlan">IPvlan</option>
+      </select></label
+    ><catbee-container-studio-switch-input [(checked)]="networkInternal" label="Internal network" />
+    <catbee-container-studio-switch-input [(checked)]="networkAttachable" label="Manually attachable" />
+  </div>
+
+  <ng-container catbeeDialogFooter>
+    <button type="button" class="catbee-action-btn" [disabled]="isCreating()" (click)="closeCreateDialog()">
+      Cancel</button
+    ><button
+      type="button"
+      class="catbee-action-btn action-start"
+      [disabled]="isCreating() || networkName().trim().length === 0"
+      (click)="createNetwork()"
+    >
+      <span class="mat-icon-filled" aria-hidden="true">add</span>{{ isCreating() ? 'Creating...' : 'Create' }}
+    </button>
+  </ng-container>
+</catbee-container-studio-dialog>
