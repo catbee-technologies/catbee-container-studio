@@ -364,7 +364,7 @@ export class VolumesPage {
     this.confirmPruneOpen.set(false);
 
     try {
-      await this.dockerApi.pruneVolumes();
+      await this.dockerApi.pruneVolumes({ all: ['true'] });
       await this.loadVolumes();
     } catch (err) {
       this.error.set(err instanceof Error ? err.message : 'Failed to prune volumes.');
