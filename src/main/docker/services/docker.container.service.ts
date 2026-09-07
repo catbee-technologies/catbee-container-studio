@@ -14,7 +14,7 @@ import {
 export class DockerContainerService extends DockerBaseService {
   async listContainers(options?: Docker.ContainerListOptions): Promise<Docker.ContainerInfo[]> {
     const containers = await this.client.listContainers({ all: true, ...(options ?? {}) });
-    return containers.filter(container => !this.isKubernetesManagedContainer(container));
+    return containers;
   }
 
   async inspectContainer(containerId: string): Promise<Docker.ContainerInspectInfo> {
