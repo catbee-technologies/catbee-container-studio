@@ -108,7 +108,9 @@ export class ContainersPage {
   readonly pendingDeleteContainerId = signal<string | null>(null);
   readonly pendingDeleteSelection = signal(false);
 
-  readonly collapsedGroupIds = signal<Set<string>>(new Set<string>());
+  readonly collapsedGroupIds = signal<Set<string>>(
+    new Set<string>(this.sessionStorage.getArrayWithDefault<string>(UI_STORAGE_KEYS.CONTAINERS_COLLAPSED_GROUPS, []))
+  );
 
   readonly selectedContainerIds = signal<Set<string>>(new Set<string>());
   readonly openContainerActionsMenuId = signal<string | null>(null);
@@ -391,6 +393,7 @@ export class ContainersPage {
         next.add(groupId);
       }
 
+      this.sessionStorage.setArray(UI_STORAGE_KEYS.CONTAINERS_COLLAPSED_GROUPS, [...next]);
       return next;
     });
   }
@@ -806,6 +809,7 @@ export class ContainersPage {
         }
       }
 
+      this.sessionStorage.setArray(UI_STORAGE_KEYS.CONTAINERS_COLLAPSED_GROUPS, [...next]);
       return next;
     });
   }
