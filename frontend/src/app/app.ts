@@ -1,10 +1,20 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { timer, exhaustMap, from, catchError, of } from 'rxjs';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import {
+  NavigationCancel,
+  NavigationEnd,
+  NavigationError,
+  NavigationStart,
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet
+} from '@angular/router';
 import { WindowHeaderComponent } from '@components/window-header/window-header';
 import { DockerApiService } from '@core/docker-api.service';
 import { LocalStorageService, SessionStorageService } from '@ng-catbee/storage';
+import { CatbeeLoaderComponent, CatbeeLoaderService } from '@ng-catbee/loader';
 import { UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@shared/utils/storage.utils';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
@@ -23,7 +33,8 @@ import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
     WindowHeaderComponent,
     EmptyStateComponent,
     FooterComponent,
-    CatbeeTooltip
+    CatbeeTooltip,
+    CatbeeLoaderComponent
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss'
@@ -33,7 +44,13 @@ export class App implements OnInit {
   private readonly sessionStorage = inject(SessionStorageService);
   private readonly dockerApi = inject(DockerApiService);
   private readonly electronApi = inject(ElectronApiService);
+  private readonly router = inject(Router);
+  private readonly loader = inject(CatbeeLoaderService);
   private readonly destroyRef = inject(DestroyRef);
+  private navigationLoaderTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  readonly NAVIGATION_LOADER_NAME = 'catbee-navigation-loader';
+  readonly NAVIGATION_LOADER_DELAY_MS = 150; // Delay before showing the loader (in milliseconds)
 
   readonly sidebarCollapsed = signal(
     this.localStorage.getBooleanWithDefault(UI_STORAGE_KEYS.SIDEBAR_COLLAPSED, UI_STORAGE_DEFAULTS.SIDEBAR_COLLAPSED)
@@ -95,6 +112,30 @@ export class App implements OnInit {
         console.log(`Docker connected: ${isConnected ? '\x1b[32mtrue' : '\x1b[31mfalse'}\x1b[0m`);
         this.dockerConnected.set(isConnected);
       });
+
+    this.router.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(event => {
+      if (event instanceof NavigationStart) {
+        // Only show the loader if the navigation (e.g. a resolver) takes a noticeable amount of time.
+        this.navigationLoaderTimeout = setTimeout(() => {
+          void this.loader.show(this.NAVIGATION_LOADER_NAME, { message: 'Loading...', fullscreen: false });
+        }, this.NAVIGATION_LOADER_DELAY_MS);
+        return;
+      }
+
+      if (event instanceof NavigationEnd || event instanceof NavigationCancel || event instanceof NavigationError) {
+        if (this.navigationLoaderTimeout) {
+          clearTimeout(this.navigationLoaderTimeout);
+          this.navigationLoaderTimeout = null;
+        }
+        void this.loader.hide(this.NAVIGATION_LOADER_NAME);
+      }
+    });
+
+    this.destroyRef.onDestroy(() => {
+      if (this.navigationLoaderTimeout) {
+        clearTimeout(this.navigationLoaderTimeout);
+      }
+    });
   }
 
   onNavClick(event: MouseEvent): void {
