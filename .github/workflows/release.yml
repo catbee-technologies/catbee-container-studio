@@ -82,15 +82,174 @@ jobs:
 
           echo "Generating changelog for ${TAG}"
 
-          # Find the previous release tag.
-          PREVIOUS_TAG=""
+          # Find the previous release tag according to release type.
+          #
+          # Rules:
+          #   Main release:
+          #     - Use the previous main release.
+          #     - Ignore all prerelease tags.
+          #
+          #   Prerelease:
+          #     - First look for a previous prerelease with the same
+          #       base version AND same prerelease identifier.
+          #       Example:
+          #         v1.1.0-rc.1 -> v1.1.0-rc.0
+          #
+          #     - If no matching prerelease exists, fall back to the
+          #       previous main release.
+          #       Example:
+          #         v1.1.0-rc.0 -> v1.0.0
+          #
+          #     - A prerelease from another base version is never used.
+          #       Example:
+          #         v1.2.0-rc.0 -> v1.1.0
+          #       NOT:
+          #         v1.1.0-rc.1
 
-          while IFS= read -r tag; do
-            if [[ "$tag" != "$TAG" ]]; then
-              PREVIOUS_TAG="$tag"
-              break
+          get_previous_tag() {
+            local current_tag="$1"
+            local current_version="${current_tag#v}"
+            local tag
+            local version
+            local base_version
+            local prerelease
+            local prerelease_id
+            local other_base_version
+            local other_prerelease
+            local other_prerelease_id
+
+            # ------------------------------------------------------------
+            # Main release
+            # ------------------------------------------------------------
+            #
+            # Example:
+            #
+            #   v1.0.0
+            #   v1.1.0-rc.0
+            #   v1.1.0-rc.1
+            #   v1.1.0
+            #
+            # For v1.1.0 we want v1.0.0.
+            #
+            if [[ "$current_version" != *-* ]]; then
+              while IFS= read -r tag; do
+                [[ -z "$tag" ]] && continue
+                [[ "$tag" == "$current_tag" ]] && continue
+
+                version="${tag#v}"
+
+                # Skip prerelease tags.
+                [[ "$version" == *-* ]] && continue
+
+                echo "$tag"
+                return 0
+              done < <(git tag --sort=-version:refname)
+
+              return 0
             fi
-          done < <(git tag --sort=-version:refname)
+
+            # ------------------------------------------------------------
+            # Prerelease
+            # ------------------------------------------------------------
+
+            # Extract the base version.
+            #
+            #   1.1.0-rc.0
+            #   ^^^^^
+            #
+            base_version="${current_version%%-*}"
+
+            # Extract the prerelease portion.
+            #
+            #   1.1.0-rc.0
+            #         ^^^^
+            #
+            prerelease="${current_version#*-}"
+
+            # Extract the prerelease identifier.
+            #
+            #   rc.0
+            #   ^^
+            #
+            prerelease_id="${prerelease%%.*}"
+
+            # ------------------------------------------------------------
+            # First try to find the previous prerelease from the SAME
+            # base version and SAME prerelease channel.
+            # ------------------------------------------------------------
+            #
+            # Example:
+            #
+            #   v1.1.0-rc.0
+            #   v1.1.0-rc.1
+            #   v1.1.0-rc.2
+            #
+            # For v1.1.0-rc.2:
+            #
+            #   -> v1.1.0-rc.1
+            #
+            # We deliberately do NOT select:
+            #
+            #   v1.0.0-rc.5
+            #   v1.2.0-rc.0
+            #   v1.1.0-beta.0
+            #
+            while IFS= read -r tag; do
+              [[ -z "$tag" ]] && continue
+              [[ "$tag" == "$current_tag" ]] && continue
+
+              version="${tag#v}"
+
+              # Must be a prerelease.
+              [[ "$version" != *-* ]] && continue
+
+              other_base_version="${version%%-*}"
+
+              # Must be the same base version.
+              [[ "$other_base_version" != "$base_version" ]] && continue
+
+              other_prerelease="${version#*-}"
+              other_prerelease_id="${other_prerelease%%.*}"
+
+              # Must be the same prerelease identifier.
+              [[ "$other_prerelease_id" != "$prerelease_id" ]] && continue
+
+              echo "$tag"
+              return 0
+            done < <(git tag --sort=-version:refname)
+
+            # ------------------------------------------------------------
+            # No matching prerelease found.
+            #
+            # Fall back to the previous MAIN release.
+            # ------------------------------------------------------------
+            #
+            # Example:
+            #
+            #   v1.0.0
+            #   v1.1.0-rc.0
+            #
+            # For v1.1.0-rc.0:
+            #
+            #   -> v1.0.0
+            #
+            while IFS= read -r tag; do
+              [[ -z "$tag" ]] && continue
+              [[ "$tag" == "$current_tag" ]] && continue
+
+              version="${tag#v}"
+
+              # Only consider main releases.
+              [[ "$version" == *-* ]] && continue
+
+              echo "$tag"
+              return 0
+            done < <(git tag --sort=-version:refname)
+
+            return 0
+          }
+
+          PREVIOUS_TAG="$(get_previous_tag "$TAG")"
 
           echo "Current tag:  ${TAG}"
 
