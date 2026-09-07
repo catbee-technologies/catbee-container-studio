@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, input, output, viewChild } from '@angular/core';
+import { Component, ElementRef, effect, input, output, viewChild } from '@angular/core';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 
 @Component({
@@ -15,11 +15,21 @@ export class SearchInputComponent {
   readonly placeholder = input('Search');
   readonly ariaLabel = input('Search');
   readonly width = input('min(360px, 100%)');
+  readonly autoFocus = input(false);
 
   readonly valueChange = output<string>();
   readonly inputKeydown = output<KeyboardEvent>();
 
   readonly tooltipDelay = 300;
+
+  constructor() {
+    effect(() => {
+      if (!this.autoFocus()) {
+        return;
+      }
+      queueMicrotask(() => this.focusAndSelect());
+    });
+  }
 
   private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
 
