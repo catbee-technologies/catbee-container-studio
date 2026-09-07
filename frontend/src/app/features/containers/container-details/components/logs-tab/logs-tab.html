@@ -67,7 +67,7 @@
       [checked]="followEnabled()"
       (checkedChange)="setFollowLogs($event)"
       label="Follow"
-      style="display: inline-flex;"
+      style="display: inline-flex"
     />
     <button type="button" class="catbee-action-btn fix-height" (click)="copyLogs()">
       {{ copyButtonLabel() }}
@@ -158,9 +158,20 @@
     />
   } @else {
     <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
-    <div class="log-terminal" [class.wrap-off]="!displayOptions().wrapLines" (click)="onLogClick($event)">
-      @for (line of renderedLogLines(); track line.key) {
-        <div class="log-line" [attr.data-log-key]="line.key" [innerHTML]="line.html"></div>
+    <div
+      class="log-terminal"
+      [class.wrap-off]="!displayOptions().wrapLines"
+      (click)="onLogClick($event)"
+      [style.height.px]="virtualizer.getTotalSize()"
+    >
+      @for (line of virtualizer.getVirtualItems(); track line.key) {
+        <div
+          class="log-line"
+          [attr.data-index]="line.index"
+          [attr.data-log-key]="renderedLogLines()[line.index]?.key"
+          [style.transform]="'translateY(' + line.start + 'px)'"
+          [innerHTML]="renderedLogLines()[line.index]?.html"
+        ></div>
       }
     </div>
   }

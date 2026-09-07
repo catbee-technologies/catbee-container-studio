@@ -5,6 +5,7 @@ import {
   DestroyRef,
   ElementRef,
   Injector,
+  afterEveryRender,
   afterNextRender,
   computed,
   effect,
@@ -14,6 +15,7 @@ import {
   signal,
   viewChild
 } from '@angular/core';
+import { injectVirtualizer } from '@tanstack/angular-virtual';
 import { DockerApiService } from '@core/docker-api.service';
 import { MenuComponent } from '@components/menu/menu';
 import { SearchInputComponent } from '@components/search-input/search-input';
@@ -26,7 +28,6 @@ import { ElectronApiService } from '@core/electron-api.service';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import {
   escapeSearchHtml,
-  findVisibleMatchIndex,
   getSearchNavigationDirection,
   normalizeSearchMatchIndex
 } from '@utils/search-navigation.utils';
@@ -306,20 +307,12 @@ export class LogsTabComponent implements AfterViewInit {
 
       const followChangeVersion = this.followChangeVersion;
       requestAnimationFrame(() => {
-        if (
-          this.isDisposed ||
-          !this.active() ||
-          followChangeVersion !== this.followChangeVersion
-        ) {
+        if (this.isDisposed || !this.active() || followChangeVersion !== this.followChangeVersion) {
           return;
         }
 
         requestAnimationFrame(() => {
-          if (
-            this.isDisposed ||
-            !this.active() ||
-            followChangeVersion !== this.followChangeVersion
-          ) {
+          if (this.isDisposed || !this.active() || followChangeVersion !== this.followChangeVersion) {
             return;
           }
           this.scrollToBottom();
@@ -329,6 +322,8 @@ export class LogsTabComponent implements AfterViewInit {
         });
       });
     });
+
+    afterEveryRender(() => this.measureRenderedLogLines(), { injector: this.injector });
   }
 
   readonly displayLogLines = computed<DisplayLogLine[]>(() => {
@@ -496,8 +491,26 @@ export class LogsTabComponent implements AfterViewInit {
 
   readonly isScrollable = signal(false);
 
+  readonly virtualizer = injectVirtualizer(() => ({
+    scrollElement: this.tabScrollArea()?.nativeElement,
+    count: this.renderedLogLines().length,
+    estimateSize: () => 22,
+    overscan: 15,
+    getItemKey: (index: number) => this.renderedLogLines()[index]?.key ?? index
+  }));
+
   ngAfterViewInit(): void {
     this.onPanelScroll();
+  }
+
+  private measureRenderedLogLines(): void {
+    const area = this.getScrollAreaElement();
+    if (!area) {
+      return;
+    }
+
+    const rows = area.querySelectorAll<HTMLElement>('.log-line[data-index]');
+    rows.forEach(row => this.virtualizer.measureElement(row));
   }
 
   focusAndSelectSearch(): void {
@@ -834,23 +847,30 @@ export class LogsTabComponent implements AfterViewInit {
 
   private scrollCurrentMatchIntoView(): void {
     const panel = this.tabScrollArea()?.nativeElement;
-    if (!panel) {
+    const current = this.currentMatch();
+    if (!panel || !current) {
       return;
     }
 
-    requestAnimationFrame(() => {
-      const current = panel.querySelector<HTMLElement>('.search-match.current');
-      if (!current) {
-        return;
-      }
+    // Bring the target row into the render window first, then fine-tune with its measured rect.
+    this.virtualizer.scrollToIndex(current.logIndex, { align: 'center' });
 
-      const panelRect = panel.getBoundingClientRect();
-      const currentRect = current.getBoundingClientRect();
-      const offsetInPanel = currentRect.top - panelRect.top + panel.scrollTop;
-      const targetTop = offsetInPanel - panel.clientHeight / 2 + currentRect.height / 2;
-      const maxTop = Math.max(panel.scrollHeight - panel.clientHeight, 0);
-      panel.scrollTop = Math.max(0, Math.min(targetTop, maxTop));
-      this.onPanelScroll();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const currentEl = panel.querySelector<HTMLElement>('.search-match.current');
+        if (!currentEl) {
+          this.onPanelScroll();
+          return;
+        }
+
+        const panelRect = panel.getBoundingClientRect();
+        const currentRect = currentEl.getBoundingClientRect();
+        const offsetInPanel = currentRect.top - panelRect.top + panel.scrollTop;
+        const targetTop = offsetInPanel - panel.clientHeight / 2 + currentRect.height / 2;
+        const maxTop = Math.max(panel.scrollHeight - panel.clientHeight, 0);
+        panel.scrollTop = Math.max(0, Math.min(targetTop, maxTop));
+        this.onPanelScroll();
+      });
     });
   }
 
@@ -863,8 +883,23 @@ export class LogsTabComponent implements AfterViewInit {
       return;
     }
 
-    const lines = panel.querySelectorAll<HTMLElement>('.log-line');
-    const visibleMatch = findVisibleMatchIndex(matches, lines, match => match.logIndex, panel);
+    const panelRect = panel.getBoundingClientRect();
+    const renderedRows = new Map<number, HTMLElement>();
+    panel.querySelectorAll<HTMLElement>('.log-line[data-index]').forEach(row => {
+      const index = Number(row.dataset['index']);
+      if (Number.isFinite(index)) {
+        renderedRows.set(index, row);
+      }
+    });
+
+    const visibleMatch = matches.findIndex(match => {
+      const row = renderedRows.get(match.logIndex);
+      if (!row) {
+        return false;
+      }
+      const rect = row.getBoundingClientRect();
+      return rect.bottom > panelRect.top && rect.top < panelRect.bottom;
+    });
 
     this.currentMatchIndex.set(Math.max(visibleMatch, 0));
     this.isSearchNavigationPrimed = true;
@@ -1355,11 +1390,7 @@ export class LogsTabComponent implements AfterViewInit {
   }
 
   private shouldStickBottom(): boolean {
-    return (
-      this.followEnabled() ||
-      this.forceScrollToBottomOnNextBatch ||
-      this.isBootstrappingLogs
-    );
+    return this.followEnabled() || this.forceScrollToBottomOnNextBatch || this.isBootstrappingLogs;
   }
 
   private appendLogEntries(entries: ContainerLogEntry[], shouldStickBottom: boolean): void {
