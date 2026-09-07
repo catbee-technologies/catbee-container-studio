@@ -31,6 +31,7 @@ import {
   normalizeSearchMatchIndex
 } from '@utils/search-navigation.utils';
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
+import { SwitchInputComponent } from '@components/switch-input/switch-input';
 
 export interface LogsSearchMode {
   caseSensitive: boolean;
@@ -91,7 +92,8 @@ interface LogScrollAnchor {
     MenuComponent,
     EmptyStateComponent,
     CatbeeTooltip,
-    TableCheckboxComponent
+    TableCheckboxComponent,
+    SwitchInputComponent
   ],
   templateUrl: './logs-tab.html',
   styleUrl: './logs-tab.scss'
@@ -127,22 +129,28 @@ export class LogsTabComponent implements AfterViewInit {
   readonly externalLogs = input<ContainerLogEntry[] | null>(null);
   readonly externalLoading = input(false);
   readonly externalTailLines = input<number | null>(null);
+  readonly externalMaxLogEntries = input<number | null>(null);
+  readonly maxLogEntryOptions = input<readonly number[]>([]);
   readonly tailLineOptions = input<readonly number[]>(LOG_TAIL_OPTIONS);
   readonly externalDisplayOptions = input<LogsDisplayOptions | null>(null);
   readonly externalInitialFollow = input(false);
   readonly externalFollow = input(false);
+  readonly externalSearchStorageKey = input<string | null>(null);
+  readonly externalSearchModeStorageKeys = input<Partial<Record<keyof LogsSearchMode, string>> | null>(null);
   private hasActivatedLogs = false;
 
   readonly unavailable = output<void>();
   readonly streamError = output<string>();
   readonly externalClear = output<void>();
-  readonly externalTailLinesChange = output<number>();
+  readonly externalMaxLogEntriesChange = output<number>();
   readonly externalDisplayOptionsChange = output<LogsDisplayOptions>();
   readonly externalInitialFollowComplete = output<void>();
+  readonly externalFollowChange = output<boolean>();
   readonly nearBottomChange = output<boolean>();
 
   readonly logsSearchTerm = signal('');
   readonly logsSearchInputTerm = signal('');
+  readonly internalFollow = signal(true);
   readonly logsSearchMode = signal<LogsSearchMode>({
     caseSensitive: false,
     wholeWord: false,
@@ -209,6 +217,11 @@ export class LogsTabComponent implements AfterViewInit {
   private searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private externalInitialFollowTimer: ReturnType<typeof setTimeout> | null = null;
   private isSearchNavigationPrimed = false;
+  private searchStorageInitialized = false;
+  private autoScrollFrame: number | null = null;
+  private autoScrollReleaseFrame: number | null = null;
+  private isProgrammaticScrolling = false;
+  private followChangeVersion = 0;
 
   constructor() {
     const streamUnsubscribe = this.dockerApi.onStreamEvent(event => this.onStreamEvent(event));
@@ -220,7 +233,30 @@ export class LogsTabComponent implements AfterViewInit {
       this.clearActionTimers();
       this.clearSearchDebounceTimer();
       this.clearExternalInitialFollowTimer();
+      this.cancelAutoScroll();
       void this.stopLogsStream();
+    });
+
+    effect(() => {
+      const storageKey = this.externalSearchStorageKey();
+      if (storageKey && !this.searchStorageInitialized) {
+        const savedSearch = this.localStorage.getWithDefault(storageKey, '');
+        this.logsSearchTerm.set(savedSearch);
+        this.logsSearchInputTerm.set(savedSearch);
+        const savedMode = this.externalSearchModeStorageKeys();
+        if (savedMode) {
+          this.logsSearchMode.set({
+            caseSensitive: savedMode.caseSensitive
+              ? this.localStorage.getBooleanWithDefault(savedMode.caseSensitive, false)
+              : false,
+            wholeWord: savedMode.wholeWord
+              ? this.localStorage.getBooleanWithDefault(savedMode.wholeWord, false)
+              : false,
+            regex: savedMode.regex ? this.localStorage.getBooleanWithDefault(savedMode.regex, false) : false
+          });
+        }
+        this.searchStorageInitialized = true;
+      }
     });
 
     effect(() => {
@@ -263,19 +299,27 @@ export class LogsTabComponent implements AfterViewInit {
         return;
       }
 
-      const forceInitialFollow = this.externalInitialFollow() || this.externalFollow();
-      const wasNearBottom = this.isNearBottom();
-      if (!forceInitialFollow && !wasNearBottom) {
+      const forceInitialFollow = this.externalInitialFollow() || this.followEnabled();
+      if (!forceInitialFollow) {
         return;
       }
 
+      const followChangeVersion = this.followChangeVersion;
       requestAnimationFrame(() => {
-        if (this.isDisposed || !this.active() || (!forceInitialFollow && !this.isNearBottom())) {
+        if (
+          this.isDisposed ||
+          !this.active() ||
+          followChangeVersion !== this.followChangeVersion
+        ) {
           return;
         }
 
         requestAnimationFrame(() => {
-          if (this.isDisposed || !this.active() || (!forceInitialFollow && !this.isNearBottom())) {
+          if (
+            this.isDisposed ||
+            !this.active() ||
+            followChangeVersion !== this.followChangeVersion
+          ) {
             return;
           }
           this.scrollToBottom();
@@ -462,6 +506,10 @@ export class LogsTabComponent implements AfterViewInit {
 
   setSearch(value: string): void {
     this.logsSearchInputTerm.set(value);
+    const storageKey = this.externalSearchStorageKey();
+    if (storageKey) {
+      this.localStorage.set(storageKey, value);
+    }
     this.clearSearchDebounceTimer();
     this.searchDebounceTimer = setTimeout(() => {
       this.searchDebounceTimer = null;
@@ -486,17 +534,29 @@ export class LogsTabComponent implements AfterViewInit {
   }
 
   toggleCaseSensitive(): void {
-    this.logsSearchMode.update(mode => ({ ...mode, caseSensitive: !mode.caseSensitive }));
+    this.logsSearchMode.update(mode => {
+      const next = { ...mode, caseSensitive: !mode.caseSensitive };
+      this.persistSearchMode(next);
+      return next;
+    });
     this.selectNearestMatchFromViewport();
   }
 
   toggleWholeWord(): void {
-    this.logsSearchMode.update(mode => ({ ...mode, wholeWord: !mode.wholeWord }));
+    this.logsSearchMode.update(mode => {
+      const next = { ...mode, wholeWord: !mode.wholeWord };
+      this.persistSearchMode(next);
+      return next;
+    });
     this.selectNearestMatchFromViewport();
   }
 
   toggleRegex(): void {
-    this.logsSearchMode.update(mode => ({ ...mode, regex: !mode.regex }));
+    this.logsSearchMode.update(mode => {
+      const next = { ...mode, regex: !mode.regex };
+      this.persistSearchMode(next);
+      return next;
+    });
     this.selectNearestMatchFromViewport();
   }
 
@@ -537,6 +597,16 @@ export class LogsTabComponent implements AfterViewInit {
   toggleLogOptions(event?: MouseEvent): void {
     event?.stopPropagation();
     this.showLogOptions.update(value => !value);
+  }
+
+  setFollowLogs(value: boolean): void {
+    this.followChangeVersion += 1;
+    if (this.externalLogs() !== null) {
+      this.externalFollowChange.emit(value);
+      return;
+    }
+
+    this.internalFollow.set(value);
   }
 
   closeLogOptions(): void {
@@ -597,10 +667,6 @@ export class LogsTabComponent implements AfterViewInit {
       return;
     }
 
-    if (this.externalLogs() !== null) {
-      this.externalTailLinesChange.emit(nextValue);
-      return;
-    }
     this.logTailLines.set(nextValue);
     this.localStorage.set(LOGS_STORAGE_KEYS.TAIL_LINES, String(nextValue));
     this.logs.set([]);
@@ -615,6 +681,17 @@ export class LogsTabComponent implements AfterViewInit {
 
     this.clearReconnectTimer();
     await this.restartLogsStream(id, this.getClearedSince(id));
+  }
+
+  onMaxLogEntriesChange(event: Event): void {
+    const target = event.target as HTMLSelectElement | null;
+    const nextValue = Number.parseInt(target?.value ?? '', 10);
+
+    if (!this.maxLogEntryOptions().includes(nextValue)) {
+      return;
+    }
+
+    this.externalMaxLogEntriesChange.emit(nextValue);
   }
 
   async copyLogs(): Promise<void> {
@@ -677,7 +754,19 @@ export class LogsTabComponent implements AfterViewInit {
       return;
     }
     this.isScrollable.set(area.scrollHeight > area.clientHeight);
+    if (this.isProgrammaticScrolling) {
+      return;
+    }
     this.setNearBottom(this.isPanelNearBottom());
+  }
+
+  onUserWheel(event: WheelEvent): void {
+    if (event.deltaY >= 0 || !this.followEnabled()) {
+      return;
+    }
+
+    this.cancelAutoScroll();
+    this.setFollowLogs(false);
   }
 
   scrollToTop(): void {
@@ -1267,10 +1356,9 @@ export class LogsTabComponent implements AfterViewInit {
 
   private shouldStickBottom(): boolean {
     return (
-      this.externalFollow() ||
+      this.followEnabled() ||
       this.forceScrollToBottomOnNextBatch ||
-      this.isBootstrappingLogs ||
-      this.isPanelNearBottom()
+      this.isBootstrappingLogs
     );
   }
 
@@ -1306,21 +1394,68 @@ export class LogsTabComponent implements AfterViewInit {
     }
 
     this.forceScrollToBottomOnNextBatch = false;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
+    this.cancelAutoScroll();
+    this.isProgrammaticScrolling = true;
+    this.autoScrollFrame = requestAnimationFrame(() => {
+      this.autoScrollFrame = requestAnimationFrame(() => {
+        this.autoScrollFrame = null;
+        if (this.isDisposed || !this.isProgrammaticScrolling) {
+          return;
+        }
         element.scrollTop = element.scrollHeight;
         this.setNearBottom(true);
+        this.autoScrollReleaseFrame = requestAnimationFrame(() => {
+          this.autoScrollReleaseFrame = null;
+          this.isProgrammaticScrolling = false;
+        });
       });
     });
   }
 
+  private cancelAutoScroll(): void {
+    if (this.autoScrollFrame !== null) {
+      cancelAnimationFrame(this.autoScrollFrame);
+      this.autoScrollFrame = null;
+    }
+    if (this.autoScrollReleaseFrame !== null) {
+      cancelAnimationFrame(this.autoScrollReleaseFrame);
+      this.autoScrollReleaseFrame = null;
+    }
+    this.isProgrammaticScrolling = false;
+  }
+
   private setNearBottom(value: boolean): void {
+    if (this.externalLogs() === null && this.internalFollow() !== value) {
+      this.internalFollow.set(value);
+    }
+
     if (this.isNearBottom() === value) {
       return;
     }
 
     this.isNearBottom.set(value);
     this.nearBottomChange.emit(value);
+  }
+
+  readonly followEnabled = computed(() =>
+    this.externalLogs() !== null ? this.externalFollow() : this.internalFollow()
+  );
+
+  private persistSearchMode(mode: LogsSearchMode): void {
+    const storageKeys = this.externalSearchModeStorageKeys();
+    if (!storageKeys) {
+      return;
+    }
+
+    if (storageKeys.caseSensitive) {
+      this.localStorage.set(storageKeys.caseSensitive, mode.caseSensitive ? 'true' : 'false');
+    }
+    if (storageKeys.wholeWord) {
+      this.localStorage.set(storageKeys.wholeWord, mode.wholeWord ? 'true' : 'false');
+    }
+    if (storageKeys.regex) {
+      this.localStorage.set(storageKeys.regex, mode.regex ? 'true' : 'false');
+    }
   }
 
   private logEntryKey(entry: ContainerLogEntry): string {

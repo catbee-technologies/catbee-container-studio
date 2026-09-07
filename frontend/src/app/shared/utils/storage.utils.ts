@@ -22,10 +22,14 @@ export const LOGS_STORAGE_KEYS = {
   GLOBAL_CLEARED_SINCE_PREFIX: `${LOGS_STORAGE_PREFIX}global-cleared-since.`,
   GLOBAL_SELECTED_CONTAINERS: `${LOGS_STORAGE_PREFIX}global-selected-containers`,
   GLOBAL_SELECTION_INITIALIZED: `${LOGS_STORAGE_PREFIX}global-selection-initialized`,
-  GLOBAL_TAIL_LINES: `${LOGS_STORAGE_PREFIX}global-tail-lines`,
+  GLOBAL_MAX_LOG_ENTRIES: `${LOGS_STORAGE_PREFIX}global-max-log-entries`,
   GLOBAL_SHOW_TIMESTAMPS: `${LOGS_STORAGE_PREFIX}global-show-timestamps`,
   GLOBAL_WRAP_LINES: `${LOGS_STORAGE_PREFIX}global-wrap-lines`,
-  GLOBAL_LOCAL_DATES: `${LOGS_STORAGE_PREFIX}global-local-dates`
+  GLOBAL_LOCAL_DATES: `${LOGS_STORAGE_PREFIX}global-local-dates`,
+  GLOBAL_SEARCH_QUERY: `${LOGS_STORAGE_PREFIX}global-search-query`,
+  GLOBAL_SEARCH_CASE_SENSITIVE: `${LOGS_STORAGE_PREFIX}global-search-case-sensitive`,
+  GLOBAL_SEARCH_WHOLE_WORD: `${LOGS_STORAGE_PREFIX}global-search-whole-word`,
+  GLOBAL_SEARCH_REGEX: `${LOGS_STORAGE_PREFIX}global-search-regex`
 } as const;
 
 export const LOGS_STORAGE_DEFAULTS = {

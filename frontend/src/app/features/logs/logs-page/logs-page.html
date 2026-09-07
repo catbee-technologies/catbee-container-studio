@@ -3,7 +3,7 @@
     <div>
       <h1>
         Logs
-        <span class="note">(Showing up to {{ maxLogEntries }} most recent log lines.)</span>
+        <span class="note">(Showing up to {{ maxLogEntries() }} most recent log lines.)</span>
       </h1>
     </div>
     <div class="actions">
@@ -26,6 +26,7 @@
           <catbee-container-studio-search-input
             placeholder="Search containers"
             ariaLabel="Search containers"
+            [autoFocus]="showContainerMenu()"
             [value]="containerSearch()"
             (valueChange)="containerSearch.set($event)"
           />
@@ -88,7 +89,6 @@
           </div>
         </div>
       </catbee-container-studio-menu>
-      <catbee-container-studio-switch-input [(checked)]="followLogs" label="Follow" />
       <button
         type="button"
         class="refresh-btn"
@@ -120,15 +120,18 @@
         [active]="true"
         [externalLogs]="logs()"
         [externalLoading]="isLoading()"
-        [externalTailLines]="logTailLines()"
-        [tailLineOptions]="globalTailLineOptions"
+        [externalMaxLogEntries]="maxLogEntries()"
+        [maxLogEntryOptions]="globalMaxLogEntryOptions"
         [externalDisplayOptions]="displayOptions()"
         [externalInitialFollow]="initialFollowPending()"
         [externalFollow]="followLogs()"
+        [externalSearchStorageKey]="logsSearchStorageKey"
+        [externalSearchModeStorageKeys]="logsSearchModeStorageKeys"
         (externalClear)="requestClearLogs()"
-        (externalTailLinesChange)="onTailLinesChange($event)"
+        (externalMaxLogEntriesChange)="onMaxLogEntriesChange($event)"
         (externalDisplayOptionsChange)="updateDisplayOptions($event)"
         (externalInitialFollowComplete)="completeInitialFollow()"
+        (externalFollowChange)="setFollowLogs($event)"
         (nearBottomChange)="setFollowLogs($event)"
       />
     }

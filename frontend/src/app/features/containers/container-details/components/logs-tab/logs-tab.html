@@ -63,6 +63,12 @@
   </div>
 
   <div class="logs-toolbar-right">
+    <catbee-container-studio-switch-input
+      [checked]="followEnabled()"
+      (checkedChange)="setFollowLogs($event)"
+      label="Follow"
+      style="display: inline-flex;"
+    />
     <button type="button" class="catbee-action-btn fix-height" (click)="copyLogs()">
       {{ copyButtonLabel() }}
     </button>
@@ -72,7 +78,7 @@
 
     <catbee-container-studio-menu
       [open]="showLogOptions()"
-      [style]="{ width: '13rem' }"
+      [style]="{ width: '15rem' }"
       (dismissed)="closeLogOptions()"
     >
       <button menuTrigger type="button" class="catbee-action-btn fix-height" (click)="toggleLogOptions($event)">
@@ -105,20 +111,41 @@
           />
           Local dates
         </label>
-        <label class="menu-item menu-item-select no-select" for="logs-tail-lines-select">
-          Tail lines
-          <select id="logs-tail-lines-select" class="logs-tail-select pointer" (change)="onTailLinesChange($event)">
-            @for (lines of tailLineOptions(); track lines) {
-              <option [value]="lines" [selected]="lines === selectedTailLines()">{{ lines }}</option>
-            }
-          </select>
-        </label>
+        @if (externalMaxLogEntries() !== null) {
+          <label class="menu-item menu-item-select no-select" for="logs-max-entries-select">
+            Max log entries
+            <select
+              id="logs-max-entries-select"
+              class="logs-tail-select pointer"
+              (change)="onMaxLogEntriesChange($event)"
+            >
+              @for (entries of maxLogEntryOptions(); track entries) {
+                <option [value]="entries" [selected]="entries === externalMaxLogEntries()">{{ entries }}</option>
+              }
+            </select>
+          </label>
+        } @else {
+          <label class="menu-item menu-item-select no-select" for="logs-tail-lines-select">
+            Tail lines
+            <select id="logs-tail-lines-select" class="logs-tail-select pointer" (change)="onTailLinesChange($event)">
+              @for (lines of tailLineOptions(); track lines) {
+                <option [value]="lines" [selected]="lines === selectedTailLines()">{{ lines }}</option>
+              }
+            </select>
+          </label>
+        }
       </div>
     </catbee-container-studio-menu>
   </div>
 </div>
 
-<section #tabScrollArea class="logs-scroll-panel" role="tabpanel" (scroll)="onPanelScroll()">
+<section
+  #tabScrollArea
+  class="logs-scroll-panel"
+  role="tabpanel"
+  (scroll)="onPanelScroll()"
+  (wheel)="onUserWheel($event)"
+>
   @if (logEntries().length === 0) {
     <catbee-container-studio-empty-state
       [icon]="'article'"

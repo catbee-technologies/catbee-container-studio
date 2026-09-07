@@ -11,7 +11,6 @@ import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
 import { MenuComponent } from '@components/menu/menu';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
-import { SwitchInputComponent } from '@components/switch-input/switch-input';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { LocalStorageService } from '@ng-catbee/storage';
@@ -31,7 +30,6 @@ interface ActiveLogStream {
     MenuComponent,
     SearchInputComponent,
     TableCheckboxComponent,
-    SwitchInputComponent,
     CatbeeTooltip,
     EmptyStateComponent,
     ErrorBannerComponent
@@ -43,13 +41,28 @@ interface ActiveLogStream {
   }
 })
 export class LogsPage {
-  private static readonly MAX_LOG_ENTRIES = 5_000;
-  readonly globalTailLineOptions = [50, 100, 200] as const;
-  readonly maxLogEntries = LogsPage.MAX_LOG_ENTRIES;
+  private static readonly MAX_LOG_ENTRIES = 5000;
+  readonly globalMaxLogEntryOptions = [1000, 2000, 5000] as const;
+  readonly logsSearchStorageKey = LOGS_STORAGE_KEYS.GLOBAL_SEARCH_QUERY;
+  readonly logsSearchModeStorageKeys = {
+    caseSensitive: LOGS_STORAGE_KEYS.GLOBAL_SEARCH_CASE_SENSITIVE,
+    wholeWord: LOGS_STORAGE_KEYS.GLOBAL_SEARCH_WHOLE_WORD,
+    regex: LOGS_STORAGE_KEYS.GLOBAL_SEARCH_REGEX
+  };
   private readonly dockerApi = inject(DockerApiService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly localStorage = inject(LocalStorageService);
   private readonly logsTab = viewChild(LogsTabComponent);
+  readonly maxLogEntries = signal(
+    Number.parseInt(
+      this.localStorage.getEnumWithDefault(
+        LOGS_STORAGE_KEYS.GLOBAL_MAX_LOG_ENTRIES,
+        String(LogsPage.MAX_LOG_ENTRIES),
+        this.globalMaxLogEntryOptions.map(String)
+      ),
+      10
+    )
+  );
 
   private readonly streams = new Map<string, ActiveLogStream>();
   private readonly chunkBuffers = new Map<string, Record<DockerLogChannel, string>>();
@@ -83,17 +96,6 @@ export class LogsPage {
     wrapLines: this.localStorage.getBooleanWithDefault(LOGS_STORAGE_KEYS.GLOBAL_WRAP_LINES, true),
     localDates: this.localStorage.getBooleanWithDefault(LOGS_STORAGE_KEYS.GLOBAL_LOCAL_DATES, false)
   });
-  readonly logTailLines = signal(
-    Number.parseInt(
-      this.localStorage.getEnumWithDefault(
-        LOGS_STORAGE_KEYS.GLOBAL_TAIL_LINES,
-        '100',
-        this.globalTailLineOptions.map(String)
-      ),
-      10
-    )
-  );
-
   readonly visibleContainers = computed(() => {
     const search = this.containerSearch().trim().toLowerCase();
     if (!search) {
@@ -238,9 +240,13 @@ export class LogsPage {
     this.followLogs.set(value);
   }
 
-  onTailLinesChange(lines: number): void {
-    this.logTailLines.set(lines);
-    this.localStorage.set(LOGS_STORAGE_KEYS.GLOBAL_TAIL_LINES, String(lines));
+  onMaxLogEntriesChange(maxEntries: number): void {
+    if (!this.globalMaxLogEntryOptions.includes(maxEntries as (typeof this.globalMaxLogEntryOptions)[number])) {
+      return;
+    }
+
+    this.maxLogEntries.set(maxEntries);
+    this.localStorage.set(LOGS_STORAGE_KEYS.GLOBAL_MAX_LOG_ENTRIES, String(maxEntries));
     this.logs.set([]);
     this.chunkBuffers.clear();
     this.clearPendingEntries();
@@ -363,7 +369,7 @@ export class LogsPage {
       const result = await this.dockerApi.startLogsStream(
         container.Id,
         this.getClearedSince(container.Id),
-        this.logTailLines()
+        this.maxLogEntries()
       );
       const isStillWanted = this.containers().some(
         current =>
@@ -439,11 +445,11 @@ export class LogsPage {
       this.pendingEntriesFrame = null;
       const batch = this.pendingEntries.splice(0);
       const currentLogs = this.logs();
-      const removedLineCount = Math.max(currentLogs.length + batch.length - LogsPage.MAX_LOG_ENTRIES, 0);
+      const removedLineCount = Math.max(currentLogs.length + batch.length - this.maxLogEntries(), 0);
       const anchor = !this.followLogs() && removedLineCount > 0 ? this.logsTab()?.captureScrollAnchor() : null;
       this.logs.update(current => {
         const merged = current.concat(batch);
-        return merged.length > LogsPage.MAX_LOG_ENTRIES ? merged.slice(-LogsPage.MAX_LOG_ENTRIES) : merged;
+        return merged.length > this.maxLogEntries() ? merged.slice(-this.maxLogEntries()) : merged;
       });
       if (anchor) {
         this.logsTab()?.restoreScrollAnchor(anchor);
