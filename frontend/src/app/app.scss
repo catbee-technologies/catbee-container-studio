@@ -101,6 +101,17 @@
 }
 
 .content-pane {
+  position: relative;
   overflow: auto;
   min-height: 0;
+}
+
+::ng-deep {
+  ng-catbee-loader#catbee-navigation-loader .catbee-loader {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
 }
