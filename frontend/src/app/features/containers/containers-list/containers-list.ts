@@ -257,7 +257,7 @@ export class ContainersPage {
     const unsubscribe = this.dockerApi.onStreamEvent(event => this.onDockerEvent(event));
 
     this.statsPollTimer = setInterval(() => {
-      void this.updateRuntimeSummaries(this.containers());
+      void this.loadContainers();
     }, ContainersPage.STATS_POLL_MS);
 
     this.destroyRef.onDestroy(() => {
@@ -549,9 +549,9 @@ export class ContainersPage {
   }
 
   async removeContainer(containerId: string): Promise<void> {
+    this.pendingDeleteContainerId.set(null);
     await this.runContainerAction(containerId, async () => {
       await this.dockerApi.removeContainer(containerId, true);
-      this.pendingDeleteContainerId.set(null);
       await this.loadContainers();
     });
   }
@@ -569,6 +569,7 @@ export class ContainersPage {
   }
 
   async removeSelectedContainers(): Promise<void> {
+    this.pendingDeleteSelection.set(false);
     await this.runBulkAction(
       'remove',
       async container => {
@@ -577,7 +578,6 @@ export class ContainersPage {
       () => true
     );
 
-    this.pendingDeleteSelection.set(false);
     this.clearSelection();
   }
 
