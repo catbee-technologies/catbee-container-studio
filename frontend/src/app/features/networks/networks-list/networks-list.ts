@@ -29,8 +29,10 @@ import {
   SortDirection
 } from '@shared/types';
 import { removeStalePrefixedStorageEntries, UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
+import { CatbeeLoader } from '@ng-catbee/loader';
 
 type NetworkColumn = 'id' | 'driver' | 'subnet' | 'flags' | 'containers' | 'created';
+type NetworkAction = 'remove';
 
 @Component({
   selector: 'catbee-container-studio-networks-page',
@@ -48,7 +50,8 @@ type NetworkColumn = 'id' | 'driver' | 'subnet' | 'flags' | 'containers' | 'crea
     DialogComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
-    CatbeeTooltip
+    CatbeeTooltip,
+    CatbeeLoader
   ],
   templateUrl: './networks-list.html',
   styleUrl: './networks-list.scss'
@@ -171,6 +174,11 @@ export class NetworksPage {
       ? (this.networks().find(network => network.Id === ids[0])?.Name ?? ids[0] ?? '')
       : `${ids.length} networks`;
   });
+
+  readonly activeNetworkActions = signal<Map<string, NetworkAction>>(new Map());
+  readonly selectedDeletableNetworkCount = computed(
+    () => this.networks().filter(network => this.selectedNetworkIds().has(network.Id) && !this.isUsed(network)).length
+  );
 
   constructor() {
     void this.loadNetworks();
@@ -317,30 +325,83 @@ export class NetworksPage {
   clearSelection(): void {
     this.selectedNetworkIds.set(new Set());
   }
-  requestDeleteSingle(id: string): void {
-    this.pendingDeleteNetworkIds.set([id]);
+
+  requestDeleteSingle(network: DockerNetworkInfo): void {
+    if (this.isUsed(network)) {
+      return;
+    }
+
+    this.pendingDeleteNetworkIds.set([network.Id]);
   }
+
   requestDeleteSelected(): void {
-    this.pendingDeleteNetworkIds.set([...this.selectedNetworkIds()]);
+    const ids = this.sortedNetworks()
+      .filter(network => this.selectedNetworkIds().has(network.Id) && !this.isUsed(network))
+      .map(network => network.Id);
+
+    if (ids.length === 0) {
+      return;
+    }
+
+    this.pendingDeleteNetworkIds.set(ids);
   }
+
+  private setNetworkAction(id: string, action: NetworkAction): void {
+    this.activeNetworkActions.update(current => {
+      const next = new Map(current);
+      next.set(id, action);
+      return next;
+    });
+  }
+
+  private clearNetworkAction(id: string): void {
+    this.activeNetworkActions.update(current => {
+      const next = new Map(current);
+      next.delete(id);
+      return next;
+    });
+  }
+
   cancelDelete(): void {
     this.pendingDeleteNetworkIds.set([]);
   }
 
   async confirmDelete(): Promise<void> {
     const ids = this.pendingDeleteNetworkIds();
+    if (ids.length === 0) return;
+
     this.pendingDeleteNetworkIds.set([]);
+    this.error.set(null);
+
     const failedNames: string[] = [];
-    for (const id of ids) {
-      try {
-        await this.dockerApi.removeNetwork(id);
-      } catch {
-        failedNames.push(this.networks().find(network => network.Id === id)?.Name ?? id);
-      }
+    const networksById = new Map(this.networks().map(network => [network.Id, network]));
+
+    const deletableIds = ids.filter(id => {
+      const network = networksById.get(id);
+      return network && !this.isUsed(network);
+    });
+
+    for (const id of deletableIds) {
+      this.setNetworkAction(id, 'remove');
     }
+
+    await Promise.all(
+      deletableIds.map(async id => {
+        try {
+          await this.dockerApi.removeNetwork(id);
+        } catch {
+          failedNames.push(networksById.get(id)?.Name ?? id);
+        } finally {
+          this.clearNetworkAction(id);
+        }
+      })
+    );
+
     await this.loadNetworks();
-    if (failedNames.length > 0)
+
+    if (failedNames.length > 0) {
       this.error.set(`Could not delete network${failedNames.length === 1 ? '' : 's'}: ${failedNames.join(', ')}`);
+    }
   }
 
   async confirmPrune(): Promise<void> {

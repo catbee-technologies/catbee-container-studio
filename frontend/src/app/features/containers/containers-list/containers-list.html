@@ -177,6 +177,7 @@
                   (checkedChange)="toggleSelectAllVisible()"
                 />
               </th>
+              <th scope="col" class="col-loading-status"></th>
               <th scope="col" class="col-sortable">
                 <catbee-container-studio-table-sort-header
                   [label]="'Name'"
@@ -284,7 +285,7 @@
           <tbody>
             @if (visibleContainers().length === 0) {
               <tr class="table-empty-row">
-                <td [attr.colspan]="visibleColumns().size + 2">
+                <td [attr.colspan]="visibleColumns().size + 3">
                   <catbee-container-studio-empty-state
                     [icon]="'deployed_code'"
                     [message]="containers().length === 0 ? 'No containers.' : 'No containers match your filters.'"
@@ -307,7 +308,7 @@
                     (checkedChange)="toggleGroupSelection(group)"
                   />
                 </td>
-                <td [attr.colspan]="visibleColumns().size">
+                <td [attr.colspan]="visibleColumns().size + 1">
                   <button type="button" class="group-toggle" (click)="toggleGroupCollapse(group.id)">
                     <span class="mat-icon-filled" aria-hidden="true">
                       {{ isGroupCollapsed(group.id) ? 'chevron_right' : 'expand_more' }}
@@ -330,6 +331,19 @@
                         [ariaLabel]="'Select container'"
                         (checkedChange)="toggleContainerSelection(container.Id)"
                       />
+                    </td>
+                    <td>
+                      @if (activeContainerActions().has(container.Id)) {
+                        <ng-catbee-loader
+                          [name]="'container-' + container.Id"
+                          [forceShow]="true"
+                          [fullscreen]="false"
+                          [size]="'small'"
+                          [backgroundColor]="'transparent'"
+                        />
+                      } @else if (container.State === 'running') {
+                        <span class="usage-dot used"></span>
+                      }
                     </td>
                     <td>
                       <button type="button" class="link-btn" (click)="openContainer(container.Id)">
@@ -429,7 +443,11 @@
                           type="button"
                           class="catbee-action-btn icon-only action-start"
                           (click)="startContainer(container.Id); $event.stopPropagation()"
-                          [disabled]="activeActionContainerId() === container.Id || container.State === 'running'"
+                          [disabled]="
+                            activeContainerActions().has(container.Id) ||
+                            container.State === 'running' ||
+                            container.State === 'paused'
+                          "
                           aria-label="Start container"
                           [catbeeTooltip]="'Start'"
                           [catbeeTooltipDelay]="tooltipDelay"
@@ -441,7 +459,7 @@
                           type="button"
                           class="catbee-action-btn icon-only action-stop"
                           (click)="stopContainer(container.Id); $event.stopPropagation()"
-                          [disabled]="activeActionContainerId() === container.Id || container.State !== 'running'"
+                          [disabled]="activeContainerActions().has(container.Id) || container.State !== 'running'"
                           aria-label="Stop container"
                           [catbeeTooltip]="'Stop'"
                           [catbeeTooltipDelay]="tooltipDelay"
@@ -453,7 +471,7 @@
                           type="button"
                           class="catbee-action-btn danger icon-only"
                           (click)="requestDeleteContainer(container.Id); $event.stopPropagation()"
-                          [disabled]="activeActionContainerId() === container.Id"
+                          [disabled]="activeContainerActions().has(container.Id)"
                           aria-label="Delete container"
                           [catbeeTooltip]="'Delete'"
                           [catbeeTooltipDelay]="tooltipDelay"
@@ -472,7 +490,7 @@
                             class="catbee-action-btn icon-only menu-trigger"
                             menuTrigger
                             (click)="toggleContainerActionsMenu($event, container.Id)"
-                            [disabled]="activeActionContainerId() === container.Id"
+                            [disabled]="activeContainerActions().has(container.Id)"
                             aria-label="More actions"
                             [catbeeTooltip]="'More actions'"
                             [catbeeTooltipDelay]="tooltipDelay"
@@ -486,7 +504,7 @@
                               type="button"
                               class="menu-item"
                               (click)="pauseContainer(container.Id); closeContainerActionsMenu()"
-                              [disabled]="activeActionContainerId() === container.Id || container.State !== 'running'"
+                              [disabled]="activeContainerActions().has(container.Id) || container.State !== 'running'"
                             >
                               <span class="mat-icon-filled" aria-hidden="true">pause</span>
                               Pause
@@ -495,7 +513,7 @@
                               type="button"
                               class="menu-item"
                               (click)="unpauseContainer(container.Id); closeContainerActionsMenu()"
-                              [disabled]="activeActionContainerId() === container.Id || container.State !== 'paused'"
+                              [disabled]="activeContainerActions().has(container.Id) || container.State !== 'paused'"
                             >
                               <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
                               Unpause
@@ -504,7 +522,7 @@
                               type="button"
                               class="menu-item"
                               (click)="restartContainer(container.Id); closeContainerActionsMenu()"
-                              [disabled]="activeActionContainerId() === container.Id"
+                              [disabled]="activeContainerActions().has(container.Id)"
                             >
                               <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
                               Restart

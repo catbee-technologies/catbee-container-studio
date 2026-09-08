@@ -27,8 +27,10 @@ import {
   ColumnOption,
   TableColumnActionsMenuComponent
 } from '@components/table-column-actions-menu/table-column-actions-menu';
+import { CatbeeLoader } from '@ng-catbee/loader';
 
 type ContainerColumn = 'name' | 'image' | 'ports' | 'state' | 'cpu' | 'memory' | 'disk' | 'network' | 'pids';
+type ContainerAction = 'start' | 'stop' | 'restart' | 'pause' | 'unpause' | 'remove';
 
 interface ContainerGroup {
   id: string;
@@ -52,7 +54,8 @@ interface ContainerGroup {
     ErrorBannerComponent,
     CatbeeTooltip,
     CopyButtonComponent,
-    TableColumnActionsMenuComponent
+    TableColumnActionsMenuComponent,
+    CatbeeLoader
   ],
   templateUrl: './containers-list.html',
   styleUrl: './containers-list.scss'
@@ -102,8 +105,7 @@ export class ContainersPage {
   readonly isLoading = signal(false);
   readonly isRefreshing = signal(false);
   readonly error = signal<string | null>(null);
-  readonly activeActionContainerId = signal<string | null>(null);
-  readonly activeBulkAction = signal<string | null>(null);
+  readonly activeBulkAction = signal<ContainerAction | null>(null);
 
   readonly pendingDeleteContainerId = signal<string | null>(null);
   readonly pendingDeleteSelection = signal(false);
@@ -148,6 +150,7 @@ export class ContainersPage {
       }
     >
   >(new Map());
+  readonly activeContainerActions = signal<Map<string, ContainerAction>>(new Map());
 
   readonly allGroups = computed<ContainerGroup[]>(() => this.groupContainersByCompose(this.containers()));
 
@@ -497,35 +500,35 @@ export class ContainersPage {
   }
 
   async startContainer(containerId: string): Promise<void> {
-    await this.runContainerAction(containerId, async () => {
+    await this.runContainerAction(containerId, 'start', async () => {
       await this.dockerApi.startContainer(containerId);
       await this.loadContainers();
     });
   }
 
   async stopContainer(containerId: string): Promise<void> {
-    await this.runContainerAction(containerId, async () => {
+    await this.runContainerAction(containerId, 'stop', async () => {
       await this.dockerApi.stopContainer(containerId);
       await this.loadContainers();
     });
   }
 
   async restartContainer(containerId: string): Promise<void> {
-    await this.runContainerAction(containerId, async () => {
+    await this.runContainerAction(containerId, 'restart', async () => {
       await this.dockerApi.restartContainer(containerId);
       await this.loadContainers();
     });
   }
 
   async pauseContainer(containerId: string): Promise<void> {
-    await this.runContainerAction(containerId, async () => {
+    await this.runContainerAction(containerId, 'pause', async () => {
       await this.dockerApi.pauseContainer(containerId);
       await this.loadContainers();
     });
   }
 
   async unpauseContainer(containerId: string): Promise<void> {
-    await this.runContainerAction(containerId, async () => {
+    await this.runContainerAction(containerId, 'unpause', async () => {
       await this.dockerApi.unpauseContainer(containerId);
       await this.loadContainers();
     });
@@ -550,7 +553,7 @@ export class ContainersPage {
 
   async removeContainer(containerId: string): Promise<void> {
     this.pendingDeleteContainerId.set(null);
-    await this.runContainerAction(containerId, async () => {
+    await this.runContainerAction(containerId, 'remove', async () => {
       await this.dockerApi.removeContainer(containerId, true);
       await this.loadContainers();
     });
@@ -577,8 +580,6 @@ export class ContainersPage {
       },
       () => true
     );
-
-    this.clearSelection();
   }
 
   async startSelectedContainers(): Promise<void> {
@@ -664,8 +665,12 @@ export class ContainersPage {
     void this.router.navigate(['/images', imageRef], { state: { returnTo: this.router.url } });
   }
 
-  private async runContainerAction(containerId: string, action: () => Promise<void>): Promise<void> {
-    this.activeActionContainerId.set(containerId);
+  private async runContainerAction(
+    containerId: string,
+    actionName: ContainerAction,
+    action: () => Promise<void>
+  ): Promise<void> {
+    this.setContainerAction(containerId, actionName);
     this.error.set(null);
 
     try {
@@ -673,12 +678,12 @@ export class ContainersPage {
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Container action failed.');
     } finally {
-      this.activeActionContainerId.set(null);
+      this.clearContainerAction(containerId);
     }
   }
 
   private async runBulkAction(
-    actionName: string,
+    actionName: ContainerAction,
     action: (container: DockerContainerInfo) => Promise<void>,
     predicate: (container: DockerContainerInfo) => boolean
   ): Promise<void> {
@@ -690,23 +695,34 @@ export class ContainersPage {
       const failedContainers: string[] = [];
 
       for (const container of targets) {
-        try {
-          await action(container);
-        } catch {
-          failedContainers.push(this.primaryName(container));
-        }
+        this.setContainerAction(container.Id, actionName);
       }
+
+      await Promise.all(
+        targets.map(async container => {
+          try {
+            await action(container);
+          } catch {
+            failedContainers.push(this.primaryName(container));
+          } finally {
+            this.clearContainerAction(container.Id);
+          }
+        })
+      );
 
       await this.loadContainers();
 
       if (failedContainers.length > 0) {
         this.error.set(
-          `Failed to ${actionName} ${failedContainers.length === 1 ? 'container' : 'containers'}: ${failedContainers.join(', ')}`
+          `Failed to ${actionName} ${
+            failedContainers.length === 1 ? 'container' : 'containers'
+          }: ${failedContainers.join(', ')}`
         );
       }
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Bulk action failed.');
     } finally {
+      this.clearSelection();
       this.activeBulkAction.set(null);
     }
   }
@@ -796,6 +812,22 @@ export class ContainersPage {
 
     const normalized = rawPath.replace(/\\/g, '/').split('/').filter(Boolean);
     return normalized.length > 0 ? normalized[normalized.length - 1] : null;
+  }
+
+  private setContainerAction(containerId: string, action: ContainerAction): void {
+    this.activeContainerActions.update(current => {
+      const next = new Map(current);
+      next.set(containerId, action);
+      return next;
+    });
+  }
+
+  private clearContainerAction(containerId: string): void {
+    this.activeContainerActions.update(current => {
+      const next = new Map(current);
+      next.delete(containerId);
+      return next;
+    });
   }
 
   private syncCollapsedGroups(groups: ContainerGroup[]): void {

@@ -30,8 +30,10 @@ import {
   ColumnOption,
   TableColumnActionsMenuComponent
 } from '@components/table-column-actions-menu/table-column-actions-menu';
+import { CatbeeLoader } from '@ng-catbee/loader';
 
 type ImageColumn = 'used' | 'repo' | 'tag' | 'id' | 'size' | 'created';
+type ImageAction = 'remove';
 
 @Component({
   selector: 'catbee-container-studio-images-page',
@@ -49,7 +51,8 @@ type ImageColumn = 'used' | 'repo' | 'tag' | 'id' | 'size' | 'created';
     TooltipDateComponent,
     PullImageDialogComponent,
     RunContainerDialogComponent,
-    TableColumnActionsMenuComponent
+    TableColumnActionsMenuComponent,
+    CatbeeLoader
   ],
   templateUrl: './images-list.html',
   styleUrl: './images-list.scss'
@@ -221,6 +224,11 @@ export class ImagesPage {
     ])
   );
 
+  readonly activeImageActions = signal<Map<string, ImageAction>>(new Map());
+  readonly selectedDeletableImageCount = computed(
+    () => this.selectedImages().filter(image => !this.isUsed(image)).length
+  );
+
   constructor() {
     void this.loadImages();
   }
@@ -344,17 +352,39 @@ export class ImagesPage {
     });
   }
 
-  requestDeleteSingle(imageId: string): void {
-    this.pendingDeleteImageIds.set([imageId]);
+  requestDeleteSingle(image: DockerImageInfo): void {
+    if (this.isUsed(image)) {
+      return;
+    }
+    this.pendingDeleteImageIds.set([image.Id]);
   }
 
   requestDeleteSelected(): void {
-    const ids = [...this.selectedImageIds()];
+    const ids = this.selectedImages()
+      .filter(image => !this.isUsed(image))
+      .map(image => image.Id);
+
     if (ids.length === 0) {
       return;
     }
 
     this.pendingDeleteImageIds.set(ids);
+  }
+
+  private setImageAction(imageId: string, action: ImageAction): void {
+    this.activeImageActions.update(current => {
+      const next = new Map(current);
+      next.set(imageId, action);
+      return next;
+    });
+  }
+
+  private clearImageAction(imageId: string): void {
+    this.activeImageActions.update(current => {
+      const next = new Map(current);
+      next.delete(imageId);
+      return next;
+    });
   }
 
   cancelDelete(): void {
@@ -366,21 +396,38 @@ export class ImagesPage {
     if (ids.length === 0) return;
 
     this.pendingDeleteImageIds.set([]);
-    const failedImages: string[] = [];
+    this.error.set(null);
 
-    for (const id of ids) {
-      try {
-        await this.dockerApi.removeImage(id, false);
-      } catch {
-        const image = this.images().find(item => item.Id === id);
-        if (image) {
-          const [repository, tag] = this.repositoryAndTag(image);
-          failedImages.push(repository === '<none>' ? image.Id : `${repository}:${tag}`);
-        } else {
-          failedImages.push(id);
-        }
-      }
+    const failedImages: string[] = [];
+    const imagesById = new Map(this.images().map(image => [image.Id, image]));
+
+    const deletableIds = ids.filter(id => {
+      const image = imagesById.get(id);
+      return image && !this.isUsed(image);
+    });
+
+    for (const id of deletableIds) {
+      this.setImageAction(id, 'remove');
     }
+
+    await Promise.all(
+      deletableIds.map(async id => {
+        try {
+          await this.dockerApi.removeImage(id, false);
+        } catch {
+          const image = imagesById.get(id);
+
+          if (image) {
+            const [repository, tag] = this.repositoryAndTag(image);
+            failedImages.push(repository === '<none>' ? image.Id : `${repository}:${tag}`);
+          } else {
+            failedImages.push(id);
+          }
+        } finally {
+          this.clearImageAction(id);
+        }
+      })
+    );
 
     await this.loadImages();
 

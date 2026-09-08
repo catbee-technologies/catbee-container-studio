@@ -54,7 +54,12 @@
       />
       @if (selectedCount() > 0) {
         <span class="selection-count">Selected: {{ selectedCount() }}</span>
-        <button type="button" class="catbee-action-btn danger" (click)="requestDeleteSelected()">
+        <button
+          type="button"
+          class="catbee-action-btn danger"
+          (click)="requestDeleteSelected()"
+          [disabled]="selectedDeletableImageCount() === 0"
+        >
           <span class="mat-icon-filled" aria-hidden="true">delete</span>
           Delete Selected
         </button>
@@ -187,7 +192,17 @@
                   />
                 </td>
                 <td class="col-used">
-                  <span class="usage-dot" [class.used]="isUsed(image)" [class.unused]="!isUsed(image)"></span>
+                  @if (activeImageActions().has(image.Id)) {
+                    <ng-catbee-loader
+                      [name]="'image-' + image.Id"
+                      [forceShow]="true"
+                      [fullscreen]="false"
+                      [size]="'small'"
+                      [backgroundColor]="'transparent'"
+                    />
+                  } @else {
+                    <span class="usage-dot" [class.used]="isUsed(image)" [class.unused]="!isUsed(image)"></span>
+                  }
                 </td>
                 <td>
                   <button type="button" class="link-btn" (click)="openImageDetails(image.Id)">
@@ -238,17 +253,19 @@
                       [catbeeTooltip]="'Run'"
                       [catbeeTooltipDelay]="tooltipDelay"
                       [catbeeTooltipPosition]="'left'"
+                      [disabled]="activeImageActions().has(image.Id)"
                     >
                       <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
                     </button>
                     <button
                       type="button"
                       class="catbee-action-btn icon-only danger"
-                      (click)="requestDeleteSingle(image.Id)"
+                      (click)="requestDeleteSingle(image)"
                       aria-label="Delete image"
                       [catbeeTooltip]="'Delete'"
                       [catbeeTooltipDelay]="tooltipDelay"
                       [catbeeTooltipPosition]="'left'"
+                      [disabled]="activeImageActions().has(image.Id) || isUsed(image)"
                     >
                       <span class="mat-icon-filled" aria-hidden="true">delete</span>
                     </button>

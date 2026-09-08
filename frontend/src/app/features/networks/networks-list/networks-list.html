@@ -45,7 +45,12 @@
       />
       @if (selectedCount() > 0) {
         <span class="selection-count">Selected: {{ selectedCount() }}</span
-        ><button type="button" class="catbee-action-btn danger" (click)="requestDeleteSelected()">
+        ><button
+          type="button"
+          class="catbee-action-btn danger"
+          (click)="requestDeleteSelected()"
+          [disabled]="selectedDeletableNetworkCount() === 0"
+        >
           <span class="mat-icon-filled" aria-hidden="true">delete</span>Delete Selected
         </button>
       }
@@ -185,7 +190,17 @@
                   />
                 </td>
                 <td class="col-used">
-                  <span class="usage-dot" [class.used]="isUsed(network)" [class.unused]="!isUsed(network)"></span>
+                  @if (activeNetworkActions().has(network.Id)) {
+                    <ng-catbee-loader
+                      [name]="'network-' + network.Id"
+                      [forceShow]="true"
+                      [fullscreen]="false"
+                      [size]="'small'"
+                      [backgroundColor]="'transparent'"
+                    />
+                  } @else {
+                    <span class="usage-dot" [class.used]="isUsed(network)" [class.unused]="!isUsed(network)"></span>
+                  }
                 </td>
                 <td>
                   <button type="button" class="link-btn" (click)="openNetworkDetails(network.Id)">
@@ -224,11 +239,12 @@
                   <button
                     type="button"
                     class="catbee-action-btn icon-only danger"
-                    (click)="requestDeleteSingle(network.Id)"
+                    (click)="requestDeleteSingle(network)"
                     aria-label="Delete network"
                     [catbeeTooltip]="'Delete'"
                     [catbeeTooltipPosition]="'left'"
                     [catbeeTooltipDelay]="tooltipDelay"
+                    [disabled]="activeNetworkActions().has(network.Id) || isUsed(network)"
                   >
                     <span class="mat-icon-filled" aria-hidden="true">delete</span>
                   </button>

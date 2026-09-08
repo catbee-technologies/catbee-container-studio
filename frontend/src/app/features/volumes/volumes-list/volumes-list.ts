@@ -27,8 +27,10 @@ import {
   ColumnOption,
   TableColumnActionsMenuComponent
 } from '@components/table-column-actions-menu/table-column-actions-menu';
+import { CatbeeLoader } from '@ng-catbee/loader';
 
 type VolumeColumn = 'name' | 'driver' | 'size' | 'created';
+type VolumeAction = 'remove';
 
 @Component({
   selector: 'catbee-container-studio-volumes-page',
@@ -43,7 +45,8 @@ type VolumeColumn = 'name' | 'driver' | 'size' | 'created';
     ErrorBannerComponent,
     CatbeeTooltip,
     TooltipDateComponent,
-    TableColumnActionsMenuComponent
+    TableColumnActionsMenuComponent,
+    CatbeeLoader
   ],
   templateUrl: './volumes-list.html',
   styleUrl: './volumes-list.scss'
@@ -195,6 +198,11 @@ export class VolumesPage {
     ])
   );
 
+  readonly activeVolumeActions = signal<Map<string, VolumeAction>>(new Map());
+  readonly selectedDeletableVolumeCount = computed(
+    () => this.selectedVolumes().filter(volume => !this.isUsed(volume.Name)).length
+  );
+
   constructor() {
     void this.loadVolumes();
   }
@@ -324,14 +332,37 @@ export class VolumesPage {
     });
   }
 
-  requestDeleteSingle(name: string): void {
-    this.pendingDeleteVolumeNames.set([name]);
+  requestDeleteSingle(volume: DockerVolumeInfo): void {
+    if (this.isUsed(volume.Name)) {
+      return;
+    }
+    this.pendingDeleteVolumeNames.set([volume.Name]);
   }
 
   requestDeleteSelected(): void {
-    const names = [...this.selectedVolumeNames()];
+    const names = this.selectedVolumes()
+      .filter(volume => !this.isUsed(volume.Name))
+      .map(volume => volume.Name);
+
     if (names.length === 0) return;
+
     this.pendingDeleteVolumeNames.set(names);
+  }
+
+  private setVolumeAction(name: string, action: VolumeAction): void {
+    this.activeVolumeActions.update(current => {
+      const next = new Map(current);
+      next.set(name, action);
+      return next;
+    });
+  }
+
+  private clearVolumeAction(name: string): void {
+    this.activeVolumeActions.update(current => {
+      const next = new Map(current);
+      next.delete(name);
+      return next;
+    });
   }
 
   cancelDelete(): void {
@@ -343,15 +374,27 @@ export class VolumesPage {
     if (names.length === 0) return;
 
     this.pendingDeleteVolumeNames.set([]);
+    this.error.set(null);
+
     const failedVolumes: string[] = [];
 
-    for (const name of names) {
-      try {
-        await this.dockerApi.removeVolume(name, false);
-      } catch {
-        failedVolumes.push(name);
-      }
+    const deletableNames = names.filter(name => !this.isUsed(name));
+
+    for (const name of deletableNames) {
+      this.setVolumeAction(name, 'remove');
     }
+
+    await Promise.all(
+      deletableNames.map(async name => {
+        try {
+          await this.dockerApi.removeVolume(name, false);
+        } catch {
+          failedVolumes.push(name);
+        } finally {
+          this.clearVolumeAction(name);
+        }
+      })
+    );
 
     await this.loadVolumes();
 

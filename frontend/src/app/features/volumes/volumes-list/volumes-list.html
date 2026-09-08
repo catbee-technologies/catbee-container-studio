@@ -47,7 +47,12 @@
       />
       @if (selectedCount() > 0) {
         <span class="selection-count">Selected: {{ selectedCount() }}</span>
-        <button type="button" class="catbee-action-btn danger" (click)="requestDeleteSelected()">
+        <button
+          type="button"
+          class="catbee-action-btn danger"
+          (click)="requestDeleteSelected()"
+          [disabled]="selectedDeletableVolumeCount() === 0"
+        >
           <span class="mat-icon-filled" aria-hidden="true">delete</span>
           Delete Selected
         </button>
@@ -168,11 +173,21 @@
                   />
                 </td>
                 <td class="col-used">
-                  <span
-                    class="usage-dot"
-                    [class.used]="isUsed(volume.Name)"
-                    [class.unused]="!isUsed(volume.Name)"
-                  ></span>
+                  @if (activeVolumeActions().has(volume.Name)) {
+                    <ng-catbee-loader
+                      [name]="'volume-' + volume.Name"
+                      [forceShow]="true"
+                      [fullscreen]="false"
+                      [size]="'small'"
+                      [backgroundColor]="'transparent'"
+                    />
+                  } @else {
+                    <span
+                      class="usage-dot"
+                      [class.used]="isUsed(volume.Name)"
+                      [class.unused]="!isUsed(volume.Name)"
+                    ></span>
+                  }
                 </td>
                 <td>
                   <button type="button" class="link-btn" (click)="openVolumeDetails(volume.Name)">
@@ -196,11 +211,12 @@
                   <button
                     type="button"
                     class="catbee-action-btn icon-only danger"
-                    (click)="requestDeleteSingle(volume.Name)"
+                    (click)="requestDeleteSingle(volume)"
                     aria-label="Delete volume"
                     [catbeeTooltip]="'Delete'"
                     [catbeeTooltipPosition]="'left'"
                     [catbeeTooltipDelay]="tooltipDelay"
+                    [disabled]="activeVolumeActions().has(volume.Name) || isUsed(volume.Name)"
                   >
                     <span class="mat-icon-filled" aria-hidden="true">delete</span>
                   </button>
