@@ -4,10 +4,11 @@
       class="init-loader-host"
       [name]="emptyStateLoaderName"
       [message]="message()"
-      size="medium"
+      [size]="loaderSize()"
       [fullscreen]="false"
       [backgroundColor]="'transparent'"
-      [loaderColor]="loaderColor() ? '#087ea4' : '#d9f7ff'"
+      [animateMessage]="true"
+      [forceShow]="true"
     />
   } @else {
     <span class="mat-icon-filled empty-icon" aria-hidden="true">

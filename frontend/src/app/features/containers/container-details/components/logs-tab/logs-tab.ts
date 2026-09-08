@@ -496,6 +496,8 @@ export class LogsTabComponent implements AfterViewInit {
     count: this.renderedLogLines().length,
     estimateSize: () => 22,
     overscan: 15,
+    // Avoids "ResizeObserver loop completed with undelivered notifications" errors.
+    // useAnimationFrameWithResizeObserver: true,
     getItemKey: (index: number) => this.renderedLogLines()[index]?.key ?? index
   }));
 
@@ -767,7 +769,7 @@ export class LogsTabComponent implements AfterViewInit {
       return;
     }
     this.isScrollable.set(area.scrollHeight > area.clientHeight);
-    if (this.isProgrammaticScrolling) {
+    if (this.isProgrammaticScrolling || this.isBootstrappingLogs) {
       return;
     }
     this.setNearBottom(this.isPanelNearBottom());
@@ -843,6 +845,10 @@ export class LogsTabComponent implements AfterViewInit {
 
     area.scrollTop = area.scrollHeight;
     this.setNearBottom(true);
+
+    if (this.externalLogs() !== null) {
+      this.externalFollowChange.emit(true);
+    }
   }
 
   private scrollCurrentMatchIntoView(): void {
@@ -1547,9 +1553,15 @@ export class LogsTabComponent implements AfterViewInit {
     }
     this.clearLogsBootstrapTimer();
     this.logsBootstrapTimer = setTimeout(() => {
-      this.isBootstrappingLogs = false;
       this.logsBootstrapTimer = null;
       this.isLoading.set(false);
+
+      if (this.isDisposed) {
+        return;
+      }
+
+      this.scrollToBottom();
+      this.isBootstrappingLogs = false;
       this.onPanelScroll();
     }, LogsTabComponent.LOGS_BOOTSTRAP_SETTLE_MS);
   }

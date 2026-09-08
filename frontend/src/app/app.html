@@ -42,7 +42,12 @@
     </aside>
 
     <main class="content-pane" aria-label="Main content">
-      <ng-catbee-loader [id]="NAVIGATION_LOADER_NAME" [name]="NAVIGATION_LOADER_NAME" [fullscreen]="false" />
+      <ng-catbee-loader
+        [id]="NAVIGATION_LOADER_NAME"
+        [name]="NAVIGATION_LOADER_NAME"
+        [fullscreen]="false"
+        [animateMessage]="true"
+      />
       @if (dockerConnected()) {
         <router-outlet />
       } @else {

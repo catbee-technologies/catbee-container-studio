@@ -158,8 +158,13 @@
 
   <section class="catbee-container-list-layout">
     <div class="catbee-container-list-body catbee-base-panel" aria-label="Container list">
-      @if (isLoading()) {
-        <catbee-container-studio-empty-state [icon]="'deployed_code'" [message]="'Loading Containers...'" />
+      @if (isLoading(); as loading) {
+        <catbee-container-studio-empty-state
+          [icon]="'deployed_code'"
+          [message]="'Loading Containers...'"
+          [showLoader]="loading"
+          size="small"
+        />
       } @else {
         <table class="catbee-table" [class.is-empty]="visibleContainers().length === 0">
           <thead>

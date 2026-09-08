@@ -1,6 +1,5 @@
-import { Component, effect, inject, input, untracked } from '@angular/core';
-import { CatbeeLoaderComponent, CatbeeLoaderService } from '@ng-catbee/loader';
-import { ThemeService } from '@services/theme.service';
+import { Component, input } from '@angular/core';
+import { CatbeeLoaderComponent, CatbeeLoaderSize } from '@ng-catbee/loader';
 
 @Component({
   selector: 'catbee-container-studio-empty-state',
@@ -12,38 +11,12 @@ import { ThemeService } from '@services/theme.service';
   }
 })
 export class EmptyStateComponent {
-  private readonly loader = inject(CatbeeLoaderService);
-  private readonly themeService = inject(ThemeService);
-
   readonly icon = input.required<string>();
   readonly message = input.required<string>();
   readonly hint = input<string>();
   readonly size = input<'small' | 'medium' | 'large'>('medium');
   readonly showLoader = input(false);
-  readonly loaderColor = this.themeService.isLightMode.asReadonly();
+  readonly loaderSize = input<CatbeeLoaderSize>('default');
 
   readonly emptyStateLoaderName = window.crypto.randomUUID();
-
-  constructor() {
-    effect(() => {
-      const message = this.message();
-      const visible = this.showLoader();
-      const isLightMode = this.loaderColor();
-
-      untracked(() => {
-        queueMicrotask(() => {
-          if (visible) {
-            void this.loader.show(this.emptyStateLoaderName, {
-              message,
-              fullscreen: false,
-              size: this.size() === 'large' ? 'medium' : this.size(),
-              loaderColor: isLightMode ? '#087ea4' : '#d9f7ff'
-            });
-          } else {
-            void this.loader.hide(this.emptyStateLoaderName);
-          }
-        });
-      });
-    });
-  }
 }

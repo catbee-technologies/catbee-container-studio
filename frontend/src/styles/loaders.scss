@@ -1,0 +1,39 @@
+@use 'sass:math';
+
+@mixin loader-size($size, $dot-size, $message-size) {
+  width: $size !important;
+  height: $size !important;
+
+  > div {
+    width: $dot-size !important;
+    height: $dot-size !important;
+    margin-top: -(math.div($dot-size, 2)) !important;
+    margin-left: -(math.div($dot-size, 2)) !important;
+  }
+
+  & + .ng-catbee-loader-message {
+    font-size: $message-size !important;
+  }
+}
+
+.la-ball-spin-clockwise {
+  color: var(--color-loader) !important;
+
+  @include loader-size(32px, 8px, 1rem);
+
+  &.la-sm {
+    @include loader-size(16px, 4px, 0.875rem);
+  }
+
+  &.la-2x {
+    @include loader-size(64px, 16px, 1.2rem);
+  }
+
+  &.la-3x {
+    @include loader-size(96px, 24px, 1.5rem);
+  }
+}
+
+.ng-catbee-loader-message {
+  color: var(--color-loader) !important;
+}

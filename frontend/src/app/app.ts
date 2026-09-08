@@ -117,7 +117,13 @@ export class App implements OnInit {
       if (event instanceof NavigationStart) {
         // Only show the loader if the navigation (e.g. a resolver) takes a noticeable amount of time.
         this.navigationLoaderTimeout = setTimeout(() => {
-          void this.loader.show(this.NAVIGATION_LOADER_NAME, { message: 'Loading...', fullscreen: false });
+          void this.loader.show(this.NAVIGATION_LOADER_NAME, {
+            message: 'Loading...',
+            fullscreen: false,
+            loaderColor: 'var(--color-loader)',
+            backgroundColor: 'var(--bg-loader)',
+            size: 'default'
+          });
         }, this.NAVIGATION_LOADER_DELAY_MS);
         return;
       }

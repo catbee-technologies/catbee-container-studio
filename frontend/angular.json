@@ -68,10 +68,7 @@
                 "output": "/assets/highlight.js"
               }
             ],
-            "styles": [
-              "src/styles.scss",
-              "node_modules/@ng-catbee/loader/css/ball-spin-clockwise.min.css"
-            ]
+            "styles": ["src/styles.scss"],
           },
           "configurations": {
             "production": {

@@ -147,14 +147,15 @@
   (wheel)="onUserWheel($event)"
 >
   @if (logEntries().length === 0) {
+    @let loading = externalLogs() !== null ? externalLoading() : isLoading();
     <catbee-container-studio-empty-state
       [icon]="'article'"
-      [message]="(externalLogs() !== null ? externalLoading() : isLoading()) ? 'Loading logs...' : 'No logs yet.'"
+      [message]="loading ? 'Loading logs...' : 'No logs yet.'"
       [hint]="
-        (externalLogs() !== null ? externalLoading() : isLoading())
-          ? 'Connecting to container log stream...'
-          : 'Logs will appear here once the container emits output.'
+        loading ? 'Connecting to container log stream...' : 'Logs will appear here once the container emits output.'
       "
+      [showLoader]="loading"
+      size="small"
     />
   } @else {
     <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->

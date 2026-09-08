@@ -70,8 +70,13 @@
 
   <div class="catbee-container-list-layout">
     <div class="catbee-container-list-body catbee-base-panel">
-      @if (isLoading()) {
-        <catbee-container-studio-empty-state [icon]="'image'" [message]="'Loading Images...'" />
+      @if (isLoading(); as loading) {
+        <catbee-container-studio-empty-state
+          [icon]="'image'"
+          [message]="'Loading Images...'"
+          [showLoader]="loading"
+          size="small"
+        />
       } @else {
         <table class="catbee-table" aria-label="Images table" [class.is-empty]="sortedImages().length === 0">
           <thead>

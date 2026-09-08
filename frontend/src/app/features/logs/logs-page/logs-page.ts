@@ -42,7 +42,7 @@ interface ActiveLogStream {
 })
 export class LogsPage {
   private static readonly MAX_LOG_ENTRIES = 5000;
-  readonly globalMaxLogEntryOptions = [1000, 2000, 5000] as const;
+  readonly globalMaxLogEntryOptions = [1000, 2000, 5000, 10_000] as const;
   readonly logsSearchStorageKey = LOGS_STORAGE_KEYS.GLOBAL_SEARCH_QUERY;
   readonly logsSearchModeStorageKeys = {
     caseSensitive: LOGS_STORAGE_KEYS.GLOBAL_SEARCH_CASE_SENSITIVE,
