@@ -90,14 +90,13 @@ export class App implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.globalLogs.initialize();
-
     this.unsubscribeDockerStatus = this.electronApi.onDockerInitializationStatus(status => {
       this.dockerInitStatus.set(status);
       this.sessionStorage.setJson(UI_STORAGE_KEYS.DOCKER_INIT_STATUS, status);
       console.log(`\x1b[36m${new Date().toISOString()}\x1b[0m Docker initialization status:`, status);
       if (status.state === 'ready') {
         this.dockerConnected.set(true);
+        this.globalLogs.initialize();
       }
     });
 
