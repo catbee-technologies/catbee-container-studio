@@ -17,7 +17,7 @@
     @let progress = downloadProgress();
     @let downloaded = updateDownloaded();
 
-    <button type="button" class="catbee-action-btn plain-btn updater-launch-btn" (click)="updaterDialogOpen.set(true)">
+    <button type="button" class="catbee-action-btn plain-btn updater-launch-btn" (click)="openUpdaterDialog()">
       @if (progress) {
         <span class="update-progress">
           <span class="update-progress-percent"> {{ progress.percent | number: '1.0-0' }}% </span>
@@ -45,6 +45,7 @@
 
 <catbee-container-studio-updater
   [(updaterDialogOpen)]="updaterDialogOpen"
+  [isMicrosoftStore]="isMicrosoftStore()"
   [currentVersion]="currentVersion()"
   (updateAvailable)="onUpdateAvailable()"
   (updateDownloadProgress)="onUpdateDownloadProgress($event)"

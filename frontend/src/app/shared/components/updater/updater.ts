@@ -27,7 +27,7 @@ export class UpdaterComponent {
   readonly githubRepoUrl = 'https://github.com/catbee-technologies/catbee-container-studio';
 
   readonly isMacOS = signal(false);
-  readonly isMicrosoftStore = signal(false);
+  readonly isMicrosoftStore = input.required<boolean>();
   readonly microsoftStoreImageUrl = computed(
     () => `https://get.microsoft.com/images/en-us%20${this.themeService.isLightMode() ? 'light' : 'dark'}.svg`
   );
@@ -48,9 +48,6 @@ export class UpdaterComponent {
   private async initialize(): Promise<void> {
     const platform = await this.electronApi.getPlatform();
     this.isMacOS.set(platform === 'darwin');
-
-    const microsoftStore = await this.electronApi.isMicrosoftStoreInstallation();
-    this.isMicrosoftStore.set(microsoftStore);
 
     const unsubscribe = this.electronApi.onUpdaterStatus(status => {
       this.updaterStatus.set(status);

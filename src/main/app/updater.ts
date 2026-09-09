@@ -86,7 +86,7 @@ export function isMicrosoftStoreInstallation(): boolean {
 }
 
 export async function checkForUpdates(): Promise<void> {
-  if (isDev) {
+  if (isDev || isMicrosoftStoreInstallation()) {
     logger.info('[AutoUpdater] Skipping update check in development.');
     return;
   }
@@ -103,7 +103,7 @@ export async function checkForUpdates(): Promise<void> {
 }
 
 export async function downloadUpdate(): Promise<void> {
-  if (isDev) {
+  if (isDev || isMicrosoftStoreInstallation()) {
     return;
   }
 
@@ -116,7 +116,7 @@ export async function downloadUpdate(): Promise<void> {
 }
 
 export function restartAndInstallUpdate(): void {
-  if (isDev) {
+  if (isDev || isMicrosoftStoreInstallation()) {
     return;
   }
   logger.info('[AutoUpdater] Restarting and installing update...');
