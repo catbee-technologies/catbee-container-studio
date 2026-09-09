@@ -403,6 +403,11 @@ input {
     &:disabled {
       cursor: not-allowed;
     }
+
+    &.active {
+      color: var(--color-control-selected);
+      background: var(--bg-control-selected);
+    }
   }
 
   .match-count {

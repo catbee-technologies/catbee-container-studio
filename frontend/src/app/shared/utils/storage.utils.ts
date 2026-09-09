@@ -29,7 +29,8 @@ export const LOGS_STORAGE_KEYS = {
   GLOBAL_SEARCH_QUERY: `${LOGS_STORAGE_PREFIX}global-search-query`,
   GLOBAL_SEARCH_CASE_SENSITIVE: `${LOGS_STORAGE_PREFIX}global-search-case-sensitive`,
   GLOBAL_SEARCH_WHOLE_WORD: `${LOGS_STORAGE_PREFIX}global-search-whole-word`,
-  GLOBAL_SEARCH_REGEX: `${LOGS_STORAGE_PREFIX}global-search-regex`
+  GLOBAL_SEARCH_REGEX: `${LOGS_STORAGE_PREFIX}global-search-regex`,
+  GLOBAL_FILTER_TO_MATCHES_ONLY: `${LOGS_STORAGE_PREFIX}global-filter-to-matches-only`
 } as const;
 
 export const LOGS_STORAGE_DEFAULTS = {

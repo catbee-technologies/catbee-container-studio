@@ -51,6 +51,18 @@
     </catbee-container-studio-search-input>
     @if (logsSearchInputTerm().trim().length > 0) {
       <div class="search-nav">
+        <button
+          type="button"
+          class="catbee-action-btn search-nav-btn"
+          [class.active]="logsSearchMode().filterToMatchesOnly"
+          (click)="toggleFilterToMatchesOnly()"
+          [catbeeTooltip]="'Filter to matches only'"
+          [catbeeTooltipPosition]="'bottom'"
+          [catbeeTooltipDelay]="tooltipDelay"
+          aria-label="Filter to matches only"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">filter_alt</span>
+        </button>
         <button type="button" class="catbee-action-btn search-nav-btn" (click)="prevMatch()" [disabled]="!hasMatches()">
           <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_up</span>
         </button>
@@ -155,6 +167,13 @@
         loading ? 'Connecting to container log stream...' : 'Logs will appear here once the container emits output.'
       "
       [showLoader]="loading"
+      size="small"
+    />
+  } @else if (renderedLogLines().length === 0) {
+    <catbee-container-studio-empty-state
+      icon="filter_alt_off"
+      message="No lines match your filter."
+      hint="Turn off 'Filter to matches only' or adjust your search to see logs."
       size="small"
     />
   } @else {

@@ -22,6 +22,7 @@ import { ElectronApiService } from '@core/electron-api.service';
 import { DockerInitializationStatus } from '@shared/types';
 import { FooterComponent } from '@components/footer/footer';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
+import { GlobalLogsService } from '@features/logs/services/global-logs.service';
 
 @Component({
   selector: 'catbee-container-studio-root',
@@ -47,6 +48,7 @@ export class App implements OnInit {
   private readonly router = inject(Router);
   private readonly loader = inject(CatbeeLoaderService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly globalLogs = inject(GlobalLogsService);
   private navigationLoaderTimeout: ReturnType<typeof setTimeout> | null = null;
 
   readonly NAVIGATION_LOADER_NAME = 'catbee-navigation-loader';
@@ -88,6 +90,8 @@ export class App implements OnInit {
   ];
 
   ngOnInit(): void {
+    this.globalLogs.initialize();
+
     this.unsubscribeDockerStatus = this.electronApi.onDockerInitializationStatus(status => {
       this.dockerInitStatus.set(status);
       this.sessionStorage.setJson(UI_STORAGE_KEYS.DOCKER_INIT_STATUS, status);

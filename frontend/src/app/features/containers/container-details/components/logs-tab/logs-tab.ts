@@ -21,7 +21,7 @@ import { MenuComponent } from '@components/menu/menu';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { DockerLogChannel, DockerStreamEventEnvelope } from '@shared/types/docker-api.types';
 import { LOGS_STORAGE_DEFAULTS, LOGS_STORAGE_KEYS } from '@utils/storage.utils';
-import { LocalStorageService } from '@ng-catbee/storage';
+import { LocalStorageService, SessionStorageService } from '@ng-catbee/storage';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { LOG_TAIL_OPTIONS } from '@shared/types';
 import { ElectronApiService } from '@core/electron-api.service';
@@ -38,6 +38,7 @@ export interface LogsSearchMode {
   caseSensitive: boolean;
   wholeWord: boolean;
   regex: boolean;
+  filterToMatchesOnly: boolean;
 }
 
 export interface LogsDisplayOptions {
@@ -111,6 +112,7 @@ export class LogsTabComponent implements AfterViewInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly localStorage = inject(LocalStorageService);
+  private readonly sessionStorage = inject(SessionStorageService);
 
   private readonly ansiCodePattern = new RegExp(`${LogsTabComponent.ESC}\\[([0-9;]*)m`, 'g');
   private readonly ansiStripPattern = new RegExp(`${LogsTabComponent.ESC}\\[[0-9;]*m`, 'g');
@@ -155,7 +157,8 @@ export class LogsTabComponent implements AfterViewInit {
   readonly logsSearchMode = signal<LogsSearchMode>({
     caseSensitive: false,
     wholeWord: false,
-    regex: false
+    regex: false,
+    filterToMatchesOnly: false
   });
   readonly currentMatchIndex = signal(0);
 
@@ -248,12 +251,15 @@ export class LogsTabComponent implements AfterViewInit {
         if (savedMode) {
           this.logsSearchMode.set({
             caseSensitive: savedMode.caseSensitive
-              ? this.localStorage.getBooleanWithDefault(savedMode.caseSensitive, false)
+              ? this.sessionStorage.getBooleanWithDefault(savedMode.caseSensitive, false)
               : false,
             wholeWord: savedMode.wholeWord
-              ? this.localStorage.getBooleanWithDefault(savedMode.wholeWord, false)
+              ? this.sessionStorage.getBooleanWithDefault(savedMode.wholeWord, false)
               : false,
-            regex: savedMode.regex ? this.localStorage.getBooleanWithDefault(savedMode.regex, false) : false
+            regex: savedMode.regex ? this.sessionStorage.getBooleanWithDefault(savedMode.regex, false) : false,
+            filterToMatchesOnly: savedMode.filterToMatchesOnly
+              ? this.sessionStorage.getBooleanWithDefault(savedMode.filterToMatchesOnly, false)
+              : false
           });
         }
         this.searchStorageInitialized = true;
@@ -350,13 +356,13 @@ export class LogsTabComponent implements AfterViewInit {
     });
   });
 
-  readonly logMatches = computed<LogMatch[]>(() => {
+  private computeMatches(lines: DisplayLogLine[]): LogMatch[] {
     const term = this.logsSearchTerm().trim();
     if (!term) {
       return [];
     }
 
-    const lines = this.displayLogLines().map(line => line.plainWithPrefix);
+    const plainLines = lines.map(line => line.plainWithPrefix);
     const mode = this.logsSearchMode();
 
     if (mode.regex) {
@@ -364,8 +370,8 @@ export class LogsTabComponent implements AfterViewInit {
         const regex = new RegExp(term, mode.caseSensitive ? 'g' : 'gi');
         const matches: LogMatch[] = [];
 
-        for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
-          const line = lines[lineIndex] ?? '';
+        for (let lineIndex = 0; lineIndex < plainLines.length; lineIndex += 1) {
+          const line = plainLines[lineIndex] ?? '';
           regex.lastIndex = 0;
           let result = regex.exec(line);
 
@@ -396,8 +402,8 @@ export class LogsTabComponent implements AfterViewInit {
     const sourceNeedle = mode.caseSensitive ? term : term.toLowerCase();
     const matches: LogMatch[] = [];
 
-    for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
-      const line = lines[lineIndex] ?? '';
+    for (let lineIndex = 0; lineIndex < plainLines.length; lineIndex += 1) {
+      const line = plainLines[lineIndex] ?? '';
       const source = mode.caseSensitive ? line : line.toLowerCase();
 
       let fromIndex = 0;
@@ -420,7 +426,7 @@ export class LogsTabComponent implements AfterViewInit {
     }
 
     return matches;
-  });
+  }
 
   readonly hasRegexError = computed(() => {
     if (!this.logsSearchMode().regex) {
@@ -440,6 +446,21 @@ export class LogsTabComponent implements AfterViewInit {
     }
   });
 
+  /** Lines to search/render; only the matching lines when "filter to matches only" is on. */
+  readonly visibleLogLines = computed<DisplayLogLine[]>(() => {
+    const lines = this.displayLogLines();
+    const term = this.logsSearchTerm().trim();
+    const hasActiveSearch = term.length > 0 && !this.hasRegexError();
+    if (!this.logsSearchMode().filterToMatchesOnly || !hasActiveSearch) {
+      return lines;
+    }
+
+    const matchedIndices = new Set(this.computeMatches(lines).map(match => match.logIndex));
+    return lines.filter((_, index) => matchedIndices.has(index));
+  });
+
+  readonly logMatches = computed<LogMatch[]>(() => this.computeMatches(this.visibleLogLines()));
+
   readonly currentMatch = computed<LogMatch | null>(() => {
     const matches = this.logMatches();
     if (matches.length === 0) {
@@ -451,7 +472,7 @@ export class LogsTabComponent implements AfterViewInit {
   });
 
   readonly renderedLogLines = computed(() => {
-    const lines = this.displayLogLines();
+    const lines = this.visibleLogLines();
     const term = this.logsSearchTerm().trim();
     const hasSearch = term.length > 0 && !this.hasRegexError();
     const current = this.currentMatch();
@@ -573,6 +594,21 @@ export class LogsTabComponent implements AfterViewInit {
       return next;
     });
     this.selectNearestMatchFromViewport();
+  }
+
+  toggleFilterToMatchesOnly(): void {
+    this.logsSearchMode.update(mode => {
+      const next = { ...mode, filterToMatchesOnly: !mode.filterToMatchesOnly };
+      this.persistSearchMode(next);
+      return next;
+    });
+
+    if (!this.followEnabled()) {
+      return;
+    }
+
+    // Wait for the virtualizer to pick up the new (filtered/unfiltered) line count before snapping down.
+    afterNextRender(() => this.scrollToBottom(), { injector: this.injector });
   }
 
   nextMatch(): void {
@@ -710,7 +746,8 @@ export class LogsTabComponent implements AfterViewInit {
   }
 
   async copyLogs(): Promise<void> {
-    const content = this.displayLogLines()
+    // Copy the currently visible (filtered, when enabled) log lines to the clipboard.
+    const content = this.visibleLogLines()
       .map(line => line.plainWithPrefix)
       .join('\n');
     if (!content) {
@@ -1342,7 +1379,9 @@ export class LogsTabComponent implements AfterViewInit {
       this.flushChannelBuffer('stderr', event.timestamp, this.shouldStickBottom());
       this.flushChannelBuffer('unknown', event.timestamp, this.shouldStickBottom());
       this.logsStreamId.set(null);
-      this.scheduleLogsBootstrapSettle();
+      if (this.isBootstrappingLogs) {
+        this.scheduleLogsBootstrapSettle();
+      }
       this.scheduleLogsReconnect();
       return;
     }
@@ -1357,7 +1396,9 @@ export class LogsTabComponent implements AfterViewInit {
     }
 
     this.isLoading.set(false);
-    this.scheduleLogsBootstrapSettle();
+    if (this.isBootstrappingLogs) {
+      this.scheduleLogsBootstrapSettle();
+    }
     const channel = event.channel ?? 'stdout';
     this.appendLogChunk(channel, text, event.timestamp);
   }
@@ -1485,13 +1526,16 @@ export class LogsTabComponent implements AfterViewInit {
     }
 
     if (storageKeys.caseSensitive) {
-      this.localStorage.set(storageKeys.caseSensitive, mode.caseSensitive ? 'true' : 'false');
+      this.sessionStorage.set(storageKeys.caseSensitive, mode.caseSensitive ? 'true' : 'false');
     }
     if (storageKeys.wholeWord) {
-      this.localStorage.set(storageKeys.wholeWord, mode.wholeWord ? 'true' : 'false');
+      this.sessionStorage.set(storageKeys.wholeWord, mode.wholeWord ? 'true' : 'false');
     }
     if (storageKeys.regex) {
-      this.localStorage.set(storageKeys.regex, mode.regex ? 'true' : 'false');
+      this.sessionStorage.set(storageKeys.regex, mode.regex ? 'true' : 'false');
+    }
+    if (storageKeys.filterToMatchesOnly) {
+      this.sessionStorage.set(storageKeys.filterToMatchesOnly, mode.filterToMatchesOnly ? 'true' : 'false');
     }
   }
 

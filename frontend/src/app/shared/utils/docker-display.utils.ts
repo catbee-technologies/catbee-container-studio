@@ -4,6 +4,12 @@ export function formatDockerNames(names: string[]): string {
   return names.map(name => name.replace(/^\//, '')).join(', ');
 }
 
+const compactCountFormatter = new Intl.NumberFormat('en', { notation: 'compact' });
+
+export function formatCompactCount(value: number): string {
+  return compactCountFormatter.format(value);
+}
+
 export function formatDockerBytes(value: number, precision = 2): string {
   if (!Number.isFinite(value) || value < 0) {
     return '--';
