@@ -115,8 +115,7 @@ export default {
         'audio-playback',
         'pulseaudio',
         'opengl',
-        'browser-support',
-        'docker'
+        'browser-support'
       ]
     },
     publish: {
