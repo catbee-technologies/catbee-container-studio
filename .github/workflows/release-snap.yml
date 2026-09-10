@@ -46,6 +46,23 @@ jobs:
           lxc version
 
       - name: Build and publish Snap
+        id: build_snap
+        continue-on-error: true
         run: |
           npm run package
           npm run dist:linux:snap -- --publish always -c.snapcraft.publish.channels="stable"
+
+      - name: Upload Snap artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: catbee-container-studio-snap
+          path: build/**/*.snap
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Fail if Snap build or publish failed
+        if: steps.build_snap.outcome == 'failure'
+        run: |
+          echo "Snap build or publishing failed."
+          exit 1
