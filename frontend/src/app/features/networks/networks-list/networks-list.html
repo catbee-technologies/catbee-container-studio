@@ -69,7 +69,11 @@
           size="small"
         />
       } @else {
-        <table class="catbee-table" aria-label="Networks table" [class.is-empty]="sortedNetworks().length === 0">
+        <table
+          class="catbee-table single-row-table"
+          aria-label="Networks table"
+          [class.is-empty]="sortedNetworks().length === 0"
+        >
           <thead>
             <tr>
               <th scope="col" class="col-checkbox">
@@ -88,7 +92,7 @@
                   (sort)="toggleSort('used')"
                 />
               </th>
-              <th scope="col">
+              <th scope="col" class="col-name col-sortable">
                 <catbee-container-studio-table-sort-header
                   label="Name"
                   [active]="isSortActive('name')"
@@ -97,7 +101,7 @@
                 />
               </th>
               @if (visibleColumns().has('id')) {
-                <th scope="col">
+                <th scope="col" class="col-id col-sortable">
                   <catbee-container-studio-table-sort-header
                     label="ID"
                     [active]="isSortActive('id')"
@@ -117,7 +121,7 @@
                 </th>
               }
               @if (visibleColumns().has('subnet')) {
-                <th scope="col">
+                <th scope="col" class="col-subnet col-sortable">
                   <catbee-container-studio-table-sort-header
                     label="Subnet / Gateway"
                     [active]="isSortActive('subnet')"
@@ -202,21 +206,28 @@
                     <span class="usage-dot" [class.used]="isUsed(network)" [class.unused]="!isUsed(network)"></span>
                   }
                 </td>
-                <td>
-                  <button type="button" class="link-btn" (click)="openNetworkDetails(network.Id)">
+                <td class="col-name">
+                  <button
+                    type="button"
+                    class="link-btn"
+                    (click)="openNetworkDetails(network.Id)"
+                    [catbeeTooltip]="network.Name"
+                    [catbeeTooltipOnlyOnOverflow]="true"
+                    [catbeeTooltipPosition]="'top'"
+                    [catbeeTooltipDelay]="tooltipDelay"
+                  >
                     {{ network.Name }}
                   </button>
-                  <p class="unique-id">
-                    {{ network.Id.slice(0, 12) }}
+                </td>
+                @if (visibleColumns().has('id')) {
+                  <td class="col-id">
+                    <span class="id-text">{{ network.Id.slice(0, 12) }}</span>
                     <catbee-container-studio-copy-button
                       [text]="network.Id"
                       size="small"
                       (click)="$event.stopPropagation()"
                     />
-                  </p>
-                </td>
-                @if (visibleColumns().has('id')) {
-                  <td>{{ network.Id.slice(0, 12) }}</td>
+                  </td>
                 }
                 @if (visibleColumns().has('driver')) {
                   <td>
@@ -224,7 +235,15 @@
                   </td>
                 }
                 @if (visibleColumns().has('subnet')) {
-                  <td>{{ networkAddress(network) }}</td>
+                  <td
+                    class="col-subnet"
+                    [catbeeTooltip]="networkAddress(network)"
+                    [catbeeTooltipOnlyOnOverflow]="true"
+                    [catbeeTooltipPosition]="'top'"
+                    [catbeeTooltipDelay]="tooltipDelay"
+                  >
+                    {{ networkAddress(network) }}
+                  </td>
                 }
                 @if (visibleColumns().has('flags')) {
                   <td>{{ networkFlags(network) }}</td>
@@ -236,18 +255,20 @@
                   <td><catbee-container-studio-tooltip-date [date]="network.Created" /></td>
                 }
                 <td class="col-actions" (click)="$event.stopPropagation()">
-                  <button
-                    type="button"
-                    class="catbee-action-btn icon-only danger"
-                    (click)="requestDeleteSingle(network)"
-                    aria-label="Delete network"
-                    [catbeeTooltip]="'Delete'"
-                    [catbeeTooltipPosition]="'left'"
-                    [catbeeTooltipDelay]="tooltipDelay"
-                    [disabled]="activeNetworkActions().has(network.Id) || isUsed(network)"
-                  >
-                    <span class="mat-icon-filled" aria-hidden="true">delete</span>
-                  </button>
+                  <div class="action-group">
+                    <button
+                      type="button"
+                      class="catbee-action-btn icon-only danger"
+                      (click)="requestDeleteSingle(network)"
+                      aria-label="Delete network"
+                      [catbeeTooltip]="'Delete'"
+                      [catbeeTooltipPosition]="'left'"
+                      [catbeeTooltipDelay]="tooltipDelay"
+                      [disabled]="activeNetworkActions().has(network.Id) || isUsed(network)"
+                    >
+                      <span class="mat-icon-filled" aria-hidden="true">delete</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             }

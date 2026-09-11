@@ -9,9 +9,10 @@ import { TabsComponent, TabItem } from '@components/tabs/tabs';
 import { DockerApiService } from '@core/docker-api.service';
 import { LocalStorageService } from '@ng-catbee/storage';
 import { DockerContainerInfo, DockerNetworkInfo } from '@shared/types/docker-api.types';
-import { formatDockerNames, DATE_FORMAT } from '@utils/docker-display.utils';
+import { DATE_FORMAT } from '@utils/docker-display.utils';
 import { UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { NetworkDetailsPrefetch } from './network-details.resolver';
+import { ConnectedContainersTableComponent } from '@components/connected-containers-table/connected-containers-table';
 
 enum NetworkDetailsTab {
   Containers = 'containers',
@@ -20,7 +21,14 @@ enum NetworkDetailsTab {
 
 @Component({
   selector: 'catbee-container-studio-network-details-page',
-  imports: [CommonModule, CopyButtonComponent, EmptyStateComponent, ErrorBannerComponent, TabsComponent],
+  imports: [
+    CommonModule,
+    CopyButtonComponent,
+    EmptyStateComponent,
+    ErrorBannerComponent,
+    TabsComponent,
+    ConnectedContainersTableComponent
+  ],
   templateUrl: './network-details.html',
   styleUrl: './network-details.scss'
 })
@@ -97,17 +105,6 @@ export class NetworkDetailsPage {
   backToNetworks(): void {
     void this.router.navigateByUrl(this.getReturnTo('/networks'));
   }
-  openContainer(containerId: string): void {
-    void this.router.navigate(['/containers', containerId], { state: { returnTo: this.router.url } });
-  }
-  openImageDetails(imageId: string): void {
-    if (imageId) {
-      void this.router.navigate(['/images', imageId], { state: { returnTo: this.router.url } });
-    }
-  }
-  formatContainerName(container: DockerContainerInfo): string {
-    return formatDockerNames(container.Names);
-  }
   shortId(id: string): string {
     return id.replace('sha256:', '').slice(0, 12);
   }
@@ -118,6 +115,8 @@ export class NetworkDetailsPage {
     )?.[1];
     return endpoint?.IPv4Address || endpoint?.IPv6Address || '--';
   }
+
+  readonly getEndpointAddress = (id: string): string => this.endpointAddress(id);
 
   setActiveTab(tab: string): void {
     if (!Object.values(NetworkDetailsTab).includes(tab as NetworkDetailsTab)) return;

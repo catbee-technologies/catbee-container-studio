@@ -32,7 +32,15 @@
       @for (item of summaryItems(); track item.label) {
         <article>
           <p class="label">{{ item.label }}</p>
-          <p class="value mono" [title]="item.value">{{ item.value }}</p>
+          <p
+            class="value"
+            [catbeeTooltip]="item.value"
+            [catbeeTooltipPosition]="'top'"
+            [catbeeTooltipDelay]="tooltipDelay"
+            [catbeeTooltipOnlyOnOverflow]="true"
+          >
+            {{ item.value }}
+          </p>
         </article>
       }
     </section>
@@ -46,70 +54,20 @@
       />
 
       <section
-        class="catbee-container-list-layout tab-panel"
+        class="tab-panel"
+        [class.catbee-container-list-layout]="activeTab() !== 'files'"
         [class.files-tab-panel]="activeTab() === 'files'"
         role="tabpanel"
       >
         @if (activeTab() === 'files') {
           <catbee-container-studio-volume-files-tab [volumeName]="volumeName()" />
-        } @else if (containersInUse().length === 0) {
-          <catbee-container-studio-empty-state
-            [icon]="'folder_open'"
-            [message]="'No containers currently mount this volume.'"
-            [hint]="'Containers that mount this volume will appear here when running.'"
-          />
         } @else {
-          <div class="catbee-container-list-body catbee-base-panel">
-            <table class="catbee-table">
-              <thead>
-                <tr>
-                  <th>Name ({{ containersInUse().length }})</th>
-                  <th>Image</th>
-                  <th>State</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (container of containersInUse(); track container.Id) {
-                  <tr>
-                    <td>
-                      <button type="button" class="link-btn" (click)="openContainer(container.Id)">
-                        {{ formatContainerName(container) }}
-                        <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
-                      </button>
-                      <p class="unique-id">
-                        {{ container.Id.slice(0, 12) }}
-                        <catbee-container-studio-copy-button
-                          [text]="container.Id"
-                          size="small"
-                          (click)="$event.stopPropagation()"
-                        />
-                      </p>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        class="link-btn"
-                        (click)="openImageDetails(container.ImageID!); $event.stopPropagation()"
-                      >
-                        {{ container.Image }}
-                        <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
-                      </button>
-                    </td>
-                    <td>
-                      <span
-                        class="container-status"
-                        [class.running]="container.State === 'running'"
-                        [class.stopped]="container.State !== 'running'"
-                      >
-                        {{ container.State }}
-                      </span>
-                      <p class="status-detail">{{ container.Status }}</p>
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
+          <catbee-container-studio-connected-containers-table
+            [containers]="containersInUse()"
+            [emptyMessage]="'No containers currently mount this volume.'"
+            [emptyHint]="'Containers that mount this volume will appear here when running.'"
+            [emptyIcon]="'folder_open'"
+          />
         }
       </section>
     </section>

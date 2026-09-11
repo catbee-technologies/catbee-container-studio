@@ -42,6 +42,7 @@ export class CatbeeTooltip implements OnDestroy {
   readonly catbeeTooltipClass = input<string>('catbee-tooltip');
   readonly catbeeTooltipDisabled = input(false, { transform: booleanAttribute });
   readonly catbeeTooltipEvent = input<TooltipEvent>('hover');
+  readonly catbeeTooltipOnlyOnOverflow = input(false, { transform: booleanAttribute });
 
   private overlayRef: OverlayRef | null = null;
   private showTimeout?: ReturnType<typeof setTimeout>;
@@ -161,6 +162,10 @@ export class CatbeeTooltip implements OnDestroy {
       return;
     }
 
+    if (this.catbeeTooltipOnlyOnOverflow() && !this.isElementOverflowing(this.el.nativeElement)) {
+      return;
+    }
+
     this.clearTimer();
 
     const delay = this.catbeeTooltipDelay();
@@ -170,6 +175,10 @@ export class CatbeeTooltip implements OnDestroy {
         this.showTimeout = undefined;
 
         if (this.catbeeTooltipDisabled()) {
+          return;
+        }
+
+        if (this.catbeeTooltipOnlyOnOverflow() && !this.isElementOverflowing(this.el.nativeElement)) {
           return;
         }
 
@@ -343,6 +352,30 @@ export class CatbeeTooltip implements OnDestroy {
     this.tooltipComponentRef = null;
 
     this.el.nativeElement.removeAttribute('aria-describedby');
+  }
+
+  private isElementOverflowing(element: HTMLElement): boolean {
+    if (this.checkOverflow(element)) {
+      return true;
+    }
+
+    const children = element.querySelectorAll('*');
+    for (const child of children) {
+      if (this.checkOverflow(child as HTMLElement)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private checkOverflow(el: HTMLElement): boolean {
+    const clientW = el.clientWidth || Math.round(el.getBoundingClientRect().width);
+    const clientH = el.clientHeight || Math.round(el.getBoundingClientRect().height);
+    if (clientW === 0 && clientH === 0) {
+      return false;
+    }
+    return el.scrollWidth > clientW + 1 || el.scrollHeight > clientH + 1;
   }
 
   ngOnDestroy(): void {

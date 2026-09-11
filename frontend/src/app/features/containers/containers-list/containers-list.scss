@@ -40,38 +40,84 @@ tbody tr {
   color: var(--ink-100);
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.35rem;
   cursor: pointer;
   font-weight: 600;
   padding: 0;
   width: 100%;
   height: 30px;
+
+  .group-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .group-count {
+    font-size: 0.78rem;
+    color: var(--ink-300);
+    font-weight: 400;
+    flex-shrink: 0;
+  }
 }
 
-.group-count {
-  font-size: 0.78rem;
-  color: var(--ink-300);
+table.catbee-table .col-actions {
+  width: 160px;
+  min-width: 160px;
+}
+
+.col-name {
+  max-width: 240px;
+  min-width: 130px;
+}
+
+.col-image {
+  max-width: 220px;
+  min-width: 120px;
 }
 
 .col-ports {
   font-family: var(--mono-font);
   font-size: 0.8rem;
-  max-width: 320px;
-  word-break: break-word;
+  max-width: 260px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.col-cpu {
-  font-family: var(--mono-font);
-  font-size: 0.8rem;
-  max-width: 120px;
-}
-
+.col-cpu,
 .col-memory,
 .col-disk,
 .col-network,
 .col-pids {
-  max-width: 120px;
-  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col-state {
+  white-space: nowrap;
+}
+
+.col-status {
+  max-width: 220px;
+  min-width: 120px;
+
+  .status-text {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ink-200);
+    font-size: var(--font-size-sm);
+    vertical-align: middle;
+  }
+}
+
+.col-id {
+  width: 140px;
 }
 
 .col-loading-status {

@@ -4,7 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { combineLatest } from 'rxjs';
 import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerInfo, DockerImageHistoryInfo, DockerImageInspectInfo } from '@shared/types/docker-api.types';
-import { DATE_FORMAT, formatDockerBytes, formatDockerNames } from '@utils/docker-display.utils';
+import { DATE_FORMAT, formatDockerBytes } from '@utils/docker-display.utils';
 import { TabsComponent, TabItem } from '@components/tabs/tabs';
 import { ImageDetailsPrefetch } from './image-details.resolver';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
@@ -13,6 +13,8 @@ import { SessionStorageService } from '@ng-catbee/storage';
 import { UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { RunContainerDialogComponent } from '@docker-images/run-container-dialog/run-container-dialog';
+import { ConnectedContainersTableComponent } from '@components/connected-containers-table/connected-containers-table';
+import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 
 enum ImageDetailsTab {
   Layers = 'layers',
@@ -27,7 +29,9 @@ enum ImageDetailsTab {
     EmptyStateComponent,
     ErrorBannerComponent,
     CopyButtonComponent,
-    RunContainerDialogComponent
+    RunContainerDialogComponent,
+    ConnectedContainersTableComponent,
+    CatbeeTooltip
   ],
   templateUrl: './image-details.html',
   styleUrl: './image-details.scss'
@@ -39,6 +43,8 @@ export class ImageDetailsPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly datePipe = inject(DatePipe);
   private readonly sessionStorage = inject(SessionStorageService);
+
+  readonly tooltipDelay = 300;
 
   readonly imageId = signal('');
   readonly inspectData = signal<DockerImageInspectInfo | null>(null);
@@ -126,10 +132,6 @@ export class ImageDetailsPage {
   onContainerCreated(containerId: string): void {
     this.runDialogOpen.set(false);
     this.openContainer(containerId);
-  }
-
-  formatContainerName(container: DockerContainerInfo): string {
-    return formatDockerNames(container.Names);
   }
 
   shortId(rawId: string): string {

@@ -7,27 +7,61 @@ tbody tr {
   cursor: pointer;
 }
 
+.col-tag {
+  max-width: 200px;
+  min-width: 100px;
+
+  .tag-cell-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 100%;
+    overflow: hidden;
+    vertical-align: middle;
+
+    .primary-tag {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      min-width: 0;
+    }
+  }
+}
+
 .tag-extra {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   color: var(--ink-300);
+  background: var(--bg-hover-subtle);
   border: 1px solid var(--border-color-tab-panel);
   border-radius: 999px;
-  padding: 0.08rem 0.45rem;
+  padding: 0.05rem 0.4rem;
+  cursor: help;
+  flex-shrink: 0;
 }
 
-.tags-row td,
-.dangling-row td {
-  padding-top: 0.25rem;
-  padding-bottom: 0.4rem;
+.col-repo {
+  max-width: 320px;
+  min-width: 140px;
+
+  .link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 100%;
+
+    .repo-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
 }
 
-.tags-wrap {
-  display: flex;
-  gap: 0.35rem;
-  flex-wrap: wrap;
-  margin-top: 0.3rem;
+.col-id {
+  width: 140px;
 }
 
 table.catbee-table .col-actions {
-  width: 1rem;
+  width: 120px;
+  min-width: 120px;
 }

@@ -166,7 +166,7 @@
           size="small"
         />
       } @else {
-        <table class="catbee-table" [class.is-empty]="visibleContainers().length === 0">
+        <table class="catbee-table single-row-table" [class.is-empty]="visibleContainers().length === 0">
           <thead>
             <tr>
               <th scope="col" class="col-checkbox">
@@ -178,7 +178,7 @@
                 />
               </th>
               <th scope="col" class="col-loading-status"></th>
-              <th scope="col" class="col-sortable">
+              <th scope="col" class="col-sortable col-name">
                 <catbee-container-studio-table-sort-header
                   [label]="'Name'"
                   [active]="isSortActive('name')"
@@ -186,8 +186,18 @@
                   (sort)="toggleSort('name')"
                 />
               </th>
+              @if (visibleColumns().has('id')) {
+                <th scope="col" class="col-sortable col-id">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'ID'"
+                    [active]="isSortActive('id')"
+                    [indicator]="sortIndicator('id')"
+                    (sort)="toggleSort('id')"
+                  />
+                </th>
+              }
               @if (visibleColumns().has('image')) {
-                <th scope="col" class="col-sortable">
+                <th scope="col" class="col-sortable col-image">
                   <catbee-container-studio-table-sort-header
                     [label]="'Image'"
                     [active]="isSortActive('image')"
@@ -207,12 +217,22 @@
                 </th>
               }
               @if (visibleColumns().has('state')) {
-                <th scope="col" class="col-sortable">
+                <th scope="col" class="col-sortable col-state">
                   <catbee-container-studio-table-sort-header
                     [label]="'State'"
                     [active]="isSortActive('state')"
                     [indicator]="sortIndicator('state')"
                     (sort)="toggleSort('state')"
+                  />
+                </th>
+              }
+              @if (visibleColumns().has('status')) {
+                <th scope="col" class="col-sortable col-status">
+                  <catbee-container-studio-table-sort-header
+                    [label]="'Status'"
+                    [active]="isSortActive('status')"
+                    [indicator]="sortIndicator('status')"
+                    (sort)="toggleSort('status')"
                   />
                 </th>
               }
@@ -316,10 +336,109 @@
                     @if (group.folder) {
                       <span class="mat-icon-filled" aria-hidden="true">folder</span>
                     }
-                    <span>{{ group.name }}</span>
+                    <span class="group-name">{{ group.name }}</span>
+                    <span class="group-count">({{ group.containers.length }})</span>
+                    @if (isGroupActionActive(group)) {
+                      <ng-catbee-loader
+                        [name]="'group-' + group.id"
+                        [forceShow]="true"
+                        [fullscreen]="false"
+                        [size]="'small'"
+                        [backgroundColor]="'transparent'"
+                      />
+                    }
                   </button>
                 </td>
-                <td class="col-actions group-count">{{ group.containers.length }} containers</td>
+                <td class="col-actions" (click)="$event.stopPropagation()">
+                  <div class="action-group">
+                    <button
+                      type="button"
+                      class="catbee-action-btn icon-only action-start"
+                      (click)="startGroup(group); $event.stopPropagation()"
+                      [disabled]="!canStartGroup(group)"
+                      aria-label="Start group"
+                      [catbeeTooltip]="'Start group'"
+                      [catbeeTooltipDelay]="tooltipDelay"
+                      [catbeeTooltipPosition]="'top'"
+                    >
+                      <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="catbee-action-btn icon-only action-stop"
+                      (click)="stopGroup(group); $event.stopPropagation()"
+                      [disabled]="!canStopGroup(group)"
+                      aria-label="Stop group"
+                      [catbeeTooltip]="'Stop group'"
+                      [catbeeTooltipDelay]="tooltipDelay"
+                      [catbeeTooltipPosition]="'top'"
+                    >
+                      <span class="mat-icon-filled" aria-hidden="true">stop</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="catbee-action-btn danger icon-only"
+                      (click)="requestDeleteGroup(group); $event.stopPropagation()"
+                      [disabled]="!canDeleteGroup(group)"
+                      aria-label="Delete group"
+                      [catbeeTooltip]="'Delete group'"
+                      [catbeeTooltipDelay]="tooltipDelay"
+                      [catbeeTooltipPosition]="'top'"
+                    >
+                      <span class="mat-icon-filled" aria-hidden="true">delete</span>
+                    </button>
+
+                    <catbee-container-studio-menu
+                      [open]="openGroupActionsMenuId() === group.id"
+                      [style]="{ width: '12rem' }"
+                      (dismissed)="closeGroupActionsMenu()"
+                    >
+                      <button
+                        type="button"
+                        class="catbee-action-btn icon-only menu-trigger"
+                        menuTrigger
+                        (click)="toggleGroupActionsMenu($event, group.id)"
+                        [disabled]="isGroupActionActive(group)"
+                        aria-label="More group actions"
+                        [catbeeTooltip]="'More actions'"
+                        [catbeeTooltipDelay]="tooltipDelay"
+                        [catbeeTooltipPosition]="'left'"
+                      >
+                        <span class="mat-icon-filled" aria-hidden="true">more_vert</span>
+                      </button>
+
+                      <div menuContent>
+                        <button
+                          type="button"
+                          class="menu-item"
+                          (click)="pauseGroup(group); closeGroupActionsMenu()"
+                          [disabled]="!canPauseGroup(group)"
+                        >
+                          <span class="mat-icon-filled" aria-hidden="true">pause</span>
+                          Pause
+                        </button>
+                        <button
+                          type="button"
+                          class="menu-item"
+                          (click)="unpauseGroup(group); closeGroupActionsMenu()"
+                          [disabled]="!canUnpauseGroup(group)"
+                        >
+                          <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
+                          Unpause
+                        </button>
+                        <button
+                          type="button"
+                          class="menu-item"
+                          (click)="restartGroup(group); closeGroupActionsMenu()"
+                          [disabled]="!canRestartGroup(group)"
+                        >
+                          <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
+                          Restart
+                        </button>
+                      </div>
+                    </catbee-container-studio-menu>
+                  </div>
+                </td>
               </tr>
 
               @if (!isGroupCollapsed(group.id)) {
@@ -345,25 +464,39 @@
                         <span class="usage-dot used"></span>
                       }
                     </td>
-                    <td>
-                      <button type="button" class="link-btn" (click)="openContainer(container.Id)">
+                    <td class="col-name">
+                      <button
+                        type="button"
+                        class="link-btn"
+                        (click)="openContainer(container.Id)"
+                        [catbeeTooltip]="formatNames(container.Names)"
+                        [catbeeTooltipOnlyOnOverflow]="true"
+                        [catbeeTooltipPosition]="'top'"
+                        [catbeeTooltipDelay]="tooltipDelay"
+                      >
                         {{ formatNames(container.Names) }}
                       </button>
-                      <p class="unique-id">
-                        {{ container.Id.slice(0, 12) }}
+                    </td>
+                    @if (visibleColumns().has('id')) {
+                      <td class="col-id">
+                        <span class="id-text">{{ container.Id.slice(0, 12) }}</span>
                         <catbee-container-studio-copy-button
                           [text]="container.Id"
                           size="small"
                           (click)="$event.stopPropagation()"
                         />
-                      </p>
-                    </td>
+                      </td>
+                    }
                     @if (visibleColumns().has('image')) {
-                      <td>
+                      <td class="col-image">
                         <button
                           type="button"
                           class="link-btn"
                           (click)="openImageDetails(container.ImageID!); $event.stopPropagation()"
+                          [catbeeTooltip]="container.Image"
+                          [catbeeTooltipOnlyOnOverflow]="true"
+                          [catbeeTooltipPosition]="'top'"
+                          [catbeeTooltipDelay]="tooltipDelay"
                         >
                           {{ container.Image }}
                         </button>
@@ -378,15 +511,31 @@
                       </td>
                     }
                     @if (visibleColumns().has('state')) {
-                      <td>
+                      <td class="col-state">
                         <span
                           class="container-status"
                           [class.running]="container.State === 'running'"
                           [class.stopped]="container.State !== 'running'"
+                          [catbeeTooltip]="container.Status"
+                          [catbeeTooltipDisabled]="visibleColumns().has('status')"
+                          [catbeeTooltipPosition]="'top'"
+                          [catbeeTooltipDelay]="tooltipDelay"
                         >
                           {{ container.State }}
                         </span>
-                        <p class="status-detail">{{ container.Status }}</p>
+                      </td>
+                    }
+                    @if (visibleColumns().has('status')) {
+                      <td class="col-status">
+                        <span
+                          class="status-text"
+                          [catbeeTooltip]="container.Status"
+                          [catbeeTooltipOnlyOnOverflow]="true"
+                          [catbeeTooltipPosition]="'top'"
+                          [catbeeTooltipDelay]="tooltipDelay"
+                        >
+                          {{ container.Status }}
+                        </span>
                       </td>
                     }
                     @if (visibleColumns().has('cpu')) {
@@ -562,4 +711,15 @@
   [dangerous]="true"
   (cancelAction)="cancelDeleteSelected()"
   (confirm)="removeSelectedContainers()"
+/>
+
+<catbee-container-studio-confirm-dialog
+  [open]="pendingDeleteGroup() !== null"
+  title="Delete Group"
+  [message]="pendingGroupDeleteMessage()"
+  confirmLabel="Delete All"
+  cancelLabel="Cancel"
+  [dangerous]="true"
+  (cancelAction)="cancelDeleteGroup()"
+  (confirm)="confirmDeleteGroup()"
 />

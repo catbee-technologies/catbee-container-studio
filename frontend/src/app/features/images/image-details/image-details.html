@@ -41,7 +41,15 @@
       @for (item of details(); track item.label) {
         <article>
           <p class="label">{{ item.label }}</p>
-          <p class="value mono">{{ item.value }}</p>
+          <p
+            class="value"
+            [catbeeTooltip]="item.value"
+            [catbeeTooltipPosition]="'top'"
+            [catbeeTooltipDelay]="tooltipDelay"
+            [catbeeTooltipOnlyOnOverflow]="true"
+          >
+            {{ item.value }}
+          </p>
         </article>
       }
     </section>
@@ -64,7 +72,7 @@
             />
           } @else {
             <div class="catbee-container-list-body catbee-base-panel">
-              <table class="catbee-table" aria-label="Image layers">
+              <table class="catbee-table single-row-table" aria-label="Image layers">
                 <thead>
                   <tr>
                     <th class="col-layer-index" scope="col">#</th>
@@ -87,56 +95,13 @@
             </div>
           }
         } @else if (activeTab() === 'containers') {
-          @if (inUseByContainers().length === 0) {
-            <catbee-container-studio-empty-state
-              [icon]="'storage'"
-              [message]="'No containers are using this image.'"
-              [hint]="'Containers that use this image will appear here when they are created.'"
-            />
-          } @else {
-            <div class="catbee-container-list-body catbee-base-panel">
-              <table class="catbee-table" aria-label="Containers using this image">
-                <thead>
-                  <tr>
-                    <th>Name ({{ inUseByContainers().length }})</th>
-                    <th>Image</th>
-                    <th>State</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (container of inUseByContainers(); track container.Id) {
-                    <tr>
-                      <td>
-                        <button type="button" class="link-btn" (click)="openContainer(container.Id)">
-                          {{ formatContainerName(container) }}
-                          <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
-                        </button>
-                        <p class="unique-id">
-                          {{ container.Id.slice(0, 12) }}
-                          <catbee-container-studio-copy-button
-                            [text]="container.Id"
-                            size="small"
-                            (click)="$event.stopPropagation()"
-                          />
-                        </p>
-                      </td>
-                      <td>{{ container.Image }}</td>
-                      <td>
-                        <span
-                          class="container-status"
-                          [class.running]="container.State === 'running'"
-                          [class.stopped]="container.State !== 'running'"
-                        >
-                          {{ container.State }}
-                        </span>
-                        <p class="status-detail">{{ container.Status }}</p>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          }
+          <catbee-container-studio-connected-containers-table
+            [containers]="inUseByContainers()"
+            [emptyMessage]="'No containers are using this image.'"
+            [emptyHint]="'Containers that use this image will appear here when they are created.'"
+            [emptyIcon]="'storage'"
+            [currentImageId]="inspectData()?.Id ?? null"
+          />
         }
       </section>
     </section>

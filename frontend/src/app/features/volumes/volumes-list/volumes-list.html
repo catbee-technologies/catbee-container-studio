@@ -74,7 +74,11 @@
           size="small"
         />
       } @else {
-        <table class="catbee-table" aria-label="Volumes table" [class.is-empty]="sortedVolumes().length === 0">
+        <table
+          class="catbee-table single-row-table"
+          aria-label="Volumes table"
+          [class.is-empty]="sortedVolumes().length === 0"
+        >
           <thead>
             <tr>
               <th scope="col" class="col-checkbox">
@@ -93,7 +97,7 @@
                   (sort)="toggleSort('used')"
                 />
               </th>
-              <th scope="col">
+              <th scope="col" class="col-name col-sortable">
                 <catbee-container-studio-table-sort-header
                   [label]="'Name'"
                   [active]="isSortActive('name')"
@@ -189,8 +193,16 @@
                     ></span>
                   }
                 </td>
-                <td>
-                  <button type="button" class="link-btn" (click)="openVolumeDetails(volume.Name)">
+                <td class="col-name">
+                  <button
+                    type="button"
+                    class="link-btn"
+                    (click)="openVolumeDetails(volume.Name)"
+                    [catbeeTooltip]="volume.Name"
+                    [catbeeTooltipOnlyOnOverflow]="true"
+                    [catbeeTooltipPosition]="'top'"
+                    [catbeeTooltipDelay]="tooltipDelay"
+                  >
                     {{ volume.Name }}
                   </button>
                 </td>
@@ -208,18 +220,20 @@
                   </td>
                 }
                 <td class="col-actions" (click)="$event.stopPropagation()">
-                  <button
-                    type="button"
-                    class="catbee-action-btn icon-only danger"
-                    (click)="requestDeleteSingle(volume)"
-                    aria-label="Delete volume"
-                    [catbeeTooltip]="'Delete'"
-                    [catbeeTooltipPosition]="'left'"
-                    [catbeeTooltipDelay]="tooltipDelay"
-                    [disabled]="activeVolumeActions().has(volume.Name) || isUsed(volume.Name)"
-                  >
-                    <span class="mat-icon-filled" aria-hidden="true">delete</span>
-                  </button>
+                  <div class="action-group">
+                    <button
+                      type="button"
+                      class="catbee-action-btn icon-only danger"
+                      (click)="requestDeleteSingle(volume)"
+                      aria-label="Delete volume"
+                      [catbeeTooltip]="'Delete'"
+                      [catbeeTooltipPosition]="'left'"
+                      [catbeeTooltipDelay]="tooltipDelay"
+                      [disabled]="activeVolumeActions().has(volume.Name) || isUsed(volume.Name)"
+                    >
+                      <span class="mat-icon-filled" aria-hidden="true">delete</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             }

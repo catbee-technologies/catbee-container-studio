@@ -21,6 +21,11 @@ tbody tr {
   text-transform: uppercase;
 }
 
+.col-name {
+  max-width: 320px;
+}
+
 table.catbee-table .col-actions {
-  width: 1rem;
+  width: 110px;
+  min-width: 110px;
 }
