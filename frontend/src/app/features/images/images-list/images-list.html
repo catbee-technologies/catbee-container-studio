@@ -83,7 +83,11 @@
           size="small"
         />
       } @else {
-        <table class="catbee-table" aria-label="Images table" [class.is-empty]="sortedImages().length === 0">
+        <table
+          class="catbee-table single-row-table"
+          aria-label="Images table"
+          [class.is-empty]="sortedImages().length === 0"
+        >
           <thead>
             <tr>
               <th scope="col" class="col-checkbox">
@@ -102,7 +106,7 @@
                   (sort)="toggleSort('used')"
                 />
               </th>
-              <th scope="col">
+              <th scope="col" class="col-repo">
                 <catbee-container-studio-table-sort-header
                   [label]="'Repository'"
                   [active]="isSortActive('repository')"
@@ -111,7 +115,7 @@
                 />
               </th>
               @if (visibleColumns().has('tag')) {
-                <th scope="col">
+                <th scope="col" class="col-tag">
                   <catbee-container-studio-table-sort-header
                     [label]="'Tag'"
                     [active]="isSortActive('tag')"
@@ -204,36 +208,56 @@
                     <span class="usage-dot" [class.used]="isUsed(image)" [class.unused]="!isUsed(image)"></span>
                   }
                 </td>
-                <td>
-                  <button type="button" class="link-btn" (click)="openImageDetails(image.Id)">
-                    {{ repositoryAndTag(image)[0] }}
+                <td class="col-repo">
+                  <button
+                    type="button"
+                    class="link-btn"
+                    (click)="openImageDetails(image.Id)"
+                    [catbeeTooltip]="repositoryAndTag(image)[0]"
+                    [catbeeTooltipOnlyOnOverflow]="true"
+                    [catbeeTooltipPosition]="'top'"
+                    [catbeeTooltipDelay]="tooltipDelay"
+                  >
+                    <span class="repo-text">{{ repositoryAndTag(image)[0] }}</span>
                     @if (isDangling(image)) {
                       <span class="badge dangling small">dangling</span>
                     }
                   </button>
-                  <p class="unique-id">
-                    {{ shortId(image) }}
+                </td>
+                @if (visibleColumns().has('tag')) {
+                  <td class="col-tag">
+                    <div class="tag-cell-wrap">
+                      <span
+                        class="primary-tag"
+                        [catbeeTooltip]="repositoryAndTag(image)[1]"
+                        [catbeeTooltipOnlyOnOverflow]="true"
+                        [catbeeTooltipPosition]="'top'"
+                        [catbeeTooltipDelay]="tooltipDelay"
+                      >
+                        {{ repositoryAndTag(image)[1] }}
+                      </span>
+                      @if ((image.RepoTags?.length ?? 0) > 1) {
+                        <span
+                          class="tag-extra"
+                          [catbeeTooltip]="extraTagsTooltip(image)"
+                          [catbeeTooltipPosition]="'top'"
+                          [catbeeTooltipDelay]="tooltipDelay"
+                        >
+                          +{{ (image.RepoTags?.length ?? 1) - 1 }}
+                        </span>
+                      }
+                    </div>
+                  </td>
+                }
+                @if (visibleColumns().has('id')) {
+                  <td class="col-id">
+                    <span class="id-text">{{ shortId(image) }}</span>
                     <catbee-container-studio-copy-button
                       [text]="image.Id.replace('sha256:', '')"
                       size="small"
                       (click)="$event.stopPropagation()"
                     />
-                  </p>
-                </td>
-                @if (visibleColumns().has('tag')) {
-                  <td>
-                    {{ repositoryAndTag(image)[1] }}
-                    @if ((image.RepoTags?.length ?? 0) > 1) {
-                      <div class="tags-wrap">
-                        @for (tag of image.RepoTags?.slice(1) ?? []; track tag) {
-                          <span class="tag-extra">{{ tag }}</span>
-                        }
-                      </div>
-                    }
                   </td>
-                }
-                @if (visibleColumns().has('id')) {
-                  <td>{{ shortId(image) }}</td>
                 }
                 @if (visibleColumns().has('size')) {
                   <td>{{ formatSize(image.Size) }}</td>

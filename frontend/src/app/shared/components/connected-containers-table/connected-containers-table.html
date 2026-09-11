@@ -1,0 +1,121 @@
+<div class="catbee-container-list-body catbee-base-panel">
+  <table
+    class="catbee-table single-row-table"
+    [class.is-empty]="containers().length === 0"
+    aria-label="Connected containers table"
+  >
+    <thead>
+      <tr>
+        <th scope="col" class="col-used"></th>
+        <th scope="col" class="col-name">Name ({{ containers().length }})</th>
+        <th scope="col" class="col-id">ID</th>
+        <th scope="col" class="col-image">Image</th>
+        @if (addressProvider(); as getAddress) {
+          <th scope="col" class="col-address">Address</th>
+        }
+        <th scope="col" class="col-state">State</th>
+        <th scope="col" class="col-status">Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      @if (containers().length === 0) {
+        <tr class="table-empty-row">
+          <td [attr.colspan]="addressProvider() ? 7 : 6">
+            <catbee-container-studio-empty-state [icon]="emptyIcon()" [message]="emptyMessage()" [hint]="emptyHint()" />
+          </td>
+        </tr>
+      } @else {
+        @for (container of containers(); track container.Id) {
+          <tr (click)="openContainer(container.Id)">
+            <td class="col-used">
+              @if (container.State === 'running') {
+                <span class="usage-dot used"></span>
+              } @else {
+                <span class="usage-dot unused"></span>
+              }
+            </td>
+            <td class="col-name">
+              <button
+                type="button"
+                class="link-btn"
+                (click)="openContainer(container.Id)"
+                [catbeeTooltip]="formatContainerName(container)"
+                [catbeeTooltipOnlyOnOverflow]="true"
+                [catbeeTooltipPosition]="'top'"
+                [catbeeTooltipDelay]="tooltipDelay"
+              >
+                {{ formatContainerName(container) }}
+              </button>
+            </td>
+            <td class="col-id">
+              <span class="id-text">{{ shortId(container.Id) }}</span>
+              <catbee-container-studio-copy-button
+                [text]="container.Id"
+                size="small"
+                (click)="$event.stopPropagation()"
+              />
+            </td>
+            <td class="col-image">
+              @if (
+                currentImageId() && (container.ImageID === currentImageId() || container.Image === currentImageId())
+              ) {
+                <span
+                  class="image-plain-text"
+                  [catbeeTooltip]="container.Image"
+                  [catbeeTooltipOnlyOnOverflow]="true"
+                  [catbeeTooltipPosition]="'top'"
+                  [catbeeTooltipDelay]="tooltipDelay"
+                >
+                  {{ container.Image }}
+                </span>
+              } @else {
+                <button
+                  type="button"
+                  class="link-btn"
+                  (click)="openImageDetails(container.ImageID ?? container.Image); $event.stopPropagation()"
+                  [catbeeTooltip]="container.Image"
+                  [catbeeTooltipOnlyOnOverflow]="true"
+                  [catbeeTooltipPosition]="'top'"
+                  [catbeeTooltipDelay]="tooltipDelay"
+                >
+                  {{ container.Image }}
+                </button>
+              }
+            </td>
+            @if (addressProvider(); as getAddress) {
+              <td
+                class="col-address mono"
+                [catbeeTooltip]="getAddress(container.Id)"
+                [catbeeTooltipOnlyOnOverflow]="true"
+                [catbeeTooltipPosition]="'top'"
+                [catbeeTooltipDelay]="tooltipDelay"
+              >
+                {{ getAddress(container.Id) }}
+              </td>
+            }
+            <td class="col-state">
+              <span
+                class="container-status"
+                [class.running]="container.State === 'running'"
+                [class.stopped]="container.State !== 'running'"
+              >
+                {{ container.State }}
+              </span>
+            </td>
+            <td class="col-status">
+              <span
+                class="status-text"
+                [catbeeTooltip]="container.Status"
+                [catbeeTooltipOnlyOnOverflow]="true"
+                [catbeeTooltipPosition]="'top'"
+                [catbeeTooltipDelay]="tooltipDelay"
+              >
+                {{ container.Status }}
+              </span>
+            </td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+</div>

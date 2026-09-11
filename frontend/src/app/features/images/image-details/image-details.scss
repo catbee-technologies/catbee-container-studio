@@ -3,6 +3,16 @@
   height: 100%;
 }
 
+.catbee-container-list-body {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 0;
+}
+
 table {
   .col-layer-index {
     width: 3.5rem;

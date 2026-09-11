@@ -39,11 +39,21 @@ table.catbee-table {
       background: var(--bg-table-header-border);
     }
 
-    &.col-actions > div.actions-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.25rem;
+    &.col-actions {
+      position: sticky;
+      right: 0;
+      top: 0;
+      z-index: 4;
+      background: var(--bg-table-header);
+      box-shadow: -4px 0 8px -2px var(--shadow-color-subtle);
+      border-left: 1px solid var(--bg-table-header-border);
+
+      & > div.actions-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.25rem;
+      }
     }
   }
 
@@ -78,6 +88,48 @@ table.catbee-table {
 
     td {
       font-size: var(--font-size-lg);
+    }
+  }
+
+  &.single-row-table,
+  &.single-row {
+    --table-row-height: 44px;
+
+    th,
+    td {
+      height: var(--table-row-height);
+      padding: 0 var(--table-cell-x);
+      vertical-align: middle;
+      box-sizing: border-box;
+    }
+
+    td {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    tbody tr {
+      height: var(--table-row-height);
+    }
+
+    tbody tr.group-row td {
+      height: var(--table-row-height);
+      padding: 0 var(--table-cell-x);
+      vertical-align: middle;
+    }
+
+    .link-btn {
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    &.sm {
+      --table-row-height: 36px;
     }
   }
 
@@ -120,9 +172,40 @@ table.catbee-table {
       display: flex;
       flex-wrap: nowrap;
       justify-content: flex-end;
+      align-items: center;
       gap: var(--spacing-sm);
       position: relative;
+      height: 100%;
     }
+  }
+
+  td.col-actions {
+    position: sticky;
+    right: 0;
+    z-index: 2;
+    background: var(--bg-table-row);
+    border-left: 1px solid var(--bg-table-border);
+    box-shadow: -4px 0 8px -2px var(--shadow-color-subtle);
+    overflow: visible;
+  }
+
+  tbody tr:hover td.col-actions {
+    background: var(--bg-table-row-hover);
+  }
+
+  tbody tr.group-row td.col-actions {
+    background: var(--bg-table-row-group);
+    border-top: 1px solid var(--border-color-primary);
+    border-bottom: 1px solid var(--border-color-primary);
+    border-left: 1px solid var(--border-color-primary);
+  }
+
+  tbody tr.group-row:hover td.col-actions {
+    background: var(--bg-table-row-group);
+  }
+
+  tbody tr.selected td.col-actions {
+    background: var(--bg-selected-row);
   }
 
   .col-sortable {
@@ -135,12 +218,46 @@ table.catbee-table {
     text-align: center;
   }
 
+  .col-id {
+    font-family: var(--mono-font);
+    font-size: var(--font-size-sm);
+    color: var(--ink-200);
+    white-space: nowrap;
+
+    .id-text {
+      font-family: var(--mono-font);
+      font-size: var(--font-size-sm);
+    }
+
+    catbee-container-studio-copy-button {
+      visibility: hidden;
+      margin-left: 0.25rem;
+      vertical-align: middle;
+    }
+
+    &:hover {
+      catbee-container-studio-copy-button {
+        visibility: visible;
+      }
+    }
+  }
+
+  .link-btn {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
   &.is-empty {
     height: 100%;
   }
 
   tbody tr.table-empty-row {
     cursor: default;
+    height: 100%;
 
     td:hover {
       background: var(--bg-table-row);
@@ -148,9 +265,12 @@ table.catbee-table {
 
     td {
       border-bottom: 0;
-      padding: 0;
+      padding: 1.5rem 0;
       height: 100%;
       vertical-align: middle;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: unset;
     }
   }
 }

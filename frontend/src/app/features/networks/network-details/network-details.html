@@ -35,60 +35,14 @@
         ariaLabel="Network detail tabs"
         (activeTabChange)="setActiveTab($event)"
       />
-      <section class="catbee-container-list-layout tab-panel" role="tabpanel">
+      <section class="tab-panel" [class.catbee-container-list-layout]="activeTab() === 'containers'" role="tabpanel">
         @if (activeTab() === 'containers') {
-          @if (connectedContainers().length === 0) {
-            <catbee-container-studio-empty-state icon="lan" message="No containers are connected to this network." />
-          } @else {
-            <div class="catbee-container-list-body catbee-base-panel">
-              <table class="catbee-table">
-                <thead>
-                  <tr>
-                    <th>Name ({{ connectedContainers().length }})</th>
-                    <th>Image</th>
-                    <th>Address</th>
-                    <th>State</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (container of connectedContainers(); track container.Id) {
-                    <tr>
-                      <td>
-                        <button type="button" class="link-btn" (click)="openContainer(container.Id)">
-                          {{ formatContainerName(container) }}
-                          <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
-                        </button>
-                        <p class="unique-id">
-                          {{ shortId(container.Id) }}
-                          <catbee-container-studio-copy-button [text]="container.Id" size="small" />
-                        </p>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          class="link-btn"
-                          (click)="openImageDetails(container.ImageID ?? container.Image)"
-                        >
-                          {{ container.Image }}
-                          <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
-                        </button>
-                      </td>
-                      <td class="mono">{{ endpointAddress(container.Id) }}</td>
-                      <td>
-                        <span
-                          class="container-status"
-                          [class.running]="container.State === 'running'"
-                          [class.stopped]="container.State !== 'running'"
-                          >{{ container.State }}</span
-                        >
-                        <p class="status-detail">{{ container.Status }}</p>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          }
+          <catbee-container-studio-connected-containers-table
+            [containers]="connectedContainers()"
+            [emptyMessage]="'No containers are connected to this network.'"
+            [emptyIcon]="'lan'"
+            [addressProvider]="getEndpointAddress"
+          />
         } @else {
           <div class="configuration-grid">
             <section class="configuration-panel network-settings-panel">

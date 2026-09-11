@@ -484,10 +484,23 @@ export class ImagesPage {
 
   repositoryAndTag(image: DockerImageInfo): [string, string] {
     const primary = image.RepoTags?.[0] ?? '<none>:<none>';
-    const idx = primary.lastIndexOf(':');
-    if (idx < 0) return [primary, '<none>'];
+    const atIdx = primary.indexOf('@');
+    const ref = atIdx >= 0 ? primary.slice(0, atIdx) : primary;
+    const idx = ref.lastIndexOf(':');
+    if (idx < 0) return [ref, '<none>'];
 
-    return [primary.slice(0, idx), primary.slice(idx + 1)];
+    return [ref.slice(0, idx), ref.slice(idx + 1)];
+  }
+
+  extraTagsTooltip(image: DockerImageInfo): string {
+    return (image.RepoTags?.slice(1) ?? [])
+      .map(t => {
+        const atIdx = t.indexOf('@');
+        const ref = atIdx >= 0 ? t.slice(0, atIdx) : t;
+        const idx = ref.lastIndexOf(':');
+        return idx >= 0 ? ref.slice(idx + 1) : ref;
+      })
+      .join(', ');
   }
 
   shortId(image: DockerImageInfo): string {

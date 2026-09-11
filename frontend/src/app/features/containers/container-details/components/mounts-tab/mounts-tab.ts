@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, input } from '@angular/core';
 import { Router } from '@angular/router';
-import { DockerApiService } from '@core/docker-api.service';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { DockerContainerInspectInfo } from '@shared/types/docker-api.types';
 import { ElectronApiService } from '@core/electron-api.service';
@@ -25,7 +24,6 @@ interface MountRow {
   styleUrl: './mounts-tab.scss'
 })
 export class MountsTabComponent {
-  private readonly dockerApi = inject(DockerApiService);
   private readonly electronApi = inject(ElectronApiService);
   private readonly router = inject(Router);
 

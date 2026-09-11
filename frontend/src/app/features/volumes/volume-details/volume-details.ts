@@ -5,14 +5,15 @@ import { combineLatest } from 'rxjs';
 import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerInfo, DockerVolumeInfo } from '@shared/types/docker-api.types';
 import { TabsComponent, TabItem } from '@components/tabs/tabs';
-import { DATE_FORMAT, formatDockerBytes, formatDockerNames } from '@utils/docker-display.utils';
+import { DATE_FORMAT, formatDockerBytes } from '@utils/docker-display.utils';
 import { VolumeDetailsPrefetch } from './volume-details.resolver';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { SessionStorageService } from '@ng-catbee/storage';
 import { UI_STORAGE_KEYS } from '@utils/storage.utils';
-import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { VolumeFilesTabComponent } from './components/volume-files-tab/volume-files-tab';
+import { ConnectedContainersTableComponent } from '@components/connected-containers-table/connected-containers-table';
+import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 
 enum VolumeDetailsTab {
   Containers = 'containers',
@@ -26,8 +27,9 @@ enum VolumeDetailsTab {
     TabsComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
-    CopyButtonComponent,
-    VolumeFilesTabComponent
+    VolumeFilesTabComponent,
+    ConnectedContainersTableComponent,
+    CatbeeTooltip
   ],
   templateUrl: './volume-details.html',
   styleUrl: './volume-details.scss'
@@ -39,6 +41,8 @@ export class VolumeDetailsPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly datePipe = inject(DatePipe);
   private readonly sessionStorage = inject(SessionStorageService);
+
+  readonly tooltipDelay = 300;
 
   readonly volumeName = signal('');
   readonly volume = signal<DockerVolumeInfo | null>(null);
@@ -99,14 +103,6 @@ export class VolumeDetailsPage {
     void this.router.navigateByUrl(this.getReturnTo('/volumes'));
   }
 
-  openContainer(containerId: string): void {
-    void this.router.navigate(['/containers', containerId], { state: { returnTo: this.router.url } });
-  }
-
-  formatContainerName(container: DockerContainerInfo): string {
-    return formatDockerNames(container.Names);
-  }
-
   setActiveTab(tab: string): void {
     const allowedTabs = Object.values(VolumeDetailsTab);
     if (!allowedTabs.includes(tab as VolumeDetailsTab)) {
@@ -119,13 +115,6 @@ export class VolumeDetailsPage {
   private getReturnTo(fallback: string): string {
     const state = window.history.state as { returnTo?: string } | null;
     return typeof state?.returnTo === 'string' && state.returnTo.length > 0 ? state.returnTo : fallback;
-  }
-
-  openImageDetails(imageRef: string): void {
-    if (!imageRef) {
-      return;
-    }
-    void this.router.navigate(['/images', imageRef], { state: { returnTo: this.router.url } });
   }
 
   private formatDockerBytes(bytes: number): string {

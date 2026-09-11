@@ -6,9 +6,11 @@ export type SortDirection = (typeof SORT_DIRECTIONS)[number];
 
 export const CONTAINER_SORT_KEYS = [
   'name',
+  'id',
   'image',
   'ports',
   'state',
+  'status',
   'cpu',
   'memory',
   'disk',

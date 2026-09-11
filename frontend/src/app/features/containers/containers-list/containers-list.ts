@@ -29,7 +29,8 @@ import {
 } from '@components/table-column-actions-menu/table-column-actions-menu';
 import { CatbeeLoader } from '@ng-catbee/loader';
 
-type ContainerColumn = 'name' | 'image' | 'ports' | 'state' | 'cpu' | 'memory' | 'disk' | 'network' | 'pids';
+type ContainerColumn =
+  'name' | 'id' | 'image' | 'ports' | 'state' | 'status' | 'cpu' | 'memory' | 'disk' | 'network' | 'pids';
 type ContainerAction = 'start' | 'stop' | 'restart' | 'pause' | 'unpause' | 'remove';
 
 interface ContainerGroup {
@@ -116,6 +117,8 @@ export class ContainersPage {
 
   readonly selectedContainerIds = signal<Set<string>>(new Set<string>());
   readonly openContainerActionsMenuId = signal<string | null>(null);
+  readonly openGroupActionsMenuId = signal<string | null>(null);
+  readonly pendingDeleteGroup = signal<ContainerGroup | null>(null);
   readonly showBulkActionsMenu = signal(false);
 
   readonly runningCount = computed(() => this.containers().filter(item => item.State === 'running').length);
@@ -231,9 +234,11 @@ export class ContainersPage {
   });
 
   readonly columnOptions: ColumnOption<ContainerColumn>[] = [
+    { key: 'id', label: 'ID' },
     { key: 'image', label: 'Image' },
     { key: 'ports', label: 'Ports' },
     { key: 'state', label: 'State' },
+    { key: 'status', label: 'Status' },
     { key: 'cpu', label: 'CPU' },
     { key: 'memory', label: 'Memory' },
     { key: 'disk', label: 'Disk R/W' },
@@ -241,7 +246,7 @@ export class ContainersPage {
     { key: 'pids', label: 'PIDs' }
   ];
 
-  readonly defaultVisibleColumns: ContainerColumn[] = ['name', 'image', 'ports', 'state', 'cpu', 'memory'];
+  readonly defaultVisibleColumns: ContainerColumn[] = ['name', 'id', 'image', 'ports', 'state', 'cpu', 'memory'];
 
   readonly visibleColumns = signal<Set<ContainerColumn>>(
     new Set([
@@ -486,6 +491,15 @@ export class ContainersPage {
     this.openContainerActionsMenuId.set(null);
   }
 
+  toggleGroupActionsMenu(event: MouseEvent, groupId: string): void {
+    event.stopPropagation();
+    this.openGroupActionsMenuId.update(current => (current === groupId ? null : groupId));
+  }
+
+  closeGroupActionsMenu(): void {
+    this.openGroupActionsMenuId.set(null);
+  }
+
   toggleBulkActionsMenu(event: MouseEvent): void {
     event.stopPropagation();
     this.showBulkActionsMenu.update(value => !value);
@@ -658,6 +672,141 @@ export class ContainersPage {
     return `Delete ${this.selectedContainers().length} selected containers permanently? \n This action cannot be undone.`;
   }
 
+  pendingGroupDeleteMessage(): string {
+    const group = this.pendingDeleteGroup();
+    if (!group) {
+      return 'Delete all containers in this group permanently? \n This action cannot be undone.';
+    }
+    return `Delete all ${group.containers.length} containers in group "${group.name}" permanently? \n This action cannot be undone.`;
+  }
+
+  isGroupActionActive(group: ContainerGroup): boolean {
+    const active = this.activeContainerActions();
+    return group.containers.some(c => active.has(c.Id));
+  }
+
+  canStartGroup(group: ContainerGroup): boolean {
+    if (this.isGroupActionActive(group) || this.activeBulkAction() !== null) {
+      return false;
+    }
+    return group.containers.some(c => c.State !== 'running' && c.State !== 'paused');
+  }
+
+  canStopGroup(group: ContainerGroup): boolean {
+    if (this.isGroupActionActive(group) || this.activeBulkAction() !== null) {
+      return false;
+    }
+    return group.containers.some(c => c.State === 'running');
+  }
+
+  canRestartOrDeleteGroup(group: ContainerGroup): boolean {
+    if (this.isGroupActionActive(group) || this.activeBulkAction() !== null) {
+      return false;
+    }
+    return group.containers.length > 0;
+  }
+
+  canRestartGroup(group: ContainerGroup): boolean {
+    return this.canRestartOrDeleteGroup(group);
+  }
+
+  canPauseGroup(group: ContainerGroup): boolean {
+    if (this.isGroupActionActive(group) || this.activeBulkAction() !== null) {
+      return false;
+    }
+    return group.containers.some(c => c.State === 'running');
+  }
+
+  canUnpauseGroup(group: ContainerGroup): boolean {
+    if (this.isGroupActionActive(group) || this.activeBulkAction() !== null) {
+      return false;
+    }
+    return group.containers.some(c => c.State === 'paused');
+  }
+
+  canDeleteGroup(group: ContainerGroup): boolean {
+    return this.canRestartOrDeleteGroup(group);
+  }
+
+  async startGroup(group: ContainerGroup): Promise<void> {
+    await this.runGroupAction(
+      group,
+      'start',
+      async container => {
+        await this.dockerApi.startContainer(container.Id);
+      },
+      container => container.State !== 'running' && container.State !== 'paused'
+    );
+  }
+
+  async stopGroup(group: ContainerGroup): Promise<void> {
+    await this.runGroupAction(
+      group,
+      'stop',
+      async container => {
+        await this.dockerApi.stopContainer(container.Id);
+      },
+      container => container.State === 'running'
+    );
+  }
+
+  async restartGroup(group: ContainerGroup): Promise<void> {
+    await this.runGroupAction(
+      group,
+      'restart',
+      async container => {
+        await this.dockerApi.restartContainer(container.Id);
+      },
+      () => true
+    );
+  }
+
+  async pauseGroup(group: ContainerGroup): Promise<void> {
+    await this.runGroupAction(
+      group,
+      'pause',
+      async container => {
+        await this.dockerApi.pauseContainer(container.Id);
+      },
+      container => container.State === 'running'
+    );
+  }
+
+  async unpauseGroup(group: ContainerGroup): Promise<void> {
+    await this.runGroupAction(
+      group,
+      'unpause',
+      async container => {
+        await this.dockerApi.unpauseContainer(container.Id);
+      },
+      container => container.State === 'paused'
+    );
+  }
+
+  requestDeleteGroup(group: ContainerGroup): void {
+    this.pendingDeleteGroup.set(group);
+  }
+
+  cancelDeleteGroup(): void {
+    this.pendingDeleteGroup.set(null);
+  }
+
+  async confirmDeleteGroup(): Promise<void> {
+    const group = this.pendingDeleteGroup();
+    if (!group) {
+      return;
+    }
+    this.pendingDeleteGroup.set(null);
+    await this.runGroupAction(
+      group,
+      'remove',
+      async container => {
+        await this.dockerApi.removeContainer(container.Id, true);
+      },
+      () => true
+    );
+  }
+
   openImageDetails(imageRef: string): void {
     if (!imageRef) {
       return;
@@ -727,6 +876,63 @@ export class ContainersPage {
     }
   }
 
+  private async runGroupAction(
+    group: ContainerGroup,
+    actionName: ContainerAction,
+    action: (container: DockerContainerInfo) => Promise<void>,
+    predicate: (container: DockerContainerInfo) => boolean
+  ): Promise<void> {
+    this.error.set(null);
+
+    try {
+      const targets = group.containers.filter(predicate);
+      if (targets.length === 0) {
+        return;
+      }
+
+      const failedContainers: string[] = [];
+
+      for (const container of targets) {
+        this.setContainerAction(container.Id, actionName);
+      }
+
+      await Promise.all(
+        targets.map(async container => {
+          try {
+            await action(container);
+          } catch {
+            failedContainers.push(this.primaryName(container));
+          } finally {
+            this.clearContainerAction(container.Id);
+          }
+        })
+      );
+
+      if (actionName === 'remove') {
+        const targetIds = new Set(targets.map(t => t.Id));
+        this.selectedContainerIds.update(current => {
+          const next = new Set(current);
+          for (const id of targetIds) {
+            next.delete(id);
+          }
+          return next;
+        });
+      }
+
+      await this.loadContainers();
+
+      if (failedContainers.length > 0) {
+        this.error.set(
+          `Failed to ${actionName} ${
+            failedContainers.length === 1 ? 'container' : 'containers'
+          } in group "${group.name}": ${failedContainers.join(', ')}`
+        );
+      }
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : 'Group action failed.');
+    }
+  }
+
   private groupContainersByCompose(containers: DockerContainerInfo[]): ContainerGroup[] {
     const groups = new Map<string, ContainerGroup>();
 
@@ -769,12 +975,16 @@ export class ContainersPage {
 
       if (key === 'name') {
         result = this.primaryName(left).localeCompare(this.primaryName(right));
+      } else if (key === 'id') {
+        result = left.Id.localeCompare(right.Id);
       } else if (key === 'image') {
         result = left.Image.localeCompare(right.Image);
       } else if (key === 'ports') {
         result = left.Ports.length - right.Ports.length;
       } else if (key === 'state') {
         result = left.State.localeCompare(right.State);
+      } else if (key === 'status') {
+        result = (left.Status ?? '').localeCompare(right.Status ?? '');
       } else if (key === 'cpu') {
         const leftCpu = this.containerRuntimeStats().get(left.Id)?.cpuPercent ?? 0;
         const rightCpu = this.containerRuntimeStats().get(right.Id)?.cpuPercent ?? 0;

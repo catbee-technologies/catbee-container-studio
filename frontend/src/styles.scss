@@ -358,6 +358,13 @@ input {
     border: none;
   }
 
+  &.catbee-container-list-layout {
+    overflow: hidden;
+    padding: 0;
+    border: none;
+    background: transparent;
+  }
+
   .panel-head h2 {
     margin: 0 0 0.5rem 0;
     font-size: var(--font-size-base);
