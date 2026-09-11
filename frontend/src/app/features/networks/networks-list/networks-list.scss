@@ -50,20 +50,6 @@ table.catbee-table .col-actions {
   font-size: var(--font-size-sm);
 }
 
-.field-input {
-  width: 100%;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--border-color-primary);
-  border-radius: 0.5rem;
-  background: var(--bg-input);
-  color: var(--ink-100);
-
-  &:focus-visible {
-    outline: none;
-    border-color: var(--border-color-hover);
-  }
-}
-
 .check-field {
   display: flex;
   align-items: center;

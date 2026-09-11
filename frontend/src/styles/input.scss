@@ -1,0 +1,114 @@
+// Standard text input & select styling
+.field-input,
+.field-select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-color-primary);
+  background: var(--bg-input);
+  color: var(--ink-100);
+  font: inherit;
+  font-size: var(--font-size-base);
+  transition:
+    border-color var(--transition-base),
+    box-shadow var(--transition-base);
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--border-color-hover);
+    box-shadow: var(--shadow-control-focus);
+  }
+
+  &::placeholder {
+    color: var(--ink-400);
+  }
+
+  &:disabled,
+  &[readonly] {
+    cursor: default;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    color: var(--ink-500);
+    cursor: not-allowed;
+  }
+}
+
+// Search input container and controls
+catbee-container-studio-search-input {
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.search-container {
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-color-accent);
+  background: var(--bg-surface);
+  border-radius: 0.6rem;
+  padding: 0 0.2rem 0 0.3rem;
+  box-shadow: var(--shadow-control-inset);
+  height: 2.25rem;
+  margin: 2px;
+  transition:
+    border-color var(--transition-base),
+    box-shadow var(--transition-base);
+
+  &:focus-within {
+    border-color: var(--border-color-hover);
+    box-shadow: var(--shadow-control-focus);
+  }
+}
+
+.search-icon {
+  font-size: 1rem;
+  color: var(--ink-100);
+}
+
+.search-input {
+  flex: 1;
+  width: auto;
+  min-width: 140px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-100);
+  border-radius: 0.6rem;
+  padding: 0.5rem 0.45rem;
+
+  &:focus-visible {
+    outline: none;
+  }
+
+  &::placeholder {
+    color: var(--ink-400);
+  }
+}
+
+.search-clear {
+  border: 0;
+  background: transparent;
+  color: var(--ink-400);
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  &:not(:disabled):hover {
+    color: var(--color-danger-text);
+    background: var(--bg-error-hover);
+  }
+}

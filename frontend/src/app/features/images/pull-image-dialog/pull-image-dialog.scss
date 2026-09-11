@@ -14,27 +14,6 @@
     color: var(--ink-300);
   }
 
-  .field-input {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 0.45rem 0.6rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--border-color-primary);
-    background: var(--bg-input);
-    color: var(--ink-100);
-    font: inherit;
-    font-size: var(--font-size-base);
-
-    &:focus-visible {
-      outline: none;
-      border-color: var(--border-color-hover);
-    }
-
-    &:disabled {
-      color: var(--ink-500);
-    }
-  }
-
   .progress-log {
     max-height: 14rem;
     overflow-y: auto;
