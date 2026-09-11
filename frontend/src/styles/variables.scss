@@ -119,6 +119,7 @@
 
   // Component Backgrounds
   --bg-hover: rgb(57 213 255 / 0.16);
+  --bg-hover-subtle: rgb(255 255 255 / 0.05);
   --bg-active: linear-gradient(120deg, rgb(24 101 118 / 0.5), rgb(27 140 122 / 0.28));
 
   // Table Row Backgrounds
@@ -157,44 +158,125 @@
   --border-color-error: rgb(255 123 142 / 0.62);
 
   // BUTTON COLORS & GRADIENTS
-  // Default Button Gradient
+  // Base / Default Action Button
   --btn-default-gradient: linear-gradient(180deg, rgb(37 61 84 / 0.8), rgb(20 38 58 / 0.82));
   --btn-default-gradient-hover: linear-gradient(180deg, rgb(56 90 122 / 0.88), rgb(28 51 76 / 0.86));
+  --btn-action-shadow: var(--shadow-control-inset), 0 1px 2px rgba(0, 0, 0, 0.12);
+  --btn-action-shadow-hover: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 3px 8px -1px rgba(0, 0, 0, 0.25);
+  --btn-action-shadow-active: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+
+  // Icon-Only Action Button
+  --btn-icon-only-bg: var(--btn-default-gradient);
+  --btn-icon-only-bg-hover: var(--btn-default-gradient-hover);
+  --btn-icon-only-border: var(--border-color-primary);
+  --btn-icon-only-border-hover: var(--border-color-hover);
+  --btn-icon-only-text: var(--ink-100);
+  --btn-icon-only-text-hover: var(--ink-100);
+  --btn-icon-only-shadow-hover: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 3px 8px -1px rgba(0, 0, 0, 0.25);
+
+  // Start Action Button
+  --btn-start-text: #34d399;
+  --btn-start-text-hover: #6ee7b7;
+  --btn-start-bg: linear-gradient(180deg, rgba(16, 185, 129, 0.16) 0%, rgba(5, 150, 105, 0.1) 100%);
+  --btn-start-bg-hover: linear-gradient(180deg, rgba(16, 185, 129, 0.28) 0%, rgba(5, 150, 105, 0.2) 100%);
+  --btn-start-bg-active: rgba(16, 185, 129, 0.24);
+  --btn-start-border: rgba(52, 211, 153, 0.35);
+  --btn-start-border-hover: rgba(52, 211, 153, 0.7);
+  --btn-start-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --btn-start-shadow-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 12px rgba(16, 185, 129, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+
+  // Stop Action Button
+  --btn-stop-text: #fb923c;
+  --btn-stop-text-hover: #fdba74;
+  --btn-stop-bg: linear-gradient(180deg, rgba(249, 115, 22, 0.16) 0%, rgba(234, 88, 12, 0.1) 100%);
+  --btn-stop-bg-hover: linear-gradient(180deg, rgba(249, 115, 22, 0.28) 0%, rgba(234, 88, 12, 0.2) 100%);
+  --btn-stop-bg-active: rgba(249, 115, 22, 0.24);
+  --btn-stop-border: rgba(251, 146, 60, 0.35);
+  --btn-stop-border-hover: rgba(251, 146, 60, 0.7);
+  --btn-stop-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --btn-stop-shadow-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 12px rgba(249, 115, 22, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+
+  // Pause Action Button
+  --btn-pause-text: #facc15;
+  --btn-pause-text-hover: #fde047;
+  --btn-pause-bg: linear-gradient(180deg, rgba(234, 179, 8, 0.16) 0%, rgba(202, 138, 4, 0.1) 100%);
+  --btn-pause-bg-hover: linear-gradient(180deg, rgba(234, 179, 8, 0.28) 0%, rgba(202, 138, 4, 0.2) 100%);
+  --btn-pause-bg-active: rgba(234, 179, 8, 0.24);
+  --btn-pause-border: rgba(250, 204, 21, 0.35);
+  --btn-pause-border-hover: rgba(250, 204, 21, 0.7);
+  --btn-pause-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --btn-pause-shadow-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 12px rgba(234, 179, 8, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+
+  // Unpause Action Button
+  --btn-unpause-text: #2dd4bf;
+  --btn-unpause-text-hover: #5eead4;
+  --btn-unpause-bg: linear-gradient(180deg, rgba(20, 184, 166, 0.16) 0%, rgba(13, 148, 136, 0.1) 100%);
+  --btn-unpause-bg-hover: linear-gradient(180deg, rgba(20, 184, 166, 0.28) 0%, rgba(13, 148, 136, 0.2) 100%);
+  --btn-unpause-bg-active: rgba(20, 184, 166, 0.24);
+  --btn-unpause-border: rgba(45, 212, 191, 0.35);
+  --btn-unpause-border-hover: rgba(45, 212, 191, 0.7);
+  --btn-unpause-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --btn-unpause-shadow-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 12px rgba(20, 184, 166, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+
+  // Restart Action Button
+  --btn-restart-text: #38bdf8;
+  --btn-restart-text-hover: #7dd3fc;
+  --btn-restart-bg: linear-gradient(180deg, rgba(14, 165, 233, 0.16) 0%, rgba(2, 132, 199, 0.1) 100%);
+  --btn-restart-bg-hover: linear-gradient(180deg, rgba(14, 165, 233, 0.28) 0%, rgba(2, 132, 199, 0.2) 100%);
+  --btn-restart-bg-active: rgba(14, 165, 233, 0.24);
+  --btn-restart-border: rgba(56, 189, 248, 0.35);
+  --btn-restart-border-hover: rgba(56, 189, 248, 0.7);
+  --btn-restart-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --btn-restart-shadow-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 12px rgba(14, 165, 233, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --btn-info-text: var(--btn-restart-text);
+
+  // Danger / Delete Action Button
+  --btn-danger-text: #f87171;
+  --btn-danger-text-hover: #fca5a5;
+  --btn-danger-bg: linear-gradient(180deg, rgba(239, 68, 68, 0.16) 0%, rgba(220, 38, 38, 0.1) 100%);
+  --btn-danger-bg-hover: linear-gradient(180deg, rgba(239, 68, 68, 0.28) 0%, rgba(220, 38, 38, 0.2) 100%);
+  --btn-danger-bg-active: rgba(239, 68, 68, 0.24);
+  --btn-danger-border: rgba(248, 113, 113, 0.35);
+  --btn-danger-border-hover: rgba(248, 113, 113, 0.7);
+  --btn-danger-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 3px rgba(0, 0, 0, 0.2);
+  --btn-danger-shadow-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 12px rgba(239, 68, 68, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+
+  // Primary Action Button
+  --btn-primary-text: #ffffff;
+  --btn-primary-bg: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
+  --btn-primary-bg-hover: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%);
+  --btn-primary-bg-active: #0369a1;
+  --btn-primary-border: rgba(56, 189, 248, 0.6);
+  --btn-primary-border-hover: rgba(125, 211, 252, 0.8);
+  --btn-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 6px rgba(2, 132, 199, 0.35);
+  --btn-primary-shadow-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 12px rgba(14, 165, 233, 0.45), 0 3px 8px rgba(0, 0, 0, 0.3);
+
+  // Refresh Button
+  --btn-refresh-text: #d9f7ff;
   --btn-refresh-gradient: linear-gradient(180deg, rgb(34 82 104 / 0.92), rgb(22 55 76 / 0.94));
   --btn-refresh-gradient-hover: linear-gradient(180deg, rgb(45 102 128 / 0.96), rgb(27 69 94 / 0.98));
   --btn-refresh-border: rgb(103 194 220 / 0.58);
-  --btn-refresh-text: #d9f7ff;
+  --btn-refresh-border-hover: rgb(127 243 255 / 0.75);
+  --btn-refresh-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.12);
+  --btn-refresh-shadow-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 10px rgba(14, 165, 233, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25);
 
-  // Success/Start Button
-  --btn-success-gradient: linear-gradient(180deg, rgb(25 132 105 / 0.92), rgb(18 95 82 / 0.9));
-  --btn-success-border: rgb(56 210 151 / 0.6);
-  --btn-success-text: #dffff3;
-
-  // Warning/Pause Button
-  --btn-warning-gradient: linear-gradient(180deg, rgb(147 106 34 / 0.9), rgb(108 74 20 / 0.92));
-  --btn-warning-border: rgb(245 191 90 / 0.62);
-  --btn-warning-text: #fff1d3;
-
-  // Danger/Stop Button
-  --btn-danger-gradient: linear-gradient(180deg, rgb(170 82 57 / 0.9), rgb(123 53 36 / 0.92));
-  --btn-danger-border: rgb(255 143 124 / 0.64);
-  --btn-danger-text: #ffe2d5;
-
-  // Info/Restart Button
-  --btn-info-gradient: linear-gradient(180deg, rgb(25 151 181 / 0.92), rgb(13 101 130 / 0.94));
-  --btn-info-border: rgb(127 243 255 / 0.6);
-  --btn-info-text: #d9faff;
-
-  // Unpause Button (secondary teal)
-  --btn-unpause-gradient: linear-gradient(180deg, rgb(28 130 108 / 0.88), rgb(17 95 82 / 0.9));
-  --btn-unpause-border: rgb(108 219 186 / 0.62);
-  --btn-unpause-text: #defef2;
-
-  // Destructive/Delete Button
-  --btn-delete-gradient: linear-gradient(180deg, rgb(165 44 75 / 0.93), rgb(121 28 56 / 0.95));
-  --btn-delete-border: rgb(245 108 126 / 0.66);
-  --btn-delete-text: #ffe1e8;
-  --btn-delete-hover: linear-gradient(180deg, rgb(190 49 86 / 0.96), rgb(137 31 63 / 0.97));
+  // Back Button
+  --btn-back-text: var(--color-info-text);
+  --btn-back-text-hover: var(--color-hover-text);
+  --btn-back-bg: var(--btn-default-gradient);
+  --btn-back-bg-hover: var(--btn-default-gradient-hover);
+  --btn-back-border: var(--border-color-primary);
+  --btn-back-border-hover: var(--border-color-hover);
+  --btn-back-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.12);
+  --btn-back-shadow-hover: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 1px 3px rgba(0, 0, 0, 0.16);
 
   // BADGE COLORS
   // Running Badge

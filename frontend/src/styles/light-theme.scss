@@ -95,6 +95,7 @@ html[data-theme='light'] {
 
   // Component Backgrounds
   --bg-hover: rgb(8 143 171 / 0.09);
+  --bg-hover-subtle: rgb(100 116 139 / 0.1);
 
   --bg-active: linear-gradient(120deg, rgb(8 143 171 / 0.16), rgb(29 202 187 / 0.1));
 
@@ -136,53 +137,125 @@ html[data-theme='light'] {
   --border-color-error: rgb(229 83 83 / 0.45);
 
   // BUTTON COLORS & GRADIENTS
+  // Base / Default Action Button
+  --btn-default-gradient: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+  --btn-default-gradient-hover: linear-gradient(180deg, #f8fafc 0%, #e2e8ee 100%);
+  --btn-action-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(0, 0, 0, 0.05);
+  --btn-action-shadow-hover: inset 0 1px 0 #ffffff, 0 3px 8px -1px rgba(0, 0, 0, 0.12);
+  --btn-action-shadow-active: inset 0 1px 2px rgba(0, 0, 0, 0.12);
 
-  // Default Button
-  --btn-default-gradient: linear-gradient(180deg, #ffffff 0%, #eef2f6 100%);
+  // Icon-Only Action Button
+  --btn-icon-only-bg: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  --btn-icon-only-bg-hover: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  --btn-icon-only-border: #cbd5e1;
+  --btn-icon-only-border-hover: #94a3b8;
+  --btn-icon-only-text: #475569;
+  --btn-icon-only-text-hover: #0f172a;
+  --btn-icon-only-shadow-hover: inset 0 1px 0 #ffffff, 0 2px 6px -1px rgba(0, 0, 0, 0.1);
 
-  --btn-default-gradient-hover: linear-gradient(180deg, #f3f7fa 0%, #e2e8ee 100%);
-  --btn-refresh-gradient: linear-gradient(180deg, #eff7fb 0%, #dcecf4 100%);
-  --btn-refresh-gradient-hover: linear-gradient(180deg, #e0f2fa 0%, #cbe5f1 100%);
-  --btn-refresh-border: rgb(7 116 145 / 0.52);
-  --btn-refresh-text: #075985;
+  // Start Action Button
+  --btn-start-text: #16a34a;
+  --btn-start-text-hover: #15803d;
+  --btn-start-bg: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+  --btn-start-bg-hover: linear-gradient(180deg, #d1fae5 0%, #a7f3d0 100%);
+  --btn-start-bg-active: #a7f3d0;
+  --btn-start-border: #86efac;
+  --btn-start-border-hover: #4ade80;
+  --btn-start-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(0, 0, 0, 0.05);
+  --btn-start-shadow-hover:
+    inset 0 1px 0 #ffffff, 0 0 10px rgba(34, 197, 94, 0.35), 0 2px 6px -1px rgba(22, 163, 74, 0.3);
 
-  // Success/Start Button
-  --btn-success-gradient: linear-gradient(180deg, #39b95b 0%, #249447 100%);
+  // Stop Action Button
+  --btn-stop-text: #ea580c;
+  --btn-stop-text-hover: #c2410c;
+  --btn-stop-bg: linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%);
+  --btn-stop-bg-hover: linear-gradient(180deg, #ffedd5 0%, #fed7aa 100%);
+  --btn-stop-bg-active: #fed7aa;
+  --btn-stop-border: #fed7aa;
+  --btn-stop-border-hover: #fb923c;
+  --btn-stop-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(0, 0, 0, 0.05);
+  --btn-stop-shadow-hover:
+    inset 0 1px 0 #ffffff, 0 0 10px rgba(249, 115, 22, 0.35), 0 2px 6px -1px rgba(234, 88, 12, 0.3);
 
-  --btn-success-border: rgb(26 127 55 / 0.52);
-  --btn-success-text: #ffffff;
+  // Pause Action Button
+  --btn-pause-text: #ca8a04;
+  --btn-pause-text-hover: #a16207;
+  --btn-pause-bg: linear-gradient(180deg, #fefce8 0%, #fef9c3 100%);
+  --btn-pause-bg-hover: linear-gradient(180deg, #fef9c3 0%, #fde047 100%);
+  --btn-pause-bg-active: #fde047;
+  --btn-pause-border: #fde047;
+  --btn-pause-border-hover: #eab308;
+  --btn-pause-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(0, 0, 0, 0.05);
+  --btn-pause-shadow-hover:
+    inset 0 1px 0 #ffffff, 0 0 10px rgba(234, 179, 8, 0.35), 0 2px 6px -1px rgba(202, 138, 4, 0.3);
 
-  // Warning/Pause Button
-  --btn-warning-gradient: linear-gradient(180deg, #e4ae35 0%, #c68a0c 100%);
+  // Unpause Action Button
+  --btn-unpause-text: #0d9488;
+  --btn-unpause-text-hover: #0f766e;
+  --btn-unpause-bg: linear-gradient(180deg, #f0fdfa 0%, #ccfbf1 100%);
+  --btn-unpause-bg-hover: linear-gradient(180deg, #ccfbf1 0%, #99f6e4 100%);
+  --btn-unpause-bg-active: #99f6e4;
+  --btn-unpause-border: #99f6e4;
+  --btn-unpause-border-hover: #2dd4bf;
+  --btn-unpause-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(0, 0, 0, 0.05);
+  --btn-unpause-shadow-hover:
+    inset 0 1px 0 #ffffff, 0 0 10px rgba(20, 184, 166, 0.35), 0 2px 6px -1px rgba(13, 148, 136, 0.3);
 
-  --btn-warning-border: rgb(154 103 0 / 0.48);
-  --btn-warning-text: #ffffff;
+  // Restart Action Button
+  --btn-restart-text: #0284c7;
+  --btn-restart-text-hover: #0369a1;
+  --btn-restart-bg: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+  --btn-restart-bg-hover: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%);
+  --btn-restart-bg-active: #bae6fd;
+  --btn-restart-border: #bae6fd;
+  --btn-restart-border-hover: #38bdf8;
+  --btn-restart-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(0, 0, 0, 0.05);
+  --btn-restart-shadow-hover:
+    inset 0 1px 0 #ffffff, 0 0 10px rgba(14, 165, 233, 0.35), 0 2px 6px -1px rgba(2, 132, 199, 0.3);
+  --btn-info-text: var(--btn-restart-text);
 
-  // Danger/Stop Button
-  --btn-danger-gradient: linear-gradient(180deg, #e86658 0%, #d84c3d 100%);
+  // Danger / Delete Action Button
+  --btn-danger-text: #dc2626;
+  --btn-danger-text-hover: #b91c1c;
+  --btn-danger-bg: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
+  --btn-danger-bg-hover: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%);
+  --btn-danger-bg-active: #fecaca;
+  --btn-danger-border: #fecaca;
+  --btn-danger-border-hover: #f87171;
+  --btn-danger-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(0, 0, 0, 0.05);
+  --btn-danger-shadow-hover:
+    inset 0 1px 0 #ffffff, 0 0 10px rgba(239, 68, 68, 0.35), 0 2px 6px -1px rgba(220, 38, 38, 0.3);
 
-  --btn-danger-border: rgb(207 34 46 / 0.48);
-  --btn-danger-text: #ffffff;
+  // Primary Action Button
+  --btn-primary-text: #ffffff;
+  --btn-primary-bg: linear-gradient(180deg, #0b91b0 0%, #087a9d 100%);
+  --btn-primary-bg-hover: linear-gradient(180deg, #0d9ec0 0%, #0b91b0 100%);
+  --btn-primary-bg-active: #087a9d;
+  --btn-primary-border: #076d8c;
+  --btn-primary-border-hover: #055a73;
+  --btn-primary-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 4px rgba(8, 122, 157, 0.3);
+  --btn-primary-shadow-hover:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 12px rgba(8, 122, 157, 0.4), 0 3px 8px rgba(8, 122, 157, 0.35);
 
-  // Info/Restart Button
-  --btn-info-gradient: linear-gradient(180deg, #28c5e5 0%, #0d98bd 100%);
+  // Refresh Button
+  --btn-refresh-text: #0284c7;
+  --btn-refresh-gradient: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+  --btn-refresh-gradient-hover: linear-gradient(180deg, #e0f2fe 0%, #bae6fd 100%);
+  --btn-refresh-border: #bae6fd;
+  --btn-refresh-border-hover: #38bdf8;
+  --btn-refresh-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(0, 0, 0, 0.05);
+  --btn-refresh-shadow-hover:
+    inset 0 1px 0 #ffffff, 0 0 10px rgba(14, 165, 233, 0.35), 0 2px 6px rgba(2, 132, 199, 0.25);
 
-  --btn-info-border: rgb(7 116 145 / 0.48);
-  --btn-info-text: #ffffff;
-
-  // Unpause Button
-  --btn-unpause-gradient: linear-gradient(180deg, #35bd96 0%, #209d7a 100%);
-
-  --btn-unpause-border: rgb(23 131 95 / 0.48);
-  --btn-unpause-text: #ffffff;
-
-  // Destructive/Delete Button
-  --btn-delete-gradient: linear-gradient(180deg, #e45b72 0%, #d33f5b 100%);
-
-  --btn-delete-border: rgb(207 34 46 / 0.5);
-  --btn-delete-text: #ffffff;
-
-  --btn-delete-hover: linear-gradient(180deg, #e9677c 0%, #cf304f 100%);
+  // Back Button
+  --btn-back-text: #0b91b0;
+  --btn-back-text-hover: #087a9d;
+  --btn-back-bg: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  --btn-back-bg-hover: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  --btn-back-border: #cbd5e1;
+  --btn-back-border-hover: #0b91b0;
+  --btn-back-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(0, 0, 0, 0.05);
+  --btn-back-shadow-hover: inset 0 1px 0 #ffffff, 0 2px 5px -1px rgba(0, 0, 0, 0.1);
 
   // BADGE COLORS
 
