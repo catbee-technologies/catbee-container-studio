@@ -34,7 +34,7 @@
     <div class="header-actions">
       <button
         type="button"
-        class="catbee-action-btn icon-only action-start"
+        class="catbee-action-btn icon-only lg action-start"
         (click)="start()"
         [disabled]="container()?.State === 'running'"
         aria-label="Start"
@@ -46,7 +46,7 @@
       </button>
       <button
         type="button"
-        class="catbee-action-btn icon-only action-stop"
+        class="catbee-action-btn icon-only lg action-stop"
         (click)="stop()"
         [disabled]="container()?.State !== 'running'"
         aria-label="Stop"
@@ -58,7 +58,7 @@
       </button>
       <button
         type="button"
-        class="catbee-action-btn icon-only action-pause"
+        class="catbee-action-btn icon-only lg action-pause"
         (click)="pause()"
         [disabled]="container()?.State !== 'running'"
         aria-label="Pause"
@@ -70,7 +70,7 @@
       </button>
       <button
         type="button"
-        class="catbee-action-btn icon-only action-unpause"
+        class="catbee-action-btn icon-only lg action-unpause"
         (click)="unpause()"
         [disabled]="container()?.State !== 'paused'"
         aria-label="Unpause"
@@ -82,7 +82,7 @@
       </button>
       <button
         type="button"
-        class="catbee-action-btn icon-only action-restart"
+        class="catbee-action-btn icon-only lg action-restart"
         (click)="restart()"
         aria-label="Restart"
         [catbeeTooltip]="'Restart'"
