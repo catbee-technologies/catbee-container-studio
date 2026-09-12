@@ -461,7 +461,21 @@
                           [backgroundColor]="'transparent'"
                         />
                       } @else if (container.State === 'running') {
-                        <span class="usage-dot used"></span>
+                        <span
+                          class="usage-dot used"
+                          catbeeTooltip="Running"
+                          [catbeeTooltipPosition]="'top'"
+                          [catbeeTooltipDelay]="tooltipDelay"
+                          aria-label="Running"
+                        ></span>
+                      } @else if (container.State === 'paused') {
+                        <span
+                          class="usage-dot paused"
+                          catbeeTooltip="Paused"
+                          [catbeeTooltipPosition]="'top'"
+                          [catbeeTooltipDelay]="tooltipDelay"
+                          aria-label="Paused"
+                        ></span>
                       }
                     </td>
                     <td class="col-name">
@@ -515,7 +529,8 @@
                         <span
                           class="container-status"
                           [class.running]="container.State === 'running'"
-                          [class.stopped]="container.State !== 'running'"
+                          [class.paused]="container.State === 'paused'"
+                          [class.stopped]="container.State !== 'running' && container.State !== 'paused'"
                           [catbeeTooltip]="container.Status"
                           [catbeeTooltipDisabled]="visibleColumns().has('status')"
                           [catbeeTooltipPosition]="'top'"
@@ -527,15 +542,38 @@
                     }
                     @if (visibleColumns().has('status')) {
                       <td class="col-status">
-                        <span
-                          class="status-text"
-                          [catbeeTooltip]="container.Status"
-                          [catbeeTooltipOnlyOnOverflow]="true"
-                          [catbeeTooltipPosition]="'top'"
-                          [catbeeTooltipDelay]="tooltipDelay"
-                        >
-                          {{ container.Status }}
-                        </span>
+                        @if (parseDockerStatus(container.Status); as status) {
+                          <span class="status-cell">
+                            <span
+                              class="status-text"
+                              [catbeeTooltip]="container.Status"
+                              [catbeeTooltipOnlyOnOverflow]="true"
+                              [catbeeTooltipPosition]="'top'"
+                              [catbeeTooltipDelay]="tooltipDelay"
+                            >
+                              {{ status.statusText }}
+                            </span>
+                            @if (status.health; as health) {
+                              <span
+                                class="health-dot"
+                                [class]="health.status"
+                                [catbeeTooltip]="health.label"
+                                [catbeeTooltipPosition]="'top'"
+                                [catbeeTooltipDelay]="tooltipDelay"
+                                [attr.aria-label]="health.label"
+                              ></span>
+                            }
+                            @if (status.paused || container.State === 'paused') {
+                              <span
+                                class="paused-dot"
+                                catbeeTooltip="Paused"
+                                [catbeeTooltipPosition]="'top'"
+                                [catbeeTooltipDelay]="tooltipDelay"
+                                aria-label="Paused"
+                              ></span>
+                            }
+                          </span>
+                        }
                       </td>
                     }
                     @if (visibleColumns().has('cpu')) {

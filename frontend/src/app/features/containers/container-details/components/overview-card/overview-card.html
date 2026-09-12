@@ -4,7 +4,8 @@
     <span
       class="container-status state"
       [class.running]="container().State === 'running'"
-      [class.stopped]="container().State !== 'running'"
+      [class.paused]="container().State === 'paused'"
+      [class.stopped]="container().State !== 'running' && container().State !== 'paused'"
     >
       {{ container().State }}
     </span>

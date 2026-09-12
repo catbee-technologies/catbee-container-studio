@@ -5,7 +5,7 @@ import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { DockerContainerInfo } from '@shared/types/docker-api.types';
-import { formatDockerNames } from '@utils/docker-display.utils';
+import { formatDockerNames, formatDockerStatus, parseDockerStatus } from '@utils/docker-display.utils';
 
 @Component({
   selector: 'catbee-container-studio-connected-containers-table',
@@ -39,6 +39,14 @@ export class ConnectedContainersTableComponent {
 
   formatContainerName(container: DockerContainerInfo): string {
     return formatDockerNames(container.Names);
+  }
+
+  formatDockerStatus(status: string | null | undefined): string {
+    return formatDockerStatus(status);
+  }
+
+  parseDockerStatus(status: string | null | undefined) {
+    return parseDockerStatus(status);
   }
 
   shortId(id: string): string {

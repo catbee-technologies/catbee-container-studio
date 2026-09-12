@@ -284,6 +284,11 @@
   --badge-running-border: rgb(74 223 169 / 0.58);
   --badge-running-text: #cbffe8;
 
+  // Paused Badge (amber/yellow)
+  --badge-paused-gradient: linear-gradient(140deg, rgb(210 153 34 / 0.28), rgb(158 106 3 / 0.3));
+  --badge-paused-border: rgb(242 204 96 / 0.55);
+  --badge-paused-text: #fff1d3;
+
   // Stopped Badge
   --badge-stopped-gradient: linear-gradient(140deg, rgb(206 104 64 / 0.28), rgb(144 66 39 / 0.3));
   --badge-stopped-border: rgb(255 153 115 / 0.55);
@@ -355,6 +360,9 @@
   --usage-used-bg: #5be2ae;
   --usage-used-border: #87f4cb;
   --usage-used-shadow: rgb(91 226 174 / 0.55);
+  --usage-paused-bg: #f2cc60;
+  --usage-paused-border: #f8df8d;
+  --usage-paused-shadow: rgb(242 204 96 / 0.55);
   --usage-unused-bg: rgb(151 173 198 / 0.26);
   --usage-unused-border: rgb(151 173 198 / 0.55);
 

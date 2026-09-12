@@ -10,7 +10,12 @@ import { PortListComponent } from '@components/port-list/port-list';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
 import { TableSortHeaderComponent } from '@components/table-sort-header/table-sort-header';
-import { formatDockerBytes, formatDockerNames } from '@utils/docker-display.utils';
+import {
+  formatDockerBytes,
+  formatDockerNames,
+  formatDockerStatus,
+  parseDockerStatus
+} from '@utils/docker-display.utils';
 import {
   LOGS_STORAGE_KEYS,
   removeStalePrefixedStorageEntries,
@@ -160,6 +165,8 @@ export class ContainersPage {
   readonly visibleContainers = computed(() => {
     const query = this.searchTerm().trim().toLowerCase();
     const runningOnly = this.showRunningOnly();
+
+    console.log(this.containers());
 
     return this.containers().filter(container => {
       if (runningOnly && container.State !== 'running') {
@@ -1314,6 +1321,14 @@ export class ContainersPage {
 
   formatDockerBytes(bytes: number): string {
     return formatDockerBytes(bytes);
+  }
+
+  formatDockerStatus(status: string | null | undefined): string {
+    return formatDockerStatus(status);
+  }
+
+  parseDockerStatus(status: string | null | undefined) {
+    return parseDockerStatus(status);
   }
 
   formatIoRate(bytesPerSecond: number): string {
