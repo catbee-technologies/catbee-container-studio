@@ -26,6 +26,7 @@ import { SessionStorageService } from '@ng-catbee/storage';
 import { UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
+import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
 
 enum ContainerTab {
   Logs = 'logs',
@@ -53,7 +54,8 @@ enum ContainerTab {
     EmptyStateComponent,
     ErrorBannerComponent,
     CopyButtonComponent,
-    CatbeeTooltip
+    CatbeeTooltip,
+    ConfirmDialogComponent
   ],
   templateUrl: './container-details.html',
   styleUrl: './container-details.scss',
@@ -104,6 +106,13 @@ export class ContainerDetailsPage implements OnDestroy {
       return this.containerId();
     }
     return this.formatNames(current.Names);
+  });
+
+  readonly showDeleteConfirm = signal(false);
+  readonly isDeleting = signal(false);
+
+  readonly deleteMessage = computed(() => {
+    return `Delete ${this.name()} permanently? \n This action cannot be undone.`;
   });
 
   readonly imageRouteRef = computed(() => {
@@ -319,6 +328,30 @@ export class ContainerDetailsPage implements OnDestroy {
       await this.dockerApi.unpauseContainer(this.containerId());
       await this.refresh();
     });
+  }
+
+  requestDelete(): void {
+    this.showDeleteConfirm.set(true);
+  }
+
+  cancelDelete(): void {
+    this.showDeleteConfirm.set(false);
+  }
+
+  async confirmDelete(): Promise<void> {
+    const id = this.containerId();
+    if (!id) {
+      return;
+    }
+
+    this.showDeleteConfirm.set(false);
+    this.isDeleting.set(true);
+    await this.runAction(async () => {
+      await this.dockerApi.removeContainer(id, true);
+      void this.shellTab()?.teardown();
+      this.backToContainers();
+    });
+    this.isDeleting.set(false);
   }
 
   backToContainers(): void {

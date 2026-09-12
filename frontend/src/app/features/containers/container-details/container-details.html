@@ -86,10 +86,22 @@
         (click)="restart()"
         aria-label="Restart"
         [catbeeTooltip]="'Restart'"
-        [catbeeTooltipPosition]="'left'"
+        [catbeeTooltipPosition]="'top'"
         [catbeeTooltipDelay]="tooltipDelay"
       >
         <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
+      </button>
+      <button
+        type="button"
+        class="catbee-action-btn danger icon-only lg action-delete"
+        (click)="requestDelete()"
+        [disabled]="isDeleting()"
+        aria-label="Delete"
+        [catbeeTooltip]="'Delete'"
+        [catbeeTooltipPosition]="'left'"
+        [catbeeTooltipDelay]="tooltipDelay"
+      >
+        <span class="mat-icon-filled" aria-hidden="true">delete</span>
       </button>
     </div>
   </header>
@@ -159,3 +171,14 @@
     <catbee-container-studio-empty-state [icon]="'error_outline'" [message]="'Container not found.'" />
   }
 </main>
+
+<catbee-container-studio-confirm-dialog
+  [open]="showDeleteConfirm()"
+  title="Delete Container"
+  [message]="deleteMessage()"
+  confirmLabel="Delete"
+  cancelLabel="Cancel"
+  [dangerous]="true"
+  (cancelAction)="cancelDelete()"
+  (confirm)="confirmDelete()"
+/>
