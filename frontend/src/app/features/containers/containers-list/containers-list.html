@@ -350,7 +350,7 @@
                     (checkedChange)="toggleGroupSelection(group)"
                   />
                 </td>
-                <td [attr.colspan]="visibleColumns().size + 1">
+                <td [attr.colspan]="groupColspan()">
                   <button type="button" class="group-toggle" (click)="toggleGroupCollapse(group.id)">
                     <span class="mat-icon-filled" aria-hidden="true">
                       {{ isGroupCollapsed(group.id) ? 'chevron_right' : 'expand_more' }}
@@ -371,6 +371,48 @@
                     }
                   </button>
                 </td>
+                @if (visibleColumns().has('cpu')) {
+                  <td class="col-cpu">
+                    @if (groupRuntimeStats().get(group.id); as stats) {
+                      {{ stats.cpuPercent === 0 ? '0' : stats.cpuPercent.toFixed(2) }}%
+                    } @else {
+                      --
+                    }
+                  </td>
+                }
+                @if (visibleColumns().has('memory')) {
+                  <td class="col-memory">
+                    @if (groupRuntimeStats().get(group.id); as stats) {
+                      {{ formatDockerBytes(stats.memoryUsage) }} /
+                      {{ stats.memoryLimit > 0 ? formatDockerBytes(stats.memoryLimit) : '--' }}
+                    } @else {
+                      --
+                    }
+                  </td>
+                }
+                @if (visibleColumns().has('disk')) {
+                  <td class="col-disk">
+                    @if (groupRuntimeStats().get(group.id); as stats) {
+                      {{ formatDockerBytes(stats.diskReadBytesPerSecond) }}/s /
+                      {{ formatDockerBytes(stats.diskWriteBytesPerSecond) }}/s
+                    } @else {
+                      --
+                    }
+                  </td>
+                }
+                @if (visibleColumns().has('network')) {
+                  <td class="col-network">
+                    @if (groupRuntimeStats().get(group.id); as stats) {
+                      {{ formatIoRate(stats.networkRxBytesPerSecond) }} /
+                      {{ formatIoRate(stats.networkTxBytesPerSecond) }}
+                    } @else {
+                      --
+                    }
+                  </td>
+                }
+                @if (visibleColumns().has('pids')) {
+                  <td class="col-pids">--</td>
+                }
                 <td class="col-actions" (click)="$event.stopPropagation()">
                   <div class="action-group">
                     @if (isGroupStarted(group)) {

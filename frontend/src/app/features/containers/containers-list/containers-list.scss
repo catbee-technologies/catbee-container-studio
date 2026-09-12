@@ -123,3 +123,14 @@ table.catbee-table .col-actions {
 .col-loading-status {
   width: 2rem;
 }
+
+tbody tr.group-row {
+  td.col-cpu,
+  td.col-memory,
+  td.col-disk,
+  td.col-network,
+  td.col-pids {
+    color: var(--ink-200);
+    font-weight: 500;
+  }
+}
