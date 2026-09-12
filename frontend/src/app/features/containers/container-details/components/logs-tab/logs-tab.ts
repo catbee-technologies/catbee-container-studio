@@ -775,10 +775,6 @@ export class LogsTabComponent implements AfterViewInit {
 
     if (this.externalLogs() !== null) {
       this.externalClear.emit();
-      this.currentMatchIndex.set(0);
-      this.isSearchNavigationPrimed = false;
-      this.clearButtonLabel.set('Cleared');
-      this.scheduleClearButtonReset();
       return;
     }
 
@@ -793,6 +789,10 @@ export class LogsTabComponent implements AfterViewInit {
       void this.restartLogsStream(id, since);
     }
 
+    this.notifyLogsCleared();
+  }
+
+  notifyLogsCleared(): void {
     this.currentMatchIndex.set(0);
     this.isSearchNavigationPrimed = false;
     this.clearButtonLabel.set('Cleared');

@@ -128,6 +128,7 @@ export class LogsPage {
   confirmClearLogs(): void {
     this.confirmClearLogsOpen.set(false);
     this.globalLogs.clearLogs();
+    this.logsTab()?.notifyLogsCleared();
   }
 
   completeInitialFollow(): void {
