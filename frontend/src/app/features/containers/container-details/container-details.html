@@ -32,54 +32,57 @@
     </div>
 
     <div class="header-actions">
-      <button
-        type="button"
-        class="catbee-action-btn icon-only lg action-start"
-        (click)="start()"
-        [disabled]="container()?.State === 'running'"
-        aria-label="Start"
-        [catbeeTooltip]="'Start'"
-        [catbeeTooltipPosition]="'top'"
-        [catbeeTooltipDelay]="tooltipDelay"
-      >
-        <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
-      </button>
-      <button
-        type="button"
-        class="catbee-action-btn icon-only lg action-stop"
-        (click)="stop()"
-        [disabled]="container()?.State !== 'running'"
-        aria-label="Stop"
-        [catbeeTooltip]="'Stop'"
-        [catbeeTooltipPosition]="'top'"
-        [catbeeTooltipDelay]="tooltipDelay"
-      >
-        <span class="mat-icon-filled" aria-hidden="true">stop</span>
-      </button>
-      <button
-        type="button"
-        class="catbee-action-btn icon-only lg action-pause"
-        (click)="pause()"
-        [disabled]="container()?.State !== 'running'"
-        aria-label="Pause"
-        [catbeeTooltip]="'Pause'"
-        [catbeeTooltipPosition]="'top'"
-        [catbeeTooltipDelay]="tooltipDelay"
-      >
-        <span class="mat-icon-filled" aria-hidden="true">pause</span>
-      </button>
-      <button
-        type="button"
-        class="catbee-action-btn icon-only lg action-unpause"
-        (click)="unpause()"
-        [disabled]="container()?.State !== 'paused'"
-        aria-label="Unpause"
-        [catbeeTooltip]="'Unpause'"
-        [catbeeTooltipPosition]="'top'"
-        [catbeeTooltipDelay]="tooltipDelay"
-      >
-        <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
-      </button>
+      @if (container()?.State === 'running' || container()?.State === 'paused') {
+        <button
+          type="button"
+          class="catbee-action-btn icon-only lg action-stop"
+          (click)="stop()"
+          aria-label="Stop"
+          [catbeeTooltip]="'Stop'"
+          [catbeeTooltipPosition]="'top'"
+          [catbeeTooltipDelay]="tooltipDelay"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">stop</span>
+        </button>
+      } @else {
+        <button
+          type="button"
+          class="catbee-action-btn icon-only lg action-start"
+          (click)="start()"
+          aria-label="Start"
+          [catbeeTooltip]="'Start'"
+          [catbeeTooltipPosition]="'top'"
+          [catbeeTooltipDelay]="tooltipDelay"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+        </button>
+      }
+      @if (container()?.State === 'paused') {
+        <button
+          type="button"
+          class="catbee-action-btn icon-only lg action-unpause"
+          (click)="unpause()"
+          aria-label="Unpause"
+          [catbeeTooltip]="'Unpause'"
+          [catbeeTooltipPosition]="'top'"
+          [catbeeTooltipDelay]="tooltipDelay"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
+        </button>
+      } @else {
+        <button
+          type="button"
+          class="catbee-action-btn icon-only lg action-pause"
+          (click)="pause()"
+          [disabled]="container()?.State !== 'running'"
+          aria-label="Pause"
+          [catbeeTooltip]="'Pause'"
+          [catbeeTooltipPosition]="'top'"
+          [catbeeTooltipDelay]="tooltipDelay"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">pause</span>
+        </button>
+      }
       <button
         type="button"
         class="catbee-action-btn icon-only lg action-restart"

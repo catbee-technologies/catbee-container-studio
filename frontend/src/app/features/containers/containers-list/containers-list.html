@@ -58,7 +58,7 @@
           type="button"
           class="catbee-action-btn icon-only action-start"
           (click)="startSelectedContainers()"
-          [disabled]="activeBulkAction() !== null"
+          [disabled]="activeBulkAction() !== null || selectedStoppedCount() === 0"
           aria-label="Start selected containers"
           [catbeeTooltip]="'Start'"
           [catbeeTooltipDelay]="tooltipDelay"
@@ -70,7 +70,7 @@
           type="button"
           class="catbee-action-btn icon-only action-stop"
           (click)="stopSelectedContainers()"
-          [disabled]="activeBulkAction() !== null"
+          [disabled]="activeBulkAction() !== null || (selectedRunningCount() === 0 && selectedPausedCount() === 0)"
           aria-label="Stop selected containers"
           [catbeeTooltip]="'Stop'"
           [catbeeTooltipDelay]="tooltipDelay"
@@ -110,24 +110,46 @@
           </button>
 
           <div menuContent>
-            <button
-              type="button"
-              class="menu-item"
-              (click)="pauseSelectedContainers(); closeBulkActionsMenu()"
-              [disabled]="activeBulkAction() !== null"
-            >
-              <span class="mat-icon-filled" aria-hidden="true">pause</span>
-              Pause selected
-            </button>
-            <button
-              type="button"
-              class="menu-item"
-              (click)="unpauseSelectedContainers(); closeBulkActionsMenu()"
-              [disabled]="activeBulkAction() !== null"
-            >
-              <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
-              Unpause selected
-            </button>
+            @if (isSelectionPartiallyPaused()) {
+              <button
+                type="button"
+                class="menu-item"
+                (click)="pauseSelectedContainers(); closeBulkActionsMenu()"
+                [disabled]="activeBulkAction() !== null || selectedRunningCount() === 0"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">pause</span>
+                Pause selected
+              </button>
+              <button
+                type="button"
+                class="menu-item"
+                (click)="unpauseSelectedContainers(); closeBulkActionsMenu()"
+                [disabled]="activeBulkAction() !== null || selectedPausedCount() === 0"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
+                Unpause selected
+              </button>
+            } @else if (selectedPausedCount() > 0) {
+              <button
+                type="button"
+                class="menu-item"
+                (click)="unpauseSelectedContainers(); closeBulkActionsMenu()"
+                [disabled]="activeBulkAction() !== null"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
+                Unpause selected
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="menu-item"
+                (click)="pauseSelectedContainers(); closeBulkActionsMenu()"
+                [disabled]="activeBulkAction() !== null || selectedRunningCount() === 0"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">pause</span>
+                Pause selected
+              </button>
+            }
             <button
               type="button"
               class="menu-item"
@@ -351,30 +373,33 @@
                 </td>
                 <td class="col-actions" (click)="$event.stopPropagation()">
                   <div class="action-group">
-                    <button
-                      type="button"
-                      class="catbee-action-btn icon-only action-start"
-                      (click)="startGroup(group); $event.stopPropagation()"
-                      [disabled]="!canStartGroup(group)"
-                      aria-label="Start group"
-                      [catbeeTooltip]="'Start group'"
-                      [catbeeTooltipDelay]="tooltipDelay"
-                      [catbeeTooltipPosition]="'top'"
-                    >
-                      <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
-                    </button>
-                    <button
-                      type="button"
-                      class="catbee-action-btn icon-only action-stop"
-                      (click)="stopGroup(group); $event.stopPropagation()"
-                      [disabled]="!canStopGroup(group)"
-                      aria-label="Stop group"
-                      [catbeeTooltip]="'Stop group'"
-                      [catbeeTooltipDelay]="tooltipDelay"
-                      [catbeeTooltipPosition]="'top'"
-                    >
-                      <span class="mat-icon-filled" aria-hidden="true">stop</span>
-                    </button>
+                    @if (isGroupStarted(group)) {
+                      <button
+                        type="button"
+                        class="catbee-action-btn icon-only action-stop"
+                        (click)="stopGroup(group); $event.stopPropagation()"
+                        [disabled]="!canStopGroup(group)"
+                        aria-label="Stop group"
+                        [catbeeTooltip]="'Stop group'"
+                        [catbeeTooltipDelay]="tooltipDelay"
+                        [catbeeTooltipPosition]="'top'"
+                      >
+                        <span class="mat-icon-filled" aria-hidden="true">stop</span>
+                      </button>
+                    } @else {
+                      <button
+                        type="button"
+                        class="catbee-action-btn icon-only action-start"
+                        (click)="startGroup(group); $event.stopPropagation()"
+                        [disabled]="!canStartGroup(group)"
+                        aria-label="Start group"
+                        [catbeeTooltip]="'Start group'"
+                        [catbeeTooltipDelay]="tooltipDelay"
+                        [catbeeTooltipPosition]="'top'"
+                      >
+                        <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+                      </button>
+                    }
                     <button
                       type="button"
                       class="catbee-action-btn danger icon-only"
@@ -408,24 +433,57 @@
                       </button>
 
                       <div menuContent>
-                        <button
-                          type="button"
-                          class="menu-item"
-                          (click)="pauseGroup(group); closeGroupActionsMenu()"
-                          [disabled]="!canPauseGroup(group)"
-                        >
-                          <span class="mat-icon-filled" aria-hidden="true">pause</span>
-                          Pause
-                        </button>
-                        <button
-                          type="button"
-                          class="menu-item"
-                          (click)="unpauseGroup(group); closeGroupActionsMenu()"
-                          [disabled]="!canUnpauseGroup(group)"
-                        >
-                          <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
-                          Unpause
-                        </button>
+                        @if (isGroupPartiallyStarted(group)) {
+                          <button
+                            type="button"
+                            class="menu-item"
+                            (click)="startGroup(group); closeGroupActionsMenu()"
+                            [disabled]="!canStartGroup(group)"
+                          >
+                            <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+                            Start
+                          </button>
+                        }
+                        @if (isGroupPartiallyPaused(group)) {
+                          <button
+                            type="button"
+                            class="menu-item"
+                            (click)="pauseGroup(group); closeGroupActionsMenu()"
+                            [disabled]="!canPauseGroup(group)"
+                          >
+                            <span class="mat-icon-filled" aria-hidden="true">pause</span>
+                            Pause
+                          </button>
+                          <button
+                            type="button"
+                            class="menu-item"
+                            (click)="unpauseGroup(group); closeGroupActionsMenu()"
+                            [disabled]="!canUnpauseGroup(group)"
+                          >
+                            <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
+                            Unpause
+                          </button>
+                        } @else if (canUnpauseGroup(group)) {
+                          <button
+                            type="button"
+                            class="menu-item"
+                            (click)="unpauseGroup(group); closeGroupActionsMenu()"
+                            [disabled]="!canUnpauseGroup(group)"
+                          >
+                            <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
+                            Unpause
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="menu-item"
+                            (click)="pauseGroup(group); closeGroupActionsMenu()"
+                            [disabled]="!canPauseGroup(group)"
+                          >
+                            <span class="mat-icon-filled" aria-hidden="true">pause</span>
+                            Pause
+                          </button>
+                        }
                         <button
                           type="button"
                           class="menu-item"
@@ -626,34 +684,33 @@
                     }
                     <td class="col-actions">
                       <div class="action-group">
-                        <button
-                          type="button"
-                          class="catbee-action-btn icon-only action-start"
-                          (click)="startContainer(container.Id); $event.stopPropagation()"
-                          [disabled]="
-                            activeContainerActions().has(container.Id) ||
-                            container.State === 'running' ||
-                            container.State === 'paused'
-                          "
-                          aria-label="Start container"
-                          [catbeeTooltip]="'Start'"
-                          [catbeeTooltipDelay]="tooltipDelay"
-                          [catbeeTooltipPosition]="'top'"
-                        >
-                          <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
-                        </button>
-                        <button
-                          type="button"
-                          class="catbee-action-btn icon-only action-stop"
-                          (click)="stopContainer(container.Id); $event.stopPropagation()"
-                          [disabled]="activeContainerActions().has(container.Id) || container.State !== 'running'"
-                          aria-label="Stop container"
-                          [catbeeTooltip]="'Stop'"
-                          [catbeeTooltipDelay]="tooltipDelay"
-                          [catbeeTooltipPosition]="'top'"
-                        >
-                          <span class="mat-icon-filled" aria-hidden="true">stop</span>
-                        </button>
+                        @if (container.State === 'running' || container.State === 'paused') {
+                          <button
+                            type="button"
+                            class="catbee-action-btn icon-only action-stop"
+                            (click)="stopContainer(container.Id); $event.stopPropagation()"
+                            [disabled]="activeContainerActions().has(container.Id)"
+                            aria-label="Stop container"
+                            [catbeeTooltip]="'Stop'"
+                            [catbeeTooltipDelay]="tooltipDelay"
+                            [catbeeTooltipPosition]="'top'"
+                          >
+                            <span class="mat-icon-filled" aria-hidden="true">stop</span>
+                          </button>
+                        } @else {
+                          <button
+                            type="button"
+                            class="catbee-action-btn icon-only action-start"
+                            (click)="startContainer(container.Id); $event.stopPropagation()"
+                            [disabled]="activeContainerActions().has(container.Id)"
+                            aria-label="Start container"
+                            [catbeeTooltip]="'Start'"
+                            [catbeeTooltipDelay]="tooltipDelay"
+                            [catbeeTooltipPosition]="'top'"
+                          >
+                            <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+                          </button>
+                        }
                         <button
                           type="button"
                           class="catbee-action-btn danger icon-only"
@@ -687,24 +744,27 @@
                           </button>
 
                           <div menuContent>
-                            <button
-                              type="button"
-                              class="menu-item"
-                              (click)="pauseContainer(container.Id); closeContainerActionsMenu()"
-                              [disabled]="activeContainerActions().has(container.Id) || container.State !== 'running'"
-                            >
-                              <span class="mat-icon-filled" aria-hidden="true">pause</span>
-                              Pause
-                            </button>
-                            <button
-                              type="button"
-                              class="menu-item"
-                              (click)="unpauseContainer(container.Id); closeContainerActionsMenu()"
-                              [disabled]="activeContainerActions().has(container.Id) || container.State !== 'paused'"
-                            >
-                              <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
-                              Unpause
-                            </button>
+                            @if (container.State === 'paused') {
+                              <button
+                                type="button"
+                                class="menu-item"
+                                (click)="unpauseContainer(container.Id); closeContainerActionsMenu()"
+                                [disabled]="activeContainerActions().has(container.Id)"
+                              >
+                                <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
+                                Unpause
+                              </button>
+                            } @else {
+                              <button
+                                type="button"
+                                class="menu-item"
+                                (click)="pauseContainer(container.Id); closeContainerActionsMenu()"
+                                [disabled]="activeContainerActions().has(container.Id) || container.State !== 'running'"
+                              >
+                                <span class="mat-icon-filled" aria-hidden="true">pause</span>
+                                Pause
+                              </button>
+                            }
                             <button
                               type="button"
                               class="menu-item"

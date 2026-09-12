@@ -166,8 +166,6 @@ export class ContainersPage {
     const query = this.searchTerm().trim().toLowerCase();
     const runningOnly = this.showRunningOnly();
 
-    console.log(this.containers());
-
     return this.containers().filter(container => {
       if (runningOnly && container.State !== 'running') {
         return false;
@@ -207,7 +205,13 @@ export class ContainersPage {
   );
 
   readonly selectedStoppedCount = computed(
-    () => this.selectedContainers().filter(container => container.State !== 'running').length
+    () =>
+      this.selectedContainers().filter(container => container.State !== 'running' && container.State !== 'paused')
+        .length
+  );
+
+  readonly isSelectionPartiallyPaused = computed(
+    () => this.selectedPausedCount() > 0 && this.selectedRunningCount() > 0
   );
 
   readonly allVisibleSelected = computed(() => {
@@ -609,7 +613,7 @@ export class ContainersPage {
       async container => {
         await this.dockerApi.startContainer(container.Id);
       },
-      container => container.State !== 'running'
+      container => container.State !== 'running' && container.State !== 'paused'
     );
   }
 
@@ -619,7 +623,7 @@ export class ContainersPage {
       async container => {
         await this.dockerApi.stopContainer(container.Id);
       },
-      container => container.State === 'running'
+      container => container.State === 'running' || container.State === 'paused'
     );
   }
 
@@ -703,7 +707,7 @@ export class ContainersPage {
     if (this.isGroupActionActive(group) || this.activeBulkAction() !== null) {
       return false;
     }
-    return group.containers.some(c => c.State === 'running');
+    return group.containers.some(c => c.State === 'running' || c.State === 'paused');
   }
 
   canRestartOrDeleteGroup(group: ContainerGroup): boolean {
@@ -731,6 +735,22 @@ export class ContainersPage {
     return group.containers.some(c => c.State === 'paused');
   }
 
+  isGroupStarted(group: ContainerGroup): boolean {
+    return group.containers.some(c => c.State === 'running' || c.State === 'paused');
+  }
+
+  isGroupPartiallyStarted(group: ContainerGroup): boolean {
+    const hasStarted = group.containers.some(c => c.State === 'running' || c.State === 'paused');
+    const hasStopped = group.containers.some(c => c.State !== 'running' && c.State !== 'paused');
+    return hasStarted && hasStopped;
+  }
+
+  isGroupPartiallyPaused(group: ContainerGroup): boolean {
+    const hasRunning = group.containers.some(c => c.State === 'running');
+    const hasPaused = group.containers.some(c => c.State === 'paused');
+    return hasRunning && hasPaused;
+  }
+
   canDeleteGroup(group: ContainerGroup): boolean {
     return this.canRestartOrDeleteGroup(group);
   }
@@ -753,7 +773,7 @@ export class ContainersPage {
       async container => {
         await this.dockerApi.stopContainer(container.Id);
       },
-      container => container.State === 'running'
+      container => container.State === 'running' || container.State === 'paused'
     );
   }
 
