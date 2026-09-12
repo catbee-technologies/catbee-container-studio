@@ -3,6 +3,8 @@ import { ResolveFn } from '@angular/router';
 import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerInfo, DockerNetworkInfo } from '@shared/types/docker-api.types';
 
+import { resolveConnectedContainers } from './network-details.utils';
+
 export interface NetworkDetailsPrefetch {
   networkId: string;
   network: DockerNetworkInfo | null;
@@ -19,10 +21,7 @@ export const networkDetailsResolver: ResolveFn<NetworkDetailsPrefetch> = async r
   const dockerApi = inject(DockerApiService);
   try {
     const [network, containers] = await Promise.all([dockerApi.inspectNetwork(networkId), dockerApi.listContainers()]);
-    const attachedIds = Object.keys(network.Containers ?? {});
-    const connectedContainers = containers.filter(container =>
-      attachedIds.some(attachedId => attachedId === container.Id || attachedId.startsWith(container.Id))
-    );
+    const connectedContainers = await resolveConnectedContainers(dockerApi, network, containers);
     return { networkId, network, connectedContainers, error: null };
   } catch (error) {
     return {
