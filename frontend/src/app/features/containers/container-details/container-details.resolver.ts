@@ -3,6 +3,8 @@ import { ResolveFn } from '@angular/router';
 import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerInfo, DockerContainerInspectInfo } from '@shared/types/docker-api.types';
 
+import { containerInfoFromInspect } from '@utils/docker-container.utils';
+
 export interface ContainerDetailsPrefetch {
   container: DockerContainerInfo | null;
   inspectData: DockerContainerInspectInfo | null;
@@ -27,7 +29,11 @@ export const containerDetailsResolver: ResolveFn<ContainerDetailsPrefetch> = asy
       dockerApi.inspectContainer(containerId)
     ]);
 
-    const container = containers.find(item => item.Id === containerId) ?? null;
+    let container = containers.find(item => item.Id === containerId) ?? null;
+    if (!container && inspectData) {
+      container = containerInfoFromInspect(inspectData, containerId);
+    }
+
     if (!container) {
       return {
         container: null,
