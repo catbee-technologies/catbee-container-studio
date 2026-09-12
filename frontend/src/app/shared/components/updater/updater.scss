@@ -97,6 +97,28 @@
   animation: catbee-updater-spin 700ms linear infinite;
 }
 
+@mixin catbee-updater-store-lift($lift: -1px) {
+  .microsoft-store-logo {
+    transition:
+      border-color var(--transition-base),
+      transform var(--transition-fast);
+  }
+
+  &:hover:not(:disabled) {
+    .microsoft-store-logo {
+      border-color: var(--border-color-hover);
+      transform: translateY($lift);
+    }
+  }
+
+  &:active:not(:disabled) {
+    .microsoft-store-logo {
+      transform: translateY(0);
+      transition-duration: 50ms;
+    }
+  }
+}
+
 .microsoft-store-button {
   background: transparent;
   border: none;
@@ -109,19 +131,9 @@
     box-shadow: 0 12px 34px var(--shadow-color);
     border-radius: 1rem;
     border: 1px solid var(--border-color-accent);
-    transition:
-      border-color var(--transition-base),
-      transform var(--transition-fast);
-
-    &:hover:not(:disabled) {
-      transform: translateY(-1px);
-      border-color: var(--border-color-hover);
-    }
-
-    &:active:not(:disabled) {
-      transform: translateY(0);
-    }
   }
+
+  @include catbee-updater-store-lift(-1px);
 }
 
 @keyframes catbee-updater-spin {
