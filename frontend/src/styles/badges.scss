@@ -32,6 +32,12 @@
     color: var(--badge-running-text);
   }
 
+  &.paused {
+    background: var(--badge-paused-gradient);
+    border-color: var(--badge-paused-border);
+    color: var(--badge-paused-text);
+  }
+
   &.stopped {
     background: var(--badge-stopped-gradient);
     border-color: var(--badge-stopped-border);

@@ -265,6 +265,11 @@ html[data-theme='light'] {
   --badge-running-border: rgb(45 164 78 / 0.52);
   --badge-running-text: #176b32;
 
+  // Paused Badge (amber/yellow)
+  --badge-paused-gradient: linear-gradient(140deg, rgb(217 154 0 / 0.22), rgb(184 130 0 / 0.16));
+  --badge-paused-border: rgb(217 154 0 / 0.5);
+  --badge-paused-text: #9a6700;
+
   // Stopped Badge
   --badge-stopped-gradient: linear-gradient(140deg, rgb(232 93 74 / 0.23), rgb(207 63 46 / 0.17));
 
@@ -341,6 +346,9 @@ html[data-theme='light'] {
   --usage-used-bg: #28c596;
   --usage-used-border: #17835f;
   --usage-used-shadow: rgb(40 197 150 / 0.34);
+  --usage-paused-bg: #d99a00;
+  --usage-paused-border: #b37f00;
+  --usage-paused-shadow: rgb(217 154 0 / 0.34);
   --usage-unused-bg: rgb(100 116 139 / 0.16);
   --usage-unused-border: rgb(100 116 139 / 0.42);
 }

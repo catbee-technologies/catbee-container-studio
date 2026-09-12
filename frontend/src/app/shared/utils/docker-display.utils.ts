@@ -85,3 +85,113 @@ export function formatMode(mode: string | null): string {
     })
     .join('');
 }
+
+const DOCKER_TIME_UNITS: Record<string, [string, string]> = {
+  second: ['sec', 'secs'],
+  minute: ['min', 'mins'],
+  hour: ['hr', 'hrs'],
+  day: ['day', 'days'],
+  week: ['wk', 'wks'],
+  month: ['mon', 'mons'],
+  year: ['yr', 'yrs']
+};
+
+function formatTimeUnit(count: number, unit: string): string {
+  const normalizedUnit = unit.toLowerCase().replace(/s$/, '');
+  const units = DOCKER_TIME_UNITS[normalizedUnit];
+
+  if (!units) {
+    return `${count} ${unit}`;
+  }
+
+  return `${count} ${count === 1 ? units[0] : units[1]}`;
+}
+
+export function formatDockerStatus(status: string | null | undefined): string {
+  if (!status?.trim()) {
+    return '--';
+  }
+
+  let formatted = status.trim();
+
+  // Removal in progress -> Removing
+  formatted = formatted.replace(/^removal\s+in\s+progress$/i, 'Removing');
+
+  // Exited (143) / Restarting (1) -> Exited(143) / Restarting(1)
+  formatted = formatted.replace(
+    /\b(Exited|Restarting)\s*\(\s*(-?\d+)\s*\)/gi,
+    (_match, action: string, code: string) => {
+      const normalizedAction = action.charAt(0).toUpperCase() + action.slice(1).toLowerCase();
+
+      return `${normalizedAction}(${code})`;
+    }
+  );
+
+  formatted = formatted.replace(/\(paused\)/gi, ' (Paused)');
+  formatted = formatted.replace(/^paused$/i, 'Paused');
+
+  // (health: starting) -> (starting)
+  formatted = formatted.replace(/\(\s*health:\s*starting\s*\)/gi, '(starting)');
+
+  // Less than a second -> < 1 sec
+  formatted = formatted.replace(/\bless\s+than\s+a\s+second\b/gi, '< 1 sec');
+
+  // About a/an <unit> -> ~1 <unit>
+  formatted = formatted.replace(
+    /\babout\s+an?\s+(second|minute|hour|day|week|month|year)\b/gi,
+    (_match, unit: string) => `~${formatTimeUnit(1, unit)}`
+  );
+
+  // a/an <unit> -> 1 <unit>
+  formatted = formatted.replace(/\ban?\s+(second|minute|hour|day|week|month|year)\b/gi, (_match, unit: string) =>
+    formatTimeUnit(1, unit)
+  );
+
+  // <number> <unit> -> abbreviated unit
+  formatted = formatted.replace(
+    /(\d+)\s+(second|minute|hour|day|week|month|year)s?\b/gi,
+    (_match, countStr: string, unit: string) => formatTimeUnit(Number.parseInt(countStr, 10), unit)
+  );
+
+  return formatted.replace(/\s+/g, ' ').trim();
+}
+
+export type DockerHealthStatus = 'healthy' | 'unhealthy' | 'starting';
+
+export interface DockerHealthInfo {
+  status: DockerHealthStatus;
+  label: string;
+}
+
+export interface ParsedDockerStatus {
+  statusText: string;
+  health: DockerHealthInfo | null;
+  paused: boolean;
+}
+
+export function parseDockerStatus(status: string | null | undefined): ParsedDockerStatus {
+  if (!status?.trim()) {
+    return { statusText: '--', health: null, paused: false };
+  }
+
+  let text = status.trim();
+  let health: DockerHealthInfo | null = null;
+  const paused = /\(paused\)/i.test(text) || /^paused$/i.test(text);
+
+  if (/\(\s*(?:health:\s*)?starting\s*\)/i.test(text)) {
+    health = { status: 'starting', label: 'Health: Starting' };
+    text = text.replace(/\(\s*(?:health:\s*)?starting\s*\)/gi, '').trim();
+  } else if (/\(\s*unhealthy\s*\)/i.test(text)) {
+    health = { status: 'unhealthy', label: 'Unhealthy' };
+    text = text.replace(/\(\s*unhealthy\s*\)/gi, '').trim();
+  } else if (/\(\s*healthy\s*\)/i.test(text)) {
+    health = { status: 'healthy', label: 'Healthy' };
+    text = text.replace(/\(\s*healthy\s*\)/gi, '').trim();
+  }
+
+  text = text.replace(/\(paused\)/gi, '').trim();
+
+  const statusText = formatDockerStatus(text || (paused ? 'Paused' : '--'));
+
+  return { statusText, health, paused };
+}

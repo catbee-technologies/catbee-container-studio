@@ -198,10 +198,55 @@ input {
     box-shadow: 0 0 8px var(--usage-used-shadow);
   }
 
+  &.paused {
+    background: var(--usage-paused-bg);
+    border-color: var(--usage-paused-border);
+    box-shadow: 0 0 8px var(--usage-paused-shadow);
+  }
+
   &.unused {
     background: var(--usage-unused-bg);
     border-color: var(--usage-unused-border);
   }
+}
+
+.status-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.health-dot,
+.paused-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.health-dot {
+  &.healthy {
+    background-color: var(--color-success-base);
+    box-shadow: 0 0 6px rgb(63 185 80 / 0.5);
+  }
+
+  &.unhealthy {
+    background-color: var(--color-error-base);
+    box-shadow: 0 0 6px rgb(248 81 73 / 0.5);
+  }
+
+  &.starting {
+    background-color: var(--color-warning-base);
+    box-shadow: 0 0 6px rgb(242 204 96 / 0.5);
+  }
+}
+
+.paused-dot {
+  background-color: var(--color-warning-base);
+  box-shadow: 0 0 6px rgb(242 204 96 / 0.5);
 }
 
 .catbee-details-container {
@@ -384,6 +429,11 @@ input {
   &.running {
     color: var(--badge-running-text);
     background: var(--badge-running-gradient);
+  }
+
+  &.paused {
+    color: var(--badge-paused-text);
+    background: var(--badge-paused-gradient);
   }
 
   &.stopped {
