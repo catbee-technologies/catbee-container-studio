@@ -12,6 +12,7 @@ import { DockerContainerInfo, DockerNetworkInfo } from '@shared/types/docker-api
 import { DATE_FORMAT } from '@utils/docker-display.utils';
 import { UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { NetworkDetailsPrefetch } from './network-details.resolver';
+import { resolveConnectedContainers } from './network-details.utils';
 import { ConnectedContainersTableComponent } from '@components/connected-containers-table/connected-containers-table';
 
 enum NetworkDetailsTab {
@@ -60,7 +61,7 @@ export class NetworkDetailsPage {
         label: 'Created',
         value: network.Created ? (this.datePipe.transform(network.Created, DATE_FORMAT) ?? '--') : '--'
       },
-      { label: 'Containers', value: String(this.connectedContainers().length) },
+      { label: 'Containers', value: String(this.connectedContainers().length || Object.keys(network.Containers ?? {}).length) },
       { label: 'Internal', value: network.Internal ? 'Yes' : 'No' },
       { label: 'Attachable', value: network.Attachable ? 'Yes' : 'No' }
     ];
@@ -147,11 +148,9 @@ export class NetworkDetailsPage {
         this.dockerApi.inspectNetwork(this.networkId()),
         this.dockerApi.listContainers()
       ]);
-      const attachedIds = Object.keys(network.Containers ?? {});
+      const connectedContainers = await resolveConnectedContainers(this.dockerApi, network, containers);
       this.network.set(network);
-      this.connectedContainers.set(
-        containers.filter(container => attachedIds.some(id => id === container.Id || id.startsWith(container.Id)))
-      );
+      this.connectedContainers.set(connectedContainers);
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Failed to load network details.');
     } finally {
