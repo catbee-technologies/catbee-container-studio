@@ -187,6 +187,74 @@ export class ContainersPage {
     this.groupContainersByCompose(this.sortedContainers(this.visibleContainers()))
   );
 
+  readonly groupColspan = computed(() => {
+    const visible = this.visibleColumns();
+    let metricsCount = 0;
+    if (visible.has('cpu')) metricsCount++;
+    if (visible.has('memory')) metricsCount++;
+    if (visible.has('disk')) metricsCount++;
+    if (visible.has('network')) metricsCount++;
+    if (visible.has('pids')) metricsCount++;
+    return visible.size + 1 - metricsCount;
+  });
+
+  readonly groupRuntimeStats = computed(() => {
+    const statsMap = this.containerRuntimeStats();
+    const result = new Map<
+      string,
+      {
+        cpuPercent: number;
+        memoryUsage: number;
+        memoryLimit: number;
+        diskReadBytesPerSecond: number;
+        diskWriteBytesPerSecond: number;
+        networkRxBytesPerSecond: number;
+        networkTxBytesPerSecond: number;
+      }
+    >();
+
+    for (const group of this.groupedContainers()) {
+      let hasStats = false;
+      let cpuPercent = 0;
+      let memoryUsage = 0;
+      let memoryLimit = 0;
+      let diskReadBytesPerSecond = 0;
+      let diskWriteBytesPerSecond = 0;
+      let networkRxBytesPerSecond = 0;
+      let networkTxBytesPerSecond = 0;
+
+      for (const container of group.containers) {
+        const stats = statsMap.get(container.Id);
+        if (stats) {
+          hasStats = true;
+          cpuPercent += stats.cpuPercent;
+          memoryUsage += stats.memoryUsage;
+          if (stats.memoryLimit > memoryLimit) {
+            memoryLimit = stats.memoryLimit;
+          }
+          diskReadBytesPerSecond += stats.diskReadBytesPerSecond;
+          diskWriteBytesPerSecond += stats.diskWriteBytesPerSecond;
+          networkRxBytesPerSecond += stats.networkRxBytesPerSecond;
+          networkTxBytesPerSecond += stats.networkTxBytesPerSecond;
+        }
+      }
+
+      if (hasStats) {
+        result.set(group.id, {
+          cpuPercent,
+          memoryUsage,
+          memoryLimit,
+          diskReadBytesPerSecond,
+          diskWriteBytesPerSecond,
+          networkRxBytesPerSecond,
+          networkTxBytesPerSecond
+        });
+      }
+    }
+
+    return result;
+  });
+
   readonly selectedContainers = computed(() => {
     const ids = this.selectedContainerIds();
     if (ids.size === 0) {
