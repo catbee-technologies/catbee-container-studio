@@ -1,17 +1,30 @@
-<div class="tab-row" role="tablist" [attr.aria-label]="ariaLabel()">
+<div #trackElement class="tab-row" role="tablist" [attr.aria-label]="ariaLabel()">
+  <div
+    class="tab-indicator"
+    [class.is-visible]="indicatorStyle().visible"
+    [class.is-animated]="isAnimated()"
+    [style.transform]="'translate3d(' + indicatorStyle().left + 'px, ' + indicatorStyle().top + 'px, 0)'"
+    [style.width.px]="indicatorStyle().width"
+    [style.height.px]="indicatorStyle().height"
+    aria-hidden="true"
+  ></div>
+
   @for (tab of tabs(); track tab.id) {
     <button
+      #tabBtn
       type="button"
       class="tab-btn"
       [class.is-active]="activeTab() === tab.id"
+      [attr.data-tab-id]="tab.id"
       role="tab"
       [attr.aria-selected]="activeTab() === tab.id"
+      [attr.tabindex]="activeTab() === tab.id ? 0 : -1"
       (click)="selectTab(tab.id)"
     >
       @if (tab.icon) {
-        <span class="mat-icon-filled" aria-hidden="true">{{ tab.icon }}</span>
+        <span class="mat-icon-filled tab-icon" aria-hidden="true">{{ tab.icon }}</span>
       }
-      <span>{{ tab.label }}</span>
+      <span class="tab-label">{{ tab.label }}</span>
     </button>
   }
 </div>
