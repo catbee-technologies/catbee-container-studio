@@ -1,0 +1,87 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.discrete-slider-root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  user-select: none;
+
+  &.is-disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+}
+
+.slider-control-row {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  height: 24px;
+}
+
+// Tick Marks Row
+.discrete-ticks-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 0 9px; // Centers with the 18px thumb width
+  margin-top: 3px;
+  height: 10px;
+
+  .tick-pip {
+    width: 2px;
+    height: 4px;
+    border-radius: 1px;
+    background: var(--border-color-control, rgba(255, 255, 255, 0.2));
+    cursor: pointer;
+    transition:
+      background 120ms ease,
+      height 120ms ease;
+
+    &.is-major {
+      height: 8px;
+      background: var(--ink-400, rgba(255, 255, 255, 0.35));
+    }
+
+    &.is-active {
+      background: var(--color-brand-400, #60a5fa);
+    }
+
+    &:hover {
+      background: var(--color-brand-300, #93c5fd);
+      transform: scaleY(1.25);
+    }
+  }
+}
+
+// Labels Row
+.discrete-labels-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  padding: 0 2px;
+
+  .tick-label-text {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--ink-400, #94a3b8);
+    cursor: pointer;
+    transition:
+      color 120ms ease,
+      font-weight 120ms ease;
+
+    &:hover {
+      color: var(--ink-100, #f8fafc);
+    }
+
+    &.is-selected {
+      color: var(--color-brand-400, #60a5fa);
+      font-weight: 600;
+    }
+  }
+}

@@ -1,15 +1,155 @@
 <div class="catbee-footer-container">
   <div class="catbee-footer-left">
     @let running = dockerConnected();
+    @let paused = isEnginePaused();
+    @let starting = isEngineStarting();
 
-    <span class="docker-engine-status {{ running ? 'running' : 'not-running' }}">
-      <span class="status-dot-container">
-        <span class="status-dot-ping"></span>
-        <span class="status-dot"></span>
-      </span>
+    <catbee-container-studio-menu
+      [open]="isMenuOpen()"
+      alignment="start"
+      [style]="{ width: '18rem', padding: '0.45rem', maxHeight: 'none' }"
+      (dismissed)="closeMenu()"
+    >
+      <div menuTrigger class="engine-status-bar-control">
+        <button
+          type="button"
+          class="engine-status-btn {{ starting ? 'starting' : (running ? (paused ? 'paused' : 'running') : 'not-running') }}"
+          [class.active]="isMenuOpen()"
+          (click)="toggleMenu($event)"
+          aria-haspopup="true"
+          [attr.aria-expanded]="isMenuOpen()"
+          catbeeTooltip="Engine status and menu"
+        >
+          <span class="engine-whale-icon {{ starting ? 'pulsing' : '' }}" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+              <path d="M22.5 10.5c-.3-.2-1.3-.4-2-.2-.5-1.1-1.4-1.9-2.7-2.3l-.4-.1-.2.4c-.4.7-.6 1.4-.7 2.2-.4.1-.9.3-1.4.5V9.5c0-.3-.2-.5-.5-.5h-2c-.3 0-.5.2-.5.5v1.5h-1V9.5c0-.3-.2-.5-.5-.5h-2c-.3 0-.5.2-.5.5v1.5h-1V9.5c0-.3-.2-.5-.5-.5h-2c-.3 0-.5.2-.5.5v1.5H7V9.5C7 9.2 6.8 9 6.5 9h-2c-.3 0-.5.2-.5.5v1.5H3c-.6 0-1.1.2-1.5.6-.4.4-.5 1-.5 1.6 0 1.2.4 2.4 1.2 3.4 1.3 1.6 3.3 2.7 5.7 3.1 1.1.2 2.2.3 3.3.3 3.9 0 7.3-1.5 9.4-4.2.7-.9 1.1-2 1.4-3.2.3-.2.6-.5.8-.8.4-.5.3-1-.3-1.3z"/>
+            </svg>
+          </span>
 
-      Docker Engine {{ running ? '' : 'not' }} running
-    </span>
+          <span class="status-dot-container">
+            @if (starting || (running && !paused)) {
+              <span class="status-dot-ping"></span>
+            }
+            <span class="status-dot"></span>
+          </span>
+
+          <span class="status-text">
+            @if (starting) {
+              Engine starting...
+            } @else if (!running) {
+              Engine not running
+            } @else if (paused) {
+              Engine paused
+            } @else {
+              Engine running
+            }
+          </span>
+        </button>
+
+        <button
+          type="button"
+          class="engine-quick-btn pause-toggle-btn"
+          [disabled]="!running || starting || isPausing()"
+          (click)="toggleEnginePause(); $event.stopPropagation()"
+          [catbeeTooltip]="starting ? 'Engine starting' : (paused ? 'Resume engine' : 'Pause engine')"
+          [attr.aria-label]="starting ? 'Engine starting' : (paused ? 'Resume engine' : 'Pause engine')"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">
+            {{ paused ? 'play_arrow' : 'pause' }}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          class="engine-quick-btn dots-menu-btn"
+          [class.active]="isMenuOpen()"
+          (click)="toggleMenu($event)"
+          catbeeTooltip="More engine options"
+          aria-label="More engine options"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">more_vert</span>
+        </button>
+      </div>
+
+      <div menuContent class="docker-engine-popup-menu">
+        <div class="menu-status-header {{ starting ? 'starting' : (running ? (paused ? 'paused' : 'running') : 'not-running') }}">
+          <span class="status-dot-container">
+            @if (starting) {
+              <span class="status-dot-ping"></span>
+            }
+            <span class="status-dot"></span>
+          </span>
+          <span class="menu-status-title">
+            @if (starting) {
+              Docker Engine is starting...
+            } @else if (!running) {
+              Docker Engine is stopped
+            } @else if (paused) {
+              Docker Engine is paused
+            } @else {
+              Docker Engine is running
+            }
+          </span>
+        </div>
+
+        <div class="menu-divider"></div>
+
+        <button type="button" class="menu-item-row" (click)="openSettings('general')">
+          <span class="item-left">
+            <span class="mat-icon-filled" aria-hidden="true">tune</span>
+            <span>Change settings</span>
+          </span>
+          <span class="kbd-shortcut">{{ platformModifier() }}+Comma</span>
+        </button>
+
+        <button type="button" class="menu-item-row" (click)="openAbout()">
+          <span class="item-left">
+            <span class="mat-icon-filled" aria-hidden="true">info</span>
+            <span>About CatBee Container Studio</span>
+          </span>
+        </button>
+
+        <div class="menu-divider"></div>
+
+        @if (running && !starting) {
+          <button
+            type="button"
+            class="menu-item-row"
+            [disabled]="isPausing()"
+            (click)="toggleEnginePause()"
+          >
+            <span class="item-left">
+              <span class="mat-icon-filled" aria-hidden="true">{{ paused ? 'play_arrow' : 'pause' }}</span>
+              <span>{{ paused ? 'Resume engine' : 'Pause engine' }}</span>
+            </span>
+          </button>
+        }
+
+        <button
+          type="button"
+          class="menu-item-row"
+          [disabled]="isExternalMode() || isRestarting() || starting"
+          (click)="restartEngine()"
+          [catbeeTooltip]="isExternalMode() ? 'Restart is only available for CatBee Built-in Engine' : ''"
+        >
+          <span class="item-left">
+            <span class="mat-icon-filled {{ isRestarting() || starting ? 'spin' : '' }}" aria-hidden="true">
+              {{ isRestarting() || starting ? 'refresh' : 'restart_alt' }}
+            </span>
+            <span>{{ isRestarting() || starting ? 'Restarting engine...' : 'Restart engine' }}</span>
+          </span>
+        </button>
+
+        <div class="menu-divider"></div>
+
+        <button type="button" class="menu-item-row quit-row" (click)="quitApp()">
+          <span class="item-left">
+            <span class="mat-icon-filled" aria-hidden="true">power_settings_new</span>
+            <span>Quit CatBee Container Studio</span>
+          </span>
+        </button>
+      </div>
+    </catbee-container-studio-menu>
   </div>
 
   <div class="catbee-footer-right">
@@ -51,3 +191,18 @@
   (updateDownloadProgress)="onUpdateDownloadProgress($event)"
   (updateDownloaded)="onUpdateDownloaded()"
 />
+
+@if (isExiting()) {
+  <div class="catbee-exiting-overlay" role="alertdialog" aria-modal="true" aria-labelledby="exiting-title">
+    <div class="exiting-card">
+      <div class="exiting-icon-container">
+        <span class="mat-icon-filled spin" aria-hidden="true">progress_activity</span>
+      </div>
+      <h3 id="exiting-title" class="exiting-title">Exiting CatBee Container Studio</h3>
+      <p class="exiting-subtitle">Shutting down Docker Engine and background services...</p>
+      <div class="exiting-progress-bar">
+        <div class="progress-bar-indeterminate"></div>
+      </div>
+    </div>
+  </div>
+}

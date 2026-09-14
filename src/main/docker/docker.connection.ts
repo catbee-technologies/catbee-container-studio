@@ -3,27 +3,26 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { logger } from '../logger';
 import { getDockerCliPath } from './runtime/docker.runtime';
-import { DockerConnection, DockerContextInspect, ResolvedDockerConnection } from './types/connection.types';
+import type { DockerConnection, DockerContextInspect, ResolvedDockerConnection } from './types/connection.types';
 
 const execFileAsync = promisify(execFile);
 
-export async function resolveDockerConnection(): Promise<ResolvedDockerConnection> {
-  logger.debug('[DockerConnection] Starting Docker connection resolution.');
+/**
+ * Resolves an active external Docker connection via:
+ * 1. DOCKER_HOST environment variable
+ * 2. Current Docker context inspect
+ * 3. Platform default socket / named pipe
+ */
+export async function resolveExternalDockerConnection(): Promise<ResolvedDockerConnection | null> {
+  logger.debug('[DockerConnection] Starting external Docker connection resolution.');
 
   // 1. DOCKER_HOST
   // eslint-disable-next-line n/no-process-env
   const dockerHost = process.env.DOCKER_HOST;
   if (dockerHost) {
     logger.debug(`[DockerConnection] DOCKER_HOST detected: ${dockerHost}`);
-
     try {
-      logger.debug('[DockerConnection] Parsing DOCKER_HOST connection.');
-
       const connection = parseDockerHost(dockerHost);
-
-      logger.debug(`[DockerConnection] DOCKER_HOST resolved to: ${JSON.stringify(connection)}`);
-      logger.debug('[DockerConnection] Checking DOCKER_HOST availability.');
-
       const available = await isConnectionAvailable(connection);
       if (available) {
         logger.info(`[DockerConnection] Docker connection resolved using DOCKER_HOST: ${dockerHost}`);
@@ -32,121 +31,84 @@ export async function resolveDockerConnection(): Promise<ResolvedDockerConnectio
           source: 'docker-host'
         };
       }
-      logger.debug('[DockerConnection] DOCKER_HOST endpoint is not available. Continuing with Docker context.');
     } catch (error) {
       logger.debug(
-        `[DockerConnection] Failed to resolve DOCKER_HOST. Continuing with Docker context. Error: ${error instanceof Error ? error.message : String(error)}`
+        `[DockerConnection] Failed to resolve DOCKER_HOST: ${error instanceof Error ? error.message : String(error)}`
       );
     }
-  } else {
-    logger.debug('[DockerConnection] DOCKER_HOST is not set. Continuing with Docker context.');
   }
 
   // 2. Current Docker context
-  logger.debug('[DockerConnection] Resolving current Docker context.');
-  const contextName = await getCurrentDockerContextName();
-  if (contextName) {
-    logger.debug(`[DockerConnection] Current Docker context: ${contextName}`);
-  } else {
-    logger.debug('[DockerConnection] No active Docker context could be determined.');
-  }
-
   const contextConnection = await resolveCurrentDockerContext();
   if (contextConnection) {
-    logger.debug(`[DockerConnection] Docker context endpoint resolved: ${JSON.stringify(contextConnection)}`);
-    logger.debug('[DockerConnection] Checking Docker context endpoint availability.');
-
     const available = await isConnectionAvailable(contextConnection);
     if (available) {
-      logger.info(`[DockerConnection] Docker connection resolved using Docker context: ${contextName ?? 'unknown'}`);
-
+      logger.info('[DockerConnection] Docker connection resolved using Docker context.');
       return {
         ...contextConnection,
         source: 'docker-context'
       };
     }
-    logger.debug('[DockerConnection] Docker context endpoint is not available. Continuing with platform default.');
-  } else {
-    logger.debug('[DockerConnection] Could not resolve a Docker endpoint from the current context.');
   }
 
-  // 3. Platform default
-  logger.debug(`[DockerConnection] Resolving platform default for platform: ${process.platform}`);
-
+  // 3. Platform default socket / named pipe
   const defaultConnection = getPlatformDefaultConnection();
-  logger.debug(`[DockerConnection] Platform default Docker endpoint: ${JSON.stringify(defaultConnection)}`);
-  logger.debug('[DockerConnection] Checking platform default endpoint availability.');
-
   const defaultAvailable = await isConnectionAvailable(defaultConnection);
   if (defaultAvailable) {
-    logger.info(`[DockerConnection] Docker connection resolved using platform default.`);
+    logger.info('[DockerConnection] Docker connection resolved using platform default socket/pipe.');
     return {
       ...defaultConnection,
       source: 'platform-default'
     };
   }
 
-  logger.debug('[DockerConnection] Platform default Docker endpoint is not available.');
-  logger.debug('[DockerConnection] No Docker endpoint available yet.');
-  throw new DockerConnectionError('Docker engine is not available.', {
-    dockerHost,
-    context: contextName,
-    defaultConnection
-  });
+  logger.debug('[DockerConnection] No external Docker connection is currently active.');
+  return null;
 }
 
-function parseDockerHost(value: string): DockerConnection {
-  logger.debug(`[DockerConnection] Parsing Docker host: ${value}`);
+export async function resolveDockerConnection(): Promise<ResolvedDockerConnection> {
+  const external = await resolveExternalDockerConnection();
+  if (external) {
+    return external;
+  }
+  throw new DockerConnectionError('No external Docker connection is available.');
+}
+
+export function parseDockerHost(value: string): DockerConnection {
   const normalized = value.trim();
 
   if (normalized.startsWith('unix://')) {
     const path = normalized.slice('unix://'.length);
-    logger.debug(`[DockerConnection] Detected Unix socket: ${path}`);
-    return {
-      type: 'unix',
-      path
-    };
+    return { type: 'unix', path };
   }
 
   if (normalized.startsWith('npipe://')) {
     const path = normalized.slice('npipe://'.length);
-    logger.debug(`[DockerConnection] Detected Windows named pipe: ${path}`);
-    return {
-      type: 'npipe',
-      path
-    };
+    return { type: 'npipe', path };
   }
 
   if (normalized.startsWith('tcp://')) {
     const url = new URL(normalized);
     const host = url.hostname;
     const port = Number(url.port || 2375);
-    logger.debug(`[DockerConnection] Detected TCP endpoint: ${host}:${port}`);
-    return {
-      type: 'tcp',
-      host,
-      port
-    };
+    return { type: 'tcp', host, port };
   }
 
   logger.error(`[DockerConnection] Unsupported Docker host format: ${value}`);
   throw new Error(`Unsupported DOCKER_HOST: ${value}`);
 }
 
-async function resolveCurrentDockerContext(): Promise<DockerConnection | null> {
+export async function resolveCurrentDockerContext(): Promise<DockerConnection | null> {
   try {
     const dockerPath = await getDockerCliPath();
     if (!dockerPath) {
-      logger.debug('[DockerConnection] Docker CLI not found.');
       return null;
     }
     const contextName = await getCurrentDockerContextName(dockerPath);
-    if (!contextName) {
-      logger.debug('[DockerConnection] No current Docker context.');
+    if (!contextName || contextName === 'catbee-desktop') {
       return null;
     }
 
-    logger.debug(`[DockerConnection] Inspecting Docker context: ${contextName}`);
     const { stdout } = await execFileAsync(dockerPath, ['context', 'inspect', contextName, '--format', '{{json .}}'], {
       encoding: 'utf8',
       windowsHide: true
@@ -154,42 +116,32 @@ async function resolveCurrentDockerContext(): Promise<DockerConnection | null> {
     const context = JSON.parse(stdout.trim()) as DockerContextInspect;
     const host = context.Endpoints?.docker?.Host;
     if (!host) {
-      logger.debug(`[DockerConnection] Docker context '${contextName}' has no Docker endpoint.`);
       return null;
     }
 
-    logger.debug(`[DockerConnection] Docker context '${contextName}' endpoint: ${host}`);
     return parseDockerHost(host);
-  } catch (error) {
-    logger.debug(
-      `[DockerConnection] Failed to resolve Docker context: ${error instanceof Error ? error.message : String(error)}`
-    );
+  } catch {
     return null;
   }
 }
 
-async function getCurrentDockerContextName(dockerPath?: string): Promise<string | null> {
+export async function getCurrentDockerContextName(dockerPath?: string): Promise<string | null> {
   try {
     const resolvedDockerPath = dockerPath ?? (await getDockerCliPath());
     if (!resolvedDockerPath) {
-      logger.debug('[DockerConnection] Docker CLI not found.');
       return null;
     }
     const { stdout } = await execFileAsync(resolvedDockerPath, ['context', 'show'], {
       encoding: 'utf8',
       windowsHide: true
     });
-    const context = stdout.trim();
-    return context || null;
-  } catch (error) {
-    logger.debug(
-      `[DockerConnection] Failed to get current Docker context name: ${error instanceof Error ? error.message : String(error)}`
-    );
+    return stdout.trim() || null;
+  } catch {
     return null;
   }
 }
 
-function getPlatformDefaultConnection(): DockerConnection {
+export function getPlatformDefaultConnection(): DockerConnection {
   switch (process.platform) {
     case 'win32':
       return {
@@ -202,34 +154,18 @@ function getPlatformDefaultConnection(): DockerConnection {
         type: 'unix',
         path: '/var/run/docker.sock'
       };
-
     default:
       throw new Error(`Unsupported platform: ${process.platform}`);
   }
 }
 
-async function isConnectionAvailable(connection: DockerConnection): Promise<boolean> {
-  logger.debug(`[DockerConnection] Checking connection: ${JSON.stringify(connection)}`);
-
+export async function isConnectionAvailable(connection: DockerConnection): Promise<boolean> {
   switch (connection.type) {
-    case 'unix': {
-      const available = await socketExists(connection.path);
-      logger.debug(`[DockerConnection] Unix socket ${connection.path}: ${available ? 'available' : 'not available'}`);
-      return available;
-    }
-    case 'npipe': {
-      const available = await socketExists(connection.path);
-      logger.debug(
-        `[DockerConnection] Windows named pipe ${connection.path}: ${available ? 'available' : 'not available'}`
-      );
-      return available;
-    }
-    case 'tcp': {
-      logger.debug(
-        `[DockerConnection] TCP endpoint ${connection.host}:${connection.port} accepted as a candidate endpoint.`
-      );
-      return true;
-    }
+    case 'unix':
+    case 'npipe':
+      return await socketExists(connection.path);
+    case 'tcp':
+      return await testTcpPing(connection.host, connection.port);
   }
 }
 
@@ -237,6 +173,18 @@ async function socketExists(socketPath: string): Promise<boolean> {
   try {
     await access(socketPath);
     return true;
+  } catch {
+    return false;
+  }
+}
+
+async function testTcpPing(host: string, port: number): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1500);
+    const response = await fetch(`http://${host}:${port}/_ping`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response.ok;
   } catch {
     return false;
   }

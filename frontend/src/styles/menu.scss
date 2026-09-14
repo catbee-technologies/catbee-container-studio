@@ -46,3 +46,131 @@
 .catbee-menu-overlay-panel {
   z-index: 10000;
 }
+
+.docker-engine-popup-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  user-select: none;
+
+  .menu-status-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px 5px;
+    font-weight: 500;
+    font-size: 0.8125rem;
+    color: var(--ink-100);
+
+    .status-dot-container {
+      width: 0.55rem;
+      height: 0.55rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+      .status-dot {
+        width: 0.55rem;
+        height: 0.55rem;
+        border-radius: 999px;
+      }
+    }
+
+    &.running .status-dot {
+      background-color: var(--color-success-base);
+    }
+
+    &.starting .status-dot,
+    &.starting .status-dot-ping {
+      background-color: var(--color-primary-base, #38bdf8);
+    }
+
+    &.paused .status-dot {
+      background-color: #f59e0b;
+    }
+
+    &.not-running .status-dot {
+      background-color: var(--color-error-base);
+    }
+  }
+
+  .menu-divider {
+    height: 1px;
+    background: var(--border-color-tab-panel);
+    margin: 4px 0;
+  }
+
+  .menu-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 7px 10px;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-md);
+    color: var(--ink-100);
+    font-size: 0.8125rem;
+    font-weight: 400;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color var(--transition-base), color var(--transition-base);
+
+    &:hover:not(:disabled) {
+      background: var(--bg-hover);
+    }
+
+    &:disabled {
+      opacity: var(--color-disabled-opacity);
+      cursor: not-allowed;
+    }
+
+    .item-left {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+
+      .mat-icon-filled {
+        font-size: 17px;
+        line-height: 17px;
+        color: var(--ink-300);
+
+        &.spin {
+          animation: spin 1s linear infinite;
+        }
+      }
+    }
+
+    .kbd-shortcut {
+      font-size: 0.6875rem;
+      color: var(--ink-400);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color-light);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-family: inherit;
+    }
+
+    &.quit-row {
+      &:hover:not(:disabled) {
+        background: rgba(239, 68, 68, 0.12);
+        color: var(--color-error-base);
+
+        .item-left .mat-icon-filled {
+          color: var(--color-error-base);
+        }
+      }
+    }
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+

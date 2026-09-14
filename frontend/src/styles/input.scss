@@ -1,6 +1,7 @@
 // Standard text input & select styling
 .field-input,
-.field-select {
+.field-select,
+.field-textarea {
   width: 100%;
   box-sizing: border-box;
   padding: 0.45rem 0.6rem;
@@ -33,6 +34,133 @@
     opacity: 0.6;
     color: var(--ink-500);
     cursor: not-allowed;
+  }
+}
+
+.field-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+// Range slider styling (cross-browser)
+.catbee-range-slider,
+.resource-range-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+  border: none;
+
+  &::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(
+      to right,
+      var(--color-brand-500, #3b82f6) 0%,
+      var(--color-brand-500, #3b82f6) var(--fill-percent, 0%),
+      var(--border-color-control, rgba(255, 255, 255, 0.12)) var(--fill-percent, 0%),
+      var(--border-color-control, rgba(255, 255, 255, 0.12)) 100%
+    );
+  }
+
+  &::-moz-range-track {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--border-color-control, rgba(255, 255, 255, 0.12));
+  }
+
+  &::-moz-range-progress {
+    height: 6px;
+    border-radius: 999px;
+    background: var(--color-brand-500, #3b82f6);
+  }
+
+  &::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid var(--color-brand-500, #3b82f6);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    margin-top: -6px;
+    cursor: grab;
+    transition:
+      transform var(--transition-fast),
+      box-shadow var(--transition-fast);
+
+    &:hover {
+      transform: scale(1.15);
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25);
+    }
+
+    &:active {
+      cursor: grabbing;
+      transform: scale(1.05);
+      box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.35);
+    }
+  }
+
+  &::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #ffffff;
+    border: 2px solid var(--color-brand-500, #3b82f6);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    cursor: grab;
+    transition:
+      transform var(--transition-fast),
+      box-shadow var(--transition-fast);
+
+    &:hover {
+      transform: scale(1.15);
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25);
+    }
+
+    &:active {
+      cursor: grabbing;
+      transform: scale(1.05);
+      box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.35);
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+
+    &::-webkit-slider-thumb {
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
+    }
+
+    &::-moz-range-thumb {
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+
+    &::-webkit-slider-thumb {
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+      border-color: var(--ink-400, #94a3b8);
+    }
+
+    &::-moz-range-thumb {
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+      border-color: var(--ink-400, #94a3b8);
+    }
   }
 }
 

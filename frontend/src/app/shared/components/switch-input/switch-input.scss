@@ -45,3 +45,12 @@
 .switch-toggle input:checked + .switch-slider::after {
   transform: translate(0.9rem, -50%);
 }
+
+.switch-toggle.is-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+
+  span {
+    cursor: not-allowed;
+  }
+}

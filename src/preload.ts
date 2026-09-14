@@ -9,7 +9,10 @@ import { contextBridge, ipcRenderer } from 'electron';
 const IPC_CHANNELS = {
   App: {
     Platform: {
-      Get: 'app:platform:get'
+      Get: 'app:platform:get',
+      GetInfo: 'app:platform:get-info',
+      OpenLogs: 'app:platform:open-logs',
+      OpenEngineDir: 'app:platform:open-engine-dir'
     },
     External: {
       Open: 'app:external:open'
@@ -26,6 +29,7 @@ const IPC_CHANNELS = {
       ToggleMaximize: 'app:window:toggle-maximize',
       Close: 'app:window:close'
     },
+    Quit: 'app:quit',
     Menu: {
       Show: 'app:menu:show',
       ShowSubmenu: 'app:menu:show-submenu'
@@ -35,6 +39,24 @@ const IPC_CHANNELS = {
         Status: 'app:initialization:docker:status'
       },
       RendererReady: 'app:initialization:renderer-ready'
+    },
+    Engine: {
+      Install: 'app:engine:install',
+      Start: 'app:engine:start',
+      Stop: 'app:engine:stop',
+      Restart: 'app:engine:restart',
+      Pause: 'app:engine:pause',
+      Resume: 'app:engine:resume',
+      GetPauseStatus: 'app:engine:get-pause-status',
+      Status: 'app:engine:status',
+      CheckPrerequisites: 'app:engine:check-prerequisites',
+      GetContextInfo: 'app:engine:get-context-info',
+      UseContext: 'app:engine:use-context',
+      SetupCatBeeContext: 'app:engine:setup-catbee-context',
+      GetSettings: 'app:engine:get-settings',
+      SaveSettings: 'app:engine:save-settings',
+      GetWslDistros: 'app:engine:get-wsl-distros',
+      ApplyWslDistroIntegration: 'app:engine:apply-wsl-distro-integration'
     },
     Updater: {
       CheckForUpdates: 'app:updater:check-for-updates',
@@ -144,7 +166,10 @@ const IPC_CHANNELS = {
 const electronBridge = {
   app: {
     platform: {
-      get: () => ipcRenderer.invoke(IPC_CHANNELS.App.Platform.Get)
+      get: () => ipcRenderer.invoke(IPC_CHANNELS.App.Platform.Get),
+      getInfo: () => ipcRenderer.invoke(IPC_CHANNELS.App.Platform.GetInfo),
+      openLogs: () => ipcRenderer.invoke(IPC_CHANNELS.App.Platform.OpenLogs),
+      openEngineDir: () => ipcRenderer.invoke(IPC_CHANNELS.App.Platform.OpenEngineDir)
     },
     external: {
       open: (url: string) => ipcRenderer.invoke(IPC_CHANNELS.App.External.Open, url)
@@ -161,6 +186,7 @@ const electronBridge = {
       toggleMaximize: () => ipcRenderer.invoke(IPC_CHANNELS.App.Window.ToggleMaximize),
       close: () => ipcRenderer.invoke(IPC_CHANNELS.App.Window.Close)
     },
+    quit: () => ipcRenderer.invoke(IPC_CHANNELS.App.Quit),
     menu: {
       show: () => ipcRenderer.invoke(IPC_CHANNELS.App.Menu.Show),
       showSubmenu: (label: string) => ipcRenderer.invoke(IPC_CHANNELS.App.Menu.ShowSubmenu, label)
@@ -180,6 +206,26 @@ const electronBridge = {
       rendererReady: () => {
         ipcRenderer.send(IPC_CHANNELS.App.Initialization.RendererReady);
       }
+    },
+    engine: {
+      install: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Install),
+      start: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Start),
+      stop: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Stop),
+      restart: (mode?: string) => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Restart, mode),
+      pause: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Pause),
+      resume: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Resume),
+      getPauseStatus: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetPauseStatus),
+      getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Status),
+      checkPrerequisites: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.CheckPrerequisites),
+      getContextInfo: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetContextInfo),
+      useContext: (contextName: string) => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.UseContext, contextName),
+      setupCatBeeContext: (setAsActive?: boolean, customEndpoint?: string) =>
+        ipcRenderer.invoke(IPC_CHANNELS.App.Engine.SetupCatBeeContext, setAsActive, customEndpoint),
+      getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetSettings),
+      saveSettings: (settings: unknown) => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.SaveSettings, settings),
+      getWslDistros: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetWslDistros),
+      applyWslDistroIntegration: (distroName: string, enabled: boolean) =>
+        ipcRenderer.invoke(IPC_CHANNELS.App.Engine.ApplyWslDistroIntegration, distroName, enabled)
     },
     updater: {
       checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.App.Updater.CheckForUpdates),

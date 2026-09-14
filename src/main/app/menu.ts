@@ -146,6 +146,32 @@ function createWindowSubmenu(): Electron.MenuItemConstructorOptions[] {
   ];
 }
 
+function createEngineSubmenu(): Electron.MenuItemConstructorOptions[] {
+  return [
+    {
+      label: 'Start Built-in Engine',
+      click: async () => {
+        const { dockerManager } = await import('../docker/services/docker.manager');
+        await dockerManager.startEmbeddedEngine();
+      }
+    },
+    {
+      label: 'Stop Built-in Engine',
+      click: async () => {
+        const { dockerManager } = await import('../docker/services/docker.manager');
+        await dockerManager.stopEmbeddedEngine();
+      }
+    },
+    {
+      label: 'Restart Built-in Engine',
+      click: async () => {
+        const { dockerManager } = await import('../docker/services/docker.manager');
+        await dockerManager.restartEmbeddedEngine();
+      }
+    }
+  ];
+}
+
 function createHelpSubmenu(): Electron.MenuItemConstructorOptions[] {
   return [
     {
@@ -184,6 +210,10 @@ export function buildApplicationMenu({ getMainWindow, showOrCreateMainWindow }: 
     {
       label: 'View',
       submenu: createViewSubmenu(getMainWindow)
+    },
+    {
+      label: 'Engine',
+      submenu: createEngineSubmenu()
     },
     {
       label: 'Window',

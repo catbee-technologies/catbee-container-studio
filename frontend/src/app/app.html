@@ -15,30 +15,57 @@
         </span>
       </button>
 
-      <nav>
-        <ul>
-          @for (item of navItems; track item.route) {
+      <div class="sidebar-top">
+        <nav>
+          <ul>
+            @for (item of navItems; track item.route) {
+              <li>
+                <a
+                  [routerLink]="item.route"
+                  routerLinkActive="is-active"
+                  [routerLinkActiveOptions]="{ exact: false }"
+                  class="nav-link"
+                  [attr.aria-label]="item.label"
+                  [catbeeTooltip]="item.label"
+                  catbeeTooltipPosition="right"
+                  [catbeeTooltipDisabled]="!sidebarCollapsed()"
+                  (click)="onNavClick($event)"
+                >
+                  <span class="mat-icon-filled" aria-hidden="true">{{ item.icon }}</span>
+                  @if (!sidebarCollapsed()) {
+                    <span>{{ item.label }}</span>
+                  }
+                </a>
+              </li>
+            }
+          </ul>
+        </nav>
+      </div>
+
+      <div class="sidebar-bottom">
+        <nav>
+          <ul>
             <li>
               <a
-                [routerLink]="item.route"
+                routerLink="/settings"
                 routerLinkActive="is-active"
                 [routerLinkActiveOptions]="{ exact: false }"
-                class="nav-link"
-                [attr.aria-label]="item.label"
-                [catbeeTooltip]="item.label"
+                class="nav-link settings-nav-link"
+                aria-label="Settings"
+                catbeeTooltip="Settings"
                 catbeeTooltipPosition="right"
                 [catbeeTooltipDisabled]="!sidebarCollapsed()"
                 (click)="onNavClick($event)"
               >
-                <span class="mat-icon-filled" aria-hidden="true">{{ item.icon }}</span>
+                <span class="mat-icon-filled" aria-hidden="true">settings</span>
                 @if (!sidebarCollapsed()) {
-                  <span>{{ item.label }}</span>
+                  <span>Settings</span>
                 }
               </a>
             </li>
-          }
-        </ul>
-      </nav>
+          </ul>
+        </nav>
+      </div>
     </aside>
 
     <main class="content-pane" aria-label="Main content">
@@ -48,28 +75,57 @@
         [fullscreen]="false"
         [animateMessage]="true"
       />
-      @if (dockerConnected()) {
+      @if (dockerConnected() || isSettingsRoute()) {
         <router-outlet />
       } @else {
         @let status = dockerInitStatus();
         @let error = dockerErrorStatus();
         @let initializing = isDockerInitializing();
+        @let notInstalled = isEngineNotInstalled();
 
         <catbee-container-studio-empty-state
-          icon="cloud_off"
+          [icon]="notInstalled ? 'dns' : 'cloud_off'"
           size="large"
-          [message]="error ? error.message : initializing ? status.message : 'Docker Engine is not connected'"
+          [message]="
+            error
+              ? error.message
+              : initializing
+                ? status.message
+                : notInstalled
+                  ? status.message
+                  : 'Docker Engine is not connected'
+          "
           [hint]="
             error
               ? error.hint
               : initializing
                 ? status.hint
-                : 'Please start Docker Engine to manage your containers, images, and volumes.'
+                : notInstalled
+                  ? status.hint
+                  : 'Please start Docker Engine to manage your containers, images, and volumes.'
           "
           [showLoader]="initializing"
-        />
+        >
+          @if (notInstalled) {
+            <div class="engine-install-action">
+              <button
+                type="button"
+                class="install-engine-btn"
+                [disabled]="isInstalling()"
+                (click)="installBuiltInEngine()"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">download</span>
+                <span>{{ isInstalling() ? 'Setting Up Built-in Engine...' : 'Install Built-in Engine' }}</span>
+              </button>
+            </div>
+          }
+        </catbee-container-studio-empty-state>
       }
     </main>
   </div>
-  <catbee-container-studio-footer [dockerConnected]="dockerConnected()" />
+  <catbee-container-studio-footer
+    [dockerConnected]="dockerConnected()"
+    [isStarting]="isDockerInitializing()"
+    [dockerInitStatus]="dockerInitStatus()"
+  />
 </div>

@@ -1,0 +1,1278 @@
+<div class="settings-shell">
+  <!-- Left Side Pane: Search & Categories -->
+  <aside class="settings-nav-pane" aria-label="Settings navigation">
+    <div class="settings-search-wrapper">
+      <catbee-container-studio-search-input
+        inputId="settings-search"
+        placeholder="Search settings"
+        ariaLabel="Search settings"
+        width="100%"
+        [value]="searchQuery()"
+        (valueChange)="searchQuery.set($event)"
+      />
+    </div>
+
+    <ul class="settings-category-list">
+      @for (cat of filteredCategories(); track cat.id) {
+        <li>
+          <button
+            type="button"
+            class="settings-category-btn"
+            [class.is-active]="activeCategory() === cat.id"
+            (click)="selectCategory(cat.id)"
+          >
+            <span class="mat-icon-filled" aria-hidden="true">{{ cat.icon }}</span>
+            <span>{{ cat.label }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+  </aside>
+
+  <!-- Right Content Pane -->
+  <main class="settings-content-pane">
+    <div class="settings-body">
+      @if (settingsErrorMessage(); as err) {
+        <div class="settings-error-banner-wrapper">
+          <catbee-container-studio-error-banner
+            [errorMessage]="err"
+            (closeErr)="settingsErrorMessage.set(null)"
+            size="small"
+          />
+        </div>
+      }
+
+      <!-- GENERAL TAB -->
+      @if (activeCategory() === 'general') {
+        <section class="settings-section">
+          <h2>General</h2>
+
+          <div class="form-group">
+            <label class="checkbox-row">
+              <input type="checkbox" [checked]="startAtLogin()" (change)="startAtLogin.set(!startAtLogin())" />
+              <span class="checkbox-label">Start CatBee Container Studio when you sign in to your computer</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-row">
+              <input type="checkbox" [checked]="openDashboard()" (change)="openDashboard.set(!openDashboard())" />
+              <span class="checkbox-label">Open CatBee Dashboard when CatBee Container Studio starts</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <h3 class="group-title">Choose theme for CatBee</h3>
+            <div class="radio-group">
+              <label class="radio-row">
+                <input
+                  type="radio"
+                  name="theme"
+                  [checked]="selectedTheme() === 'light'"
+                  (change)="selectTheme('light')"
+                />
+                <span>Light</span>
+              </label>
+              <label class="radio-row">
+                <input
+                  type="radio"
+                  name="theme"
+                  [checked]="selectedTheme() === 'dark'"
+                  (change)="selectTheme('dark')"
+                />
+                <span>Dark</span>
+              </label>
+              <label class="radio-row">
+                <input
+                  type="radio"
+                  name="theme"
+                  [checked]="selectedTheme() === 'system'"
+                  (change)="selectTheme('system')"
+                />
+                <span>Use system settings</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <h3 class="group-title">Choose how to run Docker containers</h3>
+            <div class="radio-group vertical">
+              <label class="radio-row">
+                <input
+                  type="radio"
+                  name="engineMode"
+                  value="auto"
+                  [checked]="engineMode() === 'auto'"
+                  (change)="engineMode.set('auto')"
+                />
+                <div>
+                  <span class="option-title"
+                    >Auto (External First) <span class="badge-recommended">Recommended</span></span
+                  >
+                  <span class="option-desc">{{ autoModeDesc() }}</span>
+                </div>
+              </label>
+              <label class="radio-row">
+                <input
+                  type="radio"
+                  name="engineMode"
+                  value="embedded"
+                  [checked]="engineMode() === 'embedded'"
+                  (change)="engineMode.set('embedded')"
+                />
+                <div>
+                  <span class="option-title">{{ builtInEngineLabel() }}</span>
+                  <span class="option-desc">{{ builtInEngineDesc() }}</span>
+                </div>
+              </label>
+              <label class="radio-row">
+                <input
+                  type="radio"
+                  name="engineMode"
+                  value="external"
+                  [checked]="engineMode() === 'external'"
+                  (change)="engineMode.set('external')"
+                />
+                <div>
+                  <span class="option-title">External Engine Only</span>
+                  <span class="option-desc"
+                    >Only connects to host-installed Docker Desktop or external socket without running a built-in
+                    distro.</span
+                  >
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group" [class.is-disabled-group]="isExternalMode()">
+            <label class="checkbox-row" [class.is-disabled]="isExternalMode()">
+              <input
+                type="checkbox"
+                [checked]="exposeTcp()"
+                [disabled]="isExternalMode()"
+                (change)="exposeTcp.set(!exposeTcp())"
+              />
+              <div>
+                <span class="checkbox-label">Expose daemon on tcp://localhost:23750 without TLS</span>
+                <span class="field-hint">
+                  Exposing the daemon on TCP allows local developer tools and CLI scripts to connect directly.
+                  @if (isExternalMode()) {
+                    <span class="external-note"> (Managed by external Docker daemon in External Engine mode)</span>
+                  }
+                </span>
+              </div>
+            </label>
+          </div>
+        </section>
+      }
+
+      <!-- RESOURCES TAB -->
+      @if (activeCategory() === 'resources') {
+        <section class="settings-section">
+          <h2>Resources</h2>
+
+          <!-- Reusable Tabs Component for Resources Navigation -->
+          <div class="resources-tabs-nav-wrapper">
+            <catbee-container-studio-tabs
+              [tabs]="resourceTabItems()"
+              [activeTab]="activeResourceTab()"
+              ariaLabel="Resource Settings Tabs"
+              (activeTabChange)="onResourceTabChange($event)"
+            />
+          </div>
+
+          <!-- Advanced Sub-tab -->
+          @if (activeResourceTab() === 'advanced') {
+            <div class="tab-content-area">
+              @if (isExternalMode()) {
+                <div class="info-callout warning">
+                  <span class="mat-icon-filled" aria-hidden="true">info</span>
+                  <div>
+                    <strong>External Engine Mode Active</strong>
+                    <p>
+                      Hardware resource limits, disk image management, and Resource Saver are managed directly by your
+                      external Docker engine.
+                    </p>
+                  </div>
+                </div>
+              }
+
+              @if (isWindows()) {
+                <div class="info-callout">
+                  <p>You are using the WSL 2 backend, so resource limits are managed by Windows.</p>
+                  <p>
+                    You can configure limits on the memory, CPU, and swap size allocated to WSL 2 in a
+                    <code class="code-link">.wslconfig</code> file located in your user profile.
+                  </p>
+                </div>
+              } @else {
+                <!-- Hypervisor Resource Allocation Sliders for macOS & Linux -->
+                <div class="resource-sliders-card" [class.is-disabled-card]="isExternalMode()">
+                  <div class="sliders-title-group">
+                    <h3 class="group-title">Virtual Machine Allocation</h3>
+                    <p class="field-hint">
+                      Adjust the hardware resources dedicated to the CatBee container runtime microVM.
+                    </p>
+                  </div>
+
+                  <!-- CPU Allocation Slider -->
+                  <div class="resource-slider-row">
+                    <div class="slider-header">
+                      <span class="slider-title">CPUs</span>
+                      <span class="slider-value">{{ allocatedCpus() }} CPUs</span>
+                    </div>
+                    <input
+                      type="range"
+                      class="resource-range-slider"
+                      min="1"
+                      [max]="maxCpus()"
+                      step="1"
+                      [style.--fill-percent]="((allocatedCpus() - 1) / ((maxCpus() || 8) - 1)) * 100 + '%'"
+                      [disabled]="isExternalMode()"
+                      [ngModel]="allocatedCpus()"
+                      (ngModelChange)="allocatedCpus.set(+$event)"
+                    />
+                    <div class="slider-ticks-row">
+                      <span>1 CPU</span>
+                      <span>{{ maxCpus() }} CPUs</span>
+                    </div>
+                  </div>
+
+                  <!-- Memory Allocation Slider -->
+                  <div class="resource-slider-row">
+                    <div class="slider-header">
+                      <span class="slider-title">Memory</span>
+                      <span class="slider-value">{{ allocatedMemoryGb() }} GB</span>
+                    </div>
+                    <input
+                      type="range"
+                      class="resource-range-slider"
+                      min="2"
+                      [max]="maxMemoryGb()"
+                      step="0.5"
+                      [style.--fill-percent]="((allocatedMemoryGb() - 2) / ((maxMemoryGb() || 16) - 2)) * 100 + '%'"
+                      [disabled]="isExternalMode()"
+                      [ngModel]="allocatedMemoryGb()"
+                      (ngModelChange)="allocatedMemoryGb.set(+$event)"
+                    />
+                    <div class="slider-ticks-row">
+                      <span>2 GB</span>
+                      <span>{{ maxMemoryGb() }} GB</span>
+                    </div>
+                  </div>
+
+                  <!-- Swap Allocation Slider -->
+                  <div class="resource-slider-row">
+                    <div class="slider-header">
+                      <span class="slider-title">Swap</span>
+                      <span class="slider-value">{{ allocatedSwapGb() }} GB</span>
+                    </div>
+                    <input
+                      type="range"
+                      class="resource-range-slider"
+                      min="0.5"
+                      max="4"
+                      step="0.5"
+                      [style.--fill-percent]="((allocatedSwapGb() - 0.5) / 3.5) * 100 + '%'"
+                      [disabled]="isExternalMode()"
+                      [ngModel]="allocatedSwapGb()"
+                      (ngModelChange)="allocatedSwapGb.set(+$event)"
+                    />
+                    <div class="slider-ticks-row">
+                      <span>512 MB</span>
+                      <span>4 GB</span>
+                    </div>
+                  </div>
+
+                  <!-- Virtual Disk Limit Slider -->
+                  <div class="resource-slider-row">
+                    <div class="slider-header">
+                      <span class="slider-title">Virtual disk limit</span>
+                      <span class="slider-value">{{ virtualDiskLimitGb() }} GB</span>
+                    </div>
+                    <input
+                      type="range"
+                      class="resource-range-slider"
+                      min="16"
+                      max="256"
+                      step="8"
+                      [style.--fill-percent]="((virtualDiskLimitGb() - 16) / 240) * 100 + '%'"
+                      [disabled]="isExternalMode()"
+                      [ngModel]="virtualDiskLimitGb()"
+                      (ngModelChange)="virtualDiskLimitGb.set(+$event)"
+                    />
+                    <div class="slider-ticks-row">
+                      <span>16 GB</span>
+                      <span>256 GB</span>
+                    </div>
+                  </div>
+                </div>
+              }
+
+              <div class="form-group" [class.is-disabled-group]="isExternalMode()">
+                <label class="group-title">Disk image location</label>
+                <div class="path-input-row">
+                  <input
+                    type="text"
+                    class="field-input path-input"
+                    readonly
+                    [disabled]="isExternalMode()"
+                    [value]="diskLocation()"
+                  />
+                  <button
+                    type="button"
+                    class="catbee-action-btn"
+                    [disabled]="isExternalMode()"
+                    (click)="browseDiskLocation()"
+                  >
+                    Browse
+                  </button>
+                </div>
+              </div>
+
+              <!-- Resource Saver Card with discrete slider matching Docker Desktop -->
+              <div class="resource-saver-box" [class.is-disabled-card]="isExternalMode()">
+                <div class="section-header-row">
+                  <h3 class="group-title">Resource Saver</h3>
+                  <span class="mat-icon-filled moon-icon" aria-hidden="true">nightlight</span>
+                </div>
+
+                <label class="checkbox-row" [class.is-disabled]="isExternalMode()">
+                  <input
+                    type="checkbox"
+                    [disabled]="isExternalMode()"
+                    [checked]="resourceSaverEnabled()"
+                    (change)="resourceSaverEnabled.set(!resourceSaverEnabled())"
+                  />
+                  <div>
+                    <span class="checkbox-label">Enable Resource Saver</span>
+                    <span class="field-hint">
+                      Reduces CPU and memory utilization when no containers are running. Exit from Resource Saver mode
+                      happens automatically when containers are started.
+                    </span>
+                  </div>
+                </label>
+
+                <div class="saver-slider-group" [class.is-disabled]="!resourceSaverEnabled() || isExternalMode()">
+                  <div class="saver-slider-header">
+                    <p class="field-hint">
+                      Set the duration of time between no containers running and CatBee entering Resource Saver mode:
+                    </p>
+                    <span class="saver-current-badge">{{ saverTimeoutLabel() }}</span>
+                  </div>
+
+                  <catbee-container-studio-discrete-slider
+                    [min]="0"
+                    [max]="12"
+                    [step]="1"
+                    [value]="resourceSaverSliderIndex()"
+                    [disabled]="!resourceSaverEnabled() || isExternalMode()"
+                    [labels]="resourceSaverLabels"
+                    ariaLabel="Resource Saver timeout slider"
+                    (valueChange)="onResourceSaverSliderChange($event)"
+                  />
+                </div>
+              </div>
+            </div>
+          }
+
+          <!-- File sharing Sub-tab (Docker Desktop Parity) -->
+          @if (activeResourceTab() === 'file-sharing') {
+            <div class="tab-content-area">
+              @if (isExternalMode()) {
+                <div class="info-callout warning">
+                  <span class="mat-icon-filled" aria-hidden="true">info</span>
+                  <div>
+                    <strong>External Engine Mode Active</strong>
+                    <p>
+                      Bind mount permissions and file sharing paths are managed directly in your external Docker
+                      application settings.
+                    </p>
+                  </div>
+                </div>
+              }
+
+              <p class="section-desc">
+                These directories (and their subdirectories) can be bind mounted into Docker containers. You can check
+                the
+                <a
+                  href="https://docs.docker.com/desktop/settings/windows/#file-sharing"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="link-learn-more"
+                  >documentation
+                  <span class="mat-icon-filled external-link-icon" aria-hidden="true">open_in_new</span></a
+                >
+                for more details.
+              </p>
+
+              <div class="file-sharing-input-row" [class.is-disabled]="isExternalMode()">
+                <div class="file-sharing-box">
+                  <input
+                    type="text"
+                    class="path-input-embedded"
+                    placeholder="C:\path\to\exported\directory"
+                    [disabled]="isExternalMode()"
+                    [ngModel]="newSharePath()"
+                    (ngModelChange)="newSharePath.set($event)"
+                    (keydown.enter)="addSharePath()"
+                  />
+                  <button
+                    type="button"
+                    class="browse-action-text-btn"
+                    [disabled]="isExternalMode()"
+                    (click)="browseSharePath()"
+                  >
+                    Browse
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  class="catbee-action-btn icon-only primary"
+                  [disabled]="isExternalMode() || !newSharePath().trim()"
+                  (click)="addSharePath()"
+                  aria-label="Add directory"
+                >
+                  <span class="mat-icon-filled" aria-hidden="true">add</span>
+                </button>
+              </div>
+
+              <div class="file-sharing-table-container">
+                <table class="file-sharing-table">
+                  <thead>
+                    <tr>
+                      <th>Shared Paths</th>
+                      <th class="col-actions"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (path of fileSharingPaths(); track path) {
+                      <tr>
+                        <td class="path-cell">
+                          <span class="mat-icon-filled folder-icon" aria-hidden="true">folder</span>
+                          <span class="path-text">{{ path }}</span>
+                        </td>
+                        <td class="col-actions">
+                          <button
+                            type="button"
+                            class="catbee-action-btn icon-only sm danger"
+                            [disabled]="isExternalMode()"
+                            (click)="removeSharePath(path)"
+                            aria-label="Remove path"
+                          >
+                            <span class="mat-icon-filled" aria-hidden="true">delete</span>
+                          </button>
+                        </td>
+                      </tr>
+                    }
+                    @if (fileSharingPaths().length === 0) {
+                      <tr>
+                        <td colspan="2" class="empty-table-cell">No shared directories configured.</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
+          <!-- Proxies Sub-tab (Docker Desktop Parity) -->
+          @if (activeResourceTab() === 'proxies') {
+            <div class="tab-content-area">
+              <p class="section-desc">
+                Configure proxy settings for Docker Desktop. The supported proxies are HTTP/HTTPS and SOCKS5.
+                <a
+                  href="https://docs.docker.com/desktop/settings/windows/#proxies"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="link-learn-more"
+                >
+                  Learn more <span class="mat-icon-filled external-link-icon" aria-hidden="true">open_in_new</span>
+                </a>
+              </p>
+
+              <!-- Section 1: Docker Desktop proxy -->
+              <div class="proxy-block">
+                <h3 class="group-title">Docker Desktop proxy</h3>
+                <p class="field-hint">
+                  Used for purposes like signing in, pulling or pushing images, or reporting error diagnostics.
+                </p>
+
+                <div class="proxy-mode-row">
+                  <label class="proxy-mode-heading">Proxy mode</label>
+                  <div class="radio-inline-group">
+                    <label class="radio-row">
+                      <input
+                        type="radio"
+                        name="desktopProxyMode"
+                        value="system"
+                        [checked]="desktopProxy().mode === 'system'"
+                        (change)="setDesktopProxyMode('system')"
+                      />
+                      <span>System proxy</span>
+                    </label>
+                    <label class="radio-row">
+                      <input
+                        type="radio"
+                        name="desktopProxyMode"
+                        value="none"
+                        [checked]="desktopProxy().mode === 'none'"
+                        (change)="setDesktopProxyMode('none')"
+                      />
+                      <span>No proxy</span>
+                    </label>
+                    <label class="radio-row">
+                      <input
+                        type="radio"
+                        name="desktopProxyMode"
+                        value="manual"
+                        [checked]="desktopProxy().mode === 'manual'"
+                        (change)="setDesktopProxyMode('manual')"
+                      />
+                      <span>Manual configuration</span>
+                    </label>
+                  </div>
+                </div>
+
+                @if (desktopProxy().mode === 'manual') {
+                  <div class="proxy-manual-card">
+                    <div class="form-group">
+                      <label class="field-label">Web Server (HTTP)</label>
+                      <input
+                        type="text"
+                        class="field-input"
+                        placeholder="http://proxy.example.com:8080"
+                        [value]="desktopProxy().httpProxy || ''"
+                        (input)="updateDesktopProxyField('httpProxy', $any($event.target).value)"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label class="field-label">Secure Web Server (HTTPS)</label>
+                      <input
+                        type="text"
+                        class="field-input"
+                        placeholder="https://proxy.example.com:8443"
+                        [value]="desktopProxy().httpsProxy || ''"
+                        (input)="updateDesktopProxyField('httpsProxy', $any($event.target).value)"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label class="field-label">Bypass proxy settings for these hosts & domains</label>
+                      <input
+                        type="text"
+                        class="field-input"
+                        placeholder="localhost,127.0.0.1,docker.internal"
+                        [value]="desktopProxy().noProxy || ''"
+                        (input)="updateDesktopProxyField('noProxy', $any($event.target).value)"
+                      />
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <!-- Section 2: Containers proxy -->
+              <div class="proxy-block" [class.is-disabled-card]="isExternalMode()">
+                @if (isExternalMode()) {
+                  <div class="info-callout info-compact">
+                    <span class="mat-icon-filled" aria-hidden="true">info</span>
+                    <span>Containers proxy for external engine is managed by your external Docker provider.</span>
+                  </div>
+                }
+
+                <h3 class="group-title">Containers proxy</h3>
+                <p class="field-hint">Used for outward-bound traffic from running containers.</p>
+
+                <div class="proxy-mode-row">
+                  <label class="proxy-mode-heading">Proxy mode</label>
+                  <div class="radio-inline-group">
+                    <label class="radio-row" [class.is-disabled]="isExternalMode()">
+                      <input
+                        type="radio"
+                        name="containersProxyMode"
+                        value="same-as-host"
+                        [disabled]="isExternalMode()"
+                        [checked]="containersProxy().mode === 'same-as-host'"
+                        (change)="setContainersProxyMode('same-as-host')"
+                      />
+                      <span>Same as host proxy</span>
+                    </label>
+                    <label class="radio-row" [class.is-disabled]="isExternalMode()">
+                      <input
+                        type="radio"
+                        name="containersProxyMode"
+                        value="system"
+                        [disabled]="isExternalMode()"
+                        [checked]="containersProxy().mode === 'system'"
+                        (change)="setContainersProxyMode('system')"
+                      />
+                      <span>System proxy</span>
+                    </label>
+                    <label class="radio-row" [class.is-disabled]="isExternalMode()">
+                      <input
+                        type="radio"
+                        name="containersProxyMode"
+                        value="none"
+                        [disabled]="isExternalMode()"
+                        [checked]="containersProxy().mode === 'none'"
+                        (change)="setContainersProxyMode('none')"
+                      />
+                      <span>No proxy</span>
+                    </label>
+                    <label class="radio-row" [class.is-disabled]="isExternalMode()">
+                      <input
+                        type="radio"
+                        name="containersProxyMode"
+                        value="manual"
+                        [disabled]="isExternalMode()"
+                        [checked]="containersProxy().mode === 'manual'"
+                        (change)="setContainersProxyMode('manual')"
+                      />
+                      <span>Manual configuration</span>
+                    </label>
+                  </div>
+                </div>
+
+                @if (containersProxy().mode === 'manual') {
+                  <div class="proxy-manual-card">
+                    <div class="form-group">
+                      <label class="field-label">Web Server (HTTP)</label>
+                      <input
+                        type="text"
+                        class="field-input"
+                        placeholder="http://proxy.example.com:8080"
+                        [disabled]="isExternalMode()"
+                        [value]="containersProxy().httpProxy || ''"
+                        (input)="updateContainersProxyField('httpProxy', $any($event.target).value)"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label class="field-label">Secure Web Server (HTTPS)</label>
+                      <input
+                        type="text"
+                        class="field-input"
+                        placeholder="https://proxy.example.com:8443"
+                        [disabled]="isExternalMode()"
+                        [value]="containersProxy().httpsProxy || ''"
+                        (input)="updateContainersProxyField('httpsProxy', $any($event.target).value)"
+                      />
+                    </div>
+                    <div class="form-group">
+                      <label class="field-label">Bypass proxy settings for these hosts & domains</label>
+                      <input
+                        type="text"
+                        class="field-input"
+                        placeholder="localhost,127.0.0.1"
+                        [disabled]="isExternalMode()"
+                        [value]="containersProxy().noProxy || ''"
+                        (input)="updateContainersProxyField('noProxy', $any($event.target).value)"
+                      />
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Network Sub-tab (Docker Desktop Parity) -->
+          @if (activeResourceTab() === 'network') {
+            <div class="tab-content-area">
+              @if (isExternalMode()) {
+                <div class="info-callout warning">
+                  <span class="mat-icon-filled" aria-hidden="true">info</span>
+                  <div>
+                    <strong>External Engine Mode Active</strong>
+                    <p>
+                      Network daemon configurations, subnet allocations, and bridge behaviors are controlled by your
+                      external engine host.
+                    </p>
+                  </div>
+                </div>
+              }
+
+              <p class="section-desc">Configure the way Docker containers interact with the network</p>
+
+              <!-- Docker subnet -->
+              <div class="form-group" [class.is-disabled-group]="isExternalMode()">
+                <label class="field-label">Docker subnet</label>
+                <input
+                  type="text"
+                  class="field-input subnet-input"
+                  [disabled]="isExternalMode()"
+                  [value]="networkSettings().dockerSubnet"
+                  (input)="updateDockerSubnet($any($event.target).value)"
+                />
+                <span class="field-hint">default: 192.168.65.0/24</span>
+              </div>
+
+              <!-- Enable host networking -->
+              <div class="form-group" [class.is-disabled-group]="isExternalMode()">
+                <label class="checkbox-row" [class.is-disabled]="isExternalMode()">
+                  <input
+                    type="checkbox"
+                    [disabled]="isExternalMode()"
+                    [checked]="networkSettings().enableHostNetworking"
+                    (change)="toggleHostNetworking()"
+                  />
+                  <div>
+                    <span class="checkbox-label">Enable host networking</span>
+                    <span class="field-hint">
+                      Host networking allows containers that are started with --net=host use localhost to connect to TCP
+                      and UDP services on the host. It automatically allows software on the host to use localhost to
+                      connect to TCP and UDP services in the container.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              <!-- Port binding behavior -->
+              <div class="form-group" [class.is-disabled-group]="isExternalMode()">
+                <label class="field-label">Port binding behavior</label>
+                <div class="select-wrapper">
+                  <select
+                    class="field-select network-select"
+                    [disabled]="isExternalMode()"
+                    [value]="networkSettings().portBindingBehavior"
+                    (change)="updatePortBindingBehavior($any($event.target).value)"
+                  >
+                    <option value="open">Open (Default)</option>
+                    <option value="localhost">Localhost only</option>
+                  </select>
+                </div>
+                <span class="field-hint">
+                  Controls how ports are bound to containers, either making them available on the local network
+                  (default) or only on localhost.
+                </span>
+              </div>
+
+              <!-- Default networking mode -->
+              <div class="form-group" [class.is-disabled-group]="isExternalMode()">
+                <label class="field-label">Default networking mode</label>
+                <div class="select-wrapper">
+                  <select
+                    class="field-select network-select"
+                    [disabled]="isExternalMode()"
+                    [value]="networkSettings().defaultNetworkingMode"
+                    (change)="updateDefaultNetworkingMode($any($event.target).value)"
+                  >
+                    <option value="ipv4">IPv4 only</option>
+                    <option value="dualstack">Dual (IPv4 and IPv6)</option>
+                  </select>
+                </div>
+                <span class="field-hint">
+                  Docker networks set to support only IPv4 by default. This can be overriden on a per-network basis.
+                </span>
+              </div>
+
+              <!-- Inhibit DNS resolution -->
+              <div class="form-group" [class.is-disabled-group]="isExternalMode()">
+                <label class="field-label">Inhibit DNS resolution for IPv4 / IPv6</label>
+                <span class="field-subhead">Based on selected network mode</span>
+                <div class="select-wrapper">
+                  <select
+                    class="field-select network-select"
+                    [disabled]="isExternalMode()"
+                    [value]="networkSettings().dnsResolution"
+                    (change)="updateDnsResolution($any($event.target).value)"
+                  >
+                    <option value="auto">Auto (recommended)</option>
+                    <option value="never">Never</option>
+                    <option value="always">Always</option>
+                  </select>
+                </div>
+                <span class="field-hint">
+                  Docker is set to detect whether your host supports IPv4 and/or IPv6. It automatically filters
+                  unsupported DNS record types (A or AAAA) to prevent containers from attempting failed connections This
+                  can be overriden on a per-network basis.
+                </span>
+              </div>
+
+              <div class="network-learn-more">
+                <span class="mat-icon-filled" aria-hidden="true">info</span>
+                <span>Learn more about detailed behavior, and enterprise configuration options.</span>
+              </div>
+            </div>
+          }
+
+          <!-- WSL Integration Sub-tab (Docker Desktop Parity) -->
+          @if (activeResourceTab() === 'wsl' && isWindows()) {
+            <div class="tab-content-area">
+              @if (isExternalMode()) {
+                <div class="info-callout warning">
+                  <span class="mat-icon-filled" aria-hidden="true">info</span>
+                  <div>
+                    <strong>External Engine Mode Active</strong>
+                    <p>WSL 2 integration is managed by your external Docker provider.</p>
+                  </div>
+                </div>
+              }
+
+              <p class="section-desc">Configure which WSL 2 distros you want to access Docker from.</p>
+
+              <div class="form-group" [class.is-disabled-group]="isExternalMode()">
+                <label class="checkbox-row" [class.is-disabled]="isExternalMode()">
+                  <input
+                    type="checkbox"
+                    [disabled]="isExternalMode()"
+                    [checked]="wslIntegrationEnabled()"
+                    (change)="wslIntegrationEnabled.set(!wslIntegrationEnabled())"
+                  />
+                  <span class="checkbox-label">Enable integration with my default WSL distro</span>
+                </label>
+              </div>
+
+              <div class="distros-block">
+                <label class="group-title">Enable integration with additional distros:</label>
+                <div class="distros-switch-list">
+                  @for (distro of installedWslDistros(); track distro) {
+                    <div class="distro-switch-row">
+                      <catbee-container-studio-switch-input
+                        [checked]="isDistroIntegrated(distro)"
+                        [disabled]="isExternalMode() || !wslIntegrationEnabled()"
+                        (checkedChange)="toggleDistroIntegration(distro)"
+                      />
+                      <span class="distro-name">{{ distro }}</span>
+                    </div>
+                  }
+                  @if (installedWslDistros().length === 0 && !isLoadingDistros()) {
+                    <p class="field-hint">No additional WSL 2 distributions found.</p>
+                  }
+                </div>
+
+                <button
+                  type="button"
+                  class="catbee-action-btn"
+                  [disabled]="isExternalMode() || isLoadingDistros()"
+                  (click)="loadWslDistros()"
+                >
+                  @if (isLoadingDistros()) {
+                    <span class="mat-icon-filled spinning" aria-hidden="true">refresh</span>
+                    <span>Fetching distros...</span>
+                  } @else {
+                    <span>Refetch distros</span>
+                  }
+                </button>
+              </div>
+            </div>
+          }
+        </section>
+      }
+
+      <!-- DOCKER ENGINE TAB -->
+      @if (activeCategory() === 'engine') {
+        <section class="settings-section">
+          <h2>Docker Engine</h2>
+          <p class="section-desc">Manage your active container daemon and inspect runtime configuration.</p>
+
+          @if (engineErrorMessage(); as err) {
+            <div class="settings-error-banner-wrapper">
+              <catbee-container-studio-error-banner
+                [errorMessage]="err"
+                (closeErr)="engineErrorMessage.set(null)"
+                size="small"
+              />
+            </div>
+          }
+
+          <div class="engine-card">
+            <div class="engine-card-header">
+              <div class="engine-title-group">
+                <span class="mat-icon-filled engine-icon" aria-hidden="true">developer_board</span>
+                <div>
+                  <h3>CatBee Built-in Container Engine</h3>
+                  <span class="engine-subtitle">{{ engineBackendSubtitle() }}</span>
+                </div>
+              </div>
+              <span class="badge-running">Ready</span>
+            </div>
+
+            <div class="engine-details-grid">
+              <div class="detail-cell">
+                <span class="detail-label">Endpoint</span>
+                <span class="detail-value">{{ defaultEndpointLabel() }}</span>
+              </div>
+              <div class="detail-cell">
+                <span class="detail-label">Distribution</span>
+                <span class="detail-value">{{ engineDistroLabel() }}</span>
+              </div>
+              <div class="detail-cell">
+                <span class="detail-label">Architecture</span>
+                <span class="detail-value">{{ platformInfo()?.arch ?? 'x64' }}</span>
+              </div>
+              <div class="detail-cell">
+                <span class="detail-label">Persistence</span>
+                <span class="detail-value">Persistent Daemon</span>
+              </div>
+            </div>
+
+            @if (isExternalMode()) {
+              <div class="info-callout warning">
+                <span class="mat-icon-filled" aria-hidden="true">info</span>
+                <div>
+                  <strong>External Engine Mode Active</strong>
+                  <p>
+                    Lifecycle operations (Start, Stop, Restart, Reinstall) are not supported for external engines and
+                    are disabled.
+                  </p>
+                </div>
+              </div>
+            }
+
+            <div class="engine-action-buttons">
+              <button
+                type="button"
+                class="catbee-action-btn action-start"
+                [disabled]="isActionLoading() || isExternalMode()"
+                (click)="startEngine()"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+                <span>Start</span>
+              </button>
+              <button
+                type="button"
+                class="catbee-action-btn action-stop"
+                [disabled]="isActionLoading() || isExternalMode()"
+                (click)="requestStopEngine()"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">stop</span>
+                <span>Stop</span>
+              </button>
+              <button
+                type="button"
+                class="catbee-action-btn action-restart"
+                [disabled]="isActionLoading() || isExternalMode()"
+                (click)="restartEngine()"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">refresh</span>
+                <span>Restart</span>
+              </button>
+              <button
+                type="button"
+                class="catbee-action-btn danger"
+                [disabled]="isActionLoading() || isExternalMode()"
+                (click)="requestReinstallEngine()"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">build</span>
+                <span>Reinstall</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Docker CLI Context Management -->
+          <div class="context-card">
+            <div class="context-card-header">
+              <div class="context-title-group">
+                <span class="mat-icon-filled context-icon" aria-hidden="true">terminal</span>
+                <div class="context-header-text">
+                  <div class="context-heading-row">
+                    <h3>Docker CLI Context</h3>
+                    @if (dockerContext()?.isCatBeeActive) {
+                      <span class="badge-running">catbee-desktop active</span>
+                    } @else if (dockerContext()?.currentContext) {
+                      <span class="badge-subtle">{{ dockerContext()?.currentContext }} active</span>
+                    }
+                  </div>
+                  <p class="field-hint">
+                    Docker CLI uses contexts to target container runtimes. Activating
+                    <code class="code-link">catbee-desktop</code> allows terminal commands (<code>docker</code>,
+                    <code>docker compose</code>) to target CatBee directly.
+                  </p>
+                </div>
+              </div>
+
+              @if (!dockerContext()?.isCatBeeActive && dockerContext()?.cliAvailable) {
+                <button
+                  type="button"
+                  class="catbee-action-btn primary"
+                  [disabled]="isContextSwitching()"
+                  (click)="requestActivateCatBeeContext()"
+                >
+                  <span class="mat-icon-filled" aria-hidden="true">check</span>
+                  <span>Use catbee-desktop</span>
+                </button>
+              }
+            </div>
+
+            @if (contextSuccessMessage()) {
+              <div class="success-callout">
+                <span class="mat-icon-filled" aria-hidden="true">check_circle</span>
+                <span>{{ contextSuccessMessage() }}</span>
+              </div>
+            }
+
+            @if (contextErrorMessage(); as err) {
+              <catbee-container-studio-error-banner
+                [errorMessage]="err"
+                (closeErr)="contextErrorMessage.set(null)"
+                size="small"
+              />
+            }
+
+            @if (dockerContext()?.contexts?.length) {
+              <div class="context-list">
+                <div class="context-list-header">
+                  <span>Context Name</span>
+                  <span>Docker Endpoint</span>
+                  <span>CLI Status</span>
+                </div>
+                @for (ctx of dockerContext()?.contexts; track ctx.name) {
+                  <div class="context-list-row" [class.is-current]="ctx.current">
+                    <div class="context-name-col">
+                      <span class="context-name">{{ ctx.name }}</span>
+                      @if (ctx.name === 'catbee-desktop') {
+                        <span class="badge-recommended">CatBee</span>
+                      }
+                      @if (ctx.current) {
+                        <span class="badge-running">Active</span>
+                      }
+                    </div>
+                    <div class="context-endpoint-col">
+                      <code>{{ ctx.dockerEndpoint || 'default endpoint' }}</code>
+                    </div>
+                    <div class="context-action-col">
+                      @if (!ctx.current) {
+                        <button
+                          type="button"
+                          class="catbee-action-btn plain-btn"
+                          [disabled]="isContextSwitching()"
+                          (click)="requestSwitchDockerContext(ctx.name)"
+                        >
+                          Switch
+                        </button>
+                      } @else {
+                        <span class="active-label">In Use</span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            } @else if (!dockerContext()?.cliAvailable) {
+              <div class="info-callout subtle">
+                <p>
+                  Docker CLI executable was not found on your host system PATH. CatBee internal engine operates
+                  independently.
+                </p>
+              </div>
+            }
+          </div>
+
+          <div class="form-group">
+            <div class="config-header-row">
+              <h3 class="group-title">Daemon Configuration (daemon.json)</h3>
+              <span class="badge-subtle">Read-only preview</span>
+            </div>
+            <pre class="json-config-preview"><code>{{ daemonConfigPreview() }}</code></pre>
+          </div>
+        </section>
+      }
+
+      <!-- SOFTWARE UPDATES TAB -->
+      @if (activeCategory() === 'updates') {
+        <section class="settings-section">
+          <h2>Software updates</h2>
+
+          @if (updateErrorMessage(); as err) {
+            <div class="settings-error-banner-wrapper">
+              <catbee-container-studio-error-banner
+                [errorMessage]="err"
+                (closeErr)="updateErrorMessage.set(null)"
+                size="small"
+              />
+            </div>
+          }
+
+          <div class="updates-card">
+            <span class="mat-icon-filled update-icon" aria-hidden="true">verified</span>
+            <div>
+              <h3>CatBee Container Studio v{{ platformInfo()?.appVersion ?? '0.4.0' }}</h3>
+              <p class="field-hint">You are on the latest stable release channel.</p>
+            </div>
+            <button
+              type="button"
+              class="catbee-action-btn primary"
+              [disabled]="isActionLoading()"
+              (click)="checkForUpdates()"
+            >
+              {{ isActionLoading() ? 'Checking...' : 'Check for updates' }}
+            </button>
+          </div>
+        </section>
+      }
+
+      <!-- ABOUT TAB -->
+      @if (activeCategory() === 'about') {
+        <section class="settings-section">
+          <h2>About</h2>
+
+          <div class="about-hero">
+            <h3>CatBee Container Studio</h3>
+            <span class="field-hint"
+              >Desktop container management studio with embedded and external engine support.</span
+            >
+          </div>
+
+          <div class="diagnostics-table">
+            <div class="diag-row">
+              <span class="diag-key">Version</span>
+              <span class="diag-val">{{ platformInfo()?.appVersion ?? '0.4.0' }}</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-key">Platform / OS</span>
+              <span class="diag-val">{{ platformInfo()?.platform }} ({{ platformInfo()?.osRelease }})</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-key">Architecture</span>
+              <span class="diag-val">{{ platformInfo()?.arch }}</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-key">Electron</span>
+              <span class="diag-val">{{ platformInfo()?.electronVersion }}</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-key">Node.js</span>
+              <span class="diag-val">{{ platformInfo()?.nodeVersion }}</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-key">Total RAM</span>
+              <span class="diag-val">{{ platformInfo()?.totalMemory }} GB</span>
+            </div>
+            <div class="diag-row">
+              <span class="diag-key">CPU Cores</span>
+              <span class="diag-val">{{ platformInfo()?.cpuCount }}</span>
+            </div>
+          </div>
+
+          <div class="about-actions-row">
+            <button type="button" class="catbee-action-btn" (click)="openLogsFolder()">
+              <span class="mat-icon-filled" aria-hidden="true">folder_open</span>
+              <span>Open Logs Folder</span>
+            </button>
+            <button
+              type="button"
+              class="catbee-action-btn"
+              [disabled]="isExternalMode()"
+              (click)="openEngineDirectory()"
+            >
+              <span class="mat-icon-filled" aria-hidden="true">dns</span>
+              <span>Open Engine Directory</span>
+            </button>
+          </div>
+        </section>
+      }
+    </div>
+
+    <!-- Bottom Actions Bar -->
+    <footer class="settings-footer">
+      <div class="footer-left">
+        @if (applySuccessMessage()) {
+          <span class="success-message">
+            <span class="mat-icon-filled" aria-hidden="true">check_circle</span>
+            {{ applySuccessMessage() }}
+          </span>
+        }
+      </div>
+      <div class="footer-right">
+        @if (hasChanges()) {
+          <button type="button" class="catbee-action-btn plain-btn" (click)="requestDiscardChanges()">Discard</button>
+        }
+        <button type="button" class="catbee-action-btn" (click)="close()">Close</button>
+        <button
+          type="button"
+          class="catbee-action-btn primary"
+          [disabled]="!hasChanges() || isActionLoading()"
+          (click)="applySettings()"
+        >
+          Apply
+        </button>
+      </div>
+    </footer>
+
+    <!-- Restart Docker Engine Dialog -->
+    <catbee-container-studio-dialog
+      [open]="showRestartModal()"
+      title="Restart Docker Engine?"
+      [style]="{ width: '32rem' }"
+      (closeDialog)="cancelRestartModal()"
+    >
+      <ng-container catbeeDialogBody>
+        <div class="restart-dialog-content">
+          <p>
+            You changed how CatBee runs Docker containers. A restart of the container engine runtime is required for
+            these changes to take effect.
+          </p>
+          <p class="field-hint">Would you like to restart the container engine now, or save and restart later?</p>
+        </div>
+      </ng-container>
+
+      <ng-container catbeeDialogFooter>
+        <button type="button" class="catbee-action-btn plain-btn" (click)="cancelRestartModal()">Cancel</button>
+        <button type="button" class="catbee-action-btn" (click)="confirmRestartLater()">Restart Later</button>
+        <button
+          type="button"
+          class="catbee-action-btn primary"
+          [disabled]="isRestarting()"
+          (click)="confirmRestartNow()"
+        >
+          {{ isRestarting() ? 'Restarting Engine...' : 'Restart Now' }}
+        </button>
+      </ng-container>
+    </catbee-container-studio-dialog>
+
+    <!-- Stop Engine Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingStopEngine()"
+      title="Stop Container Engine"
+      message="Are you sure you want to stop the CatBee container engine? All running containers and active connections will be terminated."
+      confirmLabel="Stop Engine"
+      cancelLabel="Cancel"
+      [dangerous]="true"
+      (cancelAction)="cancelStopEngine()"
+      (confirm)="confirmStopEngine()"
+    />
+
+    <!-- Reinstall Engine Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingReinstallEngine()"
+      title="Reinstall Container Engine"
+      message="Reinstalling will reset the CatBee container engine distribution to its default state and stop all running containers. Any non-persisted container state will be recreated. Are you sure you want to proceed?"
+      confirmLabel="Reinstall Engine"
+      cancelLabel="Cancel"
+      [dangerous]="true"
+      (cancelAction)="cancelReinstallEngine()"
+      (confirm)="confirmReinstallEngine()"
+    />
+
+    <!-- Switch Docker Context Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingContextSwitch() !== null"
+      title="Switch Docker Context"
+      [message]="pendingContextSwitchMessage()"
+      confirmLabel="Switch Context"
+      cancelLabel="Cancel"
+      (cancelAction)="cancelSwitchDockerContext()"
+      (confirm)="confirmSwitchDockerContext()"
+    />
+
+    <!-- Activate CatBee Context Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingActivateCatBeeContext()"
+      title="Activate CatBee Desktop Context"
+      message="Activating catbee-desktop will set CatBee's built-in engine as the active Docker context for your host Docker CLI and reconnect CatBee Studio to it. Do you want to proceed?"
+      confirmLabel="Activate Context"
+      cancelLabel="Cancel"
+      (cancelAction)="cancelActivateCatBeeContext()"
+      (confirm)="confirmActivateCatBeeContext()"
+    />
+
+    <!-- Discard Changes Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingDiscardChanges()"
+      title="Discard Unsaved Changes"
+      message="Are you sure you want to discard all unsaved configuration changes and revert to your previous settings?"
+      confirmLabel="Discard Changes"
+      cancelLabel="Keep Editing"
+      [dangerous]="true"
+      (cancelAction)="cancelDiscardChanges()"
+      (confirm)="confirmDiscardChanges()"
+    />
+  </main>
+</div>

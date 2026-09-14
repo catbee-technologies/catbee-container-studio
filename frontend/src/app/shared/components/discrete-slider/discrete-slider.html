@@ -1,0 +1,39 @@
+<div class="discrete-slider-root" [class.is-disabled]="disabled()">
+  <div class="slider-control-row">
+    <input
+      type="range"
+      class="catbee-range-slider discrete-slider-input"
+      [min]="min()"
+      [max]="max()"
+      [step]="step()"
+      [disabled]="disabled()"
+      [value]="value()"
+      [style.--fill-percent]="fillPercent() + '%'"
+      (input)="onInput($event)"
+      [attr.aria-label]="ariaLabel()"
+    />
+  </div>
+
+  <!-- Precision Tick Marks Bar -->
+  <div class="discrete-ticks-bar" aria-hidden="true">
+    @for (tick of ticksList(); track tick.index) {
+      <div
+        class="tick-pip"
+        [class.is-major]="tick.isMajor"
+        [class.is-active]="tick.isActive"
+        (click)="onTickClick(tick.index)"
+      ></div>
+    }
+  </div>
+
+  <!-- Discrete Labels Row -->
+  @if (labels().length > 0) {
+    <div class="discrete-labels-row" aria-hidden="true">
+      @for (item of labels(); track item.value) {
+        <span class="tick-label-text" [class.is-selected]="item.value === value()" (click)="onTickClick(item.value)">
+          {{ item.label }}
+        </span>
+      }
+    </div>
+  }
+</div>
