@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, HostListener, inject, OnInit, signal } from '@angular/core';
 import { timer, exhaustMap, from, catchError, of } from 'rxjs';
 import {
   NavigationCancel,
@@ -71,13 +71,39 @@ export class App implements OnInit {
       state === 'checking' ||
       state === 'detecting-runtime' ||
       state === 'starting-runtime' ||
-      state === 'waiting-for-engine'
+      state === 'waiting-for-engine' ||
+      state === 'installing-engine'
     );
   });
+  readonly isEngineNotInstalled = computed(() => {
+    return this.dockerInitStatus().state === 'engine-not-installed';
+  });
+  readonly isInstallingEngine = computed(() => {
+    return this.dockerInitStatus().state === 'installing-engine';
+  });
+  readonly isInstalling = signal(false);
+
+  readonly currentUrl = signal(this.router.url);
+  readonly isSettingsRoute = computed(() => this.currentUrl().startsWith('/settings'));
+
   readonly dockerErrorStatus = computed(() => {
     const status = this.dockerInitStatus();
     return status.state === 'error' ? status : null;
   });
+
+  async installBuiltInEngine(): Promise<void> {
+    if (this.isInstalling()) {
+      return;
+    }
+    this.isInstalling.set(true);
+    try {
+      await this.electronApi.installEmbeddedEngine();
+    } catch (error) {
+      console.error('Failed to install embedded engine:', error);
+    } finally {
+      this.isInstalling.set(false);
+    }
+  }
 
   private unsubscribeDockerStatus?: () => void;
 
@@ -132,6 +158,9 @@ export class App implements OnInit {
       }
 
       if (event instanceof NavigationEnd || event instanceof NavigationCancel || event instanceof NavigationError) {
+        if (event instanceof NavigationEnd) {
+          this.currentUrl.set(event.urlAfterRedirects);
+        }
         if (this.navigationLoaderTimeout) {
           clearTimeout(this.navigationLoaderTimeout);
           this.navigationLoaderTimeout = null;
@@ -150,6 +179,14 @@ export class App implements OnInit {
   onNavClick(event: MouseEvent): void {
     if (event.metaKey || event.ctrlKey) {
       event.preventDefault();
+    }
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  handleGlobalShortcuts(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key === ',') {
+      event.preventDefault();
+      void this.router.navigate(['/settings']);
     }
   }
 

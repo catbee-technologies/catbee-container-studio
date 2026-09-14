@@ -1,5 +1,5 @@
-<label class="switch-toggle">
-  <input type="checkbox" [checked]="checked()" (change)="toggleChecked()" />
+<label class="switch-toggle" [class.is-disabled]="disabled()">
+  <input type="checkbox" [checked]="checked()" [disabled]="disabled()" (change)="toggleChecked()" />
   <span class="switch-slider" aria-hidden="true"></span>
   @if (label()) {
     <span class="no-select">{{ label() }}</span>

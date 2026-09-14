@@ -1,15 +1,10 @@
 import Docker from 'dockerode';
-import { resolveDockerConnection } from './docker.connection';
-import type { ResolvedDockerConnection } from './types/connection.types';
+import type { DockerConnection } from './types/connection.types';
 import { logger } from '../logger';
 
-export async function createDockerClient(connection?: ResolvedDockerConnection): Promise<Docker> {
-  const resolvedConnection = connection ?? (await resolveDockerConnection());
-  return createDockerInstance(resolvedConnection);
-}
+export function createDockerClient(connection: DockerConnection): Docker {
+  logger.info({ connection }, '[DockerClient] Creating Docker client instance.');
 
-function createDockerInstance(connection: ResolvedDockerConnection): Docker {
-  logger.info({ connection }, `[DockerConnection], Creating Docker client with connection`);
   switch (connection.type) {
     case 'unix':
     case 'npipe':

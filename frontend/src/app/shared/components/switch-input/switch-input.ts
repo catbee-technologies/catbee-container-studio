@@ -10,10 +10,12 @@ export class SwitchInputComponent {
   readonly checked = model.required<boolean>();
   readonly label = input<string>();
   readonly storageKey = input<string>();
+  readonly disabled = input<boolean>(false);
 
   private localStorage = inject(LocalStorageService);
 
   toggleChecked() {
+    if (this.disabled()) return;
     this.checked.update(value => {
       const next = !value;
       if (this.storageKey()) {

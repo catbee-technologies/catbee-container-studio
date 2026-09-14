@@ -16,7 +16,7 @@ export type DockerTcpConnection = {
   port: number;
 };
 
-export type DockerConnectionSource = 'docker-host' | 'docker-context' | 'platform-default';
+export type DockerConnectionSource = 'docker-host' | 'docker-context' | 'platform-default' | 'embedded-engine';
 
 export type ResolvedDockerConnection = DockerConnection & {
   source: DockerConnectionSource;

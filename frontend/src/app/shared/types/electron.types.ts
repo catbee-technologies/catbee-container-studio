@@ -18,7 +18,7 @@ import {
 
 type IpcPromise<T> = Promise<IpcResult<T>>;
 
-export type DockerRuntime = 'docker-desktop' | 'rancher-desktop';
+export type DockerRuntime = 'docker-desktop' | 'rancher-desktop' | 'catbee-embedded' | 'system';
 
 export type DockerInitializationStatus =
   | {
@@ -37,8 +37,22 @@ export type DockerInitializationStatus =
       hint: string;
     }
   | {
+      state: 'engine-not-installed';
+      message: string;
+      hint: string;
+      prerequisitesOk: boolean;
+      reason?: string;
+    }
+  | {
+      state: 'installing-engine';
+      progress: number;
+      stage: string;
+      message: string;
+      hint: string;
+    }
+  | {
       state: 'starting-runtime';
-      runtime: DockerRuntime;
+      runtime: string;
       message: string;
       hint: string;
     }
@@ -92,10 +106,75 @@ export type AutoUpdaterStatus =
       message: string;
     };
 
+export interface DockerContextItem {
+  name: string;
+  description: string;
+  dockerEndpoint: string;
+  current: boolean;
+}
+
+export interface DockerContextDetails {
+  cliAvailable: boolean;
+  currentContext: string | null;
+  contexts: DockerContextItem[];
+  catbeeContextExists: boolean;
+  isCatBeeActive: boolean;
+  defaultEndpoint: string;
+}
+
+export interface DesktopProxyConfig {
+  mode: 'system' | 'none' | 'manual';
+  httpProxy?: string;
+  httpsProxy?: string;
+  noProxy?: string;
+}
+
+export interface ContainersProxyConfig {
+  mode: 'same-as-host' | 'system' | 'none' | 'manual';
+  httpProxy?: string;
+  httpsProxy?: string;
+  noProxy?: string;
+}
+
+export interface NetworkSettingsConfig {
+  dockerSubnet: string;
+  enableHostNetworking: boolean;
+  portBindingBehavior: 'open' | 'localhost';
+  defaultNetworkingMode: 'ipv4' | 'dualstack';
+  dnsResolution: 'auto' | 'never' | 'always';
+}
+
+export interface EngineSettings {
+  engineMode: 'auto' | 'embedded' | 'external';
+  exposeTcp: boolean;
+  resourceSaverEnabled: boolean;
+  resourceSaverTimeout: number;
+  wslIntegrationEnabled: boolean;
+  wslAdditionalDistros?: string[];
+  fileSharingPaths?: string[];
+  desktopProxy?: DesktopProxyConfig;
+  containersProxy?: ContainersProxyConfig;
+  network?: NetworkSettingsConfig;
+  endpoint?: string;
+}
+
 export interface ElectronBridge {
   app: {
     platform: {
       get: () => IpcPromise<string>;
+      getInfo: () => IpcPromise<{
+        platform: string;
+        arch: string;
+        appVersion: string;
+        electronVersion: string;
+        nodeVersion: string;
+        osRelease: string;
+        osType: string;
+        totalMemory: number;
+        cpuCount: number;
+      }>;
+      openLogs: () => IpcPromise<{ opened: boolean }>;
+      openEngineDir: () => IpcPromise<{ opened: boolean; path: string }>;
     };
     external: {
       open: (url: string) => IpcPromise<{ opened: boolean }>;
@@ -112,6 +191,7 @@ export interface ElectronBridge {
       toggleMaximize: () => IpcPromise<{ maximized: boolean }>;
       close: () => IpcPromise<{ closed: boolean }>;
     };
+    quit?: () => IpcPromise<{ quit: boolean }>;
     menu: {
       show: () => IpcPromise<{ shown: boolean }>;
       showSubmenu: (label: string) => IpcPromise<{ shown: boolean }>;
@@ -121,6 +201,24 @@ export interface ElectronBridge {
         onStatus: (callback: (status: DockerInitializationStatus) => void) => () => void;
       };
       rendererReady: () => void;
+    };
+    engine: {
+      install: () => IpcPromise<{ success: boolean }>;
+      start: () => IpcPromise<{ success: boolean }>;
+      stop: () => IpcPromise<{ success: boolean }>;
+      restart: (mode?: string) => IpcPromise<{ success: boolean }>;
+      pause?: () => IpcPromise<{ pausedCount: number; isPaused: boolean }>;
+      resume?: () => IpcPromise<{ resumedCount: number; isPaused: boolean }>;
+      getPauseStatus?: () => IpcPromise<{ isPaused: boolean; pausedCount: number }>;
+      getStatus: () => IpcPromise<{ isInstalled: boolean; state: string; manifest: unknown; runtime: unknown }>;
+      checkPrerequisites: () => IpcPromise<{ ok: boolean; reason?: string; actionHint?: string }>;
+      getContextInfo: () => IpcPromise<DockerContextDetails>;
+      useContext: (contextName: string) => IpcPromise<DockerContextDetails>;
+      setupCatBeeContext: (setAsActive?: boolean, customEndpoint?: string) => IpcPromise<DockerContextDetails>;
+      getSettings: () => IpcPromise<EngineSettings>;
+      saveSettings: (settings: Partial<EngineSettings>) => IpcPromise<EngineSettings>;
+      getWslDistros: () => IpcPromise<string[]>;
+      applyWslDistroIntegration: (distroName: string, enabled: boolean) => IpcPromise<boolean>;
     };
     updater: {
       checkForUpdates: () => IpcPromise<void>;

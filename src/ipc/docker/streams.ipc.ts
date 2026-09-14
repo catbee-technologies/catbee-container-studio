@@ -36,6 +36,18 @@ function stopStreamSession(streamId: string): boolean {
   return true;
 }
 
+export function stopAllStreamSessions(): void {
+  for (const [, session] of streamSessions.entries()) {
+    try {
+      session.abortController?.abort();
+      session.stop();
+    } catch {
+      // Ignore cleanup error
+    }
+  }
+  streamSessions.clear();
+}
+
 interface StreamHandlerContext {
   streamId: string;
   sender: Electron.WebContents;

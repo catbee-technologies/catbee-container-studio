@@ -78,6 +78,15 @@ export const UI_STORAGE_KEYS = {
   NETWORKS_USAGE_FILTER: `${DOCKER_UI_STORAGE_PREFIX}networks.usage-filter`,
   NETWORKS_VISIBLE_COLUMNS: `${DOCKER_UI_STORAGE_PREFIX}networks.visible-columns`,
 
+  // Settings keys
+  SETTINGS_ENGINE_MODE: `${APP_UI_STORAGE_PREFIX}settings.engine-mode`,
+  SETTINGS_START_AT_LOGIN: `${APP_UI_STORAGE_PREFIX}settings.start-at-login`,
+  SETTINGS_OPEN_DASHBOARD: `${APP_UI_STORAGE_PREFIX}settings.open-dashboard`,
+  SETTINGS_EXPOSE_TCP: `${APP_UI_STORAGE_PREFIX}settings.expose-tcp`,
+  SETTINGS_RESOURCE_SAVER_ENABLED: `${APP_UI_STORAGE_PREFIX}settings.resource-saver-enabled`,
+  SETTINGS_RESOURCE_SAVER_TIMEOUT: `${APP_UI_STORAGE_PREFIX}settings.resource-saver-timeout`,
+  SETTINGS_WSL_INTEGRATION_ENABLED: `${APP_UI_STORAGE_PREFIX}settings.wsl-integration-enabled`,
+
   // Session storage keys
   CONTAINERS_SEARCH_QUERY: `${DOCKER_UI_STORAGE_PREFIX}containers.search-query`,
   CONTAINERS_SELECTED_TAB_PREFIX: `${DOCKER_UI_STORAGE_PREFIX}containers.selected-tab.`,
@@ -95,6 +104,13 @@ export const UI_STORAGE_KEYS = {
 
 export const UI_STORAGE_DEFAULTS = {
   SIDEBAR_COLLAPSED: false,
+  SETTINGS_ENGINE_MODE: 'auto' as 'auto' | 'embedded' | 'external',
+  SETTINGS_START_AT_LOGIN: false,
+  SETTINGS_OPEN_DASHBOARD: true,
+  SETTINGS_EXPOSE_TCP: true,
+  SETTINGS_RESOURCE_SAVER_ENABLED: true,
+  SETTINGS_RESOURCE_SAVER_TIMEOUT: 300, // 5 min
+  SETTINGS_WSL_INTEGRATION_ENABLED: true,
   CONTAINERS_RUNNING_ONLY: false,
   CONTAINERS_SORT_KEY: 'name' as ContainerSortKey,
   CONTAINERS_SORT_DIRECTION: 'asc' as SortDirection,

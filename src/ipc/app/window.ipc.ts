@@ -1,6 +1,10 @@
-import { BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { IPC_CHANNELS } from '../channels';
 import { IpcResult, fail, ok } from '../contracts';
+import { dockerManager } from '../../main/docker/services/docker.manager';
+import { resourceSaverManager } from '../../main/docker/embedded/resource-saver.manager';
+import { stopAllStreamSessions } from '../docker/streams.ipc';
+import { logger } from '../../main/logger';
 
 export function registerWindowHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.App.Shell.ShowItem);
@@ -59,5 +63,36 @@ export function registerWindowHandlers(): void {
     }
     window.close();
     return ok({ closed: true });
+  });
+
+  ipcMain.removeHandler(IPC_CHANNELS.App.Quit);
+  ipcMain.handle(IPC_CHANNELS.App.Quit, async (event): Promise<IpcResult<{ quit: boolean }>> => {
+    logger.info('[App] Quit requested from UI. Shutting down container engine and all background services...');
+
+    try {
+      stopAllStreamSessions();
+    } catch (err) {
+      logger.warn({ err }, '[App] Error stopping stream sessions on quit');
+    }
+
+    try {
+      resourceSaverManager.stop();
+    } catch (err) {
+      logger.warn({ err }, '[App] Error stopping resource saver on quit');
+    }
+
+    try {
+      await dockerManager.stopEmbeddedEngine();
+    } catch (err) {
+      logger.warn({ err }, '[App] Error stopping embedded engine on quit');
+    }
+
+    const window = BrowserWindow.fromWebContents(event.sender);
+    if (window && !window.isDestroyed()) {
+      window.destroy();
+    }
+
+    app.quit();
+    return ok({ quit: true });
   });
 }
