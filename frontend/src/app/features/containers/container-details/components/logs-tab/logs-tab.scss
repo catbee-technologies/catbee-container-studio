@@ -74,6 +74,7 @@
 
       .log-line {
         width: max-content;
+        min-width: 100%;
       }
     }
 
@@ -86,11 +87,29 @@
       white-space: inherit;
       display: block;
       box-sizing: border-box;
-      padding: 0.25rem 0;
+      padding: 0.18rem 0.5rem;
+      border-left: 2px solid transparent;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      transition:
+        background-color var(--transition-fast),
+        border-color var(--transition-fast);
+
+      &:hover {
+        background-color: var(--bg-hover-subtle);
+        border-left-color: var(--border-color-hover);
+
+        ::ng-deep .log-timestamp {
+          color: var(--ink-200);
+          opacity: 1;
+        }
+      }
 
       ::ng-deep .log-timestamp {
         color: var(--ink-300);
         opacity: 0.85;
+        transition:
+          color var(--transition-fast),
+          opacity var(--transition-fast);
       }
 
       ::ng-deep .log-container-prefix {

@@ -25,10 +25,19 @@
 
   .progress-line {
     margin: 0;
-    padding: 0.1rem 0;
+    padding: 0.15rem 0.4rem;
     color: var(--ink-300);
     font-size: var(--font-size-sm);
     white-space: pre-wrap;
     word-break: break-all;
+    border-radius: var(--radius-sm);
+    transition:
+      background-color var(--transition-fast),
+      color var(--transition-fast);
+
+    &:hover {
+      background-color: var(--bg-hover-subtle);
+      color: var(--ink-100);
+    }
   }
 }
