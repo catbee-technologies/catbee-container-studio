@@ -158,7 +158,15 @@
   (scroll)="onPanelScroll()"
   (wheel)="onUserWheel($event)"
 >
-  @if (logEntries().length === 0) {
+  @if (emptyMessage(); as customEmptyMessage) {
+    <catbee-container-studio-empty-state
+      [icon]="emptyIcon() ?? 'filter_list_off'"
+      [message]="customEmptyMessage"
+      [hint]="emptyHint() ?? ''"
+      [showLoader]="false"
+      size="small"
+    />
+  } @else if (logEntries().length === 0) {
     @let loading = externalLogs() !== null ? externalLoading() : isLoading();
     <catbee-container-studio-empty-state
       [icon]="'article'"

@@ -140,6 +140,9 @@ export class LogsTabComponent implements AfterViewInit {
   readonly externalFollow = input(false);
   readonly externalSearchStorageKey = input<string | null>(null);
   readonly externalSearchModeStorageKeys = input<Partial<Record<keyof LogsSearchMode, string>> | null>(null);
+  readonly emptyMessage = input<string | null>(null);
+  readonly emptyHint = input<string | null>(null);
+  readonly emptyIcon = input<string | null>(null);
   private hasActivatedLogs = false;
 
   readonly unavailable = output<void>();

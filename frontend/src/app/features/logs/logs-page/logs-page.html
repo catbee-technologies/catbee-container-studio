@@ -112,33 +112,28 @@
   }
 
   <section class="catbee-base-panel logs-page-panel">
-    @if (selectedCount() === 0 && !globalLogs.isLoading()) {
-      <catbee-container-studio-empty-state
-        icon="filter_list_off"
-        message="No containers selected."
-        hint="Select one or more containers from the filter menu to view their logs."
-      />
-    } @else {
-      <catbee-container-studio-container-logs-tab
-        [containerId]="''"
-        [active]="true"
-        [externalLogs]="globalLogs.logs()"
-        [externalLoading]="globalLogs.isLoading()"
-        [externalMaxLogEntries]="globalLogs.maxLogEntries()"
-        [maxLogEntryOptions]="globalMaxLogEntryOptions"
-        [externalDisplayOptions]="globalLogs.displayOptions()"
-        [externalInitialFollow]="globalLogs.initialFollowPending()"
-        [externalFollow]="globalLogs.followLogs()"
-        [externalSearchStorageKey]="logsSearchStorageKey"
-        [externalSearchModeStorageKeys]="logsSearchModeStorageKeys"
-        (externalClear)="requestClearLogs()"
-        (externalMaxLogEntriesChange)="onMaxLogEntriesChange($event)"
-        (externalDisplayOptionsChange)="updateDisplayOptions($event)"
-        (externalInitialFollowComplete)="completeInitialFollow()"
-        (externalFollowChange)="setFollowLogs($event)"
-        (nearBottomChange)="setFollowLogs($event)"
-      />
-    }
+    <catbee-container-studio-container-logs-tab
+      [containerId]="''"
+      [active]="true"
+      [externalLogs]="globalLogs.logs()"
+      [externalLoading]="globalLogs.isLoading()"
+      [externalMaxLogEntries]="globalLogs.maxLogEntries()"
+      [maxLogEntryOptions]="globalMaxLogEntryOptions"
+      [externalDisplayOptions]="globalLogs.displayOptions()"
+      [externalInitialFollow]="globalLogs.initialFollowPending()"
+      [externalFollow]="globalLogs.followLogs()"
+      [externalSearchStorageKey]="logsSearchStorageKey"
+      [externalSearchModeStorageKeys]="logsSearchModeStorageKeys"
+      [emptyMessage]="selectedCount() === 0 ? 'No containers selected.' : null"
+      [emptyHint]="selectedCount() === 0 ? 'Select one or more containers from the filter menu to view their logs.' : null"
+      [emptyIcon]="selectedCount() === 0 ? 'filter_list_off' : null"
+      (externalClear)="requestClearLogs()"
+      (externalMaxLogEntriesChange)="onMaxLogEntriesChange($event)"
+      (externalDisplayOptionsChange)="updateDisplayOptions($event)"
+      (externalInitialFollowComplete)="completeInitialFollow()"
+      (externalFollowChange)="setFollowLogs($event)"
+      (nearBottomChange)="setFollowLogs($event)"
+    />
   </section>
 </main>
 

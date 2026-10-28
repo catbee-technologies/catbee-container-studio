@@ -82,8 +82,10 @@ export class GlobalLogsService {
     void this.startEventsStream();
   }
 
-  async loadContainers(): Promise<void> {
-    this.isLoading.set(true);
+  async loadContainers(showLoading = true): Promise<void> {
+    if (showLoading) {
+      this.isLoading.set(true);
+    }
     try {
       const containers = await this.dockerApi.listContainers();
       this.containers.set(containers.sort((a, b) => a.Names[0].localeCompare(b.Names[0])));
@@ -104,7 +106,9 @@ export class GlobalLogsService {
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : 'Failed to load containers.');
     } finally {
-      this.isLoading.set(false);
+      if (showLoading) {
+        this.isLoading.set(false);
+      }
     }
   }
 
@@ -230,6 +234,22 @@ export class GlobalLogsService {
     if (event.kind === 'events' && event.type === 'data' && event.streamId === this.eventsStreamId) {
       const data = event.data as Record<string, unknown> | undefined;
       if (data?.['Type'] === 'container') {
+        const action = String(data['Action'] ?? '');
+        const triggers = ['start', 'stop', 'die', 'pause', 'unpause', 'create', 'destroy', 'rename', 'kill', 'restart'];
+        if (!triggers.includes(action)) {
+          return;
+        }
+
+        const actor = data['Actor'] as Record<string, unknown> | undefined;
+        const containerId = String(data['id'] ?? actor?.['ID'] ?? '');
+        const isStructuralChange = action === 'create' || action === 'destroy' || action === 'rename';
+        const isSelectedContainer = containerId ? this.selectedContainerIds().has(containerId) : false;
+
+        // Skip refreshing if it's not a structural change and not a selected container
+        if (!isStructuralChange && !isSelectedContainer) {
+          return;
+        }
+
         this.scheduleRefresh();
       }
       return;
@@ -262,7 +282,7 @@ export class GlobalLogsService {
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer);
     }
-    this.refreshTimer = setTimeout(() => void this.loadContainers(), 400);
+    this.refreshTimer = setTimeout(() => void this.loadContainers(false), 400);
   }
 
   private async syncStreams(): Promise<void> {

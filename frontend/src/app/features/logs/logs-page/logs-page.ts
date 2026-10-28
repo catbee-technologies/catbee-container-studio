@@ -6,7 +6,6 @@ import { MenuComponent } from '@components/menu/menu';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
-import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { LOGS_STORAGE_KEYS } from '@utils/storage.utils';
 import { formatCompactCount } from '@utils/docker-display.utils';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
@@ -21,7 +20,6 @@ import { GlobalLogsService } from '@features/logs/services/global-logs.service';
     SearchInputComponent,
     TableCheckboxComponent,
     CatbeeTooltip,
-    EmptyStateComponent,
     ErrorBannerComponent
   ],
   templateUrl: './logs-page.html',
