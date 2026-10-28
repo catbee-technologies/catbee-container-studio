@@ -5,14 +5,18 @@ import { DockerPortInfo } from '@shared/types/docker-api.types';
 import { formatDockerPort, normalizeDockerPorts, resolveDockerPortHref } from '@utils/docker-port.utils';
 import { ElectronApiService } from '@core/electron-api.service';
 
+import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
+
 @Component({
   selector: 'catbee-container-studio-port-list',
-  imports: [CommonModule, MenuComponent],
+  imports: [CommonModule, MenuComponent, CatbeeTooltip],
   templateUrl: './port-list.html',
   styleUrl: './port-list.scss'
 })
 export class PortListComponent {
   private readonly electronApi = inject(ElectronApiService);
+
+  readonly tooltipDelay = 300;
 
   readonly ports = input<DockerPortInfo[]>([]);
   readonly containerState = input('');

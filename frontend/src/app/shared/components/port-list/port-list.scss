@@ -12,6 +12,7 @@
 .port-chip {
   display: inline-flex;
   align-items: center;
+  gap: 0.25rem;
   font-family: var(--mono-font);
   font-size: var(--font-size-xs);
   color: var(--color-port);
@@ -22,6 +23,12 @@
   white-space: nowrap;
   text-decoration: none;
 
+  .mat-icon-filled {
+    font-size: 0.8rem;
+    line-height: 1;
+    opacity: 0.75;
+  }
+
   &.port-link {
     cursor: pointer;
 
@@ -29,6 +36,11 @@
       color: var(--color-port-hover);
       border-color: var(--border-color-port-hover);
       background: var(--bg-port-hover);
+
+      .mat-icon-filled {
+        color: var(--color-port-hover);
+        opacity: 1;
+      }
     }
   }
 }
