@@ -343,6 +343,7 @@ export class ImagesPage {
 
   clearSelection(): void {
     this.selectedImageIds.set(new Set<string>());
+    this.lastSelectedImageId = null;
   }
 
   setUsageFilter(filter: string): void {
@@ -380,7 +381,31 @@ export class ImagesPage {
     this.localStorage.set(UI_STORAGE_KEYS.IMAGES_SORT_DIRECTION, nextDirection);
   }
 
-  toggleImageSelection(imageId: string): void {
+  private lastSelectedImageId: string | null = null;
+
+  toggleImageSelection(imageId: string, shiftKey = false): void {
+    if (shiftKey && this.lastSelectedImageId) {
+      const list = this.sortedImages();
+      const prevIndex = list.findIndex(img => img.Id === this.lastSelectedImageId);
+      const currIndex = list.findIndex(img => img.Id === imageId);
+
+      if (prevIndex !== -1 && currIndex !== -1) {
+        const start = Math.min(prevIndex, currIndex);
+        const end = Math.max(prevIndex, currIndex);
+        const range = list.slice(start, end + 1);
+
+        this.selectedImageIds.update(current => {
+          const next = new Set(current);
+          for (const item of range) {
+            next.add(item.Id);
+          }
+          return next;
+        });
+        this.lastSelectedImageId = imageId;
+        return;
+      }
+    }
+
     this.selectedImageIds.update(current => {
       const next = new Set(current);
       if (next.has(imageId)) {
@@ -390,9 +415,11 @@ export class ImagesPage {
       }
       return next;
     });
+    this.lastSelectedImageId = imageId;
   }
 
   toggleSelectAllVisible(): void {
+    this.lastSelectedImageId = null;
     const visibleIds = this.sortedImages().map(item => item.Id);
     if (visibleIds.length === 0) {
       return;

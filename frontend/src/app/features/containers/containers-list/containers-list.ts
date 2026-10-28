@@ -640,7 +640,41 @@ export class ContainersPage {
     return selectedCount > 0 && selectedCount < group.containers.length;
   }
 
-  toggleContainerSelection(containerId: string): void {
+  private lastSelectedContainerId: string | null = null;
+
+  private getVisibleOrderedContainers(): DockerContainerInfo[] {
+    const list: DockerContainerInfo[] = [];
+    for (const group of this.groupedContainers()) {
+      if (!this.isGroupCollapsed(group.id)) {
+        list.push(...group.containers);
+      }
+    }
+    return list;
+  }
+
+  toggleContainerSelection(containerId: string, shiftKey = false): void {
+    if (shiftKey && this.lastSelectedContainerId) {
+      const ordered = this.getVisibleOrderedContainers();
+      const prevIndex = ordered.findIndex(c => c.Id === this.lastSelectedContainerId);
+      const currIndex = ordered.findIndex(c => c.Id === containerId);
+
+      if (prevIndex !== -1 && currIndex !== -1) {
+        const start = Math.min(prevIndex, currIndex);
+        const end = Math.max(prevIndex, currIndex);
+        const range = ordered.slice(start, end + 1);
+
+        this.selectedContainerIds.update(current => {
+          const next = new Set(current);
+          for (const item of range) {
+            next.add(item.Id);
+          }
+          return next;
+        });
+        this.lastSelectedContainerId = containerId;
+        return;
+      }
+    }
+
     this.selectedContainerIds.update(current => {
       const next = new Set(current);
       if (next.has(containerId)) {
@@ -651,6 +685,7 @@ export class ContainersPage {
 
       return next;
     });
+    this.lastSelectedContainerId = containerId;
   }
 
   isContainerSelected(containerId: string): boolean {
@@ -658,6 +693,7 @@ export class ContainersPage {
   }
 
   toggleSelectAllVisible(): void {
+    this.lastSelectedContainerId = null;
     const visibleIds = this.visibleContainers().map(container => container.Id);
     if (visibleIds.length === 0) {
       return;
@@ -707,6 +743,7 @@ export class ContainersPage {
 
   clearSelection(): void {
     this.selectedContainerIds.set(new Set());
+    this.lastSelectedContainerId = null;
   }
 
   async startContainer(containerId: string): Promise<void> {

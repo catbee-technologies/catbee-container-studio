@@ -13,9 +13,16 @@ export class TableCheckboxComponent {
   readonly size = input<'small' | 'medium' | 'large'>('medium');
   readonly ariaLabel = input('Select row');
 
-  readonly checkedChange = output<void>();
+  readonly checkedChange = output<boolean>();
+
+  private lastShiftKey = false;
+
+  onCheckboxClick(event: MouseEvent): void {
+    this.lastShiftKey = event.shiftKey;
+  }
 
   onChange(): void {
-    this.checkedChange.emit();
+    this.checkedChange.emit(this.lastShiftKey);
+    this.lastShiftKey = false;
   }
 }

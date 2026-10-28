@@ -362,7 +362,31 @@ export class NetworksPage {
     void this.router.navigate(['/networks', networkId], { state: { returnTo: this.router.url } });
   }
 
-  toggleNetworkSelection(id: string): void {
+  private lastSelectedNetworkId: string | null = null;
+
+  toggleNetworkSelection(id: string, shiftKey = false): void {
+    if (shiftKey && this.lastSelectedNetworkId) {
+      const list = this.sortedNetworks();
+      const prevIndex = list.findIndex(net => net.Id === this.lastSelectedNetworkId);
+      const currIndex = list.findIndex(net => net.Id === id);
+
+      if (prevIndex !== -1 && currIndex !== -1) {
+        const start = Math.min(prevIndex, currIndex);
+        const end = Math.max(prevIndex, currIndex);
+        const range = list.slice(start, end + 1);
+
+        this.selectedNetworkIds.update(selected => {
+          const next = new Set(selected);
+          for (const item of range) {
+            next.add(item.Id);
+          }
+          return next;
+        });
+        this.lastSelectedNetworkId = id;
+        return;
+      }
+    }
+
     this.selectedNetworkIds.update(selected => {
       const next = new Set(selected);
       if (next.has(id)) {
@@ -372,9 +396,11 @@ export class NetworksPage {
       }
       return next;
     });
+    this.lastSelectedNetworkId = id;
   }
 
   toggleSelectAllVisible(): void {
+    this.lastSelectedNetworkId = null;
     const ids = this.sortedNetworks().map(network => network.Id);
     this.selectedNetworkIds.update(selected => {
       const next = new Set(selected);
@@ -392,6 +418,7 @@ export class NetworksPage {
 
   clearSelection(): void {
     this.selectedNetworkIds.set(new Set());
+    this.lastSelectedNetworkId = null;
   }
 
   requestDeleteSingle(network: DockerNetworkInfo): void {

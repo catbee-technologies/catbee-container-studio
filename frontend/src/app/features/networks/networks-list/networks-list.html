@@ -257,7 +257,7 @@
                   <catbee-container-studio-table-checkbox
                     [checked]="selectedNetworkIds().has(network.Id)"
                     ariaLabel="Select network"
-                    (checkedChange)="toggleNetworkSelection(network.Id)"
+                    (checkedChange)="toggleNetworkSelection(network.Id, $event)"
                   />
                 </td>
                 <td class="col-used">

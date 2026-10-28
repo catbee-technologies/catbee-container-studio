@@ -659,7 +659,7 @@
                       <catbee-container-studio-table-checkbox
                         [checked]="isContainerSelected(container.Id)"
                         [ariaLabel]="'Select container'"
-                        (checkedChange)="toggleContainerSelection(container.Id)"
+                        (checkedChange)="toggleContainerSelection(container.Id, $event)"
                       />
                     </td>
                     <td>

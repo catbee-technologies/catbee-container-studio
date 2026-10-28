@@ -27,61 +27,68 @@ tbody tr.table-empty-row {
   cursor: default;
 }
 
-.col-used {
-  width: 2.6rem;
-  text-align: center;
-}
+table.catbee-table {
+  width: 100%;
+  table-layout: fixed;
 
-.col-name {
-  max-width: 260px;
-  min-width: 140px;
-}
-
-.col-id {
-  width: 140px;
-}
-
-.col-image {
-  max-width: 260px;
-  min-width: 140px;
-
-  .image-plain-text {
-    display: inline-block;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--ink-200);
+  .col-used {
+    width: 3rem;
+    text-align: center;
   }
-}
 
-.col-address {
-  max-width: 180px;
-  min-width: 110px;
-  font-family: var(--mono-font);
-  font-size: var(--font-size-sm);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+  .col-name {
+    width: auto;
+    min-width: 140px;
+  }
 
-.col-state {
-  width: 130px;
-  white-space: nowrap;
-}
+  .col-id {
+    width: 140px;
+    min-width: 120px;
+  }
 
-.col-status {
-  max-width: 200px;
-  min-width: 120px;
+  .col-image {
+    width: 220px;
+    min-width: 140px;
 
-  .status-text {
-    display: inline-block;
-    max-width: 100%;
+    .image-plain-text {
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--ink-200);
+    }
+  }
+
+  .col-address {
+    width: 180px;
+    min-width: 110px;
+    font-family: var(--mono-font);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .col-state {
+    width: 110px;
+    min-width: 90px;
     white-space: nowrap;
-    color: var(--ink-200);
-    font-size: var(--font-size-sm);
-    vertical-align: middle;
+  }
+
+  .col-status {
+    width: 180px;
+    min-width: 120px;
+
+    .status-text {
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--ink-200);
+      font-size: var(--font-size-sm);
+      vertical-align: middle;
+    }
   }
 }

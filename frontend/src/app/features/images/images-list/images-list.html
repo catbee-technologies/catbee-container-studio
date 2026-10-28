@@ -239,7 +239,7 @@
                   <catbee-container-studio-table-checkbox
                     [checked]="selectedImageIds().has(image.Id)"
                     [ariaLabel]="'Select image'"
-                    (checkedChange)="toggleImageSelection(image.Id)"
+                    (checkedChange)="toggleImageSelection(image.Id, $event)"
                   />
                 </td>
                 <td class="col-used">

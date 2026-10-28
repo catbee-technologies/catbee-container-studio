@@ -211,7 +211,7 @@
                   <catbee-container-studio-table-checkbox
                     [checked]="selectedVolumeNames().has(volume.Name)"
                     [ariaLabel]="'Select volume'"
-                    (checkedChange)="toggleVolumeSelection(volume.Name)"
+                    (checkedChange)="toggleVolumeSelection(volume.Name, $event)"
                   />
                 </td>
                 <td class="col-used">

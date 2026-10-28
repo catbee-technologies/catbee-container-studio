@@ -323,6 +323,7 @@ export class VolumesPage {
 
   clearSelection(): void {
     this.selectedVolumeNames.set(new Set<string>());
+    this.lastSelectedVolumeName = null;
   }
 
   setUsageFilter(filter: string): void {
@@ -361,7 +362,31 @@ export class VolumesPage {
     return this.sortDirection() === 'asc' ? 'north' : 'south';
   }
 
-  toggleVolumeSelection(name: string): void {
+  private lastSelectedVolumeName: string | null = null;
+
+  toggleVolumeSelection(name: string, shiftKey = false): void {
+    if (shiftKey && this.lastSelectedVolumeName) {
+      const list = this.sortedVolumes();
+      const prevIndex = list.findIndex(vol => vol.Name === this.lastSelectedVolumeName);
+      const currIndex = list.findIndex(vol => vol.Name === name);
+
+      if (prevIndex !== -1 && currIndex !== -1) {
+        const start = Math.min(prevIndex, currIndex);
+        const end = Math.max(prevIndex, currIndex);
+        const range = list.slice(start, end + 1);
+
+        this.selectedVolumeNames.update(current => {
+          const next = new Set(current);
+          for (const item of range) {
+            next.add(item.Name);
+          }
+          return next;
+        });
+        this.lastSelectedVolumeName = name;
+        return;
+      }
+    }
+
     this.selectedVolumeNames.update(current => {
       const next = new Set(current);
       if (next.has(name)) {
@@ -371,9 +396,11 @@ export class VolumesPage {
       }
       return next;
     });
+    this.lastSelectedVolumeName = name;
   }
 
   toggleSelectAllVisible(): void {
+    this.lastSelectedVolumeName = null;
     const visibleNames = this.sortedVolumes().map(item => item.Name);
     if (visibleNames.length === 0) return;
 

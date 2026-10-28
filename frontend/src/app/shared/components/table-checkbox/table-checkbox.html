@@ -4,5 +4,6 @@
   [checked]="checked()"
   [indeterminate]="indeterminate()"
   [attr.aria-label]="ariaLabel()"
+  (click)="onCheckboxClick($event)"
   (change)="onChange()"
 />

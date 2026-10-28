@@ -163,6 +163,8 @@ table.catbee-table {
     text-align: center;
     overflow: visible;
     text-overflow: clip;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .col-actions {
