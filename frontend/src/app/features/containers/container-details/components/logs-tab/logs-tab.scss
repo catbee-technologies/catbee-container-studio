@@ -101,8 +101,8 @@
       }
 
       &:hover {
-        background-color: var(--bg-hover-subtle);
-        border-left-color: var(--border-color-hover);
+        background-color: var(--bg-log-hover);
+        border-left-color: var(--border-log-hover);
 
         ::ng-deep .log-timestamp {
           color: var(--ink-200);
