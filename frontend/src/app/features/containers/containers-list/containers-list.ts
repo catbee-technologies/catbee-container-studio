@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, DestroyRef, HostListener, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerInfo, DockerStreamEventEnvelope } from '@shared/types/docker-api.types';
@@ -14,6 +14,7 @@ import {
   formatDockerBytes,
   formatDockerNames,
   formatDockerStatus,
+  isKubernetesManagedContainer,
   parseDockerStatus
 } from '@utils/docker-display.utils';
 import {
@@ -93,6 +94,12 @@ export class ContainersPage {
       UI_STORAGE_DEFAULTS.CONTAINERS_RUNNING_ONLY
     )
   );
+  readonly showK8sManaged = signal(
+    this.localStorage.getBooleanWithDefault(
+      UI_STORAGE_KEYS.CONTAINERS_SHOW_K8S,
+      UI_STORAGE_DEFAULTS.CONTAINERS_SHOW_K8S
+    )
+  );
   readonly sortKey = signal<ContainerSortKey>(
     this.localStorage.getEnumWithDefault<ContainerSortKey>(
       UI_STORAGE_KEYS.CONTAINERS_SORT_KEY,
@@ -126,8 +133,18 @@ export class ContainersPage {
   readonly pendingDeleteGroup = signal<ContainerGroup | null>(null);
   readonly showBulkActionsMenu = signal(false);
 
-  readonly runningCount = computed(() => this.containers().filter(item => item.State === 'running').length);
-  readonly stoppedCount = computed(() => this.containers().filter(item => item.State !== 'running').length);
+  readonly runningCount = computed(
+    () =>
+      this.containers().filter(
+        item => (this.showK8sManaged() || !this.isKubernetesManaged(item)) && item.State === 'running'
+      ).length
+  );
+  readonly stoppedCount = computed(
+    () =>
+      this.containers().filter(
+        item => (this.showK8sManaged() || !this.isKubernetesManaged(item)) && item.State !== 'running'
+      ).length
+  );
 
   readonly cpuUsageSummary = signal('--');
   readonly memoryUsageSummary = signal('--');
@@ -165,8 +182,13 @@ export class ContainersPage {
   readonly visibleContainers = computed(() => {
     const query = this.searchTerm().trim().toLowerCase();
     const runningOnly = this.showRunningOnly();
+    const showK8s = this.showK8sManaged();
 
     return this.containers().filter(container => {
+      if (!showK8s && this.isKubernetesManaged(container)) {
+        return false;
+      }
+
       if (runningOnly && container.State !== 'running') {
         return false;
       }
@@ -343,6 +365,14 @@ export class ContainersPage {
 
     const unsubscribe = this.dockerApi.onStreamEvent(event => this.onDockerEvent(event));
 
+    effect(() => {
+      this.showK8sManaged();
+      const containers = this.containers();
+      if (containers.length > 0) {
+        void this.updateRuntimeSummaries(containers);
+      }
+    });
+
     this.statsPollTimer = setInterval(() => {
       void this.loadContainers();
     }, ContainersPage.STATS_POLL_MS);
@@ -436,6 +466,18 @@ export class ContainersPage {
       this.localStorage.set(UI_STORAGE_KEYS.CONTAINERS_RUNNING_ONLY, next ? 'true' : 'false');
       return next;
     });
+  }
+
+  toggleK8sManaged(): void {
+    this.showK8sManaged.update(value => {
+      const next = !value;
+      this.localStorage.set(UI_STORAGE_KEYS.CONTAINERS_SHOW_K8S, next ? 'true' : 'false');
+      return next;
+    });
+  }
+
+  isKubernetesManaged(container: DockerContainerInfo): boolean {
+    return isKubernetesManagedContainer(container);
   }
 
   toggleSort(key: ContainerSortKey): void {
@@ -1198,7 +1240,9 @@ export class ContainersPage {
 
     this.isRuntimeSummaryUpdating = true;
 
-    const running = containers.filter(container => container.State === 'running');
+    const running = containers.filter(
+      container => (this.showK8sManaged() || !this.isKubernetesManaged(container)) && container.State === 'running'
+    );
     const snapshotIds = new Set(containers.map(container => container.Id));
 
     try {

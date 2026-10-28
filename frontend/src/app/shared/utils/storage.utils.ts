@@ -64,6 +64,7 @@ export const UI_STORAGE_KEYS = {
   CONTAINERS_SORT_KEY: `${DOCKER_UI_STORAGE_PREFIX}containers.sort-key`,
   CONTAINERS_SORT_DIRECTION: `${DOCKER_UI_STORAGE_PREFIX}containers.sort-direction`,
   CONTAINERS_RUNNING_ONLY: `${DOCKER_UI_STORAGE_PREFIX}containers.running-only`,
+  CONTAINERS_SHOW_K8S: `${DOCKER_UI_STORAGE_PREFIX}containers.show-k8s`,
   CONTAINERS_VISIBLE_COLUMNS: `${DOCKER_UI_STORAGE_PREFIX}containers.visible-columns`,
   IMAGES_SORT_KEY: `${DOCKER_UI_STORAGE_PREFIX}images.sort-key`,
   IMAGES_SORT_DIRECTION: `${DOCKER_UI_STORAGE_PREFIX}images.sort-direction`,
@@ -96,6 +97,7 @@ export const UI_STORAGE_KEYS = {
 export const UI_STORAGE_DEFAULTS = {
   SIDEBAR_COLLAPSED: false,
   CONTAINERS_RUNNING_ONLY: false,
+  CONTAINERS_SHOW_K8S: false,
   CONTAINERS_SORT_KEY: 'name' as ContainerSortKey,
   CONTAINERS_SORT_DIRECTION: 'asc' as SortDirection,
   IMAGES_SORT_KEY: 'used' as ImageSortKey,

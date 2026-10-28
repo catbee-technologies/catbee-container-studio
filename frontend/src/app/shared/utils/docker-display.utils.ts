@@ -195,3 +195,20 @@ export function parseDockerStatus(status: string | null | undefined): ParsedDock
 
   return { statusText, health, paused };
 }
+
+export function isKubernetesManagedContainer(container: {
+  Labels?: Record<string, string>;
+  Names?: string[];
+}): boolean {
+  const labels = container.Labels ?? {};
+  const names = container.Names ?? [];
+
+  return (
+    'io.kubernetes.container.name' in labels ||
+    'io.kubernetes.pod.name' in labels ||
+    'io.kubernetes.pod.namespace' in labels ||
+    Object.keys(labels).some(key => key.startsWith('io.kubernetes.')) ||
+    names.some(name => name.startsWith('/k8s_') || name.startsWith('k8s_'))
+  );
+}
+

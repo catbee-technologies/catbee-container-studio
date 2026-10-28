@@ -49,6 +49,11 @@
         label="Show only running"
         [storageKey]="UI_STORAGE_KEYS.CONTAINERS_RUNNING_ONLY"
       />
+      <catbee-container-studio-switch-input
+        [(checked)]="showK8sManaged"
+        label="Show k8s managed"
+        [storageKey]="UI_STORAGE_KEYS.CONTAINERS_SHOW_K8S"
+      />
     </div>
 
     @if (selectedContainers().length > 0) {
@@ -334,7 +339,7 @@
                     [hint]="
                       containers().length === 0
                         ? 'Containers will appear here once you pull and run an image.'
-                        : 'Try a different search term or turn off the running-only filter.'
+                        : 'Try a different search term or turn off active filters.'
                     "
                   />
                 </td>
