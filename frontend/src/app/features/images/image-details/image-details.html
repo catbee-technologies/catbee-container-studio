@@ -37,7 +37,7 @@
   @if (isLoading()) {
     <catbee-container-studio-empty-state [icon]="'hourglass_empty'" [message]="'Loading image details...'" />
   } @else {
-    <section class="summary catbee-base-panel">
+    <section class="summary">
       @for (item of details(); track item.label) {
         <article>
           <p class="label">{{ item.label }}</p>
@@ -54,7 +54,7 @@
       }
     </section>
 
-    <section class="catbee-base-panel tabs" aria-label="Image tabs">
+    <section class="tabs" aria-label="Image tabs">
       <catbee-container-studio-tabs
         [tabs]="tabs"
         [activeTab]="activeTab()"

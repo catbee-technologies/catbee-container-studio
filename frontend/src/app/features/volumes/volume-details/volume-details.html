@@ -28,7 +28,7 @@
   @if (isLoading()) {
     <catbee-container-studio-empty-state [icon]="'hourglass_empty'" [message]="'Loading volume details...'" />
   } @else {
-    <section class="catbee-base-panel summary">
+    <section class="summary">
       @for (item of summaryItems(); track item.label) {
         <article>
           <p class="label">{{ item.label }}</p>
@@ -45,7 +45,7 @@
       }
     </section>
 
-    <section class="catbee-base-panel tabs" aria-label="Volume tabs">
+    <section class="tabs" aria-label="Volume tabs">
       <catbee-container-studio-tabs
         [tabs]="tabs"
         [activeTab]="activeTab()"
