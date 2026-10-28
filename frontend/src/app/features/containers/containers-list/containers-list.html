@@ -484,7 +484,23 @@
                 @if (visibleColumns().has('cpu')) {
                   <td class="col-cpu">
                     @if (groupRuntimeStats().get(group.id); as stats) {
-                      {{ stats.cpuPercent === 0 ? '0' : stats.cpuPercent.toFixed(2) }}%
+                      <div
+                        class="stat-progress-cell"
+                        [catbeeTooltip]="stats.cpuPercent.toFixed(2) + '% CPU load'"
+                        [catbeeTooltipPosition]="'top'"
+                        [catbeeTooltipDelay]="tooltipDelay"
+                      >
+                        <span class="stat-text">{{ stats.cpuPercent === 0 ? '0' : stats.cpuPercent.toFixed(2) }}%</span>
+                        <div class="stat-bar-track" aria-hidden="true">
+                          <div
+                            class="stat-bar-fill"
+                            [class.level-low]="metricLevel(stats.cpuPercent) === 'low'"
+                            [class.level-med]="metricLevel(stats.cpuPercent) === 'medium'"
+                            [class.level-high]="metricLevel(stats.cpuPercent) === 'high'"
+                            [style.width.%]="metricPercent(stats.cpuPercent)"
+                          ></div>
+                        </div>
+                      </div>
                     } @else {
                       --
                     }
@@ -493,8 +509,37 @@
                 @if (visibleColumns().has('memory')) {
                   <td class="col-memory">
                     @if (groupRuntimeStats().get(group.id); as stats) {
-                      {{ formatDockerBytes(stats.memoryUsage) }} /
-                      {{ stats.memoryLimit > 0 ? formatDockerBytes(stats.memoryLimit) : '--' }}
+                      <div
+                        class="stat-progress-cell"
+                        [catbeeTooltip]="
+                          stats.memoryLimit > 0
+                            ? memoryPercent(stats.memoryUsage, stats.memoryLimit).toFixed(1) +
+                              '% Memory (' +
+                              formatDockerBytes(stats.memoryUsage) +
+                              ' / ' +
+                              formatDockerBytes(stats.memoryLimit) +
+                              ')'
+                            : formatDockerBytes(stats.memoryUsage)
+                        "
+                        [catbeeTooltipPosition]="'top'"
+                        [catbeeTooltipDelay]="tooltipDelay"
+                      >
+                        <span class="stat-text">
+                          {{ formatDockerBytes(stats.memoryUsage) }} /
+                          {{ stats.memoryLimit > 0 ? formatDockerBytes(stats.memoryLimit) : '--' }}
+                        </span>
+                        @if (stats.memoryLimit > 0) {
+                          <div class="stat-bar-track" aria-hidden="true">
+                            <div
+                              class="stat-bar-fill"
+                              [class.level-low]="memoryLevel(stats.memoryUsage, stats.memoryLimit) === 'low'"
+                              [class.level-med]="memoryLevel(stats.memoryUsage, stats.memoryLimit) === 'medium'"
+                              [class.level-high]="memoryLevel(stats.memoryUsage, stats.memoryLimit) === 'high'"
+                              [style.width.%]="memoryPercent(stats.memoryUsage, stats.memoryLimit)"
+                            ></div>
+                          </div>
+                        }
+                      </div>
                     } @else {
                       --
                     }
@@ -790,7 +835,25 @@
                     @if (visibleColumns().has('cpu')) {
                       <td class="col-cpu">
                         @if (containerRuntimeStats().get(container.Id); as stats) {
-                          {{ stats.cpuPercent === 0 ? '0' : stats.cpuPercent.toFixed(2) }}%
+                          <div
+                            class="stat-progress-cell"
+                            [catbeeTooltip]="stats.cpuPercent.toFixed(2) + '% CPU load'"
+                            [catbeeTooltipPosition]="'top'"
+                            [catbeeTooltipDelay]="tooltipDelay"
+                          >
+                            <span class="stat-text"
+                              >{{ stats.cpuPercent === 0 ? '0' : stats.cpuPercent.toFixed(2) }}%</span
+                            >
+                            <div class="stat-bar-track" aria-hidden="true">
+                              <div
+                                class="stat-bar-fill"
+                                [class.level-low]="metricLevel(stats.cpuPercent) === 'low'"
+                                [class.level-med]="metricLevel(stats.cpuPercent) === 'medium'"
+                                [class.level-high]="metricLevel(stats.cpuPercent) === 'high'"
+                                [style.width.%]="metricPercent(stats.cpuPercent)"
+                              ></div>
+                            </div>
+                          </div>
                         } @else {
                           --
                         }
@@ -799,8 +862,37 @@
                     @if (visibleColumns().has('memory')) {
                       <td class="col-memory">
                         @if (containerRuntimeStats().get(container.Id); as stats) {
-                          {{ formatDockerBytes(stats.memoryUsage) }} /
-                          {{ formatDockerBytes(stats.memoryLimit) }}
+                          <div
+                            class="stat-progress-cell"
+                            [catbeeTooltip]="
+                              stats.memoryLimit > 0
+                                ? memoryPercent(stats.memoryUsage, stats.memoryLimit).toFixed(1) +
+                                  '% Memory (' +
+                                  formatDockerBytes(stats.memoryUsage) +
+                                  ' / ' +
+                                  formatDockerBytes(stats.memoryLimit) +
+                                  ')'
+                                : formatDockerBytes(stats.memoryUsage)
+                            "
+                            [catbeeTooltipPosition]="'top'"
+                            [catbeeTooltipDelay]="tooltipDelay"
+                          >
+                            <span class="stat-text">
+                              {{ formatDockerBytes(stats.memoryUsage) }} /
+                              {{ stats.memoryLimit > 0 ? formatDockerBytes(stats.memoryLimit) : '--' }}
+                            </span>
+                            @if (stats.memoryLimit > 0) {
+                              <div class="stat-bar-track" aria-hidden="true">
+                                <div
+                                  class="stat-bar-fill"
+                                  [class.level-low]="memoryLevel(stats.memoryUsage, stats.memoryLimit) === 'low'"
+                                  [class.level-med]="memoryLevel(stats.memoryUsage, stats.memoryLimit) === 'medium'"
+                                  [class.level-high]="memoryLevel(stats.memoryUsage, stats.memoryLimit) === 'high'"
+                                  [style.width.%]="memoryPercent(stats.memoryUsage, stats.memoryLimit)"
+                                ></div>
+                              </div>
+                            }
+                          </div>
                         } @else {
                           --
                         }

@@ -1585,6 +1585,38 @@ export class ContainersPage {
     return `${formatDockerBytes(bytesPerSecond)}/s`;
   }
 
+  metricLevel(percent: number): 'low' | 'medium' | 'high' {
+    if (percent > 85) {
+      return 'high';
+    }
+    if (percent >= 60) {
+      return 'medium';
+    }
+    return 'low';
+  }
+
+  metricPercent(percent: number): number {
+    if (!Number.isFinite(percent) || percent <= 0) {
+      return 0;
+    }
+    return Math.min(100, Math.max(2, percent));
+  }
+
+  memoryPercent(usage: number, limit: number): number {
+    if (!Number.isFinite(usage) || !Number.isFinite(limit) || limit <= 0 || usage <= 0) {
+      return 0;
+    }
+    const pct = (usage / limit) * 100;
+    return Math.min(100, Math.max(2, pct));
+  }
+
+  memoryLevel(usage: number, limit: number): 'low' | 'medium' | 'high' {
+    if (limit <= 0) {
+      return 'low';
+    }
+    return this.metricLevel((usage / limit) * 100);
+  }
+
   @HostListener('window:keydown', ['$event'])
   onWindowKeydown(event: KeyboardEvent): void {
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
