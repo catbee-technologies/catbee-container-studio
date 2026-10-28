@@ -42,10 +42,10 @@
     "@angular/compiler-cli": "^22.1.0",
     "@eslint/js": "^10.0.1",
     "@types/dockerode": "^4.0.1",
-    "angular-eslint": "22.1.0",
-    "eslint": "^10.6.0",
+    "angular-eslint": "22.6.0",
+    "eslint": "^10.13.0",
     "prettier": "^3.8.1",
     "typescript": "~6.0.2",
-    "typescript-eslint": "8.62.1"
+    "typescript-eslint": "8.72.1"
   }
 }
