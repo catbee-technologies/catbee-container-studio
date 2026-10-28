@@ -448,12 +448,23 @@ export class ContainersPage {
       }
     });
 
+    const onVisibilityChange = () => {
+      if (!document.hidden) {
+        void this.loadContainers();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
     this.statsPollTimer = setInterval(() => {
+      if (document.hidden) {
+        return;
+      }
       void this.loadContainers();
     }, ContainersPage.STATS_POLL_MS);
 
     this.destroyRef.onDestroy(() => {
       unsubscribe();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       if (this.autoRefreshDebounce) {
         clearTimeout(this.autoRefreshDebounce);
       }
