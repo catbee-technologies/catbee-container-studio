@@ -87,6 +87,12 @@
           class="catbee-table single-row-table"
           aria-label="Images table"
           [class.is-empty]="sortedImages().length === 0"
+          [style.--col-repo-w.px]="columnWidths().repo"
+          [style.--col-tag-w.px]="columnWidths().tag"
+          [style.--col-id-w.px]="columnWidths().id"
+          [style.--col-size-w.px]="columnWidths().size"
+          [style.--col-created-w.px]="columnWidths().created"
+          [style.--col-filler-w]="columnWidths().repo ? 'auto' : '0'"
         >
           <thead>
             <tr>
@@ -106,54 +112,95 @@
                   (sort)="toggleSort('used')"
                 />
               </th>
-              <th scope="col" class="col-repo">
+              <th scope="col" class="col-sortable col-repo">
                 <catbee-container-studio-table-sort-header
                   [label]="'Repository'"
                   [active]="isSortActive('repository')"
                   [indicator]="sortIndicator('repository')"
                   (sort)="toggleSort('repository')"
                 />
+                <catbee-container-studio-table-column-resizer
+                  [minWidth]="minColumnWidths.repo"
+                  [defaultWidth]="defaultColumnWidths.repo"
+                  [currentWidth]="columnWidths().repo"
+                  (widthChange)="onColumnResize('repo', $event)"
+                  (widthChangeEnd)="onColumnResizeEnd('repo', $event)"
+                  (resetWidth)="resetColumnWidth('repo')"
+                />
               </th>
               @if (visibleColumns().has('tag')) {
-                <th scope="col" class="col-tag">
+                <th scope="col" class="col-sortable col-tag">
                   <catbee-container-studio-table-sort-header
                     [label]="'Tag'"
                     [active]="isSortActive('tag')"
                     [indicator]="sortIndicator('tag')"
                     (sort)="toggleSort('tag')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.tag"
+                    [defaultWidth]="defaultColumnWidths.tag"
+                    [currentWidth]="columnWidths().tag"
+                    (widthChange)="onColumnResize('tag', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('tag', $event)"
+                    (resetWidth)="resetColumnWidth('tag')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('id')) {
-                <th scope="col">
+                <th scope="col" class="col-sortable col-id">
                   <catbee-container-studio-table-sort-header
                     [label]="'ID'"
                     [active]="isSortActive('id')"
                     [indicator]="sortIndicator('id')"
                     (sort)="toggleSort('id')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.id"
+                    [defaultWidth]="defaultColumnWidths.id"
+                    [currentWidth]="columnWidths().id"
+                    (widthChange)="onColumnResize('id', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('id', $event)"
+                    (resetWidth)="resetColumnWidth('id')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('size')) {
-                <th scope="col">
+                <th scope="col" class="col-sortable col-size">
                   <catbee-container-studio-table-sort-header
                     [label]="'Size'"
                     [active]="isSortActive('size')"
                     [indicator]="sortIndicator('size')"
                     (sort)="toggleSort('size')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.size"
+                    [defaultWidth]="defaultColumnWidths.size"
+                    [currentWidth]="columnWidths().size"
+                    (widthChange)="onColumnResize('size', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('size', $event)"
+                    (resetWidth)="resetColumnWidth('size')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('created')) {
-                <th scope="col">
+                <th scope="col" class="col-sortable col-created">
                   <catbee-container-studio-table-sort-header
                     [label]="'Created'"
                     [active]="isSortActive('created')"
                     [indicator]="sortIndicator('created')"
                     (sort)="toggleSort('created')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.created"
+                    [defaultWidth]="defaultColumnWidths.created"
+                    [currentWidth]="columnWidths().created"
+                    (widthChange)="onColumnResize('created', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('created', $event)"
+                    (resetWidth)="resetColumnWidth('created')"
+                  />
                 </th>
               }
+              <th class="col-filler" aria-hidden="true"></th>
               <th scope="col" class="col-actions">
                 <div class="actions-header">
                   <span>Actions</span>
@@ -164,7 +211,7 @@
                     [storageKey]="UI_STORAGE_KEYS.IMAGES_VISIBLE_COLUMNS"
                     [(visibleColumns)]="visibleColumns"
                     [tooltipDelay]="tooltipDelay"
-                    [showReset]="false"
+                    (resetColumns)="resetAllColumnWidths()"
                   />
                 </div>
               </th>
@@ -173,7 +220,7 @@
           <tbody>
             @if (sortedImages().length === 0) {
               <tr class="table-empty-row">
-                <td colspan="8">
+                <td [attr.colspan]="visibleColumns().size + 4">
                   <catbee-container-studio-empty-state
                     [icon]="'image'"
                     [message]="images().length === 0 ? 'No images found.' : 'No images match your search.'"
@@ -260,13 +307,14 @@
                   </td>
                 }
                 @if (visibleColumns().has('size')) {
-                  <td>{{ formatSize(image.Size) }}</td>
+                  <td class="col-size">{{ formatSize(image.Size) }}</td>
                 }
                 @if (visibleColumns().has('created')) {
-                  <td>
+                  <td class="col-created">
                     <catbee-container-studio-tooltip-date [date]="formatCreated(image.Created)" />
                   </td>
                 }
+                <td class="col-filler" aria-hidden="true"></td>
                 <td class="col-actions" (click)="$event.stopPropagation()">
                   <div class="action-group">
                     <button

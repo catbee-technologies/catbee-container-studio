@@ -125,7 +125,9 @@
       [externalSearchStorageKey]="logsSearchStorageKey"
       [externalSearchModeStorageKeys]="logsSearchModeStorageKeys"
       [emptyMessage]="selectedCount() === 0 ? 'No containers selected.' : null"
-      [emptyHint]="selectedCount() === 0 ? 'Select one or more containers from the filter menu to view their logs.' : null"
+      [emptyHint]="
+        selectedCount() === 0 ? 'Select one or more containers from the filter menu to view their logs.' : null
+      "
       [emptyIcon]="selectedCount() === 0 ? 'filter_list_off' : null"
       (externalClear)="requestClearLogs()"
       (externalMaxLogEntriesChange)="onMaxLogEntriesChange($event)"

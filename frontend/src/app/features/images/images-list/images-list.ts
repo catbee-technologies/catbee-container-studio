@@ -30,10 +30,28 @@ import {
   ColumnOption,
   TableColumnActionsMenuComponent
 } from '@components/table-column-actions-menu/table-column-actions-menu';
+import { TableColumnResizerComponent } from '@components/table-column-resizer/table-column-resizer';
 import { CatbeeLoader } from '@ng-catbee/loader';
 
 type ImageColumn = 'used' | 'repo' | 'tag' | 'id' | 'size' | 'created';
+export type ImageResizableColumn = 'repo' | 'tag' | 'id' | 'size' | 'created';
 type ImageAction = 'remove';
+
+export const DEFAULT_IMAGE_COLUMN_WIDTHS: Record<ImageResizableColumn, number | null> = {
+  repo: null,
+  tag: 180,
+  id: 140,
+  size: 110,
+  created: 150
+};
+
+export const MIN_IMAGE_COLUMN_WIDTHS: Record<ImageResizableColumn, number> = {
+  repo: 140,
+  tag: 100,
+  id: 110,
+  size: 80,
+  created: 110
+};
 
 @Component({
   selector: 'catbee-container-studio-images-page',
@@ -44,6 +62,7 @@ type ImageAction = 'remove';
     SegmentedFilterComponent,
     TableCheckboxComponent,
     TableSortHeaderComponent,
+    TableColumnResizerComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
     CatbeeTooltip,
@@ -223,6 +242,51 @@ export class ImagesPage {
       )
     ])
   );
+
+  readonly defaultColumnWidths = DEFAULT_IMAGE_COLUMN_WIDTHS;
+  readonly minColumnWidths = MIN_IMAGE_COLUMN_WIDTHS;
+
+  private getInitialColumnWidths(): Record<ImageResizableColumn, number | null> {
+    const saved = this.localStorage.getJsonWithDefault<Partial<Record<ImageResizableColumn, number | null>>>(
+      UI_STORAGE_KEYS.IMAGES_COLUMN_WIDTHS,
+      {}
+    );
+    if (saved.repo === 260) {
+      saved.repo = null;
+    }
+    return {
+      ...DEFAULT_IMAGE_COLUMN_WIDTHS,
+      ...saved
+    };
+  }
+
+  readonly columnWidths = signal<Record<ImageResizableColumn, number | null>>(this.getInitialColumnWidths());
+
+  onColumnResize(column: ImageResizableColumn, width: number): void {
+    this.columnWidths.update(widths => ({
+      ...widths,
+      [column]: width
+    }));
+  }
+
+  onColumnResizeEnd(column: ImageResizableColumn, width: number): void {
+    this.onColumnResize(column, width);
+    this.localStorage.setJson(UI_STORAGE_KEYS.IMAGES_COLUMN_WIDTHS, this.columnWidths());
+  }
+
+  resetColumnWidth(column: ImageResizableColumn): void {
+    const defaultWidth = DEFAULT_IMAGE_COLUMN_WIDTHS[column];
+    this.columnWidths.update(widths => ({
+      ...widths,
+      [column]: defaultWidth
+    }));
+    this.localStorage.setJson(UI_STORAGE_KEYS.IMAGES_COLUMN_WIDTHS, this.columnWidths());
+  }
+
+  resetAllColumnWidths(): void {
+    this.columnWidths.set({ ...DEFAULT_IMAGE_COLUMN_WIDTHS });
+    this.localStorage.delete(UI_STORAGE_KEYS.IMAGES_COLUMN_WIDTHS);
+  }
 
   readonly activeImageActions = signal<Map<string, ImageAction>>(new Map());
   readonly selectedDeletableImageCount = computed(

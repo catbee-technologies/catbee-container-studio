@@ -61,67 +61,133 @@ tbody tr {
   }
 }
 
-table.catbee-table .col-actions {
-  width: 100px;
-  min-width: 100px;
-}
+table.catbee-table {
+  width: 100%;
+  table-layout: fixed;
 
-.col-name {
-  max-width: 240px;
-  min-width: 130px;
-}
+  .col-filler {
+    width: var(--col-filler-w, 0);
+    min-width: 0;
+    padding: 0 !important;
+  }
 
-.col-image {
-  max-width: 220px;
-  min-width: 120px;
-}
+  th.col-filler::after {
+    display: none;
+  }
 
-.col-ports {
-  font-family: var(--mono-font);
-  font-size: 0.8rem;
-  max-width: 260px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+  .col-actions {
+    width: 135px;
+    min-width: 135px;
+  }
 
-.col-cpu,
-.col-memory,
-.col-disk,
-.col-network,
-.col-pids {
-  font-size: 0.8rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+  .col-name {
+    width: var(--col-name-w, auto);
+    min-width: 130px;
+    max-width: var(--col-name-w, none);
+  }
 
-.col-state {
-  white-space: nowrap;
-}
+  .col-id {
+    width: var(--col-id-w, 140px);
+    min-width: 128px;
+    max-width: var(--col-id-w, 140px);
+  }
 
-.col-status {
-  max-width: 220px;
-  min-width: 120px;
+  .col-image {
+    width: var(--col-image-w, 220px);
+    min-width: 120px;
+    max-width: var(--col-image-w, 220px);
+  }
 
-  .status-text {
-    display: inline-block;
-    max-width: 100%;
+  .col-ports {
+    font-family: var(--mono-font);
+    font-size: 0.8rem;
+    width: var(--col-ports-w, 220px);
+    min-width: 140px;
+    max-width: var(--col-ports-w, 220px);
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--ink-200);
-    font-size: var(--font-size-sm);
-    vertical-align: middle;
   }
-}
 
-.col-id {
-  width: 140px;
+  .col-state {
+    width: var(--col-state-w, 110px);
+    min-width: 80px;
+    max-width: var(--col-state-w, 110px);
+    white-space: nowrap;
+  }
+
+  .col-status {
+    width: var(--col-status-w, 180px);
+    min-width: 110px;
+    max-width: var(--col-status-w, 180px);
+
+    .status-text {
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--ink-200);
+      font-size: var(--font-size-sm);
+      vertical-align: middle;
+    }
+  }
+
+  .col-cpu {
+    width: var(--col-cpu-w, 100px);
+    min-width: 70px;
+    max-width: var(--col-cpu-w, 100px);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-memory {
+    width: var(--col-memory-w, 160px);
+    min-width: 90px;
+    max-width: var(--col-memory-w, 160px);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-disk {
+    width: var(--col-disk-w, 160px);
+    min-width: 90px;
+    max-width: var(--col-disk-w, 160px);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-network {
+    width: var(--col-network-w, 160px);
+    min-width: 90px;
+    max-width: var(--col-network-w, 160px);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-pids {
+    width: var(--col-pids-w, 80px);
+    min-width: 60px;
+    max-width: var(--col-pids-w, 80px);
+    font-size: 0.8rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 .col-loading-status {
   width: 2rem;
+  min-width: 2rem;
+  max-width: 2rem;
 }
 
 tbody tr.group-row {

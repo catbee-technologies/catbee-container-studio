@@ -211,4 +211,3 @@ export function isKubernetesManagedContainer(container: {
     names.some(name => name.startsWith('/k8s_') || name.startsWith('k8s_'))
   );
 }
-

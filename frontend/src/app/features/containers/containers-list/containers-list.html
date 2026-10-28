@@ -193,7 +193,22 @@
           size="small"
         />
       } @else {
-        <table class="catbee-table single-row-table" [class.is-empty]="visibleContainers().length === 0">
+        <table
+          class="catbee-table single-row-table"
+          [class.is-empty]="visibleContainers().length === 0"
+          [style.--col-name-w.px]="columnWidths().name"
+          [style.--col-id-w.px]="columnWidths().id"
+          [style.--col-image-w.px]="columnWidths().image"
+          [style.--col-ports-w.px]="columnWidths().ports"
+          [style.--col-state-w.px]="columnWidths().state"
+          [style.--col-status-w.px]="columnWidths().status"
+          [style.--col-cpu-w.px]="columnWidths().cpu"
+          [style.--col-memory-w.px]="columnWidths().memory"
+          [style.--col-disk-w.px]="columnWidths().disk"
+          [style.--col-network-w.px]="columnWidths().network"
+          [style.--col-pids-w.px]="columnWidths().pids"
+          [style.--col-filler-w]="columnWidths().name ? 'auto' : '0'"
+        >
           <thead>
             <tr>
               <th scope="col" class="col-checkbox">
@@ -212,6 +227,14 @@
                   [indicator]="sortIndicator('name')"
                   (sort)="toggleSort('name')"
                 />
+                <catbee-container-studio-table-column-resizer
+                  [minWidth]="minColumnWidths.name"
+                  [defaultWidth]="defaultColumnWidths.name"
+                  [currentWidth]="columnWidths().name"
+                  (widthChange)="onColumnResize('name', $event)"
+                  (widthChangeEnd)="onColumnResizeEnd('name', $event)"
+                  (resetWidth)="resetColumnWidth('name')"
+                />
               </th>
               @if (visibleColumns().has('id')) {
                 <th scope="col" class="col-sortable col-id">
@@ -220,6 +243,14 @@
                     [active]="isSortActive('id')"
                     [indicator]="sortIndicator('id')"
                     (sort)="toggleSort('id')"
+                  />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.id"
+                    [defaultWidth]="defaultColumnWidths.id"
+                    [currentWidth]="columnWidths().id"
+                    (widthChange)="onColumnResize('id', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('id', $event)"
+                    (resetWidth)="resetColumnWidth('id')"
                   />
                 </th>
               }
@@ -231,15 +262,31 @@
                     [indicator]="sortIndicator('image')"
                     (sort)="toggleSort('image')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.image"
+                    [defaultWidth]="defaultColumnWidths.image"
+                    [currentWidth]="columnWidths().image"
+                    (widthChange)="onColumnResize('image', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('image', $event)"
+                    (resetWidth)="resetColumnWidth('image')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('ports')) {
-                <th scope="col" class="col-sortable">
+                <th scope="col" class="col-sortable col-ports">
                   <catbee-container-studio-table-sort-header
                     [label]="'Ports'"
                     [active]="isSortActive('ports')"
                     [indicator]="sortIndicator('ports')"
                     (sort)="toggleSort('ports')"
+                  />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.ports"
+                    [defaultWidth]="defaultColumnWidths.ports"
+                    [currentWidth]="columnWidths().ports"
+                    (widthChange)="onColumnResize('ports', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('ports', $event)"
+                    (resetWidth)="resetColumnWidth('ports')"
                   />
                 </th>
               }
@@ -251,6 +298,14 @@
                     [indicator]="sortIndicator('state')"
                     (sort)="toggleSort('state')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.state"
+                    [defaultWidth]="defaultColumnWidths.state"
+                    [currentWidth]="columnWidths().state"
+                    (widthChange)="onColumnResize('state', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('state', $event)"
+                    (resetWidth)="resetColumnWidth('state')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('status')) {
@@ -261,58 +316,107 @@
                     [indicator]="sortIndicator('status')"
                     (sort)="toggleSort('status')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.status"
+                    [defaultWidth]="defaultColumnWidths.status"
+                    [currentWidth]="columnWidths().status"
+                    (widthChange)="onColumnResize('status', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('status', $event)"
+                    (resetWidth)="resetColumnWidth('status')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('cpu')) {
-                <th scope="col" class="col-sortable">
+                <th scope="col" class="col-sortable col-cpu">
                   <catbee-container-studio-table-sort-header
                     [label]="'CPU'"
                     [active]="isSortActive('cpu')"
                     [indicator]="sortIndicator('cpu')"
                     (sort)="toggleSort('cpu')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.cpu"
+                    [defaultWidth]="defaultColumnWidths.cpu"
+                    [currentWidth]="columnWidths().cpu"
+                    (widthChange)="onColumnResize('cpu', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('cpu', $event)"
+                    (resetWidth)="resetColumnWidth('cpu')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('memory')) {
-                <th scope="col" class="col-sortable">
+                <th scope="col" class="col-sortable col-memory">
                   <catbee-container-studio-table-sort-header
                     [label]="'Memory'"
                     [active]="isSortActive('memory')"
                     [indicator]="sortIndicator('memory')"
                     (sort)="toggleSort('memory')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.memory"
+                    [defaultWidth]="defaultColumnWidths.memory"
+                    [currentWidth]="columnWidths().memory"
+                    (widthChange)="onColumnResize('memory', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('memory', $event)"
+                    (resetWidth)="resetColumnWidth('memory')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('disk')) {
-                <th scope="col" class="col-sortable">
+                <th scope="col" class="col-sortable col-disk">
                   <catbee-container-studio-table-sort-header
                     [label]="'Disk R/W'"
                     [active]="isSortActive('disk')"
                     [indicator]="sortIndicator('disk')"
                     (sort)="toggleSort('disk')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.disk"
+                    [defaultWidth]="defaultColumnWidths.disk"
+                    [currentWidth]="columnWidths().disk"
+                    (widthChange)="onColumnResize('disk', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('disk', $event)"
+                    (resetWidth)="resetColumnWidth('disk')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('network')) {
-                <th scope="col" class="col-sortable">
+                <th scope="col" class="col-sortable col-network">
                   <catbee-container-studio-table-sort-header
                     [label]="'Network I/O'"
                     [active]="isSortActive('network')"
                     [indicator]="sortIndicator('network')"
                     (sort)="toggleSort('network')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.network"
+                    [defaultWidth]="defaultColumnWidths.network"
+                    [currentWidth]="columnWidths().network"
+                    (widthChange)="onColumnResize('network', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('network', $event)"
+                    (resetWidth)="resetColumnWidth('network')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('pids')) {
-                <th scope="col" class="col-sortable">
+                <th scope="col" class="col-sortable col-pids">
                   <catbee-container-studio-table-sort-header
                     [label]="'PIDs'"
                     [active]="isSortActive('pids')"
                     [indicator]="sortIndicator('pids')"
                     (sort)="toggleSort('pids')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.pids"
+                    [defaultWidth]="defaultColumnWidths.pids"
+                    [currentWidth]="columnWidths().pids"
+                    (widthChange)="onColumnResize('pids', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('pids', $event)"
+                    (resetWidth)="resetColumnWidth('pids')"
+                  />
                 </th>
               }
+              <th scope="col" class="col-filler" aria-hidden="true"></th>
               <th scope="col" class="col-actions">
                 <div class="actions-header">
                   <span>Actions</span>
@@ -324,6 +428,7 @@
                     [(visibleColumns)]="visibleColumns"
                     [tooltipDelay]="tooltipDelay"
                     [showRemoveAll]="false"
+                    (resetColumns)="resetAllColumnWidths()"
                   />
                 </div>
               </th>
@@ -332,7 +437,7 @@
           <tbody>
             @if (visibleContainers().length === 0) {
               <tr class="table-empty-row">
-                <td [attr.colspan]="visibleColumns().size + 3">
+                <td [attr.colspan]="visibleColumns().size + 4">
                   <catbee-container-studio-empty-state
                     [icon]="'deployed_code'"
                     [message]="containers().length === 0 ? 'No containers.' : 'No containers match your filters.'"
@@ -418,6 +523,7 @@
                 @if (visibleColumns().has('pids')) {
                   <td class="col-pids">--</td>
                 }
+                <td class="col-filler"></td>
                 <td class="col-actions" (click)="$event.stopPropagation()">
                   <div class="action-group">
                     @if (isGroupStarted(group)) {
@@ -729,6 +835,7 @@
                         }
                       </td>
                     }
+                    <td class="col-filler"></td>
                     <td class="col-actions">
                       <div class="action-group">
                         @if (container.State === 'running' || container.State === 'paused') {

@@ -27,10 +27,25 @@ import {
   ColumnOption,
   TableColumnActionsMenuComponent
 } from '@components/table-column-actions-menu/table-column-actions-menu';
+import { TableColumnResizerComponent } from '@components/table-column-resizer/table-column-resizer';
 import { CatbeeLoader } from '@ng-catbee/loader';
 
 type VolumeColumn = 'name' | 'driver' | 'size' | 'created';
 type VolumeAction = 'remove';
+
+export const DEFAULT_VOLUME_COLUMN_WIDTHS: Record<VolumeColumn, number | null> = {
+  name: null,
+  driver: 130,
+  size: 130,
+  created: 180
+};
+
+export const MIN_VOLUME_COLUMN_WIDTHS: Record<VolumeColumn, number> = {
+  name: 140,
+  driver: 90,
+  size: 90,
+  created: 110
+};
 
 @Component({
   selector: 'catbee-container-studio-volumes-page',
@@ -41,6 +56,7 @@ type VolumeAction = 'remove';
     SegmentedFilterComponent,
     TableCheckboxComponent,
     TableSortHeaderComponent,
+    TableColumnResizerComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
     CatbeeTooltip,
@@ -197,6 +213,51 @@ export class VolumesPage {
       )
     ])
   );
+
+  readonly defaultColumnWidths = DEFAULT_VOLUME_COLUMN_WIDTHS;
+  readonly minColumnWidths = MIN_VOLUME_COLUMN_WIDTHS;
+
+  private getInitialColumnWidths(): Record<VolumeColumn, number | null> {
+    const saved = this.localStorage.getJsonWithDefault<Partial<Record<VolumeColumn, number | null>>>(
+      UI_STORAGE_KEYS.VOLUMES_COLUMN_WIDTHS,
+      {}
+    );
+    if (saved.name === 280) {
+      saved.name = null;
+    }
+    return {
+      ...DEFAULT_VOLUME_COLUMN_WIDTHS,
+      ...saved
+    };
+  }
+
+  readonly columnWidths = signal<Record<VolumeColumn, number | null>>(this.getInitialColumnWidths());
+
+  onColumnResize(column: VolumeColumn, width: number): void {
+    this.columnWidths.update(widths => ({
+      ...widths,
+      [column]: width
+    }));
+  }
+
+  onColumnResizeEnd(column: VolumeColumn, width: number): void {
+    this.onColumnResize(column, width);
+    this.localStorage.setJson(UI_STORAGE_KEYS.VOLUMES_COLUMN_WIDTHS, this.columnWidths());
+  }
+
+  resetColumnWidth(column: VolumeColumn): void {
+    const defaultWidth = DEFAULT_VOLUME_COLUMN_WIDTHS[column];
+    this.columnWidths.update(widths => ({
+      ...widths,
+      [column]: defaultWidth
+    }));
+    this.localStorage.setJson(UI_STORAGE_KEYS.VOLUMES_COLUMN_WIDTHS, this.columnWidths());
+  }
+
+  resetAllColumnWidths(): void {
+    this.columnWidths.set({ ...DEFAULT_VOLUME_COLUMN_WIDTHS });
+    this.localStorage.delete(UI_STORAGE_KEYS.VOLUMES_COLUMN_WIDTHS);
+  }
 
   readonly activeVolumeActions = signal<Map<string, VolumeAction>>(new Map());
   readonly selectedDeletableVolumeCount = computed(

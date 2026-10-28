@@ -7,27 +7,6 @@ tbody tr {
   cursor: pointer;
 }
 
-.col-tag {
-  max-width: 200px;
-  min-width: 100px;
-
-  .tag-cell-wrap {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    max-width: 100%;
-    overflow: hidden;
-    vertical-align: middle;
-
-    .primary-tag {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      min-width: 0;
-    }
-  }
-}
-
 .tag-extra {
   font-size: 0.72rem;
   color: var(--ink-300);
@@ -39,29 +18,87 @@ tbody tr {
   flex-shrink: 0;
 }
 
-.col-repo {
-  max-width: 320px;
-  min-width: 140px;
+table.catbee-table {
+  width: 100%;
+  table-layout: fixed;
 
-  .link-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    max-width: 100%;
+  .col-filler {
+    width: var(--col-filler-w, 0);
+    min-width: 0;
+    padding: 0 !important;
+  }
 
-    .repo-text {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+  th.col-filler::after {
+    display: none;
+  }
+
+  .col-actions {
+    width: 120px;
+    min-width: 120px;
+  }
+
+  .col-repo {
+    width: var(--col-repo-w, auto);
+    min-width: 140px;
+    max-width: var(--col-repo-w, none);
+
+    .link-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      max-width: 100%;
+
+      .repo-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
   }
-}
 
-.col-id {
-  width: 140px;
-}
+  .col-tag {
+    width: var(--col-tag-w, 180px);
+    min-width: 100px;
+    max-width: var(--col-tag-w, 180px);
 
-table.catbee-table .col-actions {
-  width: 120px;
-  min-width: 120px;
+    .tag-cell-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      max-width: 100%;
+      overflow: hidden;
+      vertical-align: middle;
+
+      .primary-tag {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+      }
+    }
+  }
+
+  .col-id {
+    width: var(--col-id-w, 140px);
+    min-width: 110px;
+    max-width: var(--col-id-w, 140px);
+  }
+
+  .col-size {
+    width: var(--col-size-w, 110px);
+    min-width: 80px;
+    max-width: var(--col-size-w, 110px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-created {
+    width: var(--col-created-w, 150px);
+    min-width: 110px;
+    max-width: var(--col-created-w, 150px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }

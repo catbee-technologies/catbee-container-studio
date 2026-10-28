@@ -14,22 +14,81 @@ tbody tr {
   text-transform: uppercase;
 }
 
-.col-id {
-  width: 140px;
-}
+table.catbee-table {
+  width: 100%;
+  table-layout: fixed;
 
-.col-name {
-  max-width: 280px;
-}
+  .col-filler {
+    width: var(--col-filler-w, 0);
+    min-width: 0;
+    padding: 0 !important;
+  }
 
-.col-subnet {
-  max-width: 180px;
-  min-width: 100px;
-}
+  th.col-filler::after {
+    display: none;
+  }
 
-table.catbee-table .col-actions {
-  width: 110px;
-  min-width: 110px;
+  .col-actions {
+    width: 110px;
+    min-width: 110px;
+  }
+
+  .col-name {
+    width: var(--col-name-w, auto);
+    min-width: 130px;
+    max-width: var(--col-name-w, none);
+  }
+
+  .col-id {
+    width: var(--col-id-w, 140px);
+    min-width: 110px;
+    max-width: var(--col-id-w, 140px);
+  }
+
+  .col-driver {
+    width: var(--col-driver-w, 110px);
+    min-width: 80px;
+    max-width: var(--col-driver-w, 110px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-subnet {
+    width: var(--col-subnet-w, 200px);
+    min-width: 120px;
+    max-width: var(--col-subnet-w, 200px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-flags {
+    width: var(--col-flags-w, 130px);
+    min-width: 90px;
+    max-width: var(--col-flags-w, 130px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-containers {
+    width: var(--col-containers-w, 120px);
+    min-width: 90px;
+    max-width: var(--col-containers-w, 120px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-created {
+    width: var(--col-created-w, 150px);
+    min-width: 110px;
+    max-width: var(--col-created-w, 150px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 .network-form {

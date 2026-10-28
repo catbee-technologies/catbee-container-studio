@@ -78,6 +78,11 @@
           class="catbee-table single-row-table"
           aria-label="Volumes table"
           [class.is-empty]="sortedVolumes().length === 0"
+          [style.--col-name-w.px]="columnWidths().name"
+          [style.--col-driver-w.px]="columnWidths().driver"
+          [style.--col-size-w.px]="columnWidths().size"
+          [style.--col-created-w.px]="columnWidths().created"
+          [style.--col-filler-w]="columnWidths().name ? 'auto' : '0'"
         >
           <thead>
             <tr>
@@ -104,37 +109,70 @@
                   [indicator]="sortIndicator('name')"
                   (sort)="toggleSort('name')"
                 />
+                <catbee-container-studio-table-column-resizer
+                  [minWidth]="minColumnWidths.name"
+                  [defaultWidth]="defaultColumnWidths.name"
+                  [currentWidth]="columnWidths().name"
+                  (widthChange)="onColumnResize('name', $event)"
+                  (widthChangeEnd)="onColumnResizeEnd('name', $event)"
+                  (resetWidth)="resetColumnWidth('name')"
+                />
               </th>
               @if (visibleColumns().has('driver')) {
-                <th scope="col">
+                <th scope="col" class="col-driver col-sortable">
                   <catbee-container-studio-table-sort-header
                     [label]="'Driver'"
                     [active]="isSortActive('driver')"
                     [indicator]="sortIndicator('driver')"
                     (sort)="toggleSort('driver')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.driver"
+                    [defaultWidth]="defaultColumnWidths.driver"
+                    [currentWidth]="columnWidths().driver"
+                    (widthChange)="onColumnResize('driver', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('driver', $event)"
+                    (resetWidth)="resetColumnWidth('driver')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('size')) {
-                <th scope="col">
+                <th scope="col" class="col-size col-sortable">
                   <catbee-container-studio-table-sort-header
                     [label]="'Size'"
                     [active]="isSortActive('size')"
                     [indicator]="sortIndicator('size')"
                     (sort)="toggleSort('size')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.size"
+                    [defaultWidth]="defaultColumnWidths.size"
+                    [currentWidth]="columnWidths().size"
+                    (widthChange)="onColumnResize('size', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('size', $event)"
+                    (resetWidth)="resetColumnWidth('size')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('created')) {
-                <th scope="col">
+                <th scope="col" class="col-created col-sortable">
                   <catbee-container-studio-table-sort-header
                     [label]="'Created'"
                     [active]="isSortActive('created')"
                     [indicator]="sortIndicator('created')"
                     (sort)="toggleSort('created')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.created"
+                    [defaultWidth]="defaultColumnWidths.created"
+                    [currentWidth]="columnWidths().created"
+                    (widthChange)="onColumnResize('created', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('created', $event)"
+                    (resetWidth)="resetColumnWidth('created')"
+                  />
                 </th>
               }
+              <th class="col-filler" aria-hidden="true"></th>
               <th scope="col" class="col-actions">
                 <div class="actions-header">
                   <span>Actions</span>
@@ -145,7 +183,7 @@
                     [storageKey]="UI_STORAGE_KEYS.VOLUMES_VISIBLE_COLUMNS"
                     [(visibleColumns)]="visibleColumns"
                     [tooltipDelay]="tooltipDelay"
-                    [showReset]="false"
+                    (resetColumns)="resetAllColumnWidths()"
                   />
                 </div>
               </th>
@@ -154,7 +192,7 @@
           <tbody>
             @if (sortedVolumes().length === 0) {
               <tr class="table-empty-row">
-                <td colspan="7">
+                <td [attr.colspan]="visibleColumns().size + 4">
                   <catbee-container-studio-empty-state
                     [icon]="'database'"
                     [message]="volumes().length === 0 ? 'No volumes found.' : 'No volumes match your search.'"
@@ -207,18 +245,19 @@
                   </button>
                 </td>
                 @if (visibleColumns().has('driver')) {
-                  <td>
+                  <td class="col-driver">
                     <span class="badge small driver-badge">{{ volume.Driver }}</span>
                   </td>
                 }
                 @if (visibleColumns().has('size')) {
-                  <td>{{ formatSize(volume.UsageData?.Size ?? 0) }}</td>
+                  <td class="col-size">{{ formatSize(volume.UsageData?.Size ?? 0) }}</td>
                 }
                 @if (visibleColumns().has('created')) {
-                  <td>
+                  <td class="col-created">
                     <catbee-container-studio-tooltip-date [date]="volume.CreatedAt" />
                   </td>
                 }
+                <td class="col-filler" aria-hidden="true"></td>
                 <td class="col-actions" (click)="$event.stopPropagation()">
                   <div class="action-group">
                     <button

@@ -73,6 +73,14 @@
           class="catbee-table single-row-table"
           aria-label="Networks table"
           [class.is-empty]="sortedNetworks().length === 0"
+          [style.--col-name-w.px]="columnWidths().name"
+          [style.--col-id-w.px]="columnWidths().id"
+          [style.--col-driver-w.px]="columnWidths().driver"
+          [style.--col-subnet-w.px]="columnWidths().subnet"
+          [style.--col-flags-w.px]="columnWidths().flags"
+          [style.--col-containers-w.px]="columnWidths().containers"
+          [style.--col-created-w.px]="columnWidths().created"
+          [style.--col-filler-w]="columnWidths().name ? 'auto' : '0'"
         >
           <thead>
             <tr>
@@ -99,6 +107,14 @@
                   [indicator]="sortIndicator('name')"
                   (sort)="toggleSort('name')"
                 />
+                <catbee-container-studio-table-column-resizer
+                  [minWidth]="minColumnWidths.name"
+                  [defaultWidth]="defaultColumnWidths.name"
+                  [currentWidth]="columnWidths().name"
+                  (widthChange)="onColumnResize('name', $event)"
+                  (widthChangeEnd)="onColumnResizeEnd('name', $event)"
+                  (resetWidth)="resetColumnWidth('name')"
+                />
               </th>
               @if (visibleColumns().has('id')) {
                 <th scope="col" class="col-id col-sortable">
@@ -108,15 +124,31 @@
                     [indicator]="sortIndicator('id')"
                     (sort)="toggleSort('id')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.id"
+                    [defaultWidth]="defaultColumnWidths.id"
+                    [currentWidth]="columnWidths().id"
+                    (widthChange)="onColumnResize('id', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('id', $event)"
+                    (resetWidth)="resetColumnWidth('id')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('driver')) {
-                <th scope="col">
+                <th scope="col" class="col-driver col-sortable">
                   <catbee-container-studio-table-sort-header
                     label="Driver"
                     [active]="isSortActive('driver')"
                     [indicator]="sortIndicator('driver')"
                     (sort)="toggleSort('driver')"
+                  />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.driver"
+                    [defaultWidth]="defaultColumnWidths.driver"
+                    [currentWidth]="columnWidths().driver"
+                    (widthChange)="onColumnResize('driver', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('driver', $event)"
+                    (resetWidth)="resetColumnWidth('driver')"
                   />
                 </th>
               }
@@ -128,31 +160,66 @@
                     [indicator]="sortIndicator('subnet')"
                     (sort)="toggleSort('subnet')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.subnet"
+                    [defaultWidth]="defaultColumnWidths.subnet"
+                    [currentWidth]="columnWidths().subnet"
+                    (widthChange)="onColumnResize('subnet', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('subnet', $event)"
+                    (resetWidth)="resetColumnWidth('subnet')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('flags')) {
-                <th scope="col">Flags</th>
+                <th scope="col" class="col-flags col-sortable">
+                  <span>Flags</span>
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.flags"
+                    [defaultWidth]="defaultColumnWidths.flags"
+                    [currentWidth]="columnWidths().flags"
+                    (widthChange)="onColumnResize('flags', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('flags', $event)"
+                    (resetWidth)="resetColumnWidth('flags')"
+                  />
+                </th>
               }
               @if (visibleColumns().has('containers')) {
-                <th scope="col">
+                <th scope="col" class="col-containers col-sortable">
                   <catbee-container-studio-table-sort-header
                     label="Containers"
                     [active]="isSortActive('containers')"
                     [indicator]="sortIndicator('containers')"
                     (sort)="toggleSort('containers')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.containers"
+                    [defaultWidth]="defaultColumnWidths.containers"
+                    [currentWidth]="columnWidths().containers"
+                    (widthChange)="onColumnResize('containers', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('containers', $event)"
+                    (resetWidth)="resetColumnWidth('containers')"
+                  />
                 </th>
               }
               @if (visibleColumns().has('created')) {
-                <th scope="col">
+                <th scope="col" class="col-created col-sortable">
                   <catbee-container-studio-table-sort-header
                     label="Created"
                     [active]="isSortActive('created')"
                     [indicator]="sortIndicator('created')"
                     (sort)="toggleSort('created')"
                   />
+                  <catbee-container-studio-table-column-resizer
+                    [minWidth]="minColumnWidths.created"
+                    [defaultWidth]="defaultColumnWidths.created"
+                    [currentWidth]="columnWidths().created"
+                    (widthChange)="onColumnResize('created', $event)"
+                    (widthChangeEnd)="onColumnResizeEnd('created', $event)"
+                    (resetWidth)="resetColumnWidth('created')"
+                  />
                 </th>
               }
+              <th class="col-filler" aria-hidden="true"></th>
               <th scope="col" class="col-actions">
                 <div class="actions-header">
                   <span>Actions</span>
@@ -162,7 +229,7 @@
                     [storageKey]="UI_STORAGE_KEYS.NETWORKS_VISIBLE_COLUMNS"
                     [(visibleColumns)]="visibleColumns"
                     [tooltipDelay]="tooltipDelay"
-                    [showReset]="false"
+                    (resetColumns)="resetAllColumnWidths()"
                   />
                 </div>
               </th>
@@ -171,7 +238,7 @@
           <tbody>
             @if (sortedNetworks().length === 0) {
               <tr class="table-empty-row">
-                <td colspan="10">
+                <td [attr.colspan]="visibleColumns().size + 4">
                   <catbee-container-studio-empty-state
                     icon="lan"
                     [message]="networks().length === 0 ? 'No networks found.' : 'No networks match your search.'"
@@ -230,7 +297,7 @@
                   </td>
                 }
                 @if (visibleColumns().has('driver')) {
-                  <td>
+                  <td class="col-driver">
                     <span class="badge small driver-badge">{{ network.Driver }}</span>
                   </td>
                 }
@@ -246,14 +313,15 @@
                   </td>
                 }
                 @if (visibleColumns().has('flags')) {
-                  <td>{{ networkFlags(network) }}</td>
+                  <td class="col-flags">{{ networkFlags(network) }}</td>
                 }
                 @if (visibleColumns().has('containers')) {
-                  <td>{{ connectedContainerCount(network) }}</td>
+                  <td class="col-containers">{{ connectedContainerCount(network) }}</td>
                 }
                 @if (visibleColumns().has('created')) {
-                  <td><catbee-container-studio-tooltip-date [date]="network.Created" /></td>
+                  <td class="col-created"><catbee-container-studio-tooltip-date [date]="network.Created" /></td>
                 }
+                <td class="col-filler" aria-hidden="true"></td>
                 <td class="col-actions" (click)="$event.stopPropagation()">
                   <div class="action-group">
                     <button

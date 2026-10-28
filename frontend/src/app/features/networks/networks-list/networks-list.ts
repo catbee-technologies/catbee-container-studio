@@ -29,10 +29,32 @@ import {
   SortDirection
 } from '@shared/types';
 import { removeStalePrefixedStorageEntries, UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
+import { TableColumnResizerComponent } from '@components/table-column-resizer/table-column-resizer';
 import { CatbeeLoader } from '@ng-catbee/loader';
 
 type NetworkColumn = 'id' | 'driver' | 'subnet' | 'flags' | 'containers' | 'created';
+export type NetworkResizableColumn = 'name' | 'id' | 'driver' | 'subnet' | 'flags' | 'containers' | 'created';
 type NetworkAction = 'remove';
+
+export const DEFAULT_NETWORK_COLUMN_WIDTHS: Record<NetworkResizableColumn, number | null> = {
+  name: null,
+  id: 140,
+  driver: 110,
+  subnet: 200,
+  flags: 130,
+  containers: 120,
+  created: 150
+};
+
+export const MIN_NETWORK_COLUMN_WIDTHS: Record<NetworkResizableColumn, number> = {
+  name: 130,
+  id: 110,
+  driver: 80,
+  subnet: 120,
+  flags: 90,
+  containers: 90,
+  created: 110
+};
 
 @Component({
   selector: 'catbee-container-studio-networks-page',
@@ -43,6 +65,7 @@ type NetworkAction = 'remove';
     SwitchInputComponent,
     TableCheckboxComponent,
     TableSortHeaderComponent,
+    TableColumnResizerComponent,
     TableColumnActionsMenuComponent,
     TooltipDateComponent,
     CopyButtonComponent,
@@ -118,6 +141,51 @@ export class NetworksPage {
       )
     )
   );
+
+  readonly defaultColumnWidths = DEFAULT_NETWORK_COLUMN_WIDTHS;
+  readonly minColumnWidths = MIN_NETWORK_COLUMN_WIDTHS;
+
+  private getInitialColumnWidths(): Record<NetworkResizableColumn, number | null> {
+    const saved = this.localStorage.getJsonWithDefault<Partial<Record<NetworkResizableColumn, number | null>>>(
+      UI_STORAGE_KEYS.NETWORKS_COLUMN_WIDTHS,
+      {}
+    );
+    if (saved.name === 220) {
+      saved.name = null;
+    }
+    return {
+      ...DEFAULT_NETWORK_COLUMN_WIDTHS,
+      ...saved
+    };
+  }
+
+  readonly columnWidths = signal<Record<NetworkResizableColumn, number | null>>(this.getInitialColumnWidths());
+
+  onColumnResize(column: NetworkResizableColumn, width: number): void {
+    this.columnWidths.update(widths => ({
+      ...widths,
+      [column]: width
+    }));
+  }
+
+  onColumnResizeEnd(column: NetworkResizableColumn, width: number): void {
+    this.onColumnResize(column, width);
+    this.localStorage.setJson(UI_STORAGE_KEYS.NETWORKS_COLUMN_WIDTHS, this.columnWidths());
+  }
+
+  resetColumnWidth(column: NetworkResizableColumn): void {
+    const defaultWidth = DEFAULT_NETWORK_COLUMN_WIDTHS[column];
+    this.columnWidths.update(widths => ({
+      ...widths,
+      [column]: defaultWidth
+    }));
+    this.localStorage.setJson(UI_STORAGE_KEYS.NETWORKS_COLUMN_WIDTHS, this.columnWidths());
+  }
+
+  resetAllColumnWidths(): void {
+    this.columnWidths.set({ ...DEFAULT_NETWORK_COLUMN_WIDTHS });
+    this.localStorage.delete(UI_STORAGE_KEYS.NETWORKS_COLUMN_WIDTHS);
+  }
 
   readonly usageFilterOptions: readonly SegmentedFilterOption[] = [
     { value: 'all', label: 'All' },

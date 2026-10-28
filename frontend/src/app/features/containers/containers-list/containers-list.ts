@@ -34,10 +34,39 @@ import {
   TableColumnActionsMenuComponent
 } from '@components/table-column-actions-menu/table-column-actions-menu';
 import { CatbeeLoader } from '@ng-catbee/loader';
+import { TableColumnResizerComponent } from '@components/table-column-resizer/table-column-resizer';
 
-type ContainerColumn =
+export type ContainerColumn =
   'name' | 'id' | 'image' | 'ports' | 'state' | 'status' | 'cpu' | 'memory' | 'disk' | 'network' | 'pids';
 type ContainerAction = 'start' | 'stop' | 'restart' | 'pause' | 'unpause' | 'remove';
+
+export const DEFAULT_CONTAINER_COLUMN_WIDTHS: Record<ContainerColumn, number | null> = {
+  name: null,
+  id: 140,
+  image: 220,
+  ports: 220,
+  state: 110,
+  status: 180,
+  cpu: 100,
+  memory: 160,
+  disk: 160,
+  network: 160,
+  pids: 80
+};
+
+export const MIN_CONTAINER_COLUMN_WIDTHS: Record<ContainerColumn, number> = {
+  name: 130,
+  id: 128,
+  image: 120,
+  ports: 140,
+  state: 80,
+  status: 110,
+  cpu: 70,
+  memory: 90,
+  disk: 90,
+  network: 90,
+  pids: 60
+};
 
 interface ContainerGroup {
   id: string;
@@ -62,7 +91,8 @@ interface ContainerGroup {
     CatbeeTooltip,
     CopyButtonComponent,
     TableColumnActionsMenuComponent,
-    CatbeeLoader
+    CatbeeLoader,
+    TableColumnResizerComponent
   ],
   templateUrl: './containers-list.html',
   styleUrl: './containers-list.scss'
@@ -358,6 +388,51 @@ export class ContainersPage {
       )
     ])
   );
+
+  readonly defaultColumnWidths = DEFAULT_CONTAINER_COLUMN_WIDTHS;
+  readonly minColumnWidths = MIN_CONTAINER_COLUMN_WIDTHS;
+
+  private getInitialColumnWidths(): Record<ContainerColumn, number | null> {
+    const saved = this.localStorage.getJsonWithDefault<Partial<Record<ContainerColumn, number | null>>>(
+      UI_STORAGE_KEYS.CONTAINERS_COLUMN_WIDTHS,
+      {}
+    );
+    if (saved.name === 240) {
+      saved.name = null;
+    }
+    return {
+      ...DEFAULT_CONTAINER_COLUMN_WIDTHS,
+      ...saved
+    };
+  }
+
+  readonly columnWidths = signal<Record<ContainerColumn, number | null>>(this.getInitialColumnWidths());
+
+  onColumnResize(column: ContainerColumn, width: number): void {
+    this.columnWidths.update(widths => ({
+      ...widths,
+      [column]: width
+    }));
+  }
+
+  onColumnResizeEnd(column: ContainerColumn, width: number): void {
+    this.onColumnResize(column, width);
+    this.localStorage.setJson(UI_STORAGE_KEYS.CONTAINERS_COLUMN_WIDTHS, this.columnWidths());
+  }
+
+  resetColumnWidth(column: ContainerColumn): void {
+    const defaultWidth = DEFAULT_CONTAINER_COLUMN_WIDTHS[column];
+    this.columnWidths.update(widths => ({
+      ...widths,
+      [column]: defaultWidth
+    }));
+    this.localStorage.setJson(UI_STORAGE_KEYS.CONTAINERS_COLUMN_WIDTHS, this.columnWidths());
+  }
+
+  resetAllColumnWidths(): void {
+    this.columnWidths.set({ ...DEFAULT_CONTAINER_COLUMN_WIDTHS });
+    this.localStorage.delete(UI_STORAGE_KEYS.CONTAINERS_COLUMN_WIDTHS);
+  }
 
   constructor() {
     void this.loadContainers(true);

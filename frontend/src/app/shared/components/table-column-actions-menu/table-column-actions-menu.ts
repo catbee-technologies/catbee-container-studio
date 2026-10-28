@@ -30,6 +30,7 @@ export class TableColumnActionsMenuComponent<T extends string = string> {
   readonly showReset = input(true);
 
   readonly dismissed = output<void>();
+  readonly resetColumns = output<void>();
 
   readonly open = signal(false);
   readonly visibleColumns = model<Set<T>>(new Set());
@@ -78,6 +79,7 @@ export class TableColumnActionsMenuComponent<T extends string = string> {
     const next = new Set(this.defaultVisible());
     this.visibleColumns.set(next);
     this.save(next);
+    this.resetColumns.emit();
   }
 
   private save(columns: Set<T>): void {
