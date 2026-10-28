@@ -10,6 +10,7 @@ import {
   DockerStreamEventEnvelope
 } from '@shared/types/docker-api.types';
 import { formatDockerNames } from '@utils/docker-display.utils';
+import { containerInfoFromInspect } from '@utils/docker-container.utils';
 import { ContainerDetailsPrefetch } from './container-details.resolver';
 import { OverviewCardComponent } from './components/overview-card/overview-card';
 import { EnvTabComponent } from './components/env-tab/env-tab';
@@ -222,11 +223,16 @@ export class ContainerDetailsPage implements OnDestroy {
 
     try {
       const containers = await this.dockerApi.listContainers();
-      const found = containers.find(item => item.Id === id) ?? null;
+      let found = containers.find(item => item.Id === id) ?? null;
 
       if (!found) {
-        this.redirectToContainers();
-        return;
+        try {
+          const inspectData = await this.dockerApi.inspectContainer(id);
+          found = containerInfoFromInspect(inspectData, id);
+        } catch {
+          this.redirectToContainers();
+          return;
+        }
       }
 
       this.container.set(found);
@@ -416,16 +422,24 @@ export class ContainerDetailsPage implements OnDestroy {
           return;
         }
       } else {
-        const containers = await this.dockerApi.listContainers();
-        const found = containers.find(item => item.Id === containerId) ?? null;
-        this.container.set(found);
+        const [containers, inspectResult] = await Promise.allSettled([
+          this.dockerApi.listContainers(),
+          this.dockerApi.inspectContainer(containerId)
+        ]);
+        const containersList = containers.status === 'fulfilled' ? containers.value : [];
+        const inspectData = inspectResult.status === 'fulfilled' ? inspectResult.value : null;
+
+        let found = containersList.find(item => item.Id === containerId) ?? null;
+        if (!found && inspectData) {
+          found = containerInfoFromInspect(inspectData, containerId);
+        }
 
         if (!found) {
           this.redirectToContainers();
           return;
         }
 
-        const inspectData = await this.dockerApi.inspectContainer(containerId);
+        this.container.set(found);
         this.inspectData.set(inspectData);
       }
 

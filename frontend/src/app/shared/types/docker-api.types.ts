@@ -82,16 +82,26 @@ export interface DockerContainerInspectInfo {
     Cmd?: string[];
     Entrypoint?: string[];
     Env?: string[];
+    Image?: string;
+    Labels?: Record<string, string>;
     Volumes?: Record<string, unknown>;
   };
   HostConfig?: {
     Binds?: string[];
   };
   Mounts?: DockerContainerInspectMount[];
+  NetworkSettings?: {
+    Ports?: Record<string, { HostIp?: string; HostPort?: string }[] | null>;
+  };
   State?: {
     Status?: string;
     Running?: boolean;
     Paused?: boolean;
+    Health?: {
+      Status?: string;
+    };
+    StartedAt?: string;
+    FinishedAt?: string;
   };
 }
 
