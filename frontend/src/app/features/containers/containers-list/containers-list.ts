@@ -408,11 +408,39 @@ export class ContainersPage {
 
   readonly columnWidths = signal<Record<ContainerColumn, number | null>>(this.getInitialColumnWidths());
 
+  readonly tableMinWidth = computed(() => {
+    let total = 48 + 32 + 135;
+    const nameWidth = this.columnWidths().name ?? 180;
+    total += nameWidth;
+
+    const visible = this.visibleColumns();
+    const widths = this.columnWidths();
+
+    for (const col of visible) {
+      if (col === 'name') {
+        continue;
+      }
+      const w = widths[col] ?? DEFAULT_CONTAINER_COLUMN_WIDTHS[col] ?? MIN_CONTAINER_COLUMN_WIDTHS[col];
+      total += w;
+    }
+
+    return total;
+  });
+
   onColumnResize(column: ContainerColumn, width: number): void {
-    this.columnWidths.update(widths => ({
-      ...widths,
-      [column]: width
-    }));
+    this.columnWidths.update(widths => {
+      const next = { ...widths, [column]: width };
+      if (column !== 'name' && widths.name === null) {
+        const nameTh = document.querySelector('table.catbee-table th.col-name') as HTMLElement | null;
+        if (nameTh) {
+          const currentWidth = Math.round(nameTh.getBoundingClientRect().width);
+          if (currentWidth > 0) {
+            next.name = currentWidth;
+          }
+        }
+      }
+      return next;
+    });
   }
 
   onColumnResizeEnd(column: ContainerColumn, width: number): void {

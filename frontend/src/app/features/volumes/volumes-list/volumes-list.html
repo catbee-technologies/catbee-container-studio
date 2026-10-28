@@ -78,6 +78,7 @@
           class="catbee-table single-row-table"
           aria-label="Volumes table"
           [class.is-empty]="sortedVolumes().length === 0"
+          [style.min-width.px]="tableMinWidth()"
           [style.--col-name-w.px]="columnWidths().name"
           [style.--col-driver-w.px]="columnWidths().driver"
           [style.--col-size-w.px]="columnWidths().size"

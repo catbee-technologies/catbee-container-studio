@@ -48,7 +48,7 @@ export const DEFAULT_NETWORK_COLUMN_WIDTHS: Record<NetworkResizableColumn, numbe
 
 export const MIN_NETWORK_COLUMN_WIDTHS: Record<NetworkResizableColumn, number> = {
   name: 130,
-  id: 110,
+  id: 128,
   driver: 80,
   subnet: 120,
   flags: 90,
@@ -161,11 +161,36 @@ export class NetworksPage {
 
   readonly columnWidths = signal<Record<NetworkResizableColumn, number | null>>(this.getInitialColumnWidths());
 
+  readonly tableMinWidth = computed(() => {
+    let total = 48 + 68 + 110;
+    const nameWidth = this.columnWidths().name ?? 180;
+    total += nameWidth;
+
+    const visible = this.visibleColumns();
+    const widths = this.columnWidths();
+
+    for (const col of visible) {
+      const w = widths[col] ?? DEFAULT_NETWORK_COLUMN_WIDTHS[col] ?? MIN_NETWORK_COLUMN_WIDTHS[col];
+      total += w;
+    }
+
+    return total;
+  });
+
   onColumnResize(column: NetworkResizableColumn, width: number): void {
-    this.columnWidths.update(widths => ({
-      ...widths,
-      [column]: width
-    }));
+    this.columnWidths.update(widths => {
+      const next = { ...widths, [column]: width };
+      if (column !== 'name' && widths.name === null) {
+        const nameTh = document.querySelector('table.catbee-table th.col-name') as HTMLElement | null;
+        if (nameTh) {
+          const currentWidth = Math.round(nameTh.getBoundingClientRect().width);
+          if (currentWidth > 0) {
+            next.name = currentWidth;
+          }
+        }
+      }
+      return next;
+    });
   }
 
   onColumnResizeEnd(column: NetworkResizableColumn, width: number): void {

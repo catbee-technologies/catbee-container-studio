@@ -87,6 +87,7 @@
           class="catbee-table single-row-table"
           aria-label="Images table"
           [class.is-empty]="sortedImages().length === 0"
+          [style.min-width.px]="tableMinWidth()"
           [style.--col-repo-w.px]="columnWidths().repo"
           [style.--col-tag-w.px]="columnWidths().tag"
           [style.--col-id-w.px]="columnWidths().id"

@@ -48,7 +48,7 @@ export const DEFAULT_IMAGE_COLUMN_WIDTHS: Record<ImageResizableColumn, number | 
 export const MIN_IMAGE_COLUMN_WIDTHS: Record<ImageResizableColumn, number> = {
   repo: 140,
   tag: 100,
-  id: 110,
+  id: 128,
   size: 80,
   created: 110
 };
@@ -262,11 +262,39 @@ export class ImagesPage {
 
   readonly columnWidths = signal<Record<ImageResizableColumn, number | null>>(this.getInitialColumnWidths());
 
+  readonly tableMinWidth = computed(() => {
+    let total = 48 + 68 + 135;
+    const repoWidth = this.columnWidths().repo ?? 180;
+    total += repoWidth;
+
+    const visible = this.visibleColumns();
+    const widths = this.columnWidths();
+
+    for (const col of visible) {
+      if (col === 'repo' || col === 'used') {
+        continue;
+      }
+      const w = widths[col] ?? DEFAULT_IMAGE_COLUMN_WIDTHS[col] ?? MIN_IMAGE_COLUMN_WIDTHS[col];
+      total += w;
+    }
+
+    return total;
+  });
+
   onColumnResize(column: ImageResizableColumn, width: number): void {
-    this.columnWidths.update(widths => ({
-      ...widths,
-      [column]: width
-    }));
+    this.columnWidths.update(widths => {
+      const next = { ...widths, [column]: width };
+      if (column !== 'repo' && widths.repo === null) {
+        const repoTh = document.querySelector('table.catbee-table th.col-repo') as HTMLElement | null;
+        if (repoTh) {
+          const currentWidth = Math.round(repoTh.getBoundingClientRect().width);
+          if (currentWidth > 0) {
+            next.repo = currentWidth;
+          }
+        }
+      }
+      return next;
+    });
   }
 
   onColumnResizeEnd(column: ImageResizableColumn, width: number): void {
