@@ -1,4 +1,4 @@
-import { Component, ElementRef, inject, input, output, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, inject, input, output, signal } from '@angular/core';
 
 @Component({
   selector: 'catbee-container-studio-table-column-resizer',
@@ -18,6 +18,13 @@ import { Component, ElementRef, inject, input, output, signal } from '@angular/c
 })
 export class TableColumnResizerComponent {
   private readonly elementRef = inject(ElementRef<HTMLElement>);
+  private readonly destroyRef = inject(DestroyRef);
+
+  constructor() {
+    this.destroyRef.onDestroy(() => {
+      document.body.classList.remove('table-column-resizing');
+    });
+  }
 
   readonly minWidth = input(60);
   readonly maxWidth = input(1000);
@@ -47,7 +54,7 @@ export class TableColumnResizerComponent {
 
     const th = host.closest('th') ?? host.parentElement;
     this.startX = event.clientX;
-    const initialWidth = this.currentWidth() ?? (th ? th.getBoundingClientRect().width : 0);
+    const initialWidth = (th ? th.getBoundingClientRect().width : 0) || (this.currentWidth() ?? 0);
     this.startWidth = Math.round(initialWidth);
     this.activeWidth = this.startWidth;
     this.isResizing.set(true);

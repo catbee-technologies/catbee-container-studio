@@ -73,6 +73,7 @@
           class="catbee-table single-row-table"
           aria-label="Networks table"
           [class.is-empty]="sortedNetworks().length === 0"
+          [style.min-width.px]="tableMinWidth()"
           [style.--col-name-w.px]="columnWidths().name"
           [style.--col-id-w.px]="columnWidths().id"
           [style.--col-driver-w.px]="columnWidths().driver"
