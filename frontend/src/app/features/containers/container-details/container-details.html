@@ -173,7 +173,12 @@
             <catbee-container-studio-container-inspect-tab [inspectData]="inspectData()" />
           }
           @if (activeTab() === 'env') {
-            <catbee-container-studio-container-env-tab [inspectData]="inspectData()" />
+            <catbee-container-studio-container-env-tab
+              [inspectData]="inspectData()"
+              [container]="container()"
+              [isRecreating]="isRecreating()"
+              (recreate)="recreateContainerWithEnv($event)"
+            />
           }
           @if (activeTab() === 'mounts') {
             <catbee-container-studio-container-mounts-tab [inspectData]="inspectData()" />

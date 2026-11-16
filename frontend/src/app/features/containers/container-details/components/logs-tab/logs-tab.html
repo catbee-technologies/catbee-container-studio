@@ -115,7 +115,10 @@
           />
           Wrap lines
         </label>
-        <label class="menu-item menu-item-checkbox no-select pointer">
+        <label
+          class="menu-item menu-item-checkbox no-select pointer"
+          catbeeTooltip="Convert UTC dates to local system time"
+        >
           <catbee-container-studio-table-checkbox
             [checked]="displayOptions().localDates"
             (checkedChange)="toggleConvertDatesToLocal()"

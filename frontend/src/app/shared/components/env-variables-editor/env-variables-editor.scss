@@ -1,0 +1,49 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.env-rows-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-bottom: 1rem;
+}
+
+.row-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  .col-key-input {
+    width: 22rem;
+    max-width: 40%;
+    min-width: 12rem;
+    flex: 0 0 auto;
+    font-family: var(--mono-font);
+    font-size: 0.8rem;
+  }
+
+  .col-value-input {
+    flex: 1 1 0;
+    min-width: 0;
+    font-family: var(--mono-font);
+    font-size: 0.8rem;
+  }
+
+  .row-separator {
+    flex: 0 0 auto;
+    color: var(--ink-400);
+    font-weight: bold;
+    user-select: none;
+  }
+}
+
+.env-paste-hint {
+  margin: 0;
+  padding-bottom: 0.6rem;
+  font-size: var(--font-size-xs);
+  color: var(--ink-400);
+  text-align: center;
+}

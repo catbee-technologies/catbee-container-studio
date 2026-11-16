@@ -160,42 +160,14 @@
           </div>
         </header>
 
-        @if (envVars().length === 0) {
-          <p class="field-group-empty">No environment variables set.</p>
-          <p class="field-group-hint">Paste the contents of an .env file to populate variables automatically.</p>
-        }
-
-        @for (envVar of envVars(); track $index) {
-          <div class="row-inputs">
-            <input
-              id="env-key-{{ $index }}"
-              type="text"
-              class="field-input"
-              placeholder="Key"
-              [value]="envVar.key"
-              (input)="setEnvKey($index, $any($event.target).value)"
-              (paste)="onEnvPaste($event, $index)"
-            />
-            <span class="row-separator" aria-hidden="true">=</span>
-            <input
-              id="env-value-{{ $index }}"
-              type="text"
-              class="field-input"
-              placeholder="Value"
-              [value]="envVar.value"
-              (input)="setEnvValue($index, $any($event.target).value)"
-              (paste)="onEnvPaste($event, $index)"
-            />
-            <button
-              type="button"
-              class="catbee-action-btn icon-only no-bg"
-              aria-label="Remove environment variable"
-              (click)="removeEnvVar($index)"
-            >
-              <span class="mat-icon-filled" aria-hidden="true">close</span>
-            </button>
-          </div>
-        }
+        <catbee-container-studio-env-variables-editor
+          [(rows)]="envVars"
+          [disabled]="isSubmitting()"
+          [showPasteHint]="false"
+          keyPlaceholder="Key"
+          valuePlaceholder="Value"
+          emptyHint="Paste the contents of an .env file to populate variables automatically."
+        />
       </section>
     </div>
   </ng-container>

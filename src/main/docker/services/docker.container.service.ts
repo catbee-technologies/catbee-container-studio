@@ -163,7 +163,7 @@ export class DockerContainerService extends DockerBaseService {
     return { containerId: '', output: stdout || stderr };
   }
 
-  async recreateContainer(containerId: string): Promise<DockerActionResult> {
+  async recreateContainer(containerId: string, options?: { env?: string[] }): Promise<DockerActionResult> {
     const id = this.normalizeId(containerId, 'Container id');
     const inspectInfo = await this.client.getContainer(id).inspect();
 
@@ -175,9 +175,11 @@ export class DockerContainerService extends DockerBaseService {
       .map(s => s.trim())
       .filter(Boolean);
 
-    // If container belongs to a Compose project and working directory exists on host, use Compose recreate
+    // If container belongs to a Compose project, working directory exists on host,
+    // and no custom env overrides are specified, use Compose recreate.
+    // When custom env is passed, recreate via Engine API to apply the updated environment variables.
     let canUseCompose = false;
-    if (composeWorkingDir && composeService) {
+    if (!options?.env && composeWorkingDir && composeService) {
       try {
         await access(composeWorkingDir);
         canUseCompose = true;
@@ -210,7 +212,7 @@ export class DockerContainerService extends DockerBaseService {
     const createOptions: Docker.ContainerCreateOptions = {
       name,
       Image: config.Image || inspectInfo.Image,
-      Env: config.Env || undefined,
+      Env: options?.env !== undefined ? options.env : config.Env || undefined,
       Cmd: config.Cmd || undefined,
       Entrypoint: config.Entrypoint || undefined,
       WorkingDir: config.WorkingDir || undefined,

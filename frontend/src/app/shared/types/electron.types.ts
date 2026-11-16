@@ -146,7 +146,7 @@ export interface ElectronBridge {
       start: (containerId: string) => IpcPromise<DockerActionResult>;
       stop: (containerId: string) => IpcPromise<DockerActionResult>;
       restart: (containerId: string) => IpcPromise<DockerActionResult>;
-      recreate: (containerId: string) => IpcPromise<DockerActionResult>;
+      recreate: (containerId: string, options?: { env?: string[] }) => IpcPromise<DockerActionResult>;
       recreateComposeGroup: (options: {
         workingDir: string;
         configFiles?: string[];

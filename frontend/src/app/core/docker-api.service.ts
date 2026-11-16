@@ -177,8 +177,8 @@ export class DockerApiService extends ElectronBaseService {
     return this.unwrapResult<DockerActionResult>(response);
   }
 
-  async recreateContainer(containerId: string): Promise<DockerActionResult> {
-    const response = await this.bridge.docker.containers.recreate(containerId);
+  async recreateContainer(containerId: string, options?: { env?: string[] }): Promise<DockerActionResult> {
+    const response = await this.bridge.docker.containers.recreate(containerId, options);
     return this.unwrapResult<DockerActionResult>(response);
   }
 

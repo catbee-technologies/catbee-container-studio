@@ -28,8 +28,8 @@ export function registerDockerContainerHandlers(): void {
     dockerManager.containers.restartContainer(containerId)
   );
 
-  registerHandle(IPC_CHANNELS.Docker.Containers.Recreate, (containerId: string) =>
-    dockerManager.containers.recreateContainer(containerId)
+  registerHandle(IPC_CHANNELS.Docker.Containers.Recreate, (containerId: string, options?: { env?: string[] }) =>
+    dockerManager.containers.recreateContainer(containerId, options)
   );
 
   registerHandle(

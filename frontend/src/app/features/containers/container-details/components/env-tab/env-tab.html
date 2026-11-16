@@ -1,66 +1,134 @@
-<div class="env-toolbar">
-  @if (envRows().length > 0) {
-    <catbee-container-studio-search-input
-      #envSearchInput
-      placeholder="Search Environment Variables"
-      ariaLabel="Search Environment Variables"
-      [value]="envSearchTerm()"
-      (valueChange)="setSearch($event)"
-      (inputKeydown)="onSearchKeydown($event)"
-      width="20rem"
+@if (isRecreating()) {
+  <div class="catbee-container-list-body catbee-base-panel env-loading-panel">
+    <catbee-container-studio-empty-state
+      icon="refresh"
+      message="Recreating container..."
+      hint="Applying updated environment variables and recreating container instance..."
+      [showLoader]="true"
     />
-  }
+  </div>
+} @else if (!isEditing()) {
+  <div class="env-toolbar">
+    @if (envRows().length > 0) {
+      <catbee-container-studio-search-input
+        #envSearchInput
+        placeholder="Search Environment Variables"
+        ariaLabel="Search Environment Variables"
+        [value]="envSearchTerm()"
+        (valueChange)="setSearch($event)"
+        (inputKeydown)="onSearchKeydown($event)"
+        width="20rem"
+      />
+    }
 
-  @if (envSearchTerm().trim().length > 0) {
-    <div class="search-nav">
-      <button type="button" class="catbee-action-btn search-nav-btn" (click)="prevMatch()" [disabled]="!hasMatches()">
-        <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_up</span>
-      </button>
-      <button type="button" class="catbee-action-btn search-nav-btn" (click)="nextMatch()" [disabled]="!hasMatches()">
-        <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_down</span>
-      </button>
-      <span class="match-count">{{ matchSummary() }}</span>
+    @if (envSearchTerm().trim().length > 0) {
+      <div class="search-nav">
+        <button type="button" class="catbee-action-btn search-nav-btn" (click)="prevMatch()" [disabled]="!hasMatches()">
+          <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_up</span>
+        </button>
+        <button type="button" class="catbee-action-btn search-nav-btn" (click)="nextMatch()" [disabled]="!hasMatches()">
+          <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_down</span>
+        </button>
+        <span class="match-count">{{ matchSummary() }}</span>
+      </div>
+    }
+
+    <div class="toolbar-spacer"></div>
+
+    <button type="button" class="catbee-action-btn fix-height" [disabled]="isRecreating()" (click)="startEditing()">
+      <span class="mat-icon-filled" aria-hidden="true">edit</span>
+      Edit Variables
+    </button>
+  </div>
+
+  @if (envRows().length === 0) {
+    <catbee-container-studio-empty-state
+      [icon]="'data_object'"
+      [message]="'No environment variables.'"
+      [hint]="'Click \'Edit Variables\' to add environment variables.'"
+    />
+  } @else {
+    <div #envScrollArea class="catbee-container-list-body catbee-base-panel">
+      <table class="catbee-table env-table" aria-label="Environment variables">
+        <colgroup>
+          <col class="col-group-env-key" />
+          <col class="col-group-env-value" />
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Variable</th>
+            <th scope="col">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of envRows(); track row.key) {
+            <tr>
+              <td class="col-env-key" [innerHTML]="renderHighlightedValue($index, 'key', row.key)"></td>
+              <td class="col-env-value">
+                <div class="env-value-div">
+                  <span class="env-value-span" [innerHTML]="renderHighlightedValue($index, 'value', row.value)"></span>
+                  <catbee-container-studio-copy-button
+                    [text]="row.value"
+                    [disabled]="row.value.length === 0"
+                    [ariaLabel]="'Copy value for ' + row.key"
+                    style="padding-right: 1rem"
+                  />
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
     </div>
   }
-</div>
-
-@if (envRows().length === 0) {
-  <catbee-container-studio-empty-state
-    [icon]="'data_object'"
-    [message]="'No environment variables.'"
-    [hint]="'Environment variables will appear here when available.'"
-  />
 } @else {
-  <div #envScrollArea class="catbee-container-list-body catbee-base-panel">
-    <table class="catbee-table env-table" aria-label="Environment variables">
-      <colgroup>
-        <col class="col-group-env-key" />
-        <col class="col-group-env-value" />
-      </colgroup>
-      <thead>
-        <tr>
-          <th scope="col">Variable</th>
-          <th scope="col">Value</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (row of envRows(); track row.key) {
-          <tr>
-            <td class="col-env-key" [innerHTML]="renderHighlightedValue($index, 'key', row.key)"></td>
-            <td class="col-env-value">
-              <div class="env-value-div">
-                <span class="env-value-span" [innerHTML]="renderHighlightedValue($index, 'value', row.value)"></span>
-                <catbee-container-studio-copy-button
-                  [text]="row.value"
-                  [disabled]="row.value.length === 0"
-                  [ariaLabel]="'Copy value for ' + row.key"
-                  style="padding-right: 0.5rem"
-                />
-              </div>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+  <!-- EDIT MODE -->
+  <div class="env-toolbar">
+    <button type="button" class="catbee-action-btn fix-height" [disabled]="isRecreating()" (click)="addEnvVar()">
+      <span class="mat-icon-filled" aria-hidden="true">add</span>
+      Add Variable
+    </button>
+
+    @if (editableEnvVars().length > 0) {
+      <button type="button" class="catbee-action-btn fix-height" [disabled]="isRecreating()" (click)="clearEnvVars()">
+        Clear All
+      </button>
+    }
+
+    <div class="toolbar-spacer"></div>
+
+    <button type="button" class="catbee-action-btn fix-height" [disabled]="isRecreating()" (click)="cancelEditing()">
+      Cancel
+    </button>
+
+    <button
+      type="button"
+      class="catbee-action-btn fix-height action-start"
+      [disabled]="isRecreating()"
+      (click)="requestSave()"
+    >
+      <span class="mat-icon-filled" aria-hidden="true">refresh</span>
+      Save & Recreate
+    </button>
   </div>
+
+  <div class="catbee-container-list-body catbee-base-panel env-edit-panel">
+    <catbee-container-studio-env-variables-editor
+      [(rows)]="editableEnvVars"
+      [disabled]="isRecreating()"
+      keyPlaceholder="KEY"
+      valuePlaceholder="Value"
+    />
+  </div>
+
+  <catbee-container-studio-confirm-dialog
+    [open]="showConfirmRecreate()"
+    title="Recreate Container to Apply Changes"
+    [message]="confirmMessage()"
+    confirmLabel="Recreate & Apply"
+    cancelLabel="Cancel"
+    [dangerous]="false"
+    (cancelAction)="cancelSave()"
+    (confirm)="confirmSaveAndRecreate()"
+  />
 }

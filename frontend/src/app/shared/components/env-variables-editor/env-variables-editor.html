@@ -1,0 +1,51 @@
+@if (rows().length === 0) {
+  <catbee-container-studio-empty-state
+    [icon]="emptyIcon()"
+    [message]="emptyMessage()"
+    [hint]="emptyHint()"
+    size="small"
+    [style]="{ 'min-height': 'unset' }"
+  />
+} @else {
+  @if (showPasteHint()) {
+    <p class="env-paste-hint">
+      💡 Tip: You can paste lines from a .env file into any field to populate multiple variables at once.
+    </p>
+  }
+  <div class="env-rows-container">
+    @for (row of rows(); track $index) {
+      <div class="row-inputs">
+        <input
+          id="env-key-{{ $index }}"
+          type="text"
+          class="field-input col-key-input"
+          [placeholder]="keyPlaceholder()"
+          [value]="row.key"
+          [disabled]="disabled()"
+          (input)="setKey($index, $any($event.target).value)"
+          (paste)="onPaste($event, $index)"
+        />
+        <span class="row-separator" aria-hidden="true">=</span>
+        <input
+          id="env-value-{{ $index }}"
+          type="text"
+          class="field-input col-value-input"
+          [placeholder]="valuePlaceholder()"
+          [value]="row.value"
+          [disabled]="disabled()"
+          (input)="setValue($index, $any($event.target).value)"
+          (paste)="onPaste($event, $index)"
+        />
+        <button
+          type="button"
+          class="catbee-action-btn icon-only no-bg"
+          aria-label="Remove environment variable"
+          [disabled]="disabled()"
+          (click)="removeRow($index)"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">close</span>
+        </button>
+      </div>
+    }
+  </div>
+}

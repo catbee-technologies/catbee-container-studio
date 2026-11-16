@@ -20,6 +20,7 @@ export const routes: Routes = [
   },
   {
     path: 'containers/:id',
+    runGuardsAndResolvers: 'always',
     resolve: {
       preloadedContainerDetails: containerDetailsResolver
     },

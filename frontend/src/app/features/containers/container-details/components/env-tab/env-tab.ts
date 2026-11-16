@@ -1,20 +1,18 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, computed, effect, input, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, effect, input, output, signal, viewChild } from '@angular/core';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
-import { DockerContainerInspectInfo } from '@shared/types/docker-api.types';
+import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
+import { EnvVariablesEditorComponent } from '@components/env-variables-editor/env-variables-editor';
+import { DockerContainerInfo, DockerContainerInspectInfo } from '@shared/types/docker-api.types';
+import { EnvVarRow, dockerEnvToRows, rowsToDockerEnv } from '@utils/env.utils';
 import {
   escapeSearchHtml,
   findVisibleMatchIndex,
   getSearchNavigationDirection,
   normalizeSearchMatchIndex
 } from '@utils/search-navigation.utils';
-
-interface EnvVarRow {
-  key: string;
-  value: string;
-}
 
 interface EnvMatch {
   rowIndex: number;
@@ -25,40 +23,58 @@ interface EnvMatch {
 
 @Component({
   selector: 'catbee-container-studio-container-env-tab',
-  imports: [CommonModule, SearchInputComponent, CopyButtonComponent, EmptyStateComponent],
+  imports: [
+    CommonModule,
+    SearchInputComponent,
+    CopyButtonComponent,
+    EmptyStateComponent,
+    ConfirmDialogComponent,
+    EnvVariablesEditorComponent
+  ],
   templateUrl: './env-tab.html',
   styleUrl: './env-tab.scss'
 })
 export class EnvTabComponent {
   private readonly envSearchInput = viewChild<SearchInputComponent>('envSearchInput');
   private readonly envScrollArea = viewChild<ElementRef<HTMLElement>>('envScrollArea');
+  private readonly envEditor = viewChild(EnvVariablesEditorComponent);
 
   readonly inspectData = input<DockerContainerInspectInfo | null>(null);
+  readonly container = input<DockerContainerInfo | null>(null);
+  readonly isRecreating = input(false);
+  readonly recreate = output<string[]>();
+
   readonly envSearchTerm = signal('');
   readonly currentMatchIndex = signal(0);
+
+  readonly isEditing = signal(false);
+  readonly editableEnvVars = signal<EnvVarRow[]>([]);
+  readonly showConfirmRecreate = signal(false);
 
   readonly envRows = computed<EnvVarRow[]>(() => {
     const inspectData = this.inspectData();
     if (!inspectData || typeof inspectData !== 'object') {
       return [];
     }
+    return dockerEnvToRows(inspectData.Config?.Env);
+  });
 
-    const env = Array.isArray(inspectData.Config?.Env) ? inspectData.Config?.Env : [];
+  readonly confirmMessage = computed(() => {
+    const name =
+      this.container()?.Names?.[0]?.replace(/^\//, '') ||
+      this.inspectData()?.Name?.replace(/^\//, '') ||
+      'this container';
 
-    return env
-      .map(value => String(value))
-      .map(entry => {
-        const separator = entry.indexOf('=');
-        if (separator < 0) {
-          return { key: entry, value: '' };
-        }
+    const isCompose = Boolean(
+      this.container()?.Labels?.['com.docker.compose.service'] ??
+      this.inspectData()?.Config?.Labels?.['com.docker.compose.service']
+    );
 
-        return {
-          key: entry.slice(0, separator),
-          value: entry.slice(separator + 1)
-        };
-      })
-      .sort((a, b) => a.key.localeCompare(b.key));
+    if (isCompose) {
+      return `Force recreate compose container "${name}" with updated environment variables? \n This will stop, remove, and recreate the container using Docker Engine with your updated variables. \n\nNote: Running "docker compose up" from CLI in the future will reset environment variables to the compose file definition.`;
+    }
+
+    return `Force recreate container "${name}" with updated environment variables? \n This will stop, remove, and recreate the container using the same configuration with your updated variables.`;
   });
 
   readonly envMatches = computed<EnvMatch[]>(() => {
@@ -123,8 +139,48 @@ export class EnvTabComponent {
   constructor() {
     effect(() => {
       this.inspectData();
+      if (!this.isRecreating()) {
+        this.isEditing.set(false);
+        this.editableEnvVars.set([]);
+      }
       queueMicrotask(() => this.selectNearestMatchFromViewport());
     });
+  }
+
+  startEditing(): void {
+    const current = this.envRows().map(row => ({ key: row.key, value: row.value }));
+    this.editableEnvVars.set(current.length > 0 ? current : [{ key: '', value: '' }]);
+    this.isEditing.set(true);
+  }
+
+  cancelEditing(): void {
+    this.isEditing.set(false);
+    this.editableEnvVars.set([]);
+  }
+
+  addEnvVar(): void {
+    this.editableEnvVars.update(rows => [...rows, { key: '', value: '' }]);
+    this.envEditor()?.scrollToBottomAndFocus();
+  }
+
+  clearEnvVars(): void {
+    this.editableEnvVars.set([]);
+  }
+
+  requestSave(): void {
+    this.showConfirmRecreate.set(true);
+  }
+
+  cancelSave(): void {
+    this.showConfirmRecreate.set(false);
+  }
+
+  confirmSaveAndRecreate(): void {
+    this.showConfirmRecreate.set(false);
+    const env = rowsToDockerEnv(this.editableEnvVars());
+    this.isEditing.set(false);
+    this.editableEnvVars.set([]);
+    this.recreate.emit(env);
   }
 
   focusAndSelectSearch(): void {

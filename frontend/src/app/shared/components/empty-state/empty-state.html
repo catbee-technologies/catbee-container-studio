@@ -1,4 +1,4 @@
-<div class="empty-state {{ size() }}">
+<div class="empty-state {{ size() }}" [style]="style()">
   @if (showLoader()) {
     <ng-catbee-loader
       class="init-loader-host"

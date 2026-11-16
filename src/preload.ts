@@ -215,7 +215,8 @@ const electronBridge = {
       start: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Start, containerId),
       stop: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Stop, containerId),
       restart: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Restart, containerId),
-      recreate: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Recreate, containerId),
+      recreate: (containerId: string, options?: { env?: string[] }) =>
+        ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Recreate, containerId, options),
       recreateComposeGroup: (options: unknown) =>
         ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.RecreateComposeGroup, options),
       pause: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Pause, containerId),

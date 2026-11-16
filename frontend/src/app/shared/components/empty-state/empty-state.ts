@@ -17,6 +17,7 @@ export class EmptyStateComponent {
   readonly size = input<'small' | 'medium' | 'large'>('medium');
   readonly showLoader = input(false);
   readonly loaderSize = input<CatbeeLoaderSize>('default');
+  readonly style = input<Record<string, string>>({});
 
   readonly emptyStateLoaderName = window.crypto.randomUUID();
 }

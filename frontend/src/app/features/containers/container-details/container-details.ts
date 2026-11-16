@@ -370,12 +370,34 @@ export class ContainerDetailsPage implements OnDestroy {
     await this.runAction(async () => {
       try {
         const result = await this.dockerApi.recreateContainer(id);
+        const targetId = result.containerId || id;
         if (result.containerId && result.containerId !== id) {
           void this.shellTab()?.teardown();
-          await this.router.navigate(['/containers', result.containerId], { replaceUrl: true });
-        } else {
-          await this.refresh();
+          await this.router.navigate(['/containers', targetId], { replaceUrl: true });
         }
+        await this.loadContainer(targetId, true);
+      } finally {
+        this.isRecreating.set(false);
+      }
+    });
+  }
+
+  async recreateContainerWithEnv(env: string[]): Promise<void> {
+    const id = this.containerId();
+    if (!id) {
+      return;
+    }
+
+    this.isRecreating.set(true);
+    await this.runAction(async () => {
+      try {
+        const result = await this.dockerApi.recreateContainer(id, { env });
+        const targetId = result.containerId || id;
+        if (result.containerId && result.containerId !== id) {
+          void this.shellTab()?.teardown();
+          await this.router.navigate(['/containers', targetId], { replaceUrl: true });
+        }
+        await this.loadContainer(targetId, true);
       } finally {
         this.isRecreating.set(false);
       }
@@ -438,11 +460,14 @@ export class ContainerDetailsPage implements OnDestroy {
       await this.shellTab()?.teardown();
     }
 
-    const shouldShowLoading = preloaded === null;
+    const isValidPreloaded =
+      preloaded !== null && preloaded.container?.Id === containerId && preloaded.inspectData?.Id === containerId;
+
+    const shouldShowLoading = !isValidPreloaded;
     this.isLoading.set(shouldShowLoading);
 
     try {
-      if (preloaded !== null) {
+      if (isValidPreloaded && preloaded !== null) {
         if (preloaded.error) {
           if (this.isContainerUnavailableMessage(preloaded.error)) {
             this.redirectToContainers();
