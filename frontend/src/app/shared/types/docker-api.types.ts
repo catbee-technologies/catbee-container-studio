@@ -1,3 +1,11 @@
+export interface RecreateContainerOptions {
+  env?: string[];
+  binds?: string[];
+  portBindings?: Record<string, { HostPort: string }[]>;
+  exposedPorts?: Record<string, object>;
+  restartPolicy?: { Name: string; MaximumRetryCount?: number };
+}
+
 export interface IpcErrorPayload {
   message: string;
   code?: string;
@@ -84,11 +92,20 @@ export interface DockerContainerInspectInfo {
     Env?: string[];
     Volumes?: Record<string, unknown>;
     Labels?: Record<string, string>;
+    ExposedPorts?: Record<string, unknown>;
   };
   HostConfig?: {
     Binds?: string[];
+    PortBindings?: Record<string, { HostPort?: string }[]>;
+    RestartPolicy?: {
+      Name?: string;
+      MaximumRetryCount?: number;
+    };
   };
   Mounts?: DockerContainerInspectMount[];
+  NetworkSettings?: {
+    Ports?: Record<string, { HostIp?: string; HostPort?: string }[]>;
+  };
   State?: {
     Status?: string;
     Running?: boolean;

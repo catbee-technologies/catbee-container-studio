@@ -58,3 +58,15 @@ export function rowsToDockerBinds(rows: VolumeMappingRow[]): string[] {
   }
   return binds;
 }
+
+/**
+ * Compares two lists of VolumeMappingRow for equality.
+ */
+export function areVolumeMappingsEqual(a: VolumeMappingRow[], b: VolumeMappingRow[]): boolean {
+  const bindsA = rowsToDockerBinds(a).sort((x, y) => x.localeCompare(y));
+  const bindsB = rowsToDockerBinds(b).sort((x, y) => x.localeCompare(y));
+  if (bindsA.length !== bindsB.length) {
+    return false;
+  }
+  return bindsA.every((bind, index) => bind === bindsB[index]);
+}

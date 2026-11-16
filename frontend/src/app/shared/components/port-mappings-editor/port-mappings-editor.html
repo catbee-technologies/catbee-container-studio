@@ -6,7 +6,7 @@
     size="small"
     [style]="{ 'min-height': 'unset' }"
   />
-} @else if (rows().length === 0) {
+} @else if (rows().length === 0 && !allowAdd()) {
   <catbee-container-studio-empty-state
     [icon]="emptyIcon()"
     [message]="emptyMessage()"
@@ -15,62 +15,140 @@
     [style]="{ 'min-height': 'unset' }"
   />
 } @else {
-  <p class="field-group-hint">Enter "0" to assign a randomly generated host port.</p>
+  @if (rows().length > 0) {
+    <p class="field-group-hint">Enter "0" to assign a randomly generated host port. Leave blank to unbind.</p>
 
-  <div class="port-rows-container">
-    @for (port of rows(); track $index) {
-      <div class="port-row" [class.editable-row]="allowAdd()">
-        <input
-          id="port-host-{{ $index }}"
-          type="text"
-          inputmode="numeric"
-          pattern="[0-9]*"
-          maxlength="5"
-          class="field-input port-input"
-          placeholder="Host port"
-          [value]="port.hostPort"
+    <div class="port-rows-container">
+      @for (port of rows(); track port.containerPort + '/' + port.protocol; let idx = $index) {
+        <div class="port-row-wrapper">
+          <div class="port-row">
+            <div class="port-input-wrapper" [class.has-error]="isDuplicateHostPort(port)">
+              <input
+                id="port-host-{{ idx }}"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                maxlength="5"
+                class="field-input port-input"
+                [class.is-invalid]="isDuplicateHostPort(port)"
+                placeholder="Host port"
+                [value]="port.hostPort"
+                [disabled]="disabled()"
+                (keydown)="onPortKeydown($event)"
+                (input)="setPortHost(idx, sanitizePortInput($event))"
+              />
+              <span class="port-suffix mono" aria-hidden="true">:{{ port.containerPort }}/{{ port.protocol }}</span>
+            </div>
+
+            @if (allowRemove()) {
+              <button
+                type="button"
+                class="catbee-action-btn icon-only no-bg remove-port-btn"
+                aria-label="Remove port mapping"
+                [disabled]="disabled()"
+                (click)="removeRow(idx)"
+                [catbeeTooltip]="'Remove port mapping'"
+                [catbeeTooltipPosition]="'top'"
+              >
+                <span class="mat-icon-filled" aria-hidden="true">close</span>
+              </button>
+            }
+          </div>
+          @if (isDuplicateHostPort(port)) {
+            <span class="port-duplicate-error">
+              Host port {{ port.hostPort }} is already assigned to another port mapping.
+            </span>
+          }
+        </div>
+      }
+    </div>
+  } @else {
+    <catbee-container-studio-empty-state
+      [icon]="emptyIcon()"
+      [message]="emptyMessage()"
+      [hint]="emptyHint()"
+      size="small"
+      [style]="{ 'min-height': 'unset' }"
+    />
+  }
+
+  @if (allowAdd()) {
+    @if (!showAddForm()) {
+      <div class="add-port-trigger-wrap">
+        <button
+          type="button"
+          class="catbee-action-btn fix-height add-port-trigger-btn"
           [disabled]="disabled()"
-          (keydown)="onPortKeydown($event)"
-          (input)="onPortHostInput($event, $index)"
-        />
+          (click)="openAddForm()"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">add</span>
+          Add Port Mapping
+        </button>
+      </div>
+    } @else {
+      <div class="add-port-form-card">
+        <div class="add-port-form-title">
+          <span>New Port Mapping</span>
+        </div>
 
-        @if (allowAdd()) {
-          <span class="port-separator" aria-hidden="true">:</span>
-          <input
-            id="port-container-{{ $index }}"
-            type="text"
-            inputmode="numeric"
-            pattern="[0-9]*"
-            maxlength="5"
-            class="field-input port-container-input"
-            placeholder="Container port"
-            [value]="port.containerPort"
-            [disabled]="disabled()"
-            (keydown)="onPortKeydown($event)"
-            (input)="onPortContainerInput($event, $index)"
-          />
-          <select
-            class="field-select port-protocol-select"
-            [value]="port.protocol"
-            [disabled]="disabled()"
-            (change)="setProtocol($index, $any($event.target).value)"
-          >
-            <option value="tcp">tcp</option>
-            <option value="udp">udp</option>
-          </select>
-          <button
-            type="button"
-            class="catbee-action-btn icon-only no-bg"
-            aria-label="Remove port mapping"
-            [disabled]="disabled()"
-            (click)="removeRow($index)"
-          >
-            <span class="mat-icon-filled" aria-hidden="true">close</span>
-          </button>
-        } @else {
-          <span class="port-suffix mono" aria-hidden="true">:{{ port.containerPort }}/{{ port.protocol }}</span>
+        <div class="add-port-form-grid">
+          <div class="field-col">
+            <label class="form-label" for="new-host-port">Host Port</label>
+            <input
+              id="new-host-port"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              maxlength="5"
+              class="field-input add-field-input"
+              placeholder="e.g. 8080 (or 0)"
+              [value]="newHostPort()"
+              (keydown)="onPortKeydown($event)"
+              (input)="newHostPort.set(sanitizePortInput($event))"
+              (keydown.enter)="confirmAddPort()"
+            />
+          </div>
+
+          <div class="field-col">
+            <label class="form-label" for="new-container-port">Container Port</label>
+            <input
+              id="new-container-port"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              maxlength="5"
+              class="field-input add-field-input"
+              placeholder="e.g. 8080"
+              [value]="newContainerPort()"
+              (keydown)="onPortKeydown($event)"
+              (input)="newContainerPort.set(sanitizePortInput($event))"
+              (keydown.enter)="confirmAddPort()"
+            />
+          </div>
+
+          <div class="field-col protocol-col">
+            <label class="form-label" for="new-protocol">Protocol</label>
+            <select
+              id="new-protocol"
+              class="field-select add-field-select"
+              [value]="newProtocol()"
+              (change)="newProtocol.set($any($event.target).value)"
+            >
+              <option value="tcp">tcp</option>
+              <option value="udp">udp</option>
+            </select>
+          </div>
+        </div>
+
+        @if (addError(); as err) {
+          <p class="add-port-error">{{ err }}</p>
         }
+
+        <div class="add-port-form-actions">
+          <button type="button" class="catbee-action-btn fix-height" (click)="cancelAddForm()">Cancel</button>
+          <button type="button" class="catbee-action-btn primary fix-height" (click)="confirmAddPort()">Add</button>
+        </div>
       </div>
     }
-  </div>
+  }
 }

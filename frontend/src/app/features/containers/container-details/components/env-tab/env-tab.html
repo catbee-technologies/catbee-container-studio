@@ -104,7 +104,7 @@
     <button
       type="button"
       class="catbee-action-btn fix-height action-start"
-      [disabled]="isRecreating()"
+      [disabled]="isRecreating() || !isEnvChanged()"
       (click)="requestSave()"
     >
       <span class="mat-icon-filled" aria-hidden="true">refresh</span>

@@ -62,6 +62,7 @@ const IPC_CHANNELS = {
       Restart: 'docker:containers:restart',
       Recreate: 'docker:containers:recreate',
       RecreateComposeGroup: 'docker:containers:recreate-compose-group',
+      Update: 'docker:containers:update',
       Pause: 'docker:containers:pause',
       Unpause: 'docker:containers:unpause',
       Kill: 'docker:containers:kill',
@@ -215,10 +216,12 @@ const electronBridge = {
       start: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Start, containerId),
       stop: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Stop, containerId),
       restart: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Restart, containerId),
-      recreate: (containerId: string, options?: { env?: string[] }) =>
+      recreate: (containerId: string, options?: unknown) =>
         ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Recreate, containerId, options),
       recreateComposeGroup: (options: unknown) =>
         ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.RecreateComposeGroup, options),
+      update: (containerId: string, options: unknown) =>
+        ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Update, containerId, options),
       pause: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Pause, containerId),
       unpause: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Unpause, containerId),
       kill: (containerId: string) => ipcRenderer.invoke(IPC_CHANNELS.Docker.Containers.Kill, containerId),

@@ -4,6 +4,9 @@
       <h1>Volumes</h1>
     </div>
     <div class="actions">
+      <button type="button" class="catbee-action-btn action-start" (click)="openCreateDialog()">
+        <span class="mat-icon-filled" aria-hidden="true">add</span>Create Volume
+      </button>
       <button
         type="button"
         class="refresh-btn"
@@ -303,3 +306,87 @@
   (confirm)="confirmPrune()"
   (cancelAction)="cancelPrune()"
 />
+
+<catbee-container-studio-dialog
+  [open]="createDialogOpen()"
+  title="Create Volume"
+  [closable]="!isCreating()"
+  [style]="{ width: '32rem' }"
+  (closeDialog)="closeCreateDialog()"
+>
+  <div catbeeDialogBody class="volume-form">
+    @if (createError(); as errorMessage) {
+      <catbee-container-studio-error-banner
+        [errorMessage]="errorMessage"
+        (closeErr)="createError.set(null)"
+        size="small"
+      />
+    }
+    <label class="field">
+      <span class="field-label">Name</span>
+      <input
+        class="field-input"
+        type="text"
+        placeholder="e.g. app-data"
+        [value]="volumeName()"
+        [disabled]="isCreating()"
+        (input)="volumeName.set($any($event.target).value)"
+        (keydown.enter)="createVolume()"
+      />
+    </label>
+    <label class="field">
+      <span class="field-label">Driver</span>
+      <input
+        class="field-input"
+        type="text"
+        placeholder="local"
+        [value]="volumeDriver()"
+        [disabled]="isCreating()"
+        (input)="volumeDriver.set($any($event.target).value)"
+        (keydown.enter)="createVolume()"
+      />
+    </label>
+    <div class="field">
+      <span class="field-label">Host Directory Path (Optional)</span>
+      <div class="path-input">
+        <input
+          class="field-input host-path-input"
+          type="text"
+          placeholder="e.g. C:\data or /var/data (Leave empty for default)"
+          [value]="volumeHostPath()"
+          [disabled]="isCreating()"
+          (input)="volumeHostPath.set($any($event.target).value)"
+          (keydown.enter)="createVolume()"
+        />
+        <button
+          type="button"
+          class="catbee-action-btn icon-only"
+          aria-label="Browse for host directory"
+          [disabled]="isCreating()"
+          (click)="pickHostPath()"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">folder_open</span>
+        </button>
+      </div>
+      <span class="field-hint">Binds this volume to an existing folder on your host machine.</span>
+    </div>
+  </div>
+
+  <ng-container catbeeDialogFooter>
+    <button type="button" class="catbee-action-btn" [disabled]="isCreating()" (click)="closeCreateDialog()">
+      Cancel
+    </button>
+    <button
+      type="button"
+      class="catbee-action-btn action-start"
+      [disabled]="isCreating() || volumeName().trim().length === 0"
+      (click)="createVolume()"
+    >
+      @if (isCreating()) {
+        <span class="mat-icon-filled spin" aria-hidden="true">refresh</span>Creating...
+      } @else {
+        <span class="mat-icon-filled" aria-hidden="true">add</span>Create Volume
+      }
+    </button>
+  </ng-container>
+</catbee-container-studio-dialog>

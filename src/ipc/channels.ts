@@ -54,6 +54,7 @@ export const IPC_CHANNELS = {
       Restart: 'docker:containers:restart',
       Recreate: 'docker:containers:recreate',
       RecreateComposeGroup: 'docker:containers:recreate-compose-group',
+      Update: 'docker:containers:update',
       Pause: 'docker:containers:pause',
       Unpause: 'docker:containers:unpause',
       Kill: 'docker:containers:kill',

@@ -1,3 +1,13 @@
+:host {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.menu-anchor {
+  display: inline-flex;
+  align-items: center;
+}
+
 .options-menu {
   box-sizing: border-box;
   width: max-content;

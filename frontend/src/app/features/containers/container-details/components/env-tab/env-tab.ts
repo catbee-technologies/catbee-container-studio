@@ -6,7 +6,7 @@ import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
 import { EnvVariablesEditorComponent } from '@components/env-variables-editor/env-variables-editor';
 import { DockerContainerInfo, DockerContainerInspectInfo } from '@shared/types/docker-api.types';
-import { EnvVarRow, dockerEnvToRows, rowsToDockerEnv } from '@utils/env.utils';
+import { EnvVarRow, areEnvVarsEqual, dockerEnvToRows, rowsToDockerEnv } from '@utils/env.utils';
 import {
   escapeSearchHtml,
   findVisibleMatchIndex,
@@ -48,7 +48,9 @@ export class EnvTabComponent {
   readonly currentMatchIndex = signal(0);
 
   readonly isEditing = signal(false);
+  readonly initialEnvVars = signal<EnvVarRow[]>([]);
   readonly editableEnvVars = signal<EnvVarRow[]>([]);
+  readonly isEnvChanged = computed(() => !areEnvVarsEqual(this.initialEnvVars(), this.editableEnvVars()));
   readonly showConfirmRecreate = signal(false);
 
   readonly envRows = computed<EnvVarRow[]>(() => {
@@ -149,6 +151,7 @@ export class EnvTabComponent {
 
   startEditing(): void {
     const current = this.envRows().map(row => ({ key: row.key, value: row.value }));
+    this.initialEnvVars.set(current.map(row => ({ ...row })));
     this.editableEnvVars.set(current.length > 0 ? current : [{ key: '', value: '' }]);
     this.isEditing.set(true);
   }
@@ -168,6 +171,9 @@ export class EnvTabComponent {
   }
 
   requestSave(): void {
+    if (this.isRecreating() || !this.isEnvChanged()) {
+      return;
+    }
     this.showConfirmRecreate.set(true);
   }
 

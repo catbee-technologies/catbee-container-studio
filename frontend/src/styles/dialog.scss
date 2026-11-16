@@ -79,6 +79,15 @@
     flex-shrink: 0;
     padding: 0 1rem 1rem;
 
+    [catbeeDialogFooter],
+    > div {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      width: 100%;
+    }
+
     button {
       font-size: var(--font-size-base);
 

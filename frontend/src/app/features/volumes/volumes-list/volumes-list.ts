@@ -2,8 +2,10 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { DockerApiService } from '@core/docker-api.service';
+import { ElectronApiService } from '@core/electron-api.service';
 import { DockerVolumeInfo } from '@shared/types/docker-api.types';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
+import { DialogComponent } from '@components/dialog/dialog';
 import { LocalStorageService, SessionStorageService } from '@ng-catbee/storage';
 import { SegmentedFilterComponent, SegmentedFilterOption } from '@components/segmented-filter/segmented-filter';
 import { SearchInputComponent } from '@components/search-input/search-input';
@@ -53,6 +55,7 @@ export const MIN_VOLUME_COLUMN_WIDTHS: Record<VolumeColumn, number> = {
     CommonModule,
     SearchInputComponent,
     ConfirmDialogComponent,
+    DialogComponent,
     SegmentedFilterComponent,
     TableCheckboxComponent,
     TableSortHeaderComponent,
@@ -69,6 +72,7 @@ export const MIN_VOLUME_COLUMN_WIDTHS: Record<VolumeColumn, number> = {
 })
 export class VolumesPage {
   private readonly dockerApi = inject(DockerApiService);
+  private readonly electronApi = inject(ElectronApiService);
   private readonly router = inject(Router);
   private readonly localStorage = inject(LocalStorageService);
   private readonly sessionStorage = inject(SessionStorageService);
@@ -106,6 +110,13 @@ export class VolumesPage {
   readonly isLoading = signal(false);
   readonly isRefreshing = signal(false);
   readonly error = signal<string | null>(null);
+
+  readonly createDialogOpen = signal(false);
+  readonly volumeName = signal('');
+  readonly volumeDriver = signal('local');
+  readonly volumeHostPath = signal('');
+  readonly isCreating = signal(false);
+  readonly createError = signal<string | null>(null);
 
   readonly pendingDeleteVolumeNames = signal<string[]>([]);
   readonly confirmPruneOpen = signal(false);
@@ -544,6 +555,64 @@ export class VolumesPage {
 
   isUsed(name: string): boolean {
     return this.usedVolumeNames().has(name);
+  }
+
+  openCreateDialog(): void {
+    this.volumeName.set('');
+    this.volumeDriver.set('local');
+    this.volumeHostPath.set('');
+    this.createError.set(null);
+    this.createDialogOpen.set(true);
+  }
+
+  closeCreateDialog(): void {
+    if (!this.isCreating()) {
+      this.createDialogOpen.set(false);
+    }
+  }
+
+  async pickHostPath(): Promise<void> {
+    const selected = await this.electronApi.selectDirectory();
+    if (selected) {
+      this.volumeHostPath.set(selected);
+    }
+  }
+
+  async createVolume(): Promise<void> {
+    const name = this.volumeName().trim();
+    if (!name || this.isCreating()) {
+      return;
+    }
+
+    this.isCreating.set(true);
+    this.createError.set(null);
+
+    const driver = this.volumeDriver().trim() || 'local';
+    const hostPath = this.volumeHostPath().trim();
+
+    const options = {
+      Name: name,
+      Driver: driver,
+      ...(hostPath
+        ? {
+            DriverOpts: {
+              type: 'none',
+              device: hostPath,
+              o: 'bind'
+            }
+          }
+        : {})
+    };
+
+    try {
+      await this.dockerApi.createVolume(options);
+      this.createDialogOpen.set(false);
+      await this.loadVolumes();
+    } catch (error) {
+      this.createError.set(error instanceof Error ? error.message : 'Failed to create volume.');
+    } finally {
+      this.isCreating.set(false);
+    }
   }
 
   private isVolumeUsageFilter(value: string | null): value is VolumeUsageFilter {

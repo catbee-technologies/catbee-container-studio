@@ -18,6 +18,14 @@ import {
 
 const execFileAsync = promisify(execFile);
 
+export interface RecreateContainerOptions {
+  env?: string[];
+  binds?: string[];
+  portBindings?: Record<string, { HostPort: string }[]>;
+  exposedPorts?: Record<string, object>;
+  restartPolicy?: { Name: string; MaximumRetryCount?: number };
+}
+
 export class DockerContainerService extends DockerBaseService {
   async listContainers(options?: Docker.ContainerListOptions): Promise<Docker.ContainerInfo[]> {
     const containers = await this.client.listContainers({ all: true, ...(options ?? {}) });
@@ -163,7 +171,7 @@ export class DockerContainerService extends DockerBaseService {
     return { containerId: '', output: stdout || stderr };
   }
 
-  async recreateContainer(containerId: string, options?: { env?: string[] }): Promise<DockerActionResult> {
+  async recreateContainer(containerId: string, options?: RecreateContainerOptions): Promise<DockerActionResult> {
     const id = this.normalizeId(containerId, 'Container id');
     const inspectInfo = await this.client.getContainer(id).inspect();
 
@@ -176,10 +184,17 @@ export class DockerContainerService extends DockerBaseService {
       .filter(Boolean);
 
     // If container belongs to a Compose project, working directory exists on host,
-    // and no custom env overrides are specified, use Compose recreate.
-    // When custom env is passed, recreate via Engine API to apply the updated environment variables.
+    // and no custom overrides are specified, use Compose recreate.
+    // When custom options are passed, recreate via Engine API to apply the updated configuration.
+    const hasCustomOverrides = Boolean(
+      options?.env !== undefined ||
+      options?.binds !== undefined ||
+      options?.portBindings !== undefined ||
+      options?.exposedPorts !== undefined ||
+      options?.restartPolicy !== undefined
+    );
     let canUseCompose = false;
-    if (!options?.env && composeWorkingDir && composeService) {
+    if (!hasCustomOverrides && composeWorkingDir && composeService) {
       try {
         await access(composeWorkingDir);
         canUseCompose = true;
@@ -218,7 +233,10 @@ export class DockerContainerService extends DockerBaseService {
       WorkingDir: config.WorkingDir || undefined,
       User: config.User || undefined,
       Labels: config.Labels || undefined,
-      ExposedPorts: config.ExposedPorts || undefined,
+      ExposedPorts:
+        options?.exposedPorts !== undefined
+          ? (options.exposedPorts as Record<string, object>)
+          : config.ExposedPorts || undefined,
       Volumes: config.Volumes || undefined,
       StopSignal: stopSignal,
       StopTimeout: stopTimeout,
@@ -228,7 +246,19 @@ export class DockerContainerService extends DockerBaseService {
       AttachStdin: config.AttachStdin,
       AttachStdout: config.AttachStdout,
       AttachStderr: config.AttachStderr,
-      HostConfig: hostConfig
+      HostConfig: {
+        ...hostConfig,
+        ...(options?.binds !== undefined ? { Binds: options.binds } : {}),
+        ...(options?.portBindings !== undefined ? { PortBindings: options.portBindings } : {}),
+        ...(options?.restartPolicy?.Name
+          ? {
+              RestartPolicy: {
+                Name: options.restartPolicy.Name,
+                MaximumRetryCount: options.restartPolicy.MaximumRetryCount
+              }
+            }
+          : {})
+      }
     };
 
     const oldContainer = this.client.getContainer(id);
@@ -317,6 +347,15 @@ export class DockerContainerService extends DockerBaseService {
     const name = this.normalizeId(newName, 'Container name');
     await this.client.getContainer(id).rename({ name });
     return { containerId: id, output: name };
+  }
+
+  async updateContainer(containerId: string, options: { restartPolicy?: string }): Promise<void> {
+    const id = this.normalizeId(containerId, 'Container id');
+    const updateOptions: { RestartPolicy?: { Name: string } } = {};
+    if (options.restartPolicy) {
+      updateOptions.RestartPolicy = { Name: options.restartPolicy };
+    }
+    await this.client.getContainer(id).update(updateOptions);
   }
 
   async waitContainer(containerId: string, options?: Docker.ContainerWaitOptions): Promise<unknown> {

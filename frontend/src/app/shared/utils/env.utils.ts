@@ -59,3 +59,15 @@ export function dockerEnvToRows(env: unknown[] | undefined | null): EnvVarRow[] 
 export function rowsToDockerEnv(rows: EnvVarRow[]): string[] {
   return rows.filter(row => row.key.trim().length > 0).map(row => `${row.key.trim()}=${row.value}`);
 }
+
+/**
+ * Compares two lists of EnvVarRow for equality.
+ */
+export function areEnvVarsEqual(a: EnvVarRow[], b: EnvVarRow[]): boolean {
+  const envA = rowsToDockerEnv(a).sort((x, y) => x.localeCompare(y));
+  const envB = rowsToDockerEnv(b).sort((x, y) => x.localeCompare(y));
+  if (envA.length !== envB.length) {
+    return false;
+  }
+  return envA.every((entry, i) => entry === envB[i]);
+}

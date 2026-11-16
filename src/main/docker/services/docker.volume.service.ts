@@ -46,8 +46,17 @@ export class DockerVolumeService extends DockerBaseService {
     return usageByName;
   }
 
-  async createVolume(options: Docker.VolumeCreateOptions): Promise<Docker.VolumeCreateResponse> {
-    return this.client.createVolume(options);
+  async createVolume(options: Docker.VolumeCreateOptions): Promise<Docker.VolumeInspectInfo> {
+    const volume = (await this.client.createVolume(options)) as unknown as {
+      name?: string;
+      Name?: string;
+      inspect?: () => Promise<Docker.VolumeInspectInfo>;
+    };
+    if (typeof volume?.inspect === 'function') {
+      return volume.inspect();
+    }
+    const volumeName = volume?.name || volume?.Name || options.Name || '';
+    return this.client.getVolume(volumeName).inspect();
   }
 
   async removeVolume(name: string, force = false): Promise<void> {

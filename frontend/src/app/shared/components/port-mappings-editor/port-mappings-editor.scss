@@ -9,53 +9,63 @@
   gap: 0.45rem;
 }
 
+.port-row-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: 100%;
+}
+
 .port-row {
-  position: relative;
   display: flex;
   align-items: center;
+  gap: 0.35rem;
   width: 100%;
 
-  .port-input {
-    width: 100%;
-    padding-right: 5.5rem;
-  }
+  .port-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
 
-  .port-suffix {
-    position: absolute;
-    right: 0.6rem;
-    color: var(--ink-400);
-    font-size: var(--font-size-sm);
-    pointer-events: none;
-    user-select: none;
-  }
-
-  &.editable-row {
-    gap: 0.4rem;
+    &.has-error {
+      .port-input {
+        border-color: var(--color-danger, #ef4444);
+        box-shadow: 0 0 0 1px var(--color-danger, #ef4444);
+      }
+    }
 
     .port-input {
-      width: 9rem;
-      padding-right: 0.6rem;
+      width: 100%;
+      padding-right: 5.5rem;
       font-family: var(--mono-font);
-      font-size: 0.8rem;
+      font-size: var(--font-size-sm);
     }
 
-    .port-container-input {
-      width: 9rem;
-      font-family: var(--mono-font);
-      font-size: 0.8rem;
-    }
-
-    .port-separator {
+    .port-suffix {
+      position: absolute;
+      right: 0.6rem;
       color: var(--ink-400);
-      font-weight: bold;
+      font-size: var(--font-size-sm);
+      pointer-events: none;
       user-select: none;
     }
+  }
 
-    .port-protocol-select {
-      padding: 0.35rem 0.6rem;
-      border-radius: 0.45rem;
-      font-family: var(--mono-font);
-      font-size: 0.8rem;
+  .remove-port-btn {
+    width: 1.85rem;
+    height: 1.85rem;
+    min-width: 1.85rem;
+    flex-shrink: 0;
+    color: var(--ink-400);
+
+    &:hover {
+      color: var(--color-danger, #ef4444);
+    }
+
+    span {
+      font-size: 1.1rem;
     }
   }
 }
@@ -64,4 +74,87 @@
   margin: 0 0 0.45rem;
   font-size: var(--font-size-xs);
   color: var(--ink-400);
+}
+
+.port-duplicate-error {
+  font-size: var(--font-size-xs);
+  color: var(--color-danger, #ef4444);
+  padding-left: 0.25rem;
+}
+
+.add-port-trigger-wrap {
+  margin-top: 0.65rem;
+
+  .add-port-trigger-btn {
+    width: 100%;
+    justify-content: center;
+    font-size: var(--font-size-xs);
+    border-style: dashed;
+  }
+}
+
+.add-port-form-card {
+  margin-top: 0.65rem;
+  padding: 0.65rem;
+  border: 1px solid var(--border-color-section, rgba(255, 255, 255, 0.1));
+  border-radius: 0.6rem;
+  background: var(--bg-panel-elevated, rgba(255, 255, 255, 0.03));
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+
+  .add-port-form-title {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-300);
+  }
+
+  .add-port-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 0.5rem;
+    align-items: flex-end;
+
+    .field-col {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      min-width: 0;
+
+      .form-label {
+        font-size: var(--font-size-xs);
+        color: var(--ink-300);
+      }
+
+      .add-field-input {
+        width: 100%;
+        font-family: var(--mono-font);
+        font-size: var(--font-size-sm);
+        padding: 0.35rem 0.5rem;
+        border-radius: 0.45rem;
+      }
+
+      .add-field-select {
+        font-family: var(--mono-font);
+        font-size: var(--font-size-sm);
+        padding: 0.35rem 0.6rem;
+        border-radius: 0.45rem;
+        min-width: 4.5rem;
+      }
+    }
+  }
+
+  .add-port-error {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    color: var(--color-danger, #ef4444);
+  }
+
+  .add-port-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.4rem;
+  }
 }

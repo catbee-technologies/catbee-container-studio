@@ -73,3 +73,41 @@ table.catbee-table {
     text-overflow: ellipsis;
   }
 }
+
+.volume-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field-label {
+  color: var(--ink-300);
+  font-size: var(--font-size-sm);
+}
+
+.field-hint {
+  font-size: var(--font-size-xs);
+  color: var(--ink-400);
+}
+
+.path-input {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  .field-input {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .host-path-input {
+    font-family: var(--mono-font);
+    font-size: 0.85rem;
+  }
+}

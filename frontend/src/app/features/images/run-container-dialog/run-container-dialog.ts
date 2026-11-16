@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, output, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
 import type Docker from 'dockerode';
 import { DockerApiService } from '@core/docker-api.service';
 import { DialogComponent } from '@components/dialog/dialog';
@@ -8,7 +8,7 @@ import { VolumeMappingsEditorComponent } from '@components/volume-mappings-edito
 import { PortMappingsEditorComponent } from '@components/port-mappings-editor/port-mappings-editor';
 import { EnvVarRow, rowsToDockerEnv } from '@utils/env.utils';
 import { VolumeMappingRow, rowsToDockerBinds } from '@utils/volume.utils';
-import { PortMappingRow, rowsToDockerPortBindings } from '@utils/port.utils';
+import { PortMappingRow, findDuplicateHostPorts, rowsToDockerPortBindings } from '@utils/port.utils';
 
 @Component({
   selector: 'catbee-container-studio-run-container-dialog',
@@ -35,6 +35,7 @@ export class RunContainerDialogComponent {
 
   readonly containerName = signal('');
   readonly ports = signal<PortMappingRow[]>([]);
+  readonly hasDuplicatePorts = computed(() => findDuplicateHostPorts(this.ports()).size > 0);
   readonly volumes = signal<VolumeMappingRow[]>([]);
   readonly envVars = signal<EnvVarRow[]>([]);
   readonly isSubmitting = signal(false);
@@ -121,7 +122,7 @@ export class RunContainerDialogComponent {
 
   async run(): Promise<void> {
     const image = this.image().trim();
-    if (!image || this.isSubmitting()) {
+    if (!image || this.isSubmitting() || this.hasDuplicatePorts()) {
       return;
     }
 

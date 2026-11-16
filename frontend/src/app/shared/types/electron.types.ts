@@ -13,6 +13,7 @@ import {
   DockerVolumeInfo,
   DockerVolumeUsage,
   IpcResult,
+  RecreateContainerOptions,
   StreamStartResult
 } from './docker-api.types';
 
@@ -146,7 +147,7 @@ export interface ElectronBridge {
       start: (containerId: string) => IpcPromise<DockerActionResult>;
       stop: (containerId: string) => IpcPromise<DockerActionResult>;
       restart: (containerId: string) => IpcPromise<DockerActionResult>;
-      recreate: (containerId: string, options?: { env?: string[] }) => IpcPromise<DockerActionResult>;
+      recreate: (containerId: string, options?: RecreateContainerOptions) => IpcPromise<DockerActionResult>;
       recreateComposeGroup: (options: {
         workingDir: string;
         configFiles?: string[];
@@ -154,6 +155,7 @@ export interface ElectronBridge {
         service?: string;
         services?: string[];
       }) => IpcPromise<DockerActionResult>;
+      update: (containerId: string, options: { restartPolicy?: string }) => IpcPromise<void>;
       pause: (containerId: string) => IpcPromise<DockerActionResult>;
       unpause: (containerId: string) => IpcPromise<DockerActionResult>;
       wait: (containerId: string, options?: Docker.ContainerWaitOptions) => IpcPromise<unknown>;
@@ -191,6 +193,7 @@ export interface ElectronBridge {
       list: (options?: Docker.VolumeListOptions) => IpcPromise<{ Volumes?: DockerVolumeInfo[] }>;
       inspect: (name: string) => IpcPromise<DockerVolumeInfo>;
       usage: (name?: string) => IpcPromise<Record<string, DockerVolumeUsage>>;
+      create: (options: Docker.VolumeCreateOptions) => IpcPromise<DockerVolumeInfo>;
       remove: (name: string, force?: boolean) => IpcPromise<unknown>;
       prune: (filters?: Docker.VolumePruneOptions['filters']) => IpcPromise<unknown>;
       files: {

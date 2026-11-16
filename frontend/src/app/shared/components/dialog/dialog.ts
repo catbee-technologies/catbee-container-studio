@@ -10,6 +10,7 @@ export class DialogComponent extends DialogOverlayBase {
   readonly open = input(false);
   readonly title = input('Dialog');
   readonly style = input<Record<string, string>>({});
+  readonly closable = input(true);
 
   readonly closeDialog = output<void>();
 
@@ -30,10 +31,15 @@ export class DialogComponent extends DialogOverlayBase {
   }
 
   protected override onOverlayCancel(): void {
-    this.onClose();
+    if (this.closable()) {
+      this.onClose();
+    }
   }
 
   onClose(): void {
+    if (!this.closable()) {
+      return;
+    }
     this.closeDialog.emit();
   }
 }

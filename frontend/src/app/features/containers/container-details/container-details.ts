@@ -7,7 +7,8 @@ import {
   DockerContainerInfo,
   DockerContainerInspectInfo,
   DockerContainerStats,
-  DockerStreamEventEnvelope
+  DockerStreamEventEnvelope,
+  RecreateContainerOptions
 } from '@shared/types/docker-api.types';
 import { formatDockerNames } from '@utils/docker-display.utils';
 import { ContainerDetailsPrefetch } from './container-details.resolver';
@@ -27,6 +28,15 @@ import { UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
+import { DialogComponent } from '@components/dialog/dialog';
+import { PortMappingsEditorComponent } from '@components/port-mappings-editor/port-mappings-editor';
+import {
+  PortMappingRow,
+  arePortMappingsEqual,
+  dockerPortsToRows,
+  findDuplicateHostPorts,
+  rowsToDockerPortBindings
+} from '@utils/port.utils';
 
 enum ContainerTab {
   Logs = 'logs',
@@ -55,7 +65,9 @@ enum ContainerTab {
     ErrorBannerComponent,
     CopyButtonComponent,
     CatbeeTooltip,
-    ConfirmDialogComponent
+    ConfirmDialogComponent,
+    DialogComponent,
+    PortMappingsEditorComponent
   ],
   templateUrl: './container-details.html',
   styleUrl: './container-details.scss',
@@ -112,6 +124,11 @@ export class ContainerDetailsPage implements OnDestroy {
   readonly isDeleting = signal(false);
   readonly showRecreateConfirm = signal(false);
   readonly isRecreating = signal(false);
+  readonly showEditPortsDialog = signal(false);
+  readonly initialPorts = signal<PortMappingRow[]>([]);
+  readonly editablePorts = signal<PortMappingRow[]>([]);
+  readonly hasDuplicatePorts = computed(() => findDuplicateHostPorts(this.editablePorts()).size > 0);
+  readonly isPortsChanged = computed(() => !arePortMappingsEqual(this.initialPorts(), this.editablePorts()));
 
   readonly deleteMessage = computed(() => {
     return `Delete ${this.name()} permanently? \n This action cannot be undone.`;
@@ -360,29 +377,66 @@ export class ContainerDetailsPage implements OnDestroy {
   }
 
   async confirmRecreate(): Promise<void> {
-    const id = this.containerId();
-    if (!id) {
-      return;
-    }
-
     this.showRecreateConfirm.set(false);
-    this.isRecreating.set(true);
-    await this.runAction(async () => {
-      try {
-        const result = await this.dockerApi.recreateContainer(id);
-        const targetId = result.containerId || id;
-        if (result.containerId && result.containerId !== id) {
-          void this.shellTab()?.teardown();
-          await this.router.navigate(['/containers', targetId], { replaceUrl: true });
-        }
-        await this.loadContainer(targetId, true);
-      } finally {
-        this.isRecreating.set(false);
-      }
-    });
+    await this.executeRecreate();
   }
 
   async recreateContainerWithEnv(env: string[]): Promise<void> {
+    await this.executeRecreate({ env });
+  }
+
+  async recreateContainerWithMounts(options: { binds: string[] }): Promise<void> {
+    await this.executeRecreate({ binds: options.binds });
+  }
+
+  openEditPortsDialog(): void {
+    const inspect = this.inspectData();
+    const currentContainer = this.container();
+    const rows = dockerPortsToRows(
+      inspect?.Config?.ExposedPorts,
+      inspect?.HostConfig?.PortBindings,
+      inspect?.NetworkSettings?.Ports,
+      currentContainer?.Ports
+    );
+    this.initialPorts.set(rows.map(r => ({ ...r })));
+    this.editablePorts.set(rows);
+    this.showEditPortsDialog.set(true);
+  }
+
+  closeEditPortsDialog(): void {
+    if (this.isRecreating()) {
+      return;
+    }
+    this.showEditPortsDialog.set(false);
+  }
+
+  async confirmSavePortsAndRecreate(): Promise<void> {
+    if (this.isRecreating() || this.hasDuplicatePorts() || !this.isPortsChanged()) {
+      return;
+    }
+    const { exposedPorts, portBindings } = rowsToDockerPortBindings(this.editablePorts());
+    try {
+      await this.executeRecreate({ exposedPorts, portBindings });
+      this.showEditPortsDialog.set(false);
+    } catch {
+      // Recreate error will be surfaced by runAction banner,
+      // dialog remains open for the user to adjust or cancel.
+    }
+  }
+
+  async updateRestartPolicy(policy: string): Promise<void> {
+    const id = this.containerId();
+    if (!id) {
+      return;
+    }
+
+    await this.runAction(async () => {
+      await this.dockerApi.updateContainer(id, { restartPolicy: policy });
+      await this.refresh();
+    });
+  }
+
+  private async executeRecreate(options?: RecreateContainerOptions): Promise<void> {
     const id = this.containerId();
     if (!id) {
       return;
@@ -391,7 +445,7 @@ export class ContainerDetailsPage implements OnDestroy {
     this.isRecreating.set(true);
     await this.runAction(async () => {
       try {
-        const result = await this.dockerApi.recreateContainer(id, { env });
+        const result = await this.dockerApi.recreateContainer(id, options);
         const targetId = result.containerId || id;
         if (result.containerId && result.containerId !== id) {
           void this.shellTab()?.teardown();

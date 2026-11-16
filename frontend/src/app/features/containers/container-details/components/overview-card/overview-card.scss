@@ -28,10 +28,85 @@
   .metric-ports {
     position: relative;
     max-width: min(100%, 32rem);
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.25rem;
     padding: 0;
+    border-left: 0;
+    gap: 0.25rem;
+
+    .metric-edit-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.35rem;
+      height: 1.35rem;
+      padding: 0;
+      border: none;
+      border-radius: var(--radius-full);
+      background: transparent;
+      color: var(--ink-300);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      padding-right: 0.3rem;
+
+      &:hover {
+        color: var(--color-primary-text);
+        background: var(--bg-control-hover);
+      }
+
+      .mat-icon-filled {
+        font-size: 0.85rem;
+      }
+    }
+  }
+
+  .metric-restart {
+    catbee-container-studio-menu {
+      display: inline-flex;
+      align-items: center;
+      line-height: 1;
+    }
+
+    .menu-anchor {
+      display: inline-flex;
+      align-items: center;
+      line-height: 1;
+    }
+
+    .restart-trigger-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.15rem;
+      padding: 0 0.2rem;
+      margin: 0;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      color: var(--color-primary-text);
+      font-family: var(--mono-font);
+      font-size: var(--font-size-sm);
+      line-height: 1;
+      transition: background var(--transition-fast);
+
+      &:hover {
+        background: var(--bg-control-hover);
+      }
+
+      .value {
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .chevron {
+        font-size: 0.85rem;
+        line-height: 1;
+        color: var(--ink-300);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.75;
+      }
+    }
   }
 
   .ports-inline {
@@ -152,6 +227,9 @@
     text-transform: uppercase;
     color: var(--ink-200);
     white-space: nowrap;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
   }
 
   .value {
@@ -162,6 +240,9 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
   }
 
   .ports-value {

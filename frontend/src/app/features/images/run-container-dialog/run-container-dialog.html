@@ -113,7 +113,12 @@
 
   <ng-container catbeeDialogFooter>
     <button type="button" class="catbee-action-btn" [disabled]="isSubmitting()" (click)="onClose()">Cancel</button>
-    <button type="button" class="catbee-action-btn action-start" [disabled]="isSubmitting()" (click)="run()">
+    <button
+      type="button"
+      class="catbee-action-btn action-start"
+      [disabled]="isSubmitting() || hasDuplicatePorts()"
+      (click)="run()"
+    >
       <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
       {{ isSubmitting() ? 'Running...' : 'Run Container' }}
     </button>

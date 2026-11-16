@@ -17,6 +17,52 @@
       [containerState]="container().State"
       noPortsLabel="No Ports"
     />
+    @if (normalizedPorts().length > 0) {
+      <button
+        type="button"
+        class="metric-edit-btn"
+        aria-label="Edit port mappings"
+        [catbeeTooltip]="'Edit port mappings & recreate'"
+        [catbeeTooltipPosition]="'top'"
+        (click)="editPorts.emit()"
+      >
+        <span class="mat-icon-filled" aria-hidden="true">edit</span>
+      </button>
+    }
+  </div>
+
+  <div class="metric metric-restart">
+    <span class="label">Restart</span>
+    <catbee-container-studio-menu
+      [open]="isRestartMenuOpen()"
+      [style]="{ minWidth: '10.5rem' }"
+      (dismissed)="closeRestartMenu()"
+    >
+      <button
+        menuTrigger
+        type="button"
+        class="restart-trigger-btn"
+        (click)="toggleRestartMenu($event)"
+        [catbeeTooltip]="'Change restart policy'"
+        [catbeeTooltipPosition]="'top'"
+      >
+        <span class="value mono">{{ restartPolicy() }}</span>
+        <span class="mat-icon-filled chevron" aria-hidden="true">expand_more</span>
+      </button>
+      <div menuContent class="restart-menu-dropdown">
+        @for (policy of restartPolicies; track policy) {
+          <button
+            type="button"
+            class="menu-item menu-item-select"
+            [class.active]="restartPolicy() === policy"
+            (click)="selectRestartPolicy(policy)"
+          >
+            <span class="mono">{{ policy }}</span>
+            <span class="mat-icon-filled check-icon" aria-hidden="true">check</span>
+          </button>
+        }
+      </div>
+    </catbee-container-studio-menu>
   </div>
 
   <div class="metric">

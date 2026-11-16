@@ -23,10 +23,13 @@
         <catbee-container-studio-container-overview-card
           class="overview-inline"
           [container]="currentContainer"
+          [inspectData]="inspectData()"
           [imageRef]="imageRouteRef()"
           [stats]="stats()"
           [showAllPorts]="showAllPorts()"
           (showAllPortsChange)="setShowAllPorts($event)"
+          (restartPolicyChange)="updateRestartPolicy($event)"
+          (editPorts)="openEditPortsDialog()"
         />
       }
     </div>
@@ -181,7 +184,12 @@
             />
           }
           @if (activeTab() === 'mounts') {
-            <catbee-container-studio-container-mounts-tab [inspectData]="inspectData()" />
+            <catbee-container-studio-container-mounts-tab
+              [inspectData]="inspectData()"
+              [container]="container()"
+              [isRecreating]="isRecreating()"
+              (recreate)="recreateContainerWithMounts($event)"
+            />
           }
           @if (activeTab() === 'files') {
             <catbee-container-studio-container-files-tab [containerId]="containerId()" />
@@ -217,3 +225,51 @@
   (cancelAction)="cancelRecreate()"
   (confirm)="confirmRecreate()"
 />
+
+<catbee-container-studio-dialog
+  [open]="showEditPortsDialog()"
+  title="Edit Port Mappings"
+  [closable]="!isRecreating()"
+  [style]="{ width: '480px', 'max-width': '95vw' }"
+  (closeDialog)="closeEditPortsDialog()"
+>
+  <div catbeeDialogBody class="edit-ports-dialog-body">
+    <p class="edit-ports-intro">
+      Update published host ports for container <strong>{{ name() }}</strong
+      >. Saving will recreate the container to apply port changes.
+    </p>
+
+    <catbee-container-studio-port-mappings-editor
+      [(rows)]="editablePorts"
+      [disabled]="isRecreating()"
+      [allowAdd]="true"
+      [allowRemove]="true"
+      emptyMessage="No ports exposed by this container."
+      emptyHint="Click 'Add Port Mapping' below to map a host port to this container."
+    />
+  </div>
+
+  <div catbeeDialogFooter class="edit-ports-dialog-footer">
+    <button
+      type="button"
+      class="catbee-action-btn fix-height"
+      [disabled]="isRecreating()"
+      (click)="closeEditPortsDialog()"
+    >
+      Cancel
+    </button>
+    <button
+      type="button"
+      class="catbee-action-btn primary fix-height"
+      [disabled]="isRecreating() || hasDuplicatePorts() || !isPortsChanged()"
+      (click)="confirmSavePortsAndRecreate()"
+    >
+      @if (isRecreating()) {
+        <span class="mat-icon-filled spin" aria-hidden="true">refresh</span>
+        Recreating...
+      } @else {
+        Save & Recreate
+      }
+    </button>
+  </div>
+</catbee-container-studio-dialog>

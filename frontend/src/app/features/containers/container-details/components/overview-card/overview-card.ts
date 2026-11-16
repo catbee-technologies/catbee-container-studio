@@ -1,25 +1,52 @@
 import { CommonModule } from '@angular/common';
-import { Component, input, output } from '@angular/core';
+import { Component, computed, input, output, signal } from '@angular/core';
 import { PortListComponent } from '@components/port-list/port-list';
-import { DockerContainerInfo, DockerContainerStats } from '@shared/types/docker-api.types';
+import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
+import { MenuComponent } from '@components/menu/menu';
+import { DockerContainerInfo, DockerContainerInspectInfo, DockerContainerStats } from '@shared/types/docker-api.types';
 import { formatDockerBytes } from '@utils/docker-display.utils';
+import { normalizeDockerPorts } from '@utils/docker-port.utils';
 
 @Component({
   selector: 'catbee-container-studio-container-overview-card',
-  imports: [CommonModule, PortListComponent],
+  imports: [CommonModule, PortListComponent, CatbeeTooltip, MenuComponent],
   templateUrl: './overview-card.html',
   styleUrl: './overview-card.scss'
 })
 export class OverviewCardComponent {
   readonly container = input.required<DockerContainerInfo>();
+  readonly inspectData = input<DockerContainerInspectInfo | null>(null);
   readonly imageRef = input<string>('');
   readonly stats = input<DockerContainerStats | null>(null);
   readonly showAllPorts = input(false);
 
   readonly showAllPortsChange = output<boolean>();
+  readonly restartPolicyChange = output<string>();
+  readonly editPorts = output<void>();
+
+  readonly normalizedPorts = computed(() => normalizeDockerPorts(this.container().Ports));
+  readonly restartPolicy = computed(() => this.inspectData()?.HostConfig?.RestartPolicy?.Name || 'no');
+  readonly isRestartMenuOpen = signal(false);
+  readonly restartPolicies = ['no', 'always', 'unless-stopped', 'on-failure'] as const;
 
   setShowAllPorts(expanded: boolean): void {
     this.showAllPortsChange.emit(expanded);
+  }
+
+  toggleRestartMenu(event: MouseEvent): void {
+    event.stopPropagation();
+    this.isRestartMenuOpen.update(v => !v);
+  }
+
+  closeRestartMenu(): void {
+    this.isRestartMenuOpen.set(false);
+  }
+
+  selectRestartPolicy(policy: string): void {
+    this.closeRestartMenu();
+    if (policy !== this.restartPolicy()) {
+      this.restartPolicyChange.emit(policy);
+    }
   }
 
   formatCpu(stats: DockerContainerStats | null): string {

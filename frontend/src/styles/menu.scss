@@ -36,6 +36,40 @@
     justify-content: space-between;
     align-items: center;
     gap: var(--spacing-lg);
+
+    &.active {
+      color: var(--color-primary-text);
+      font-weight: 600;
+
+      .check-icon {
+        visibility: visible;
+      }
+    }
+
+    .check-icon {
+      font-size: 1.1rem;
+      width: 1.1rem;
+      height: 1.1rem;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-primary-text);
+      visibility: hidden;
+    }
+  }
+}
+
+.restart-menu-dropdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 11rem;
+
+  .menu-item {
+    font-family: var(--mono-font);
+    font-size: var(--font-size-sm);
+    padding: 0.35rem 0.65rem;
   }
 }
 

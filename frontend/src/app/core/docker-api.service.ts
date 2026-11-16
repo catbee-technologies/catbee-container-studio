@@ -14,6 +14,7 @@ import {
   DockerStreamEventEnvelope,
   DockerVolumeInfo,
   DockerVolumeUsage,
+  RecreateContainerOptions,
   StreamStartResult
 } from '@shared/types/docker-api.types';
 import { LOGS_STORAGE_DEFAULTS } from '@utils/storage.utils';
@@ -122,6 +123,11 @@ export class DockerApiService extends ElectronBaseService {
     return this.unwrapResult<Record<string, DockerVolumeUsage>>(response);
   }
 
+  async createVolume(options: Docker.VolumeCreateOptions): Promise<DockerVolumeInfo> {
+    const response = await this.bridge.docker.volumes.create(options);
+    return this.unwrapResult<DockerVolumeInfo>(response);
+  }
+
   async removeVolume(name: string, force = false): Promise<void> {
     const response = await this.bridge.docker.volumes.remove(name, force);
     this.unwrapResult<unknown>(response);
@@ -177,9 +183,14 @@ export class DockerApiService extends ElectronBaseService {
     return this.unwrapResult<DockerActionResult>(response);
   }
 
-  async recreateContainer(containerId: string, options?: { env?: string[] }): Promise<DockerActionResult> {
+  async recreateContainer(containerId: string, options?: RecreateContainerOptions): Promise<DockerActionResult> {
     const response = await this.bridge.docker.containers.recreate(containerId, options);
     return this.unwrapResult<DockerActionResult>(response);
+  }
+
+  async updateContainer(containerId: string, options: { restartPolicy?: string }): Promise<void> {
+    const response = await this.bridge.docker.containers.update(containerId, options);
+    return this.unwrapResult<void>(response);
   }
 
   async recreateComposeGroup(options: {
