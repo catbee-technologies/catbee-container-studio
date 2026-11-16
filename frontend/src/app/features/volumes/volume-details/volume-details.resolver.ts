@@ -4,6 +4,7 @@ import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerInfo, DockerContainerInspectInfo, DockerVolumeInfo } from '@shared/types/docker-api.types';
 
 export interface VolumeDetailsPrefetch {
+  volumeName: string;
   volume: DockerVolumeInfo | null;
   containersInUse: DockerContainerInfo[];
   error: string | null;
@@ -13,6 +14,7 @@ export const volumeDetailsResolver: ResolveFn<VolumeDetailsPrefetch> = async rou
   const volumeName = (route.paramMap.get('name') ?? '').trim();
   if (!volumeName) {
     return {
+      volumeName: '',
       volume: null,
       containersInUse: [],
       error: 'Volume name is required.'
@@ -50,12 +52,14 @@ export const volumeDetailsResolver: ResolveFn<VolumeDetailsPrefetch> = async rou
     }
 
     return {
+      volumeName,
       volume: volume as DockerVolumeInfo,
       containersInUse: inUse,
       error: null
     };
   } catch (error) {
     return {
+      volumeName,
       volume: null,
       containersInUse: [],
       error: error instanceof Error ? error.message : 'Failed to preload volume details.'

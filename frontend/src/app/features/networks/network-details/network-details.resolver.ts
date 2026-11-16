@@ -4,6 +4,7 @@ import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerInfo, DockerNetworkInfo } from '@shared/types/docker-api.types';
 
 export interface NetworkDetailsPrefetch {
+  networkId: string;
   network: DockerNetworkInfo | null;
   connectedContainers: DockerContainerInfo[];
   error: string | null;
@@ -12,7 +13,7 @@ export interface NetworkDetailsPrefetch {
 export const networkDetailsResolver: ResolveFn<NetworkDetailsPrefetch> = async route => {
   const networkId = (route.paramMap.get('id') ?? '').trim();
   if (!networkId) {
-    return { network: null, connectedContainers: [], error: 'Network id is required.' };
+    return { networkId: '', network: null, connectedContainers: [], error: 'Network id is required.' };
   }
 
   const dockerApi = inject(DockerApiService);
@@ -22,9 +23,10 @@ export const networkDetailsResolver: ResolveFn<NetworkDetailsPrefetch> = async r
     const connectedContainers = containers.filter(container =>
       attachedIds.some(attachedId => attachedId === container.Id || attachedId.startsWith(container.Id))
     );
-    return { network, connectedContainers, error: null };
+    return { networkId, network, connectedContainers, error: null };
   } catch (error) {
     return {
+      networkId,
       network: null,
       connectedContainers: [],
       error: error instanceof Error ? error.message : 'Failed to preload network details.'

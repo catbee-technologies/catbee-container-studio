@@ -4,6 +4,7 @@ import { DockerApiService } from '@core/docker-api.service';
 import { DockerContainerInfo, DockerImageHistoryInfo, DockerImageInspectInfo } from '@shared/types/docker-api.types';
 
 export interface ImageDetailsPrefetch {
+  imageId: string;
   inspectData: DockerImageInspectInfo | null;
   inUseByContainers: DockerContainerInfo[];
   history: DockerImageHistoryInfo[];
@@ -14,6 +15,7 @@ export const imageDetailsResolver: ResolveFn<ImageDetailsPrefetch> = async route
   const imageId = (route.paramMap.get('id') ?? '').trim();
   if (!imageId) {
     return {
+      imageId: '',
       inspectData: null,
       history: [],
       inUseByContainers: [],
@@ -52,6 +54,7 @@ export const imageDetailsResolver: ResolveFn<ImageDetailsPrefetch> = async route
     }
 
     return {
+      imageId,
       inspectData,
       inUseByContainers: inUse,
       history: history.reverse(), // Reverse the history to show the most recent layers first
@@ -59,6 +62,7 @@ export const imageDetailsResolver: ResolveFn<ImageDetailsPrefetch> = async route
     };
   } catch (error) {
     return {
+      imageId,
       inspectData: null,
       inUseByContainers: [],
       history: [],

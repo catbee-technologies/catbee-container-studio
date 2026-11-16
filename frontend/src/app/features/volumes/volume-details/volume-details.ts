@@ -77,9 +77,15 @@ export class VolumeDetailsPage {
   constructor() {
     const routeSub = combineLatest([this.route.paramMap, this.route.data]).subscribe(([params, data]) => {
       const name = params.get('name') ?? '';
-      this.volumeName.set(name);
       if (!name) {
         return;
+      }
+
+      if (this.volumeName() !== name) {
+        this.volumeName.set(name);
+        this.volume.set(null);
+        this.containersInUse.set([]);
+        this.error.set(null);
       }
 
       this.activeTab.set(
@@ -128,11 +134,13 @@ export class VolumeDetailsPage {
       return;
     }
 
-    this.isLoading.set(preloaded === null);
+    const isValidPreloaded = preloaded !== null && (preloaded.volumeName === name || preloaded.volume?.Name === name);
+
+    this.isLoading.set(!isValidPreloaded);
     this.error.set(null);
 
     try {
-      if (preloaded !== null) {
+      if (isValidPreloaded && preloaded !== null) {
         if (preloaded.error) {
           this.error.set(preloaded.error);
           this.volume.set(null);

@@ -91,9 +91,16 @@ export class ImageDetailsPage {
   constructor() {
     const routeSub = combineLatest([this.route.paramMap, this.route.data]).subscribe(([params, data]) => {
       const id = params.get('id') ?? '';
-      this.imageId.set(id);
       if (!id) {
         return;
+      }
+
+      if (this.imageId() !== id) {
+        this.imageId.set(id);
+        this.inspectData.set(null);
+        this.inUseByContainers.set([]);
+        this.history.set([]);
+        this.error.set(null);
       }
 
       this.activeTab.set(
@@ -167,11 +174,17 @@ export class ImageDetailsPage {
       return;
     }
 
-    this.isLoading.set(preloaded === null);
+    const isValidPreloaded =
+      preloaded !== null &&
+      (preloaded.imageId === id ||
+        preloaded.inspectData?.Id === id ||
+        Boolean(preloaded.inspectData?.RepoTags?.includes(id)));
+
+    this.isLoading.set(!isValidPreloaded);
     this.error.set(null);
 
     try {
-      if (preloaded !== null) {
+      if (isValidPreloaded && preloaded !== null) {
         if (preloaded.error) {
           this.error.set(preloaded.error);
           this.inspectData.set(null);

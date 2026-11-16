@@ -89,7 +89,17 @@ export class NetworkDetailsPage {
   constructor() {
     const routeSub = combineLatest([this.route.paramMap, this.route.data]).subscribe(([params, data]) => {
       const networkId = params.get('id') ?? '';
-      this.networkId.set(networkId);
+      if (!networkId) {
+        return;
+      }
+
+      if (this.networkId() !== networkId) {
+        this.networkId.set(networkId);
+        this.network.set(null);
+        this.connectedContainers.set([]);
+        this.error.set(null);
+      }
+
       this.activeTab.set(
         this.localStorage.getEnumWithDefault(
           `${UI_STORAGE_KEYS.NETWORKS_SELECTED_TAB_PREFIX}${networkId}`,
@@ -134,10 +144,16 @@ export class NetworkDetailsPage {
       this.error.set('Invalid network id.');
       return;
     }
-    this.isLoading.set(preloaded === null);
+    const isValidPreloaded =
+      preloaded !== null &&
+      (preloaded.networkId === this.networkId() ||
+        preloaded.network?.Id === this.networkId() ||
+        preloaded.network?.Name === this.networkId());
+
+    this.isLoading.set(!isValidPreloaded);
     this.error.set(null);
     try {
-      if (preloaded) {
+      if (isValidPreloaded && preloaded) {
         this.network.set(preloaded.network);
         this.connectedContainers.set(preloaded.connectedContainers);
         this.error.set(preloaded.error);

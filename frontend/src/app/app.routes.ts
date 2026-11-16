@@ -33,6 +33,7 @@ export const routes: Routes = [
   },
   {
     path: 'images/:id',
+    runGuardsAndResolvers: 'always',
     resolve: {
       preloadedImageDetails: imageDetailsResolver
     },
@@ -44,6 +45,7 @@ export const routes: Routes = [
   },
   {
     path: 'volumes/:name',
+    runGuardsAndResolvers: 'always',
     resolve: {
       preloadedVolumeDetails: volumeDetailsResolver
     },
@@ -55,6 +57,7 @@ export const routes: Routes = [
   },
   {
     path: 'networks/:id',
+    runGuardsAndResolvers: 'always',
     resolve: {
       preloadedNetworkDetails: networkDetailsResolver
     },
