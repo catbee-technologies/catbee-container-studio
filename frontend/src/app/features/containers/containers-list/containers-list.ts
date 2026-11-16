@@ -38,7 +38,7 @@ import { TableColumnResizerComponent } from '@components/table-column-resizer/ta
 
 export type ContainerColumn =
   'name' | 'id' | 'image' | 'ports' | 'state' | 'status' | 'cpu' | 'memory' | 'disk' | 'network' | 'pids';
-type ContainerAction = 'start' | 'stop' | 'restart' | 'pause' | 'unpause' | 'remove';
+export type ContainerAction = 'start' | 'stop' | 'restart' | 'pause' | 'unpause' | 'remove' | 'recreate';
 
 export const DEFAULT_CONTAINER_COLUMN_WIDTHS: Record<ContainerColumn, number | null> = {
   name: null,
@@ -72,6 +72,8 @@ interface ContainerGroup {
   id: string;
   name: string;
   folder: string | null;
+  workingDir: string | null;
+  configFiles: string | null;
   containers: DockerContainerInfo[];
 }
 
@@ -152,6 +154,9 @@ export class ContainersPage {
 
   readonly pendingDeleteContainerId = signal<string | null>(null);
   readonly pendingDeleteSelection = signal(false);
+  readonly pendingRecreateContainerId = signal<string | null>(null);
+  readonly pendingRecreateGroup = signal<ContainerGroup | null>(null);
+  readonly pendingRecreateSelection = signal(false);
 
   readonly collapsedGroupIds = signal<Set<string>>(
     new Set<string>(this.sessionStorage.getArrayWithDefault<string>(UI_STORAGE_KEYS.CONTAINERS_COLLAPSED_GROUPS, []))
@@ -357,6 +362,15 @@ export class ContainersPage {
 
   readonly pendingDeleteContainer = computed(() => {
     const pendingId = this.pendingDeleteContainerId();
+    if (!pendingId) {
+      return null;
+    }
+
+    return this.containers().find(container => container.Id === pendingId) ?? null;
+  });
+
+  readonly pendingRecreateContainer = computed(() => {
+    const pendingId = this.pendingRecreateContainerId();
     if (!pendingId) {
       return null;
     }
@@ -845,6 +859,31 @@ export class ContainersPage {
     });
   }
 
+  requestRecreateContainer(containerId: string): void {
+    this.pendingRecreateContainerId.set(containerId);
+  }
+
+  cancelRecreateContainer(): void {
+    this.pendingRecreateContainerId.set(null);
+  }
+
+  confirmRecreateContainer(): void {
+    const pending = this.pendingRecreateContainer();
+    if (!pending) {
+      return;
+    }
+
+    void this.recreateContainer(pending.Id);
+  }
+
+  async recreateContainer(containerId: string): Promise<void> {
+    this.pendingRecreateContainerId.set(null);
+    await this.runContainerAction(containerId, 'recreate', async () => {
+      await this.dockerApi.recreateContainer(containerId);
+      await this.loadContainers();
+    });
+  }
+
   requestDeleteSelected(): void {
     if (this.selectedContainers().length === 0) {
       return;
@@ -893,6 +932,33 @@ export class ContainersPage {
       'restart',
       async container => {
         await this.dockerApi.restartContainer(container.Id);
+      },
+      () => true
+    );
+  }
+
+  requestRecreateSelected(): void {
+    if (this.selectedContainers().length === 0) {
+      return;
+    }
+
+    this.pendingRecreateSelection.set(true);
+  }
+
+  cancelRecreateSelected(): void {
+    this.pendingRecreateSelection.set(false);
+  }
+
+  async confirmRecreateSelected(): Promise<void> {
+    this.pendingRecreateSelection.set(false);
+    await this.recreateSelectedContainers();
+  }
+
+  async recreateSelectedContainers(): Promise<void> {
+    await this.runBulkAction(
+      'recreate',
+      async container => {
+        await this.dockerApi.recreateContainer(container.Id);
       },
       () => true
     );
@@ -950,6 +1016,35 @@ export class ContainersPage {
       return 'Delete all containers in this group permanently? \n This action cannot be undone.';
     }
     return `Delete all ${group.containers.length} containers in group "${group.name}" permanently? \n This action cannot be undone.`;
+  }
+
+  pendingContainerRecreateMessage(): string {
+    const pending = this.pendingRecreateContainer();
+    if (!pending) {
+      return 'Force recreate this container? \n This will stop, remove, and recreate the container instance.';
+    }
+
+    const name = formatDockerNames(pending.Names);
+    const isCompose = Boolean(pending.Labels?.['com.docker.compose.service']);
+    if (isCompose) {
+      return `Force recreate compose service container "${name}"? \n This will rebuild and recreate the container instance using Docker Compose.`;
+    }
+    return `Force recreate container "${name}"? \n This will stop, remove, and recreate the container with the same configuration.`;
+  }
+
+  pendingGroupRecreateMessage(): string {
+    const group = this.pendingRecreateGroup();
+    if (!group) {
+      return 'Force recreate all containers in this group?';
+    }
+    if (group.id === 'standalone') {
+      return `Force recreate all ${group.containers.length} standalone containers? \n This will stop, remove, and recreate each container instance.`;
+    }
+    return `Force recreate all ${group.containers.length} containers in compose group "${group.name}"? \n This will stop, remove, and recreate all containers in this group using Docker Compose.`;
+  }
+
+  pendingSelectionRecreateMessage(): string {
+    return `Force recreate all ${this.selectedContainers().length} selected containers? \n This will stop, remove, and recreate each container instance.`;
   }
 
   isGroupActionActive(group: ContainerGroup): boolean {
@@ -1095,6 +1190,73 @@ export class ContainersPage {
     );
   }
 
+  requestRecreateGroup(group: ContainerGroup): void {
+    this.pendingRecreateGroup.set(group);
+  }
+
+  cancelRecreateGroup(): void {
+    this.pendingRecreateGroup.set(null);
+  }
+
+  async confirmRecreateGroup(): Promise<void> {
+    const group = this.pendingRecreateGroup();
+    if (!group) {
+      return;
+    }
+    this.pendingRecreateGroup.set(null);
+
+    for (const container of group.containers) {
+      this.setContainerAction(container.Id, 'recreate');
+    }
+
+    this.error.set(null);
+    try {
+      if (group.id !== 'standalone' && group.workingDir) {
+        const services = Array.from(
+          new Set(
+            group.containers
+              .map(c => c.Labels?.['com.docker.compose.service'])
+              .filter((s): s is string => Boolean(s && s.trim()))
+          )
+        );
+
+        const config = {
+          workingDir: group.workingDir,
+          configFiles: group.configFiles
+            ? group.configFiles
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean)
+            : undefined,
+          projectName: group.id,
+          services: services.length > 0 ? services : undefined
+        };
+        await this.dockerApi.recreateComposeGroup(config);
+      } else {
+        const failedContainers: string[] = [];
+        await Promise.all(
+          group.containers.map(async container => {
+            try {
+              await this.dockerApi.recreateContainer(container.Id);
+            } catch {
+              failedContainers.push(this.primaryName(container));
+            }
+          })
+        );
+        if (failedContainers.length > 0) {
+          this.error.set(`Failed to recreate containers in group "${group.name}": ${failedContainers.join(', ')}`);
+        }
+      }
+      await this.loadContainers();
+    } catch (err) {
+      this.error.set(err instanceof Error ? err.message : 'Force recreate failed.');
+    } finally {
+      for (const container of group.containers) {
+        this.clearContainerAction(container.Id);
+      }
+    }
+  }
+
   openImageDetails(imageRef: string): void {
     if (!imageRef) {
       return;
@@ -1227,6 +1389,7 @@ export class ContainersPage {
     for (const container of containers) {
       const composeProject = container.Labels?.['com.docker.compose.project'] ?? null;
       const composeFolderRaw = container.Labels?.['com.docker.compose.project.working_dir'] ?? null;
+      const composeConfigFiles = container.Labels?.['com.docker.compose.project.config_files'] ?? null;
       const folder = this.extractFolderName(composeFolderRaw);
 
       const groupId = composeProject ?? 'standalone';
@@ -1234,6 +1397,8 @@ export class ContainersPage {
         id: groupId,
         name: composeProject ? `${composeProject}` : 'Standalone Containers',
         folder,
+        workingDir: composeFolderRaw,
+        configFiles: composeConfigFiles,
         containers: []
       };
 

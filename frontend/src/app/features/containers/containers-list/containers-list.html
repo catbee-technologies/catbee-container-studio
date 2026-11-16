@@ -97,7 +97,7 @@
         </button>
         <catbee-container-studio-menu
           [open]="showBulkActionsMenu()"
-          [style]="{ width: '12rem' }"
+          [style]="{ width: '14rem' }"
           (dismissed)="closeBulkActionsMenu()"
         >
           <button
@@ -163,6 +163,15 @@
             >
               <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
               Restart selected
+            </button>
+            <button
+              type="button"
+              class="menu-item"
+              (click)="requestRecreateSelected(); closeBulkActionsMenu()"
+              [disabled]="activeBulkAction() !== null"
+            >
+              <span class="mat-icon-filled" aria-hidden="true">refresh</span>
+              Force recreate selected
             </button>
           </div>
         </catbee-container-studio-menu>
@@ -692,6 +701,15 @@
                           <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
                           Restart
                         </button>
+                        <button
+                          type="button"
+                          class="menu-item"
+                          (click)="requestRecreateGroup(group); closeGroupActionsMenu()"
+                          [disabled]="isGroupActionActive(group) || activeBulkAction() !== null"
+                        >
+                          <span class="mat-icon-filled" aria-hidden="true">refresh</span>
+                          Force Recreate
+                        </button>
                       </div>
                     </catbee-container-studio-menu>
                   </div>
@@ -1021,6 +1039,15 @@
                               <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
                               Restart
                             </button>
+                            <button
+                              type="button"
+                              class="menu-item"
+                              (click)="requestRecreateContainer(container.Id); closeContainerActionsMenu()"
+                              [disabled]="activeContainerActions().has(container.Id)"
+                            >
+                              <span class="mat-icon-filled" aria-hidden="true">refresh</span>
+                              Force Recreate
+                            </button>
                           </div>
                         </catbee-container-studio-menu>
                       </div>
@@ -1067,4 +1094,37 @@
   [dangerous]="true"
   (cancelAction)="cancelDeleteGroup()"
   (confirm)="confirmDeleteGroup()"
+/>
+
+<catbee-container-studio-confirm-dialog
+  [open]="pendingRecreateContainer() !== null"
+  title="Force Recreate Container"
+  [message]="pendingContainerRecreateMessage()"
+  confirmLabel="Recreate"
+  cancelLabel="Cancel"
+  [dangerous]="false"
+  (cancelAction)="cancelRecreateContainer()"
+  (confirm)="confirmRecreateContainer()"
+/>
+
+<catbee-container-studio-confirm-dialog
+  [open]="pendingRecreateGroup() !== null"
+  title="Force Recreate Group"
+  [message]="pendingGroupRecreateMessage()"
+  confirmLabel="Recreate All"
+  cancelLabel="Cancel"
+  [dangerous]="false"
+  (cancelAction)="cancelRecreateGroup()"
+  (confirm)="confirmRecreateGroup()"
+/>
+
+<catbee-container-studio-confirm-dialog
+  [open]="pendingRecreateSelection()"
+  title="Force Recreate Selected Containers"
+  [message]="pendingSelectionRecreateMessage()"
+  confirmLabel="Recreate All"
+  cancelLabel="Cancel"
+  [dangerous]="false"
+  (cancelAction)="cancelRecreateSelected()"
+  (confirm)="confirmRecreateSelected()"
 />

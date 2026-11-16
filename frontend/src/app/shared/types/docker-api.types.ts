@@ -83,6 +83,7 @@ export interface DockerContainerInspectInfo {
     Entrypoint?: string[];
     Env?: string[];
     Volumes?: Record<string, unknown>;
+    Labels?: Record<string, string>;
   };
   HostConfig?: {
     Binds?: string[];

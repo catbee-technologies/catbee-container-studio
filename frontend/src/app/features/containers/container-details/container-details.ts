@@ -110,9 +110,22 @@ export class ContainerDetailsPage implements OnDestroy {
 
   readonly showDeleteConfirm = signal(false);
   readonly isDeleting = signal(false);
+  readonly showRecreateConfirm = signal(false);
+  readonly isRecreating = signal(false);
 
   readonly deleteMessage = computed(() => {
     return `Delete ${this.name()} permanently? \n This action cannot be undone.`;
+  });
+
+  readonly recreateMessage = computed(() => {
+    const isCompose = Boolean(
+      this.container()?.Labels?.['com.docker.compose.service'] ??
+      this.inspectData()?.Config?.Labels?.['com.docker.compose.service']
+    );
+    if (isCompose) {
+      return `Force recreate compose service container "${this.name()}"? \n This will rebuild and recreate the container instance using Docker Compose.`;
+    }
+    return `Force recreate container "${this.name()}"? \n This will stop, remove, and recreate the container using the same configuration.`;
   });
 
   readonly imageRouteRef = computed(() => {
@@ -216,7 +229,7 @@ export class ContainerDetailsPage implements OnDestroy {
 
   private async refreshContainerState(): Promise<void> {
     const id = this.containerId();
-    if (!id || this.isDisposed) {
+    if (!id || this.isDisposed || this.isRecreating() || this.isDeleting()) {
       return;
     }
 
@@ -336,6 +349,37 @@ export class ContainerDetailsPage implements OnDestroy {
 
   cancelDelete(): void {
     this.showDeleteConfirm.set(false);
+  }
+
+  requestRecreate(): void {
+    this.showRecreateConfirm.set(true);
+  }
+
+  cancelRecreate(): void {
+    this.showRecreateConfirm.set(false);
+  }
+
+  async confirmRecreate(): Promise<void> {
+    const id = this.containerId();
+    if (!id) {
+      return;
+    }
+
+    this.showRecreateConfirm.set(false);
+    this.isRecreating.set(true);
+    await this.runAction(async () => {
+      try {
+        const result = await this.dockerApi.recreateContainer(id);
+        if (result.containerId && result.containerId !== id) {
+          void this.shellTab()?.teardown();
+          await this.router.navigate(['/containers', result.containerId], { replaceUrl: true });
+        } else {
+          await this.refresh();
+        }
+      } finally {
+        this.isRecreating.set(false);
+      }
+    });
   }
 
   async confirmDelete(): Promise<void> {

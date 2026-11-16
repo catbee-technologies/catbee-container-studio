@@ -146,6 +146,14 @@ export interface ElectronBridge {
       start: (containerId: string) => IpcPromise<DockerActionResult>;
       stop: (containerId: string) => IpcPromise<DockerActionResult>;
       restart: (containerId: string) => IpcPromise<DockerActionResult>;
+      recreate: (containerId: string) => IpcPromise<DockerActionResult>;
+      recreateComposeGroup: (options: {
+        workingDir: string;
+        configFiles?: string[];
+        projectName?: string;
+        service?: string;
+        services?: string[];
+      }) => IpcPromise<DockerActionResult>;
       pause: (containerId: string) => IpcPromise<DockerActionResult>;
       unpause: (containerId: string) => IpcPromise<DockerActionResult>;
       wait: (containerId: string, options?: Docker.ContainerWaitOptions) => IpcPromise<unknown>;

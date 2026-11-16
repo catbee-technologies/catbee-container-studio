@@ -177,6 +177,22 @@ export class DockerApiService extends ElectronBaseService {
     return this.unwrapResult<DockerActionResult>(response);
   }
 
+  async recreateContainer(containerId: string): Promise<DockerActionResult> {
+    const response = await this.bridge.docker.containers.recreate(containerId);
+    return this.unwrapResult<DockerActionResult>(response);
+  }
+
+  async recreateComposeGroup(options: {
+    workingDir: string;
+    configFiles?: string[];
+    projectName?: string;
+    service?: string;
+    services?: string[];
+  }): Promise<DockerActionResult> {
+    const response = await this.bridge.docker.containers.recreateComposeGroup(options);
+    return this.unwrapResult<DockerActionResult>(response);
+  }
+
   async pauseContainer(containerId: string): Promise<DockerActionResult> {
     const response = await this.bridge.docker.containers.pause(containerId);
     return this.unwrapResult<DockerActionResult>(response);

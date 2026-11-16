@@ -28,6 +28,21 @@ export function registerDockerContainerHandlers(): void {
     dockerManager.containers.restartContainer(containerId)
   );
 
+  registerHandle(IPC_CHANNELS.Docker.Containers.Recreate, (containerId: string) =>
+    dockerManager.containers.recreateContainer(containerId)
+  );
+
+  registerHandle(
+    IPC_CHANNELS.Docker.Containers.RecreateComposeGroup,
+    (options: {
+      workingDir: string;
+      configFiles?: string[];
+      projectName?: string;
+      service?: string;
+      services?: string[];
+    }) => dockerManager.containers.recreateComposeGroup(options)
+  );
+
   registerHandle(IPC_CHANNELS.Docker.Containers.Pause, (containerId: string) =>
     dockerManager.containers.pauseContainer(containerId)
   );

@@ -1,6 +1,11 @@
 import type Docker from 'dockerode';
+import { access } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { Readable } from 'node:stream';
 import { extract, pack } from 'tar-stream';
+import { logger } from '../../logger';
+import { getDockerCliPath } from '../runtime/docker.runtime';
 import { DockerBaseService } from './docker.base.service';
 import {
   DockerActionResult,
@@ -10,6 +15,8 @@ import {
   DockerFileEntry,
   DockerFileType
 } from '../types/docker.types';
+
+const execFileAsync = promisify(execFile);
 
 export class DockerContainerService extends DockerBaseService {
   async listContainers(options?: Docker.ContainerListOptions): Promise<Docker.ContainerInfo[]> {
@@ -43,6 +50,240 @@ export class DockerContainerService extends DockerBaseService {
     const id = this.normalizeId(containerId, 'Container id');
     await this.client.getContainer(id).restart();
     return { containerId: id, output: '' };
+  }
+
+  async recreateComposeGroup(options: {
+    workingDir: string;
+    configFiles?: string[];
+    projectName?: string;
+    service?: string;
+    services?: string[];
+  }): Promise<DockerActionResult> {
+    const workingDir = options.workingDir;
+    if (!workingDir) {
+      throw new Error('Cannot recreate compose group: working directory is not specified.');
+    }
+
+    try {
+      await access(workingDir);
+    } catch {
+      throw new Error(
+        `Cannot recreate compose group: working directory "${workingDir}" does not exist on this machine.`
+      );
+    }
+
+    const dockerCli = (await getDockerCliPath()) || 'docker';
+
+    const composeArgs = ['compose'];
+
+    if (options.projectName) {
+      composeArgs.push('-p', options.projectName);
+    }
+
+    if (options.configFiles && options.configFiles.length > 0) {
+      for (const file of options.configFiles) {
+        if (file && file.trim()) {
+          composeArgs.push('-f', file.trim());
+        }
+      }
+    }
+
+    composeArgs.push('up', '-d', '--force-recreate');
+
+    if (options.services && options.services.length > 0) {
+      for (const svc of options.services) {
+        if (svc && svc.trim()) {
+          composeArgs.push(svc.trim());
+        }
+      }
+    } else if (options.service) {
+      composeArgs.push(options.service);
+    }
+
+    logger.debug(
+      `[DockerContainerService] Running compose recreate: ${dockerCli} ${composeArgs.join(' ')} (cwd: ${workingDir})`
+    );
+
+    let stdout = '';
+    let stderr = '';
+    try {
+      const res = await execFileAsync(dockerCli, composeArgs, {
+        cwd: workingDir,
+        encoding: 'utf8',
+        windowsHide: true,
+        maxBuffer: 10 * 1024 * 1024
+      });
+      stdout = res.stdout;
+      stderr = res.stderr;
+    } catch (err: unknown) {
+      const errorStr = String(err);
+      if (errorStr.includes('is not a docker command') || errorStr.includes('unknown command: docker compose')) {
+        logger.warn('[DockerContainerService] "docker compose" failed. Trying "docker-compose" fallback.');
+        const standaloneArgs = composeArgs.slice(1);
+        try {
+          const res = await execFileAsync('docker-compose', standaloneArgs, {
+            cwd: workingDir,
+            encoding: 'utf8',
+            windowsHide: true,
+            maxBuffer: 10 * 1024 * 1024
+          });
+          stdout = res.stdout;
+          stderr = res.stderr;
+        } catch (fallbackErr: unknown) {
+          const e = fallbackErr as { stderr?: string; stdout?: string; message?: string };
+          throw new Error(e.stderr || e.stdout || e.message || 'Docker Compose recreate failed.');
+        }
+      } else {
+        const e = err as { stderr?: string; stdout?: string; message?: string };
+        throw new Error(e.stderr || e.stdout || e.message || 'Docker Compose recreate failed.');
+      }
+    }
+
+    logger.debug(`[DockerContainerService] Docker compose recreate completed: ${stdout || stderr}`);
+
+    if (options.service && options.projectName) {
+      try {
+        const containers = await this.client.listContainers({
+          all: true,
+          filters: {
+            label: [
+              `com.docker.compose.project=${options.projectName}`,
+              `com.docker.compose.service=${options.service}`
+            ]
+          }
+        });
+        if (containers.length > 0 && containers[0].Id) {
+          return { containerId: containers[0].Id, output: stdout || stderr };
+        }
+      } catch {
+        // Fall back to returning empty containerId
+      }
+    }
+
+    return { containerId: '', output: stdout || stderr };
+  }
+
+  async recreateContainer(containerId: string): Promise<DockerActionResult> {
+    const id = this.normalizeId(containerId, 'Container id');
+    const inspectInfo = await this.client.getContainer(id).inspect();
+
+    const composeProject = inspectInfo.Config?.Labels?.['com.docker.compose.project'];
+    const composeService = inspectInfo.Config?.Labels?.['com.docker.compose.service'];
+    const composeWorkingDir = inspectInfo.Config?.Labels?.['com.docker.compose.project.working_dir'];
+    const composeConfigFiles = inspectInfo.Config?.Labels?.['com.docker.compose.project.config_files']
+      ?.split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    // If container belongs to a Compose project and working directory exists on host, use Compose recreate
+    let canUseCompose = false;
+    if (composeWorkingDir && composeService) {
+      try {
+        await access(composeWorkingDir);
+        canUseCompose = true;
+      } catch {
+        logger.debug(
+          `[DockerContainerService] Compose working dir "${composeWorkingDir}" not accessible on host. Falling back to Engine API recreate.`
+        );
+      }
+    }
+
+    if (canUseCompose && composeWorkingDir && composeService) {
+      return await this.recreateComposeGroup({
+        workingDir: composeWorkingDir,
+        configFiles: composeConfigFiles,
+        projectName: composeProject,
+        service: composeService
+      });
+    }
+
+    // Standalone container or compose working directory not found on host: recreate via Docker Engine API
+    const wasRunning = inspectInfo.State?.Running ?? false;
+    const name = inspectInfo.Name ? inspectInfo.Name.replace(/^\//, '') : undefined;
+    const config = inspectInfo.Config ?? {};
+    const configRecord = config as unknown as Record<string, unknown>;
+    const stopSignal = typeof configRecord['StopSignal'] === 'string' ? configRecord['StopSignal'] : undefined;
+    const stopTimeout = typeof configRecord['StopTimeout'] === 'number' ? configRecord['StopTimeout'] : undefined;
+    const hostConfig = inspectInfo.HostConfig ?? {};
+    const networkSettings = inspectInfo.NetworkSettings;
+
+    const createOptions: Docker.ContainerCreateOptions = {
+      name,
+      Image: config.Image || inspectInfo.Image,
+      Env: config.Env || undefined,
+      Cmd: config.Cmd || undefined,
+      Entrypoint: config.Entrypoint || undefined,
+      WorkingDir: config.WorkingDir || undefined,
+      User: config.User || undefined,
+      Labels: config.Labels || undefined,
+      ExposedPorts: config.ExposedPorts || undefined,
+      Volumes: config.Volumes || undefined,
+      StopSignal: stopSignal,
+      StopTimeout: stopTimeout,
+      Tty: config.Tty,
+      OpenStdin: config.OpenStdin,
+      StdinOnce: config.StdinOnce,
+      AttachStdin: config.AttachStdin,
+      AttachStdout: config.AttachStdout,
+      AttachStderr: config.AttachStderr,
+      HostConfig: hostConfig
+    };
+
+    const oldContainer = this.client.getContainer(id);
+    const tempName = name ? `${name}-catbee-old-${Date.now()}` : undefined;
+
+    if (wasRunning) {
+      await oldContainer.stop({ t: 10 }).catch(() => {});
+    }
+
+    if (tempName) {
+      await oldContainer.rename({ name: tempName });
+    }
+
+    let newContainer: Docker.Container;
+    try {
+      newContainer = await this.client.createContainer(createOptions);
+    } catch (createErr) {
+      // Revert name and restart old container if creation failed
+      if (tempName && name) {
+        await oldContainer.rename({ name }).catch(() => {});
+        if (wasRunning) {
+          await oldContainer.start().catch(() => {});
+        }
+      }
+      throw createErr;
+    }
+
+    // Safe removal of old container
+    await oldContainer.remove({ force: true, v: false }).catch(err => {
+      logger.warn({ err }, '[DockerContainerService] Failed to remove old container after recreate');
+    });
+
+    // Reconnect additional networks if any
+    if (networkSettings?.Networks) {
+      const networks = Object.entries(networkSettings.Networks);
+      for (const [netName, endpointSettings] of networks) {
+        try {
+          const net = this.client.getNetwork(netName);
+          await net.connect({
+            Container: newContainer.id,
+            EndpointConfig: {
+              Aliases: endpointSettings?.Aliases,
+              IPAMConfig: endpointSettings?.IPAMConfig,
+              Links: endpointSettings?.Links
+            }
+          });
+        } catch {
+          // May already be connected to the primary network
+        }
+      }
+    }
+
+    if (wasRunning) {
+      await newContainer.start();
+    }
+
+    return { containerId: newContainer.id, output: '' };
   }
 
   async pauseContainer(containerId: string): Promise<DockerActionResult> {
