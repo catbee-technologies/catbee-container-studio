@@ -1,0 +1,45 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.volume-rows-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  .path-input {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+
+    .volume-host-input {
+      flex: 1 1 0;
+      min-width: 0;
+      font-family: var(--mono-font);
+      font-size: 0.8rem;
+    }
+  }
+
+  .volume-container-input {
+    flex: 1 1 0;
+    min-width: 0;
+    font-family: var(--mono-font);
+    font-size: 0.8rem;
+  }
+
+  .row-separator {
+    flex: 0 0 auto;
+    color: var(--ink-400);
+    font-weight: bold;
+    user-select: none;
+  }
+}

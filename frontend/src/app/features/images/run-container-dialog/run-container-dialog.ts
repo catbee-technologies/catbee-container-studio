@@ -1,35 +1,31 @@
 import { Component, effect, inject, input, output, signal, viewChild } from '@angular/core';
 import type Docker from 'dockerode';
 import { DockerApiService } from '@core/docker-api.service';
-import { ElectronApiService } from '@core/electron-api.service';
 import { DialogComponent } from '@components/dialog/dialog';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
-import { SwitchInputComponent } from '@components/switch-input/switch-input';
 import { EnvVariablesEditorComponent } from '@components/env-variables-editor/env-variables-editor';
+import { VolumeMappingsEditorComponent } from '@components/volume-mappings-editor/volume-mappings-editor';
+import { PortMappingsEditorComponent } from '@components/port-mappings-editor/port-mappings-editor';
 import { EnvVarRow, rowsToDockerEnv } from '@utils/env.utils';
-
-interface PortMappingRow {
-  containerPort: string;
-  protocol: 'tcp' | 'udp';
-  hostPort: string;
-}
-
-interface VolumeMappingRow {
-  hostPath: string;
-  containerPath: string;
-  readOnly: boolean;
-}
+import { VolumeMappingRow, rowsToDockerBinds } from '@utils/volume.utils';
+import { PortMappingRow, rowsToDockerPortBindings } from '@utils/port.utils';
 
 @Component({
   selector: 'catbee-container-studio-run-container-dialog',
-  imports: [DialogComponent, ErrorBannerComponent, SwitchInputComponent, EnvVariablesEditorComponent],
+  imports: [
+    DialogComponent,
+    ErrorBannerComponent,
+    EnvVariablesEditorComponent,
+    VolumeMappingsEditorComponent,
+    PortMappingsEditorComponent
+  ],
   templateUrl: './run-container-dialog.html',
   styleUrl: './run-container-dialog.scss'
 })
 export class RunContainerDialogComponent {
   private readonly dockerApi = inject(DockerApiService);
-  private readonly electronApi = inject(ElectronApiService);
   private readonly envEditor = viewChild(EnvVariablesEditorComponent);
+  private readonly volumeEditor = viewChild(VolumeMappingsEditorComponent);
 
   readonly open = input(false);
   readonly image = input('');
@@ -98,77 +94,13 @@ export class RunContainerDialogComponent {
     }
   }
 
-  setPortHost(index: number, value: string): void {
-    const sanitized = value.replace(/[^0-9]/g, '').slice(0, 5);
-    this.ports.update(rows => rows.map((row, i) => (i === index ? { ...row, hostPort: sanitized } : row)));
-  }
-
-  onPortHostInput(event: Event, index: number): void {
-    const target = event.target as HTMLInputElement;
-    const sanitized = target.value.replace(/[^0-9]/g, '').slice(0, 5);
-    if (target.value !== sanitized) {
-      target.value = sanitized;
-    }
-    this.setPortHost(index, sanitized);
-  }
-
-  onPortHostKeydown(event: KeyboardEvent): void {
-    if (event.ctrlKey || event.metaKey || event.altKey) {
-      return;
-    }
-    const allowedKeys = [
-      'Backspace',
-      'Delete',
-      'ArrowLeft',
-      'ArrowRight',
-      'ArrowUp',
-      'ArrowDown',
-      'Tab',
-      'Home',
-      'End'
-    ];
-    if (allowedKeys.includes(event.key)) {
-      return;
-    }
-    if (!/^[0-9]$/.test(event.key)) {
-      event.preventDefault();
-    }
-  }
-
   addVolume(): void {
     this.volumes.update(rows => [...rows, { hostPath: '', containerPath: '', readOnly: false }]);
+    this.volumeEditor()?.scrollToBottomAndFocus();
   }
 
   clearVolumes(): void {
     this.volumes.set([]);
-  }
-
-  removeVolume(index: number): void {
-    this.volumes.update(rows => rows.filter((_, i) => i !== index));
-  }
-
-  setVolumeHost(index: number, value: string): void {
-    this.volumes.update(rows => rows.map((row, i) => (i === index ? { ...row, hostPath: value } : row)));
-  }
-
-  setVolumeContainer(index: number, value: string): void {
-    this.volumes.update(rows => rows.map((row, i) => (i === index ? { ...row, containerPath: value } : row)));
-  }
-
-  async pickVolumeHostPath(index: number): Promise<void> {
-    const selectedPath = await this.electronApi.selectDirectory();
-    if (!selectedPath) {
-      return;
-    }
-    this.setVolumeHost(index, selectedPath);
-  }
-
-  toggleVolumeReadOnly(index: number): void {
-    this.volumes.update(rows => rows.map((row, i) => (i === index ? { ...row, readOnly: !row.readOnly } : row)));
-  }
-
-  setVolumeReadOnly(index: number, readOnly: boolean): void {
-    this.volumes.update(rows => rows.map((row, i) => (i === index ? { ...row, readOnly } : row)));
   }
 
   addEnvVar(): void {
@@ -214,29 +146,8 @@ export class RunContainerDialogComponent {
   }
 
   private buildCreateOptions(image: string): Docker.ContainerCreateOptions {
-    const exposedPorts: Record<string, Record<string, never>> = {};
-    const portBindings: Record<string, { HostPort: string }[]> = {};
-
-    for (const port of this.ports()) {
-      const containerPort = port.containerPort.trim();
-      if (!containerPort) {
-        continue;
-      }
-      const key = `${containerPort}/${port.protocol}`;
-      exposedPorts[key] = {};
-      portBindings[key] = [{ HostPort: port.hostPort.trim() === '0' ? '' : port.hostPort.trim() }];
-    }
-
-    const binds: string[] = [];
-    for (const volume of this.volumes()) {
-      const hostPath = volume.hostPath.trim();
-      const containerPath = volume.containerPath.trim();
-      if (!hostPath || !containerPath) {
-        continue;
-      }
-      binds.push(`${hostPath}:${containerPath}${volume.readOnly ? ':ro' : ''}`);
-    }
-
+    const { exposedPorts, portBindings } = rowsToDockerPortBindings(this.ports());
+    const binds = rowsToDockerBinds(this.volumes());
     const env = rowsToDockerEnv(this.envVars());
     const name = this.containerName().trim();
 

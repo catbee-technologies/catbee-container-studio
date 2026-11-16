@@ -1,0 +1,67 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.port-rows-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.port-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  .port-input {
+    width: 100%;
+    padding-right: 5.5rem;
+  }
+
+  .port-suffix {
+    position: absolute;
+    right: 0.6rem;
+    color: var(--ink-400);
+    font-size: var(--font-size-sm);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  &.editable-row {
+    gap: 0.4rem;
+
+    .port-input {
+      width: 9rem;
+      padding-right: 0.6rem;
+      font-family: var(--mono-font);
+      font-size: 0.8rem;
+    }
+
+    .port-container-input {
+      width: 9rem;
+      font-family: var(--mono-font);
+      font-size: 0.8rem;
+    }
+
+    .port-separator {
+      color: var(--ink-400);
+      font-weight: bold;
+      user-select: none;
+    }
+
+    .port-protocol-select {
+      padding: 0.35rem 0.6rem;
+      border-radius: 0.45rem;
+      font-family: var(--mono-font);
+      font-size: 0.8rem;
+    }
+  }
+}
+
+.field-group-hint {
+  margin: 0 0 0.45rem;
+  font-size: var(--font-size-xs);
+  color: var(--ink-400);
+}

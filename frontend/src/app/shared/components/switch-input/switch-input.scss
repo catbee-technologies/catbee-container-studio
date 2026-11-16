@@ -5,6 +5,12 @@
   color: var(--ink-100);
   font-size: 0.84rem;
 
+  &.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+
   input {
     display: none;
   }

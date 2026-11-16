@@ -1,0 +1,61 @@
+@if (rows().length === 0) {
+  <catbee-container-studio-empty-state
+    [icon]="emptyIcon()"
+    [message]="emptyMessage()"
+    [hint]="emptyHint()"
+    size="small"
+    [style]="{ 'min-height': 'unset' }"
+  />
+} @else {
+  <div class="volume-rows-container">
+    @for (volume of rows(); track $index) {
+      <div class="volume-row">
+        <div class="path-input">
+          <input
+            id="volume-host-{{ $index }}"
+            type="text"
+            class="field-input volume-host-input"
+            [placeholder]="hostPlaceholder()"
+            [value]="volume.hostPath"
+            [disabled]="disabled()"
+            (input)="setHost($index, $any($event.target).value)"
+          />
+          <button
+            type="button"
+            class="catbee-action-btn icon-only"
+            aria-label="Browse for host folder"
+            [disabled]="disabled()"
+            (click)="pickHostPath($index)"
+          >
+            <span class="mat-icon-filled" aria-hidden="true">folder_open</span>
+          </button>
+        </div>
+        <span class="row-separator" aria-hidden="true">:</span>
+        <input
+          id="volume-container-{{ $index }}"
+          type="text"
+          class="field-input volume-container-input"
+          [placeholder]="containerPlaceholder()"
+          [value]="volume.containerPath"
+          [disabled]="disabled()"
+          (input)="setContainer($index, $any($event.target).value)"
+        />
+        <catbee-container-studio-switch-input
+          [checked]="volume.readOnly"
+          label="Read-only"
+          [disabled]="disabled()"
+          (checkedChange)="setReadOnly($index, $event)"
+        />
+        <button
+          type="button"
+          class="catbee-action-btn icon-only no-bg"
+          aria-label="Remove volume mapping"
+          [disabled]="disabled()"
+          (click)="removeRow($index)"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">close</span>
+        </button>
+      </div>
+    }
+  </div>
+}
