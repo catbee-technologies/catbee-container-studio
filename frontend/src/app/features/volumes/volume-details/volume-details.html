@@ -1,25 +1,12 @@
 <main class="catbee-details-container" aria-label="Volume details">
-  <header class="catbee-details-container-header">
-    <button type="button" class="back-btn" (click)="backToVolumes()">
-      <span class="mat-icon-filled" aria-hidden="true">chevron_left</span>
-    </button>
-
-    <div class="title-wrap">
-      <h1>{{ volumeName() }}</h1>
-    </div>
-
-    @if (volume()) {
-      <div class="details-header-actions">
-        <div class="header-size" aria-label="Volume size">
-          <span class="mat-icon-filled" aria-hidden="true">hard_drive</span>
-          <span class="header-size-text">
-            <span class="header-size-label">Size</span>
-            <strong>{{ volumeSize() }}</strong>
-          </span>
-        </div>
-      </div>
-    }
-  </header>
+  <catbee-container-studio-details-summary
+    [title]="volumeName()"
+    resourceType="Volume"
+    backLabel="Back to volumes"
+    [size]="volume() ? volumeSize() : ''"
+    [items]="isLoading() ? [] : summaryItems()"
+    (back)="backToVolumes()"
+  />
 
   @if (error(); as err) {
     <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" />
@@ -28,23 +15,6 @@
   @if (isLoading()) {
     <catbee-container-studio-empty-state [icon]="'hourglass_empty'" [message]="'Loading volume details...'" />
   } @else {
-    <section class="summary">
-      @for (item of summaryItems(); track item.label) {
-        <article>
-          <p class="label">{{ item.label }}</p>
-          <p
-            class="value"
-            [catbeeTooltip]="item.value"
-            [catbeeTooltipPosition]="'top'"
-            [catbeeTooltipDelay]="tooltipDelay"
-            [catbeeTooltipOnlyOnOverflow]="true"
-          >
-            {{ item.value }}
-          </p>
-        </article>
-      }
-    </section>
-
     <section class="tabs" aria-label="Volume tabs">
       <catbee-container-studio-tabs
         [tabs]="tabs"

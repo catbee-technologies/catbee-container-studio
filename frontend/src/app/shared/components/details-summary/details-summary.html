@@ -1,0 +1,65 @@
+<section class="details-summary" [attr.aria-label]="resourceType() + ' summary'">
+  <header>
+    <button type="button" class="back-btn" [attr.aria-label]="backLabel()" (click)="back.emit()">
+      <span class="mat-icon-filled" aria-hidden="true">chevron_left</span>
+    </button>
+    <div class="identity">
+      <div class="identity-text">
+        <h1 [catbeeTooltip]="title()" catbeeTooltipPosition="top" [catbeeTooltipOnlyOnOverflow]="true">
+          {{ title() }}
+        </h1>
+        <div class="identity-meta">
+          <span class="summary-subtitle">
+            <ng-content select="[summarySubtitle]" />
+          </span>
+          @if (identifier()) {
+            <span class="identifier">
+              {{ identifier().slice(0, 12) }}
+            </span>
+            <catbee-container-studio-copy-button
+              [text]="identifier()"
+              [ariaLabel]="'Copy ' + resourceType().toLowerCase() + ' ID'"
+              size="small"
+            />
+          }
+        </div>
+      </div>
+    </div>
+    <div class="summary-actions">
+      @if (size()) {
+        <div class="summary-size">
+          <span class="mat-icon-filled" aria-hidden="true">hard_drive</span>
+          <div class="summary-size-text">
+            <span class="summary-size-label">Size</span>
+            <strong>{{ size() }}</strong>
+          </div>
+        </div>
+      }
+      <ng-content select="[summaryActions]" />
+    </div>
+  </header>
+  <div class="summary-content">
+    <ng-content select="[summaryContent]" />
+  </div>
+  @if (items().length > 0) {
+    <dl class="summary-items">
+      @for (item of items(); track item.label) {
+        <div class="summary-item">
+          <dt>{{ item.label }}</dt>
+          <dd>
+            <span
+              class="summary-value"
+              [class.summary-badge]="item.badge"
+              [catbeeTooltip]="item.value"
+              catbeeTooltipPosition="top"
+              [catbeeTooltipDelay]="300"
+              [catbeeTooltipOnlyOnOverflow]="true"
+            >
+              {{ item.value }}
+            </span>
+          </dd>
+        </div>
+      }
+    </dl>
+  }
+</section>

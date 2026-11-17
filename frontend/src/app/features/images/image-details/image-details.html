@@ -1,34 +1,18 @@
 <main class="catbee-details-container" aria-label="Image details">
-  <header class="catbee-details-container-header">
-    <button type="button" class="back-btn" (click)="backToImages()" aria-label="Back to images">
-      <span class="mat-icon-filled" aria-hidden="true">chevron_left</span>
+  <catbee-container-studio-details-summary
+    [title]="title()"
+    resourceType="Image"
+    backLabel="Back to images"
+    [identifier]="imageId().replace('sha256:', '')"
+    [size]="inspectData() ? formatSize(inspectData()?.Size ?? 0) : ''"
+    [items]="isLoading() ? [] : details()"
+    (back)="backToImages()"
+  >
+    <button summaryActions type="button" class="catbee-action-btn action-start" (click)="openRunDialog()">
+      <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+      Run
     </button>
-
-    <div class="title-wrap">
-      <h1>{{ title() }}</h1>
-      <p class="mono">
-        {{ shortId(imageId()) }}
-        <catbee-container-studio-copy-button [text]="imageId().replace('sha256:', '')" size="small" />
-      </p>
-    </div>
-
-    <div class="details-header-actions">
-      @if (inspectData(); as image) {
-        <div class="header-size" aria-label="Image size">
-          <span class="mat-icon-filled" aria-hidden="true">hard_drive</span>
-          <span class="header-size-text">
-            <span class="header-size-label">Size</span>
-            <strong>{{ formatSize(image.Size ?? 0) }}</strong>
-          </span>
-        </div>
-      }
-
-      <button type="button" class="catbee-action-btn action-start" (click)="openRunDialog()">
-        <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
-        Run
-      </button>
-    </div>
-  </header>
+  </catbee-container-studio-details-summary>
 
   @if (error(); as err) {
     <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" />
@@ -37,23 +21,6 @@
   @if (isLoading()) {
     <catbee-container-studio-empty-state [icon]="'hourglass_empty'" [message]="'Loading image details...'" />
   } @else {
-    <section class="summary">
-      @for (item of details(); track item.label) {
-        <article>
-          <p class="label">{{ item.label }}</p>
-          <p
-            class="value"
-            [catbeeTooltip]="item.value"
-            [catbeeTooltipPosition]="'top'"
-            [catbeeTooltipDelay]="tooltipDelay"
-            [catbeeTooltipOnlyOnOverflow]="true"
-          >
-            {{ item.value }}
-          </p>
-        </article>
-      }
-    </section>
-
     <section class="tabs" aria-label="Image tabs">
       <catbee-container-studio-tabs
         [tabs]="tabs"

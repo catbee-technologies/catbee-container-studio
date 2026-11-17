@@ -13,7 +13,7 @@ import { SessionStorageService } from '@ng-catbee/storage';
 import { UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { VolumeFilesTabComponent } from './components/volume-files-tab/volume-files-tab';
 import { ConnectedContainersTableComponent } from '@components/connected-containers-table/connected-containers-table';
-import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
+import { DetailsSummaryComponent, DetailsSummaryItem } from '@components/details-summary/details-summary';
 
 enum VolumeDetailsTab {
   Containers = 'containers',
@@ -29,7 +29,7 @@ enum VolumeDetailsTab {
     ErrorBannerComponent,
     VolumeFilesTabComponent,
     ConnectedContainersTableComponent,
-    CatbeeTooltip
+    DetailsSummaryComponent
   ],
   templateUrl: './volume-details.html',
   styleUrl: './volume-details.scss'
@@ -42,8 +42,6 @@ export class VolumeDetailsPage {
   private readonly datePipe = inject(DatePipe);
   private readonly sessionStorage = inject(SessionStorageService);
 
-  readonly tooltipDelay = 300;
-
   readonly volumeName = signal('');
   readonly volume = signal<DockerVolumeInfo | null>(null);
   readonly containersInUse = signal<DockerContainerInfo[]>([]);
@@ -55,10 +53,10 @@ export class VolumeDetailsPage {
     { id: 'files', label: 'Files', icon: 'folder_copy' }
   ];
 
-  readonly summaryItems = computed(() => {
+  readonly summaryItems = computed<readonly DetailsSummaryItem[]>(() => {
     const volume = this.volume();
     if (!volume) {
-      return [] as { label: string; value: string }[];
+      return [];
     }
 
     return [

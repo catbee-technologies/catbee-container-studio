@@ -2,7 +2,7 @@ import { CommonModule, DatePipe } from '@angular/common';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { combineLatest } from 'rxjs';
-import { CopyButtonComponent } from '@components/copy-button/copy-button';
+import { DetailsSummaryComponent, DetailsSummaryItem } from '@components/details-summary/details-summary';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { TabsComponent, TabItem } from '@components/tabs/tabs';
@@ -23,7 +23,7 @@ enum NetworkDetailsTab {
   selector: 'catbee-container-studio-network-details-page',
   imports: [
     CommonModule,
-    CopyButtonComponent,
+    DetailsSummaryComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
     TabsComponent,
@@ -51,11 +51,11 @@ export class NetworkDetailsPage {
     { id: NetworkDetailsTab.Configuration, label: 'Configuration', icon: 'settings_ethernet' }
   ];
 
-  readonly summaryItems = computed(() => {
+  readonly summaryItems = computed<readonly DetailsSummaryItem[]>(() => {
     const network = this.network();
-    if (!network) return [] as { label: string; value: string }[];
+    if (!network) return [];
     return [
-      { label: 'Driver', value: network.Driver },
+      { label: 'Driver', value: network.Driver, badge: true },
       {
         label: 'Created',
         value: network.Created ? (this.datePipe.transform(network.Created, DATE_FORMAT) ?? '--') : '--'
@@ -115,10 +115,6 @@ export class NetworkDetailsPage {
   backToNetworks(): void {
     void this.router.navigateByUrl(this.getReturnTo('/networks'));
   }
-  shortId(id: string): string {
-    return id.replace('sha256:', '').slice(0, 12);
-  }
-
   endpointAddress(containerId: string): string {
     const endpoint = Object.entries(this.network()?.Containers ?? {}).find(
       ([id]) => id === containerId || id.startsWith(containerId)

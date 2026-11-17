@@ -26,7 +26,7 @@ import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { SessionStorageService } from '@ng-catbee/storage';
 import { UI_STORAGE_KEYS } from '@utils/storage.utils';
-import { CopyButtonComponent } from '@components/copy-button/copy-button';
+import { DetailsSummaryComponent } from '@components/details-summary/details-summary';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
 import { DialogComponent } from '@components/dialog/dialog';
@@ -59,7 +59,7 @@ enum ContainerTab {
     TabsComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
-    CopyButtonComponent,
+    DetailsSummaryComponent,
     CatbeeTooltip,
     ConfirmDialogComponent,
     DialogComponent,

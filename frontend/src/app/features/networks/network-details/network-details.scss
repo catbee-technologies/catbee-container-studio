@@ -121,13 +121,6 @@
   color: var(--ink-400);
   font-size: var(--font-size-sm);
 }
-.driver-badge {
-  background: var(--badge-total-gradient);
-  border-color: var(--badge-total-border);
-  color: var(--badge-total-text);
-  text-transform: uppercase;
-}
-
 @media (max-width: 700px) {
   .configuration-grid {
     grid-template-columns: 1fr;

@@ -4,20 +4,34 @@
 }
 
 .title-image-link {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 100%;
   font-family: var(--mono-font);
   font-size: 0.84rem;
   color: var(--color-primary-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  // Give space for image id and copy button
-  max-width: calc(100% - 20rem);
-}
 
-.header-main {
-  min-width: 0;
-  display: grid;
-  gap: 0.5rem;
+  .image-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mat-icon-filled {
+    flex-shrink: 0;
+    font-size: 0.9rem;
+  }
+
+  &:hover {
+    text-decoration: none;
+
+    .image-name {
+      text-decoration: underline;
+    }
+  }
 }
 
 .header-actions {
@@ -26,13 +40,6 @@
   align-self: center;
   gap: 0.45rem;
   flex-wrap: wrap;
-}
-
-@media (max-width: 900px) {
-  .header-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-  }
 }
 
 .edit-ports-dialog-body {

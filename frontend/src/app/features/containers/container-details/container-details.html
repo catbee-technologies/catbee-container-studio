@@ -1,40 +1,44 @@
 <main class="catbee-details-container" aria-label="Container details">
-  <header class="catbee-details-container-header">
-    <button type="button" class="back-btn" (click)="backToContainers()">
-      <span class="mat-icon-filled" aria-hidden="true">chevron_left</span>
-    </button>
+  <catbee-container-studio-details-summary
+    [title]="name()"
+    resourceType="Container"
+    backLabel="Back to containers"
+    [identifier]="container()?.Id ?? ''"
+    (back)="backToContainers()"
+  >
+    @if (container(); as current) {
+      <button
+        summarySubtitle
+        type="button"
+        class="link-btn title-image-link"
+        (click)="openImageDetails(imageRouteRef())"
+      >
+        <span
+          class="image-name"
+          [catbeeTooltip]="current.Image"
+          catbeeTooltipPosition="top"
+          [catbeeTooltipOnlyOnOverflow]="true"
+        >
+          {{ current.Image }}
+        </span>
+        <span class="mat-icon-filled" aria-hidden="true">arrow_outward</span>
+      </button>
+    }
+    @if (container(); as current) {
+      <catbee-container-studio-container-overview-card
+        summaryContent
+        [container]="current"
+        [inspectData]="inspectData()"
+        [imageRef]="imageRouteRef()"
+        [stats]="stats()"
+        [showAllPorts]="showAllPorts()"
+        (showAllPortsChange)="setShowAllPorts($event)"
+        (restartPolicyChange)="updateRestartPolicy($event)"
+        (editPorts)="openEditPortsDialog()"
+      />
+    }
 
-    <div class="header-main">
-      <div class="title-wrap">
-        <h1>{{ name() }}</h1>
-        @if (container(); as current) {
-          <p>
-            <button type="button" class="link-btn title-image-link" (click)="openImageDetails(imageRouteRef())">
-              {{ current.Image }}<span class="mat-icon-filled">arrow_outward</span>
-            </button>
-            <span aria-hidden="true"> • </span>
-            {{ current.Id.slice(0, 12) }}
-            <catbee-container-studio-copy-button [text]="current.Id" size="small" />
-          </p>
-        }
-      </div>
-
-      @if (container(); as currentContainer) {
-        <catbee-container-studio-container-overview-card
-          class="overview-inline"
-          [container]="currentContainer"
-          [inspectData]="inspectData()"
-          [imageRef]="imageRouteRef()"
-          [stats]="stats()"
-          [showAllPorts]="showAllPorts()"
-          (showAllPortsChange)="setShowAllPorts($event)"
-          (restartPolicyChange)="updateRestartPolicy($event)"
-          (editPorts)="openEditPortsDialog()"
-        />
-      }
-    </div>
-
-    <div class="header-actions">
+    <div summaryActions class="header-actions">
       @if (container()?.State === 'running' || container()?.State === 'paused') {
         <button
           type="button"
@@ -126,7 +130,7 @@
         <span class="mat-icon-filled" aria-hidden="true">delete</span>
       </button>
     </div>
-  </header>
+  </catbee-container-studio-details-summary>
 
   @if (error(); as err) {
     <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" />

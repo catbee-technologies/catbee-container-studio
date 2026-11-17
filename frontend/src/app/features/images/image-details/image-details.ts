@@ -11,10 +11,9 @@ import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { SessionStorageService } from '@ng-catbee/storage';
 import { UI_STORAGE_KEYS } from '@utils/storage.utils';
-import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { RunContainerDialogComponent } from '@docker-images/run-container-dialog/run-container-dialog';
 import { ConnectedContainersTableComponent } from '@components/connected-containers-table/connected-containers-table';
-import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
+import { DetailsSummaryComponent, DetailsSummaryItem } from '@components/details-summary/details-summary';
 
 enum ImageDetailsTab {
   Layers = 'layers',
@@ -28,10 +27,9 @@ enum ImageDetailsTab {
     TabsComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
-    CopyButtonComponent,
     RunContainerDialogComponent,
     ConnectedContainersTableComponent,
-    CatbeeTooltip
+    DetailsSummaryComponent
   ],
   templateUrl: './image-details.html',
   styleUrl: './image-details.scss'
@@ -43,8 +41,6 @@ export class ImageDetailsPage {
   private readonly destroyRef = inject(DestroyRef);
   private readonly datePipe = inject(DatePipe);
   private readonly sessionStorage = inject(SessionStorageService);
-
-  readonly tooltipDelay = 300;
 
   readonly imageId = signal('');
   readonly inspectData = signal<DockerImageInspectInfo | null>(null);
@@ -70,10 +66,10 @@ export class ImageDetailsPage {
     return this.shortId(this.imageId());
   });
 
-  readonly details = computed(() => {
+  readonly details = computed<readonly DetailsSummaryItem[]>(() => {
     const inspect = this.inspectData();
     if (!inspect) {
-      return [] as { label: string; value: string }[];
+      return [];
     }
 
     return [

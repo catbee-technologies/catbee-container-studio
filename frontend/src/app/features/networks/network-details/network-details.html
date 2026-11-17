@@ -1,33 +1,18 @@
 <main class="catbee-details-container" aria-label="Network details">
-  <header class="catbee-details-container-header">
-    <button type="button" class="back-btn" (click)="backToNetworks()">
-      <span class="mat-icon-filled" aria-hidden="true">chevron_left</span>
-    </button>
-    <div class="title-wrap">
-      <h1>{{ network()?.Name ?? networkId() }}</h1>
-      <p>{{ shortId(networkId()) }} <catbee-container-studio-copy-button [text]="networkId()" size="small" /></p>
-    </div>
-  </header>
+  <catbee-container-studio-details-summary
+    [title]="network()?.Name ?? networkId()"
+    resourceType="Network"
+    backLabel="Back to networks"
+    [identifier]="networkId()"
+    [items]="isLoading() ? [] : summaryItems()"
+    (back)="backToNetworks()"
+  />
   @if (error(); as errorMessage) {
     <catbee-container-studio-error-banner [errorMessage]="errorMessage" (closeErr)="error.set(null)" />
   }
   @if (isLoading()) {
     <catbee-container-studio-empty-state icon="hourglass_empty" message="Loading network details..." />
   } @else if (network()) {
-    <section class="summary">
-      @for (item of summaryItems(); track item.label) {
-        <article>
-          <p class="label">{{ item.label }}</p>
-          @if (item.label === 'Driver') {
-            <p class="value">
-              <span class="badge small driver-badge">{{ item.value }}</span>
-            </p>
-          } @else {
-            <p class="value">{{ item.value }}</p>
-          }
-        </article>
-      }
-    </section>
     <section class="tabs" aria-label="Network tabs">
       <catbee-container-studio-tabs
         [tabs]="tabs"
