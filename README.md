@@ -40,20 +40,33 @@ CatBee Container Studio is also available directly from the **Microsoft Store** 
 ### Containers
 
 - **Lifecycle Management**: Start, stop, restart, pause, unpause, and delete containers individually or in bulk.
+- **Force Recreate**: Recreate individual containers, selected containers, or Compose groups, with confirmation before proceeding. Compose-aware recreation uses the project configuration when it is available on the host.
 - **Docker Compose Grouping**: Automatically group containers by Compose project with collective status summaries.
 - **Aggregate Group Metrics**: Live CPU, Memory, Disk I/O, and Network I/O metrics summarized across all containers in each Compose group.
-- **Group Actions**: Coordinated start, stop, restart, pause, unpause, and delete operations across entire Compose projects.
+- **Group Actions**: Coordinated start, stop, restart, force recreate, pause, unpause, and delete operations across entire Compose projects.
 - **Search & Filtering**: Filter containers by name, ID, or image, with a quick toggle for running containers.
 - **Status & Health**: Visual indicators for container state, health status (healthy, unhealthy, starting), and compact uptimes.
 - **Container Details & Inspection**:
-  - **Overview**: Inspect container ID, image, created date, ports, commands, and entrypoint.
+  - **Summary**: Compact header with the container image, copyable ID, state, published ports, restart policy, and live CPU and memory usage.
+  - **Restart Policy**: Change the restart policy directly from the container summary.
   - **Metrics & Charts**: Real-time streaming charts for CPU, Memory usage with limit thresholds, Network I/O, and Block I/O.
   - **Streaming Logs**: Live container log output with virtualized scrolling, keyword/regex search, case matching, timestamps toggle, and auto-scroll.
   - **Interactive Terminal**: Built-in shell powered by **xterm.js** with full TTY emulation and terminal search.
   - **Files Browser**: Explore the container filesystem; view, edit with **Monaco Editor**, and delete files.
-  - **Environment Variables**: Inspect container environment variables with instant copy actions.
-  - **Mounts**: View bound host paths and named volumes with read/write permissions.
+  - **Environment Variables**: Inspect, search, copy, add, edit, or remove variables, including pasting `.env` contents. Save changes by recreating the container.
+  - **Mounts**: View source-to-destination cards with mount type, read/write access, and propagation details. Open host locations or volume details, and edit host-path or volume mappings.
+  - **Port Mappings**: Add TCP/UDP mappings, change published host ports, or remove mappings and recreate the container. Port range and duplicate-binding errors appear while editing; existing host IPs and multiple bindings are retained.
   - **Raw JSON**: Inspect full Docker container configuration with syntax highlighting.
+
+#### Configuration Editing & Recreation Safety
+
+- Reset environment variables, mounts, or ports to the last configured values before saving.
+- Confirm before clearing configured environment variables or mounts, or discarding unsaved edits when cancelling, switching tabs, or navigating away.
+- Engine-based configuration edits retain the existing image ID, unchanged named and anonymous volume sources, and unrelated port bindings.
+- Engine recreation keeps the original container until replacement setup and, for running containers, startup succeed. On failure, it attempts to restore the original name, network connections, and running/paused state; recovery failures are reported explicitly.
+- Running auto-remove containers and containers sharing another container's network namespace are blocked from Engine recreation to avoid unsafe replacement.
+
+> Editing a Compose container's environment, mounts, or ports uses the Docker Engine API and does not update the Compose files. A later `docker compose up` can replace those edits with the Compose configuration.
 
 ### Run Containers
 
@@ -62,11 +75,13 @@ CatBee Container Studio allows containers to be created and started directly fro
 When creating a container, supported configuration options include:
 
 - Container name (optional)
-- Port mappings (host port to container port)
+- Port mappings (host port to container port; use `0` for a randomly assigned host port or leave blank to keep the port unpublished)
 - Volume mappings (host path picker, container path, and read-only toggle)
 - Environment variables (key-value pairs, with direct `.env` file paste support)
 
 This provides a graphical alternative to manually constructing `docker run` commands.
+
+Unsaved drafts require confirmation before closing the container creation dialog or navigating away, including Back/Forward navigation.
 
 ### Files Browser
 
@@ -80,6 +95,8 @@ You can:
 - Edit and save files in-app using the integrated **Monaco Editor**
 - Delete files and directories
 - Sort entries by name, size, permissions, and modified date
+- Open a mount destination directly in the container's Files tab; file mounts are selected and scrolled into view for preview
+- Identify symbolic links without following them for preview or editing
 
 This makes it easier to inspect application data, configuration files, logs, and other files stored inside containers and volumes without opening a terminal.
 
@@ -95,6 +112,7 @@ This makes it easier to inspect application data, configuration files, logs, and
 ### Volumes
 
 - List available Docker volumes with total size calculation
+- Create named volumes with a configurable driver and an optional existing host directory
 - Filter volumes by usage (All, In Use, Unused)
 - Inspect volume details, driver, mountpoint, and containers in use
 - Browse, view, edit, and delete files inside volumes via the Files Browser
@@ -120,6 +138,14 @@ This makes it easier to inspect application data, configuration files, logs, and
 - High-performance virtualized scrolling through large log buffers
 - Auto-scroll / follow toggle, timestamps toggle, and log clearing
 
+### Resource Details & Feedback
+
+- Consistent, responsive detail summaries for containers, images, networks, and volumes, with copyable IDs and resource-specific actions and metadata
+- Unsaved network and volume creation drafts require confirmation before closing their dialogs or navigating away
+- Recreation progress is shown in the container details action button, and port-save failures appear inside the port editor
+- Known failures, such as port conflicts or duplicate mount destinations, show actionable messages throughout the app, including file operations and updates. The original error remains available under **Details**
+- Unknown errors remain unchanged, and automatic recovery failures stay prominently visible
+
 ### Themes
 
 - Curated **Dark Theme** and **Light Theme** with instant switching.
@@ -131,7 +157,7 @@ This makes it easier to inspect application data, configuration files, logs, and
 | Technology | Purpose |
 | --- | --- |
 | **Electron** | Cross-platform desktop runtime |
-| **Angular** | Modern component-driven frontend with Signals & Control Flow |
+| **Angular** | Modern component-driven frontend with Signals, Signal Forms & Control Flow |
 | **TypeScript** | End-to-end typed development |
 | **Dockerode** | Docker Engine API integration over local/named pipes and sockets |
 | **Monaco Editor** | Integrated code and file editor with syntax highlighting |
@@ -217,6 +243,7 @@ Before running CatBee Container Studio locally, ensure you have:
 - **Node.js** (v22 or newer recommended)
 - **npm** (v10 or newer)
 - **Docker Engine** / **Docker Desktop** installed, running, and accessible on your host machine
+- **Docker CLI with the Compose plugin** (`docker compose`) and accessible project files for Compose-based recreation
 
 Verify your Docker daemon is accessible:
 
