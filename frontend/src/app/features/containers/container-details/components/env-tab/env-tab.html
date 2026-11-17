@@ -42,11 +42,13 @@
   </div>
 
   @if (envRows().length === 0) {
-    <catbee-container-studio-empty-state
-      [icon]="'data_object'"
-      [message]="'No environment variables.'"
-      [hint]="'Click \'Edit Variables\' to add environment variables.'"
-    />
+    <div class="catbee-container-list-body catbee-base-panel">
+      <catbee-container-studio-empty-state
+        [icon]="'data_object'"
+        [message]="'No environment variables.'"
+        [hint]="'Click \'Edit Variables\' to add environment variables.'"
+      />
+    </div>
   } @else {
     <div #envScrollArea class="catbee-container-list-body catbee-base-panel">
       <table class="catbee-table env-table" aria-label="Environment variables">
@@ -82,7 +84,10 @@
     </div>
   }
 } @else {
-  <!-- EDIT MODE -->
+  <catbee-container-studio-edit-heading
+    title="Edit environment variables"
+    hint="Tip: You can paste lines from a .env file into any field to populate multiple variables at once."
+  />
   <div class="env-toolbar">
     <button type="button" class="catbee-action-btn fix-height" [disabled]="isRecreating()" (click)="addEnvVar()">
       <span class="mat-icon-filled" aria-hidden="true">add</span>
@@ -125,6 +130,7 @@
     <catbee-container-studio-env-variables-editor
       [fields]="envForm"
       [disabled]="isRecreating()"
+      [showPasteHint]="false"
       keyPlaceholder="KEY"
       valuePlaceholder="Value"
     />

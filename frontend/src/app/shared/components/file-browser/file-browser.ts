@@ -1,4 +1,17 @@
-import { Component, ElementRef, HostListener, computed, effect, inject, input, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  HostListener,
+  Injector,
+  afterNextRender,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+  untracked,
+  viewChild
+} from '@angular/core';
 import { DockerFileEntry } from '@shared/types/docker-api.types';
 import { BreadcrumbsComponent } from '@components/breadcrumbs/breadcrumbs';
 import { SearchInputComponent } from '@components/search-input/search-input';
@@ -23,6 +36,7 @@ export interface FileBrowserDataSource {
   write?(path: string, data: Uint8Array): Promise<void>;
   delete?(path: string): Promise<void>;
   getUnavailableState?(error: unknown): FileBrowserUnavailableState | null;
+  isDirectoryPathError?(error: unknown): boolean;
 }
 
 export interface FileBrowserUnavailableState {
@@ -54,6 +68,7 @@ const DIRECTORY_LOAD_TIMEOUT_MS = DIRECTORY_LOAD_TIMEOUT_SECONDS * 1000;
 export class FileBrowserComponent {
   private readonly sessionStorage = inject(SessionStorageService);
   private readonly themeService = inject(ThemeService);
+  private readonly injector = inject(Injector);
 
   private readonly browserContent = viewChild<ElementRef<HTMLElement>>('browserContent');
   private readonly directoryPanel = viewChild<ElementRef<HTMLElement>>('directoryPanel');
@@ -150,6 +165,7 @@ export class FileBrowserComponent {
   });
 
   private loadRequest = 0;
+  private requestedPath = '/';
   private previewRequest = 0;
 
   constructor() {
@@ -159,14 +175,17 @@ export class FileBrowserComponent {
       const storageKey = this.storageKey();
       const storedPath = storageKey ? this.sessionStorage.getWithDefault(storageKey, rootPath) : rootPath;
       const initialPath = this.isPathWithinRoot(storedPath, rootPath) ? this.normalizePath(storedPath) : rootPath;
-      this.currentPath.set(initialPath);
-      void this.loadDirectory(initialPath);
+      untracked(() => {
+        this.currentPath.set(rootPath);
+        void this.loadDirectory(initialPath);
+      });
     });
   }
 
   async loadDirectory(path: string): Promise<void> {
     const normalizedPath = this.normalizePath(path);
     const request = ++this.loadRequest;
+    this.requestedPath = normalizedPath;
     this.isLoading.set(true);
     if (this.directoryPanel()?.nativeElement) {
       this.directoryPanel()!.nativeElement.scrollTop = 0;
@@ -178,16 +197,42 @@ export class FileBrowserComponent {
     }
 
     try {
-      const entries = await this.listWithTimeout(normalizedPath);
+      const { directoryPath, entries, file } = await this.listDirectoryOrFile(normalizedPath);
       if (request !== this.loadRequest) {
         return;
       }
-      this.currentPath.set(normalizedPath);
+      this.requestedPath = directoryPath;
+      this.currentPath.set(directoryPath);
       this.entries.set(entries);
       this.clearSelection();
       const storageKey = this.storageKey();
       if (storageKey) {
-        this.sessionStorage.set(storageKey, normalizedPath);
+        this.sessionStorage.set(storageKey, directoryPath);
+      }
+      if (file) {
+        this.openEntry(file);
+        afterNextRender(
+          () => {
+            if (request !== this.loadRequest || this.selectedEntry()?.path !== file.path) {
+              return;
+            }
+            const panel = this.directoryPanel()?.nativeElement;
+            const row = panel?.querySelector<HTMLElement>('tr.selected');
+            if (!panel || !row) {
+              return;
+            }
+            const rowRect = row.getBoundingClientRect();
+            panel.scrollTo({
+              top:
+                panel.scrollTop +
+                rowRect.top -
+                panel.getBoundingClientRect().top -
+                (panel.clientHeight - rowRect.height) / 2,
+              behavior: 'instant'
+            });
+          },
+          { injector: this.injector }
+        );
       }
     } catch (error) {
       if (request === this.loadRequest) {
@@ -214,6 +259,7 @@ export class FileBrowserComponent {
     }
 
     if (entry.type === 'symlink') {
+      this.clearSelection();
       this.selectedEntry.set(entry);
       this.previewText.set(null);
       this.previewMessage.set({ message: 'Symlinks cannot be previewed.' });
@@ -236,7 +282,7 @@ export class FileBrowserComponent {
   }
 
   refresh(): void {
-    void this.loadDirectory(this.currentPath());
+    void this.loadDirectory(this.requestedPath);
   }
 
   @HostListener('window:keydown', ['$event'])
@@ -482,6 +528,31 @@ export class FileBrowserComponent {
     this.isEditing.set(false);
     this.editorText.set('');
     this.actionError.set(null);
+  }
+
+  private async listDirectoryOrFile(
+    path: string
+  ): Promise<{ directoryPath: string; entries: DockerFileEntry[]; file?: DockerFileEntry }> {
+    try {
+      return { directoryPath: path, entries: await this.listWithTimeout(path) };
+    } catch (error) {
+      const rootPath = this.normalizePath(this.rootPath());
+      const parentPath = path.slice(0, path.lastIndexOf('/')) || '/';
+      if (
+        !this.dataSource().isDirectoryPathError?.(error) ||
+        path === rootPath ||
+        !this.isPathWithinRoot(parentPath, rootPath)
+      ) {
+        throw error;
+      }
+
+      const entries = await this.listWithTimeout(parentPath);
+      const file = entries.find(entry => entry.type !== 'directory' && this.normalizePath(entry.path) === path);
+      if (!file) {
+        throw error;
+      }
+      return { directoryPath: parentPath, entries, file };
+    }
   }
 
   private async listWithTimeout(path: string): Promise<DockerFileEntry[]> {

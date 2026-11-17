@@ -347,6 +347,14 @@ export class ContainerDetailsPage implements OnDestroy {
     this.activateTab(tab as ContainerTab);
   }
 
+  openContainerPath(path: string): void {
+    if (this.isRecreating()) {
+      return;
+    }
+    this.sessionStorage.set(`${UI_STORAGE_KEYS.CONTAINERS_FILES_PATH_PREFIX}${this.containerId()}`, path);
+    this.setActiveTab(ContainerTab.Files);
+  }
+
   private activateTab(tab: ContainerTab): void {
     this.activeTab.set(tab);
     this.sessionStorage.set(`${UI_STORAGE_KEYS.CONTAINERS_SELECTED_TAB_PREFIX}${this.containerId()}`, tab);

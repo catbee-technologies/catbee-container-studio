@@ -8,112 +8,161 @@
     />
   </div>
 } @else if (!isEditing()) {
-  <section class="mounts-panel">
-    <div class="mounts-summary">
-      <article>
-        <h3>Total Mounts</h3>
-        <p>{{ mountRows().length }}</p>
-      </article>
-      <article>
-        <h3>Read/Write</h3>
-        <p>{{ readWriteMountCount() }}</p>
-      </article>
-      <article>
-        <h3>Read-Only</h3>
-        <p>{{ readOnlyMountCount() }}</p>
-      </article>
-      <article class="meta-card-with-action">
-        <div class="meta-card-info">
-          <h3>Declared Volumes</h3>
-          <p>{{ declaredVolumeNames().length }}</p>
+  <section class="mounts-panel" aria-label="Container storage">
+    <div class="mounts-overview">
+      <dl class="mounts-summary">
+        <div>
+          <dt>Attached mounts</dt>
+          <dd>{{ mountRows().length }}</dd>
         </div>
-        <button
-          type="button"
-          class="catbee-action-btn fix-height edit-mounts-btn"
-          [disabled]="isRecreating()"
-          (click)="startEditing()"
-        >
-          <span class="mat-icon-filled" aria-hidden="true">edit</span>
-          Edit Mounts
-        </button>
-      </article>
+        <div>
+          <dt>Read / write</dt>
+          <dd>{{ readWriteMountCount() }}</dd>
+        </div>
+        <div>
+          <dt>Read only</dt>
+          <dd>{{ readOnlyMountCount() }}</dd>
+        </div>
+        <div>
+          <dt>Declared paths</dt>
+          <dd class="summary-action">
+            <span>{{ declaredVolumeNames().length }}</span>
+            <button
+              type="button"
+              class="catbee-action-btn fix-height"
+              [disabled]="isRecreating()"
+              (click)="startEditing()"
+            >
+              <span class="mat-icon-filled" aria-hidden="true">edit</span>
+              Edit Mounts
+            </button>
+          </dd>
+        </div>
+      </dl>
     </div>
 
-    @if (mountRows().length === 0) {
-      <catbee-container-studio-empty-state
-        [icon]="'folder_open'"
-        [message]="'No mounts attached.'"
-        [hint]="'Volume mounts will appear here when attached to this container.'"
-      />
-    } @else {
-      <div class="catbee-container-list-body catbee-base-panel">
-        <table class="catbee-table mounts-table" aria-label="Mounts table">
-          <thead>
-            <tr>
-              <th scope="col">Type</th>
-              <th scope="col">Source</th>
-              <th scope="col">Destination</th>
-              <th scope="col">Mode</th>
-              <th scope="col">Access</th>
-              <th scope="col">Propagation</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (mount of mountRows(); track mount.source + '::' + mount.destination) {
-              <tr>
-                <td>{{ mount.type }}</td>
-                <td class="mono">
-                  @if (mount.displaySource !== '--') {
+    <div class="mounts-content">
+      @if (mountRows().length === 0) {
+        <div class="mounts-empty">
+          <span class="mat-icon-filled empty-storage-icon" aria-hidden="true">create_new_folder</span>
+          <div class="mounts-empty-copy">
+            <h3>No mounts attached</h3>
+            <p>Connect a volume or host folder to persist container data.</p>
+          </div>
+          <button type="button" class="catbee-action-btn" (click)="startEditing()">
+            <span class="mat-icon-filled" aria-hidden="true">add</span>
+            Add Mount
+          </button>
+        </div>
+      } @else {
+        <ul class="mount-list" aria-label="Attached mounts">
+          @for (mount of mountRows(); track mount.source + '::' + mount.destination) {
+            <li class="mount-card">
+              <header class="mount-card-header">
+                <h3>
+                  <span class="mat-icon-filled" aria-hidden="true">
+                    {{ mount.type === 'volume' ? 'database' : mount.type === 'tmpfs' ? 'memory' : 'folder' }}
+                  </span>
+                  {{ mount.type === 'volume' ? 'Volume' : mount.type === 'bind' ? 'Bind mount' : mount.type }}
+                </h3>
+                @if (mount.mode !== '--' || mount.propagation !== '--') {
+                  <dl class="mount-details">
+                    @if (mount.mode !== '--') {
+                      <div>
+                        <dt>Mode</dt>
+                        <dd>{{ mount.mode }}</dd>
+                      </div>
+                    }
+                    @if (mount.propagation !== '--') {
+                      <div>
+                        <dt>Propagation</dt>
+                        <dd>{{ mount.propagation }}</dd>
+                      </div>
+                    }
+                  </dl>
+                }
+                <span class="mount-access" [class.rw]="mount.readWrite" [class.ro]="!mount.readWrite">
+                  <span class="mat-icon-filled" aria-hidden="true">{{ mount.readWrite ? 'edit' : 'lock' }}</span>
+                  {{ mount.readWrite ? 'Read / write' : 'Read only' }}
+                </span>
+              </header>
+              <div class="mount-paths">
+                <div class="mount-path">
+                  <span class="path-label">{{ mount.type === 'volume' ? 'Volume name' : 'Source' }}</span>
+                  @if (mount.displaySource && mount.displaySource !== '--') {
                     <button
+                      type="button"
                       class="mount-source-btn"
                       (click)="openMountSource(mount)"
-                      [catbeeTooltip]="mount.type === 'volume' ? 'Open volume details' : 'Open in Finder'"
+                      [catbeeTooltip]="mount.type === 'volume' ? 'Open volume details' : 'Open host location'"
                       [catbeeTooltipPosition]="'top'"
                     >
-                      <span class="mat-icon-filled mount-source-icon" aria-hidden="true">folder_open</span>
                       <span class="mount-source-text">{{ mount.displaySource }}</span>
-                      <span class="mat-icon-filled mount-source-icon" aria-hidden="true">open_in_new</span>
+                      <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
                     </button>
                   } @else {
-                    --
+                    <span class="mount-source-unavailable">
+                      {{ mount.type === 'tmpfs' ? 'In-memory storage' : 'Not available' }}
+                    </span>
                   }
-                </td>
-                <td class="mono">{{ mount.destination }}</td>
-                <td>{{ mount.mode }}</td>
-                <td>
-                  <span class="mount-access" [class.rw]="mount.readWrite" [class.ro]="!mount.readWrite">
-                    {{ mount.readWrite ? 'rw' : 'ro' }}
-                  </span>
-                </td>
-                <td>{{ mount.propagation }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    }
+                </div>
+                <span class="mat-icon-filled mount-direction" aria-hidden="true">arrow_forward</span>
+                <div class="mount-path">
+                  <span class="path-label">Container path</span>
+                  @if (mount.destination && mount.destination !== '--') {
+                    <button
+                      type="button"
+                      class="mount-source-btn"
+                      (click)="openContainerPath.emit(mount.destination)"
+                      catbeeTooltip="Open in Files tab"
+                      [catbeeTooltipPosition]="'top'"
+                    >
+                      <span class="mount-source-text">{{ mount.destination }}</span>
+                      <span class="mat-icon-filled" aria-hidden="true">folder_open</span>
+                    </button>
+                  } @else {
+                    <code>{{ mount.destination }}</code>
+                  }
+                </div>
+              </div>
+            </li>
+          }
+        </ul>
+      }
 
-    <div class="mounts-meta-grid">
-      <article class="mounts-meta-card catbee-base-panel">
-        <h3>Declared Volumes</h3>
-        @if (declaredVolumeNames().length === 0) {
-          <catbee-container-studio-empty-state
-            [icon]="'folder_open'"
-            [message]="'No volumes declared in image config.'"
-            [hint]="'Declared volumes will appear here when specified in the image config.'"
-          />
-        } @else {
-          <ul class="mono">
+      <section class="declared-volumes" aria-label="Declared volume paths">
+        <div class="declared-heading">
+          <span class="mat-icon-filled" aria-hidden="true">info</span>
+          <h3>Declared volume paths</h3>
+        </div>
+        @if (declaredVolumeNames().length > 0) {
+          <ul>
             @for (volumeName of declaredVolumeNames(); track volumeName) {
-              <li>{{ volumeName }}</li>
+              <li>
+                <button
+                  type="button"
+                  class="mount-source-btn"
+                  (click)="openContainerPath.emit(volumeName)"
+                  catbeeTooltip="Open in Files tab"
+                  [catbeeTooltipPosition]="'top'"
+                >
+                  <span class="mount-source-text">{{ volumeName }}</span>
+                  <span class="mat-icon-filled" aria-hidden="true">folder_open</span>
+                </button>
+              </li>
             }
           </ul>
+        } @else {
+          <p>No paths declared.</p>
         }
-      </article>
+      </section>
     </div>
   </section>
 } @else {
-  <!-- EDIT MODE -->
+  <catbee-container-studio-edit-heading
+    title="Edit mounts"
+    hint="Use a host folder or Docker volume name as the source. Saving recreates the container to apply your changes."
+  />
   <div class="mounts-toolbar">
     <button type="button" class="catbee-action-btn fix-height" [disabled]="isRecreating()" (click)="addMount()">
       <span class="mat-icon-filled" aria-hidden="true">add</span>

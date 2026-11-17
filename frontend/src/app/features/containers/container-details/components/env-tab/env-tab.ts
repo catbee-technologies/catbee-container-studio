@@ -6,6 +6,7 @@ import { SearchInputComponent } from '@components/search-input/search-input';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
 import { EnvVariablesEditorComponent } from '@components/env-variables-editor/env-variables-editor';
+import { EditHeadingComponent } from '@components/edit-heading/edit-heading';
 import { DockerContainerInfo, DockerContainerInspectInfo } from '@shared/types/docker-api.types';
 import { EnvVarRow, areEnvVarsEqual, dockerEnvToRows, rowsToDockerEnv } from '@utils/env.utils';
 import { envRowsSchema, resetFormRows } from '@utils/configuration-form.utils';
@@ -32,6 +33,7 @@ interface EnvMatch {
     EmptyStateComponent,
     ConfirmDialogComponent,
     EnvVariablesEditorComponent,
+    EditHeadingComponent,
     FormRoot
   ],
   templateUrl: './env-tab.html',

@@ -6,6 +6,10 @@
   min-height: 0;
   overflow: hidden;
 
+  &:has(catbee-container-studio-edit-heading) {
+    grid-template-rows: auto auto 1fr;
+  }
+
   &:has(.env-loading-panel) {
     grid-template-rows: 1fr;
   }

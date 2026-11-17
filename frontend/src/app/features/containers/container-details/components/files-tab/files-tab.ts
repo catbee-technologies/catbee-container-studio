@@ -39,6 +39,8 @@ export class FilesTabComponent {
     read: path => this.dockerApi.readContainerFile(this.containerId(), path),
     write: (path, data) => this.dockerApi.uploadContainerFile(this.containerId(), path, data),
     delete: path => this.dockerApi.deleteContainerFile(this.containerId(), path),
+    isDirectoryPathError: error =>
+      error instanceof Error && error.message.startsWith('Directory does not exist or is not accessible:'),
     getUnavailableState: error => {
       const message = error instanceof Error ? error.message : '';
       if (FilesTabComponent.CONTAINER_STOPPED_OR_PAUSED_RE.test(message)) {

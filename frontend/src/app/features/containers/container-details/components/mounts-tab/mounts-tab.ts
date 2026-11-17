@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
 import { VolumeMappingsEditorComponent } from '@components/volume-mappings-editor/volume-mappings-editor';
+import { EditHeadingComponent } from '@components/edit-heading/edit-heading';
 import { DockerContainerInfo, DockerContainerInspectInfo } from '@shared/types/docker-api.types';
 import { ElectronApiService } from '@core/electron-api.service';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
@@ -30,6 +31,7 @@ interface MountRow {
     CatbeeTooltip,
     ConfirmDialogComponent,
     VolumeMappingsEditorComponent,
+    EditHeadingComponent,
     FormRoot
   ],
   templateUrl: './mounts-tab.html',
@@ -44,6 +46,7 @@ export class MountsTabComponent {
   readonly container = input<DockerContainerInfo | null>(null);
   readonly isRecreating = input(false);
   readonly recreate = output<{ binds: string[] }>();
+  readonly openContainerPath = output<string>();
 
   readonly isEditing = signal(false);
   readonly initialBinds = signal<VolumeMappingRow[]>([]);
