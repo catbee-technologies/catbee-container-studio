@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
 import { apply, disabled, form, FormField, FormRoot } from '@angular/forms/signals';
 import type Docker from 'dockerode';
 import { DockerApiService } from '@core/docker-api.service';
@@ -10,8 +10,9 @@ import { VolumeMappingsEditorComponent } from '@components/volume-mappings-edito
 import { PortMappingsEditorComponent } from '@components/port-mappings-editor/port-mappings-editor';
 import { EnvVarRow, rowsToDockerEnv } from '@utils/env.utils';
 import { VolumeMappingRow, rowsToDockerBinds } from '@utils/volume.utils';
-import { PortMappingRow, rowsToDockerPortBindings } from '@utils/port.utils';
+import { dockerPortsToRows, PortMappingRow, rowsToDockerPortBindings } from '@utils/port.utils';
 import { envRowsSchema, portRowsSchema, volumeRowsSchema } from '@utils/configuration-form.utils';
+import { PendingNavigation } from '@utils/pending-navigation.utils';
 
 interface RunContainerFormValue {
   containerName: string;
@@ -36,6 +37,7 @@ interface RunContainerFormValue {
   styleUrl: './run-container-dialog.scss'
 })
 export class RunContainerDialogComponent {
+  private readonly pendingNavigation = new PendingNavigation();
   private readonly dockerApi = inject(DockerApiService);
   private readonly envEditor = viewChild(EnvVariablesEditorComponent);
   private readonly volumeEditor = viewChild(VolumeMappingsEditorComponent);
@@ -81,6 +83,7 @@ export class RunContainerDialogComponent {
   readonly clearTarget = signal<'volumes' | 'env' | null>(null);
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => this.pendingNavigation.resolve(false));
     effect(() => {
       const image = this.image();
       if (this.open()) {
@@ -109,23 +112,9 @@ export class RunContainerDialogComponent {
     this.isLoadingPorts.set(true);
     try {
       const inspectInfo = await this.dockerApi.inspectImage(trimmedImage);
-      const entries = Object.keys(inspectInfo.Config?.ExposedPorts ?? {});
-
-      const rows: PortMappingRow[] = entries
-        .map((entry): PortMappingRow => {
-          const [containerPort, protocol] = entry.split('/');
-          return {
-            containerPort: containerPort ?? '',
-            protocol: protocol === 'udp' ? 'udp' : 'tcp',
-            hostPort: ''
-          };
-        })
-        .filter(row => row.containerPort)
-        .sort((left, right) => Number(left.containerPort) - Number(right.containerPort));
-
-      this.ports.set(rows);
-    } catch {
-      // Image metadata unavailable; leave the ports list empty for manual review.
+      this.ports.set(dockerPortsToRows(inspectInfo.Config?.ExposedPorts));
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : 'Failed to load exposed image ports.');
       this.ports.set([]);
     } finally {
       this.isLoadingPorts.set(false);
@@ -187,6 +176,23 @@ export class RunContainerDialogComponent {
   confirmClose(): void {
     this.showConfirmClose.set(false);
     this.closeDialog.emit();
+    this.pendingNavigation.resolve(true);
+  }
+
+  cancelClose(): void {
+    this.showConfirmClose.set(false);
+    this.pendingNavigation.resolve(false);
+  }
+
+  canDeactivate(): boolean | Promise<boolean> {
+    if (this.isSubmitting()) {
+      return false;
+    }
+    if (!this.open() || !this.hasUnsavedChanges()) {
+      return true;
+    }
+    this.showConfirmClose.set(true);
+    return this.pendingNavigation.request();
   }
 
   async run(): Promise<void> {
@@ -210,6 +216,7 @@ export class RunContainerDialogComponent {
         throw new Error('Container was created but no id was returned.');
       }
       await this.dockerApi.startContainer(containerId);
+      this.resetForm();
       this.created.emit(containerId);
       this.closeDialog.emit();
     } catch (error) {

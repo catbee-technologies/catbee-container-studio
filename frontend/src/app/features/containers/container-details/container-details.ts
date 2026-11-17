@@ -224,9 +224,17 @@ export class ContainerDetailsPage implements OnDestroy {
   private async startEventStream(): Promise<void> {
     try {
       const result = await this.dockerApi.startEventsStream();
+      if (this.isDisposed) {
+        await this.dockerApi.stopStream(result.streamId);
+        return;
+      }
       this.eventsStreamId = result.streamId;
-    } catch {
-      // Docker events unavailable; the header status will only refresh after manual actions.
+    } catch (error) {
+      if (this.isDisposed) {
+        console.error('Failed to clean up the Docker events stream after leaving container details.', error);
+      } else {
+        console.warn('Docker events unavailable; container status will refresh after manual actions.', error);
+      }
     }
   }
 

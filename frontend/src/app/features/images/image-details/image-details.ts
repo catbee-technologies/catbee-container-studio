@@ -1,5 +1,5 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { combineLatest } from 'rxjs';
 import { DockerApiService } from '@core/docker-api.service';
@@ -35,6 +35,11 @@ enum ImageDetailsTab {
   styleUrl: './image-details.scss'
 })
 export class ImageDetailsPage {
+  private readonly runDialog = viewChild(RunContainerDialogComponent);
+
+  canDeactivate(): boolean | Promise<boolean> {
+    return this.runDialog()?.canDeactivate() ?? true;
+  }
   private readonly dockerApi = inject(DockerApiService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);

@@ -96,7 +96,7 @@
 
       @case ('error') {
         <div class="catbee-updater-state error">
-          <p>{{ status.message }}</p>
+          <catbee-container-studio-error-banner [errorMessage]="status.message" [closable]="false" />
         </div>
       }
     }

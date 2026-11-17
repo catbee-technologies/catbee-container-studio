@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { apply, disabled, form, FormField, FormRoot } from '@angular/forms/signals';
 import { fieldError, resourceNameSchema } from '@utils/configuration-form.utils';
+import { PendingNavigation } from '@utils/pending-navigation.utils';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { DockerApiService } from '@core/docker-api.service';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
@@ -84,6 +85,7 @@ export const MIN_NETWORK_COLUMN_WIDTHS: Record<NetworkResizableColumn, number> =
   styleUrl: './networks-list.scss'
 })
 export class NetworksPage {
+  private readonly pendingNavigation = new PendingNavigation();
   private readonly dockerApi = inject(DockerApiService);
   private readonly router = inject(Router);
   private readonly localStorage = inject(LocalStorageService);
@@ -296,6 +298,7 @@ export class NetworksPage {
   );
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => this.pendingNavigation.resolve(false));
     void this.loadNetworks();
   }
 
@@ -574,6 +577,23 @@ export class NetworksPage {
   confirmCloseCreateDialog(): void {
     this.showConfirmCloseCreate.set(false);
     this.createDialogOpen.set(false);
+    this.pendingNavigation.resolve(true);
+  }
+
+  cancelCloseCreateDialog(): void {
+    this.showConfirmCloseCreate.set(false);
+    this.pendingNavigation.resolve(false);
+  }
+
+  canDeactivate(): boolean | Promise<boolean> {
+    if (this.isCreating()) {
+      return false;
+    }
+    if (!this.createDialogOpen() || !this.hasCreateChanges()) {
+      return true;
+    }
+    this.showConfirmCloseCreate.set(true);
+    return this.pendingNavigation.request();
   }
 
   async createNetwork(): Promise<void> {

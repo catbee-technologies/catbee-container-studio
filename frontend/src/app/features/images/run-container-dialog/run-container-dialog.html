@@ -132,7 +132,7 @@
   confirmLabel="Discard & Close"
   cancelLabel="Keep Editing"
   [dangerous]="true"
-  (cancelAction)="showConfirmClose.set(false)"
+  (cancelAction)="cancelClose()"
   (confirm)="confirmClose()"
 />
 

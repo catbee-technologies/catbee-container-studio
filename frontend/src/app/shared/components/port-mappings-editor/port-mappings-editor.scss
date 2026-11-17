@@ -16,6 +16,13 @@
   width: 100%;
 }
 
+.port-binding-address {
+  color: var(--ink-300);
+  font-family: var(--mono-font);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
 .port-row {
   display: flex;
   align-items: center;

@@ -20,8 +20,11 @@
 
     <div class="port-rows-container">
       @for (port of fields(); track port; let idx = $index) {
-        @let hostError = fieldError(port.hostPort());
+        @let hostError = fieldError(port.hostPort(), true);
         <div class="port-row-wrapper">
+          @if (port().value().hostIp; as hostIp) {
+            <span class="port-binding-address">Host IP: {{ hostIp }}</span>
+          }
           <div class="port-row">
             <div class="port-input-wrapper" [class.has-error]="hostError !== null">
               <input
@@ -33,7 +36,11 @@
                 [attr.aria-invalid]="hostError !== null"
                 [attr.aria-describedby]="hostError ? 'port-error-' + idx : null"
                 [attr.aria-label]="
-                  'Host port for container port ' + port.containerPort().value() + '/' + port.protocol().value()
+                  'Host port for container port ' +
+                  port.containerPort().value() +
+                  '/' +
+                  port.protocol().value() +
+                  (port().value().hostIp ? ' on ' + port().value().hostIp : '')
                 "
                 placeholder="Host port"
                 [formField]="port.hostPort"

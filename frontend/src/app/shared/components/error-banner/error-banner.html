@@ -1,6 +1,15 @@
 @if (visible()) {
+  @let formatted = formattedError();
   <section class="catbee-error-banner {{ size() }}" role="alert">
-    <span class="catbee-error-message">{{ errorMessage() }}</span>
+    <div class="catbee-error-message">
+      <span>{{ formatted.message }}</span>
+      @if (formatted.details; as details) {
+        <details class="error-details">
+          <summary>Details</summary>
+          <pre>{{ details }}</pre>
+        </details>
+      }
+    </div>
 
     @if (closable()) {
       <button type="button" class="catbee-action-btn icon-only close-btn" (click)="onClose()" aria-label="Close">

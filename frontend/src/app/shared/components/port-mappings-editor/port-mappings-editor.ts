@@ -3,7 +3,7 @@ import { apply, disabled, FieldTree, form, FormField, submit, validate } from '@
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
-import { PortMappingRow } from '@utils/port.utils';
+import { hostPortsConflict, PortMappingRow } from '@utils/port.utils';
 import { fieldError, portMappingSchema } from '@utils/configuration-form.utils';
 
 @Component({
@@ -35,9 +35,7 @@ export class PortMappingsEditorComponent {
       if (!hostPort || hostPort === '0') {
         return undefined;
       }
-      const duplicate = this.rows().find(
-        row => row.hostPort.trim() === hostPort && row.protocol === valueOf(path.protocol)
-      );
+      const duplicate = this.rows().find(row => hostPortsConflict(row, valueOf(path)));
       return duplicate
         ? {
             kind: 'duplicate',
@@ -59,8 +57,8 @@ export class PortMappingsEditorComponent {
         this.newPortModel().containerPort.length > 0 ||
         this.newPortModel().protocol !== 'tcp')
   );
-  readonly newHostPortError = computed(() => fieldError(this.newPortForm.hostPort()));
-  readonly newContainerPortError = computed(() => fieldError(this.newPortForm.containerPort()));
+  readonly newHostPortError = computed(() => fieldError(this.newPortForm.hostPort(), true));
+  readonly newContainerPortError = computed(() => fieldError(this.newPortForm.containerPort(), true));
 
   normalizePortInput(field: FieldTree<string>, event: Event): void {
     const target = event.target as HTMLInputElement;
@@ -69,6 +67,7 @@ export class PortMappingsEditorComponent {
       target.value = sanitized;
     }
     field().value.set(sanitized);
+    field().markAsDirty();
   }
 
   openAddForm(): void {

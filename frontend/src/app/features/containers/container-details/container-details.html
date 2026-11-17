@@ -110,12 +110,13 @@
         class="catbee-action-btn icon-only lg action-recreate"
         (click)="requestRecreate()"
         [disabled]="isDeleting() || isRecreating()"
-        aria-label="Force Recreate"
-        [catbeeTooltip]="'Force Recreate'"
+        [attr.aria-label]="isRecreating() ? 'Recreating...' : 'Force Recreate'"
+        [attr.aria-busy]="isRecreating()"
+        [catbeeTooltip]="isRecreating() ? 'Recreating...' : 'Force Recreate'"
         [catbeeTooltipPosition]="'top'"
         [catbeeTooltipDelay]="tooltipDelay"
       >
-        <span class="mat-icon-filled" aria-hidden="true">refresh</span>
+        <span class="mat-icon-filled" [class.spin]="isRecreating()" aria-hidden="true">refresh</span>
       </button>
       <button
         type="button"
@@ -132,7 +133,7 @@
     </div>
   </catbee-container-studio-details-summary>
 
-  @if (error(); as err) {
+  @if (!showEditPortsDialog() && error(); as err) {
     <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" />
   }
 
@@ -252,6 +253,10 @@
   (closed)="onEditPortsDialogClosed()"
 >
   <form catbeeDialogBody id="edit-ports-form" [formRoot]="portsForm" class="edit-ports-dialog-body">
+    @if (error(); as err) {
+      <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" size="small" />
+    }
+
     <p class="edit-ports-intro">
       Update published host ports for container <strong>{{ name() }}</strong
       >. Saving will recreate the container to apply port changes.

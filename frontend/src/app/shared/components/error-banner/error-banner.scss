@@ -22,6 +22,29 @@
     line-height: 1.4;
     max-height: calc(10rem - 1.5rem);
     overflow-y: auto;
+    overflow-wrap: anywhere;
+  }
+
+  .error-details {
+    margin-top: 0.35rem;
+
+    summary {
+      cursor: pointer;
+      width: fit-content;
+
+      &:focus-visible {
+        outline: 2px solid var(--border-color-focus, #38bdf8);
+        outline-offset: 2px;
+      }
+    }
+
+    pre {
+      margin: 0.5rem 0 0;
+      font-family: var(--mono-font);
+      font-size: inherit;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
   }
 
   .close-btn {
@@ -82,6 +105,14 @@
       font-size: 1.2rem;
       height: 1.5rem;
       width: 1.5rem;
+    }
+  }
+
+  &:has(.error-details[open]) {
+    max-height: min(20rem, 50vh);
+
+    .catbee-error-message {
+      max-height: calc(min(20rem, 50vh) - 1.5rem);
     }
   }
 }

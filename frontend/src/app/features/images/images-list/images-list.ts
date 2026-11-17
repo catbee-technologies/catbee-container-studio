@@ -83,6 +83,11 @@ export class ImagesPage {
   private readonly sessionStorage = inject(SessionStorageService);
 
   private readonly imageSearchInput = viewChild<SearchInputComponent>('imageSearchInput');
+  private readonly runDialog = viewChild(RunContainerDialogComponent);
+
+  canDeactivate(): boolean | Promise<boolean> {
+    return this.runDialog()?.canDeactivate() ?? true;
+  }
 
   readonly UI_STORAGE_KEYS = UI_STORAGE_KEYS;
   readonly tooltipDelay = 300;

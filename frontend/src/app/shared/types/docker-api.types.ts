@@ -1,7 +1,7 @@
 export interface RecreateContainerOptions {
   env?: string[];
   binds?: string[];
-  portBindings?: Record<string, { HostPort: string }[]>;
+  portBindings?: Record<string, { HostPort: string; HostIp?: string }[]>;
   exposedPorts?: Record<string, object>;
   restartPolicy?: { Name: string; MaximumRetryCount?: number };
 }
@@ -96,7 +96,7 @@ export interface DockerContainerInspectInfo {
   };
   HostConfig?: {
     Binds?: string[];
-    PortBindings?: Record<string, { HostPort?: string }[]>;
+    PortBindings?: Record<string, { HostPort?: string; HostIp?: string }[]>;
     RestartPolicy?: {
       Name?: string;
       MaximumRetryCount?: number;

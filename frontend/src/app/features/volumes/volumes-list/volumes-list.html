@@ -388,6 +388,6 @@
   confirmLabel="Discard & Close"
   cancelLabel="Keep Editing"
   [dangerous]="true"
-  (cancelAction)="showConfirmCloseCreate.set(false)"
+  (cancelAction)="cancelCloseCreateDialog()"
   (confirm)="confirmCloseCreateDialog()"
 />

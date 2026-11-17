@@ -1,8 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { apply, disabled, form, FormField, FormRoot } from '@angular/forms/signals';
 import { fieldError, resourceNameSchema } from '@utils/configuration-form.utils';
+import { PendingNavigation } from '@utils/pending-navigation.utils';
 import { DockerApiService } from '@core/docker-api.service';
 import { ElectronApiService } from '@core/electron-api.service';
 import { DockerVolumeInfo } from '@shared/types/docker-api.types';
@@ -75,6 +76,7 @@ export const MIN_VOLUME_COLUMN_WIDTHS: Record<VolumeColumn, number> = {
   styleUrl: './volumes-list.scss'
 })
 export class VolumesPage {
+  private readonly pendingNavigation = new PendingNavigation();
   private readonly dockerApi = inject(DockerApiService);
   private readonly electronApi = inject(ElectronApiService);
   private readonly router = inject(Router);
@@ -322,6 +324,7 @@ export class VolumesPage {
   );
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => this.pendingNavigation.resolve(false));
     void this.loadVolumes();
   }
 
@@ -596,6 +599,23 @@ export class VolumesPage {
   confirmCloseCreateDialog(): void {
     this.showConfirmCloseCreate.set(false);
     this.createDialogOpen.set(false);
+    this.pendingNavigation.resolve(true);
+  }
+
+  cancelCloseCreateDialog(): void {
+    this.showConfirmCloseCreate.set(false);
+    this.pendingNavigation.resolve(false);
+  }
+
+  canDeactivate(): boolean | Promise<boolean> {
+    if (this.isCreating()) {
+      return false;
+    }
+    if (!this.createDialogOpen() || !this.hasCreateChanges()) {
+      return true;
+    }
+    this.showConfirmCloseCreate.set(true);
+    return this.pendingNavigation.request();
   }
 
   async pickHostPath(): Promise<void> {

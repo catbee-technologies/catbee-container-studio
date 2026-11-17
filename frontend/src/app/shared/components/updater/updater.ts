@@ -3,6 +3,7 @@ import { Component, computed, DestroyRef, effect, inject, input, model, output, 
 import { ElectronApiService } from '@core/electron-api.service';
 import { AutoUpdaterStatus, UpdateDownloadProgress } from '@shared/types';
 import { DialogComponent } from '@components/dialog/dialog';
+import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { formatDockerBytes } from '@utils/docker-display.utils';
 import { ThemeService } from '@services/theme.service';
 
@@ -10,7 +11,7 @@ import { ThemeService } from '@services/theme.service';
   selector: 'catbee-container-studio-updater',
   templateUrl: './updater.html',
   styleUrl: './updater.scss',
-  imports: [CommonModule, DialogComponent]
+  imports: [CommonModule, DialogComponent, ErrorBannerComponent]
 })
 export class UpdaterComponent {
   private readonly electronApi = inject(ElectronApiService);

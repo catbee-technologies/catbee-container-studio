@@ -21,7 +21,7 @@ const execFileAsync = promisify(execFile);
 export interface RecreateContainerOptions {
   env?: string[];
   binds?: string[];
-  portBindings?: Record<string, { HostPort: string }[]>;
+  portBindings?: Record<string, { HostIp?: string; HostPort: string }[]>;
   exposedPorts?: Record<string, object>;
   restartPolicy?: { Name: string; MaximumRetryCount?: number };
 }
@@ -216,6 +216,7 @@ export class DockerContainerService extends DockerBaseService {
 
     // Standalone container or compose working directory not found on host: recreate via Docker Engine API
     const wasRunning = inspectInfo.State?.Running ?? false;
+    const wasPaused = inspectInfo.State?.Paused ?? false;
     const name = inspectInfo.Name ? inspectInfo.Name.replace(/^\//, '') : undefined;
     const config = inspectInfo.Config ?? {};
     const configRecord = config as unknown as Record<string, unknown>;
@@ -223,10 +224,93 @@ export class DockerContainerService extends DockerBaseService {
     const stopTimeout = typeof configRecord['StopTimeout'] === 'number' ? configRecord['StopTimeout'] : undefined;
     const hostConfig = inspectInfo.HostConfig ?? {};
     const networkSettings = inspectInfo.NetworkSettings;
+    if (hostConfig.AutoRemove && (wasRunning || wasPaused)) {
+      throw new Error(
+        'Cannot safely recreate a running container with AutoRemove enabled because stopping it removes the original before replacement succeeds.'
+      );
+    }
+    const networkMode = hostConfig.NetworkMode ?? '';
+    const sharesContainerNetwork = networkMode.startsWith('container:');
+    const hasBindOverrides = options?.binds !== undefined;
+    let existingMounts = inspectInfo.Mounts ?? [];
+    if (!hasBindOverrides && existingMounts.some(mount => mount.Type === 'volume' && !mount.Name)) {
+      // Legacy anonymous mounts can expose a source path without a volume name.
+      const { Volumes: availableVolumes } = await this.client.listVolumes();
+      existingMounts = existingMounts.map(mount => {
+        if (mount.Type !== 'volume' || mount.Name) return mount;
+        const matches = (availableVolumes ?? []).filter(
+          volume => Boolean(mount.Source) && volume.Mountpoint === mount.Source
+        );
+        if (matches.length !== 1 || !matches[0].Name) {
+          throw new Error(`Cannot preserve the existing volume mounted at "${mount.Destination}".`);
+        }
+        return { ...mount, Name: matches[0].Name };
+      });
+    }
+    const configuredMounts = hasBindOverrides
+      ? []
+      : (hostConfig.Mounts ?? []).map(mount => {
+          if (mount.Type !== 'volume' || mount.Source) return mount;
+          const source = existingMounts.find(existing => existing.Destination === mount.Target)?.Name;
+          if (!source) {
+            throw new Error(`Cannot preserve the existing volume mounted at "${mount.Target}".`);
+          }
+          return { ...mount, Source: source };
+        });
+    const configuredBinds = hasBindOverrides
+      ? options?.binds
+      : hostConfig.Binds?.map(bind => {
+          const target = this.getBindTarget(bind);
+          if (!target || (bind !== target && !bind.startsWith(`${target}:`))) return bind;
+          const source = existingMounts.find(mount => mount.Destination === target)?.Name;
+          if (!source) {
+            throw new Error(`Cannot preserve the existing volume mounted at "${target}".`);
+          }
+          return `${source}:${bind}`;
+        });
+    const configuredMountTargets = new Set(
+      configuredMounts.map(mount => mount.Target).filter((target): target is string => Boolean(target))
+    );
+    const configuredBindTargets = new Set((configuredBinds ?? []).map(bind => this.getBindTarget(bind)));
+    const preservedVolumeMounts = hasBindOverrides
+      ? []
+      : existingMounts
+          .filter(mount => mount.Type === 'volume' && mount.Name)
+          .filter(
+            mount => !configuredMountTargets.has(mount.Destination) && !configuredBindTargets.has(mount.Destination)
+          )
+          .map(mount => ({
+            Type: 'volume' as const,
+            Source: mount.Name!,
+            Target: mount.Destination,
+            ReadOnly: !mount.RW
+          }));
+    const volumes = { ...(config.Volumes ?? {}) };
+    if (hasBindOverrides) {
+      for (const mount of existingMounts) {
+        delete volumes[mount.Destination];
+      }
+    } else {
+      for (const mount of existingMounts) {
+        if (
+          configuredMountTargets.has(mount.Destination) ||
+          configuredBindTargets.has(mount.Destination) ||
+          preservedVolumeMounts.some(preserved => preserved.Target === mount.Destination)
+        ) {
+          delete volumes[mount.Destination];
+        }
+      }
+    }
+
+    if (sharesContainerNetwork) {
+      throw new Error(
+        'Cannot recreate a container that shares another container’s network namespace through the Engine API.'
+      );
+    }
 
     const createOptions: Docker.ContainerCreateOptions = {
       name,
-      Image: config.Image || inspectInfo.Image,
+      Image: hasCustomOverrides ? inspectInfo.Image || config.Image : config.Image || inspectInfo.Image,
       Env: options?.env !== undefined ? options.env : config.Env || undefined,
       Cmd: config.Cmd || undefined,
       Entrypoint: config.Entrypoint || undefined,
@@ -237,7 +321,7 @@ export class DockerContainerService extends DockerBaseService {
         options?.exposedPorts !== undefined
           ? (options.exposedPorts as Record<string, object>)
           : config.ExposedPorts || undefined,
-      Volumes: config.Volumes || undefined,
+      Volumes: Object.keys(volumes).length > 0 ? volumes : undefined,
       StopSignal: stopSignal,
       StopTimeout: stopTimeout,
       Tty: config.Tty,
@@ -248,7 +332,8 @@ export class DockerContainerService extends DockerBaseService {
       AttachStderr: config.AttachStderr,
       HostConfig: {
         ...hostConfig,
-        ...(options?.binds !== undefined ? { Binds: options.binds } : {}),
+        Mounts: hasBindOverrides ? undefined : [...configuredMounts, ...preservedVolumeMounts],
+        ...(configuredBinds !== undefined ? { Binds: configuredBinds } : {}),
         ...(options?.portBindings !== undefined ? { PortBindings: options.portBindings } : {}),
         ...(options?.restartPolicy?.Name
           ? {
@@ -263,59 +348,136 @@ export class DockerContainerService extends DockerBaseService {
 
     const oldContainer = this.client.getContainer(id);
     const tempName = name ? `${name}-catbee-old-${Date.now()}` : undefined;
-
-    if (wasRunning) {
-      await oldContainer.stop({ t: 10 }).catch(() => {});
-    }
-
-    if (tempName) {
-      await oldContainer.rename({ name: tempName });
-    }
-
-    let newContainer: Docker.Container;
+    const networkEntries = Object.entries(networkSettings?.Networks ?? {}).filter(
+      ([networkName]) => networkMode !== 'host' && networkName !== 'host' && networkName !== 'none'
+    );
+    const exclusiveNetworks = new Set(
+      networkEntries
+        .filter(([, endpointSettings]) => {
+          const ipamConfig = endpointSettings.IPAMConfig as { IPv4Address?: string; IPv6Address?: string } | undefined;
+          return Boolean(ipamConfig?.IPv4Address || ipamConfig?.IPv6Address || endpointSettings.MacAddress);
+        })
+        .map(([networkName]) => networkName)
+    );
+    const disconnectedNetworks: Array<[string, Docker.EndpointSettings]> = [];
+    let oldStopped = false;
+    let oldRenamed = false;
+    let newContainer: Docker.Container | undefined;
     try {
-      newContainer = await this.client.createContainer(createOptions);
-    } catch (createErr) {
-      // Revert name and restart old container if creation failed
-      if (tempName && name) {
-        await oldContainer.rename({ name }).catch(() => {});
-        if (wasRunning) {
-          await oldContainer.start().catch(() => {});
-        }
+      if (wasRunning || wasPaused) {
+        await oldContainer.stop({ t: 10 });
+        oldStopped = true;
       }
-      throw createErr;
-    }
 
-    // Safe removal of old container
-    await oldContainer.remove({ force: true, v: false }).catch(err => {
-      logger.warn({ err }, '[DockerContainerService] Failed to remove old container after recreate');
-    });
+      if (tempName) {
+        await oldContainer.rename({ name: tempName });
+        oldRenamed = true;
+      }
 
-    // Reconnect additional networks if any
-    if (networkSettings?.Networks) {
-      const networks = Object.entries(networkSettings.Networks);
-      for (const [netName, endpointSettings] of networks) {
-        try {
-          const net = this.client.getNetwork(netName);
-          await net.connect({
+      for (const [netName, endpointSettings] of networkEntries) {
+        if (!exclusiveNetworks.has(netName)) continue;
+        await this.client.getNetwork(netName).disconnect({ Container: id, Force: true });
+        disconnectedNetworks.push([netName, endpointSettings]);
+      }
+
+      newContainer = await this.client.createContainer(createOptions);
+      for (const [netName, endpointSettings] of networkEntries) {
+        const replacementNetworks = (await newContainer.inspect()).NetworkSettings?.Networks ?? {};
+        const alreadyConnected = Boolean(replacementNetworks[netName]);
+        const needsEndpointUpdate =
+          exclusiveNetworks.has(netName) || Boolean(endpointSettings.Aliases?.length || endpointSettings.Links?.length);
+        if (alreadyConnected && needsEndpointUpdate) {
+          await this.client.getNetwork(netName).disconnect({ Container: newContainer.id, Force: true });
+        }
+        if (!alreadyConnected || needsEndpointUpdate) {
+          await this.client.getNetwork(netName).connect({
             Container: newContainer.id,
             EndpointConfig: {
-              Aliases: endpointSettings?.Aliases,
-              IPAMConfig: endpointSettings?.IPAMConfig,
-              Links: endpointSettings?.Links
+              Aliases: endpointSettings.Aliases,
+              IPAMConfig: endpointSettings.IPAMConfig,
+              Links: endpointSettings.Links,
+              MacAddress: endpointSettings.MacAddress
             }
           });
-        } catch {
-          // May already be connected to the primary network
         }
       }
-    }
 
-    if (wasRunning) {
-      await newContainer.start();
+      if (wasRunning || wasPaused) {
+        await newContainer.start();
+        if (wasPaused) {
+          await newContainer.pause();
+        }
+      }
+
+      await oldContainer.remove({ force: true, v: false });
+    } catch (recreateError) {
+      const rollbackErrors: string[] = [];
+      if (newContainer) {
+        try {
+          await newContainer.remove({ force: true, v: false });
+        } catch (error) {
+          rollbackErrors.push(`removing replacement: ${this.errorMessage(error)}`);
+        }
+      }
+
+      if (oldRenamed && tempName && name) {
+        try {
+          await oldContainer.rename({ name });
+        } catch (error) {
+          rollbackErrors.push(`restoring original name: ${this.errorMessage(error)}`);
+        }
+      }
+
+      for (const [netName, endpointSettings] of disconnectedNetworks) {
+        try {
+          await this.client.getNetwork(netName).connect({
+            Container: id,
+            EndpointConfig: {
+              Aliases: endpointSettings.Aliases,
+              IPAMConfig: endpointSettings.IPAMConfig,
+              Links: endpointSettings.Links,
+              MacAddress: endpointSettings.MacAddress
+            }
+          });
+        } catch (error) {
+          rollbackErrors.push(`restoring network "${netName}": ${this.errorMessage(error)}`);
+        }
+      }
+
+      if (oldStopped && (wasRunning || wasPaused)) {
+        try {
+          await oldContainer.start();
+          if (wasPaused) {
+            await oldContainer.pause();
+          }
+        } catch (error) {
+          rollbackErrors.push(`restoring original state: ${this.errorMessage(error)}`);
+        }
+      }
+
+      const rollbackSummary = rollbackErrors.length > 0 ? ` Rollback failures: ${rollbackErrors.join('; ')}.` : '';
+      throw new Error(`Container recreate failed: ${this.errorMessage(recreateError)}.${rollbackSummary}`);
     }
 
     return { containerId: newContainer.id, output: '' };
+  }
+
+  private getBindTarget(bind: string): string | undefined {
+    const parts = bind.split(':');
+    const last = parts[parts.length - 1];
+    const modePattern =
+      /^(ro|rw|z|Z|private|rprivate|shared|rshared|slave|rslave|unbindable|runbindable|nocopy|cached|delegated|consistent)$/;
+    if (last.split(',').every(mode => modePattern.test(mode))) {
+      parts.pop();
+    }
+    return parts[parts.length - 1];
+  }
+
+  private errorMessage(error: unknown): string {
+    if (typeof error === 'object' && error !== null && 'message' in error && typeof error.message === 'string') {
+      return error.message;
+    }
+    return String(error);
   }
 
   async pauseContainer(containerId: string): Promise<DockerActionResult> {

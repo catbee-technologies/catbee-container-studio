@@ -1,10 +1,13 @@
 import { applyEach, FieldTree, ReadonlyFieldState, required, schema, validate } from '@angular/forms/signals';
 import { EnvVarRow, getEnvVarError } from './env.utils';
 import { VolumeMappingRow, getVolumeMappingError } from './volume.utils';
-import { PortMappingRow, findDuplicateHostPorts, isValidHostPort, isValidPort } from './port.utils';
+import { PortMappingRow, findDuplicateHostPorts, hostPortKey, isValidHostPort, isValidPort } from './port.utils';
 
-export function fieldError(field: Pick<ReadonlyFieldState<unknown>, 'touched' | 'errors'>): string | null {
-  return field.touched() ? (field.errors()[0]?.message ?? null) : null;
+export function fieldError(
+  field: Pick<ReadonlyFieldState<unknown>, 'touched' | 'dirty' | 'errors'>,
+  showOnDirty = false
+): string | null {
+  return field.touched() || (showOnDirty && field.dirty()) ? (field.errors()[0]?.message ?? null) : null;
 }
 
 export function resetFormRows<T extends object>(fields: FieldTree<T[]>, rows: readonly T[]): void {
@@ -63,7 +66,7 @@ export const portRowsSchema = schema<PortMappingRow[]>(path => {
         return { kind: 'range', message: 'Host port must be between 0 and 65535.' };
       }
       const port = valueOf(row);
-      return findDuplicateHostPorts(valueOf(path)).has(`${port.hostPort.trim()}/${port.protocol}`)
+      return findDuplicateHostPorts(valueOf(path)).has(hostPortKey(port))
         ? { kind: 'duplicate', message: `Host port ${port.hostPort} is already assigned to another port mapping.` }
         : undefined;
     });

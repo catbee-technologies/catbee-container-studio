@@ -1,9 +1,11 @@
-import { Routes } from '@angular/router';
+import { CanDeactivateFn, Routes } from '@angular/router';
 import { containerDetailsResolver } from '@docker-containers/container-details/container-details.resolver';
-import type { ContainerDetailsPage } from '@docker-containers/container-details/container-details';
 import { imageDetailsResolver } from '@docker-images/image-details/image-details.resolver';
 import { networkDetailsResolver } from '@docker-networks/network-details/network-details.resolver';
 import { volumeDetailsResolver } from '@docker-volumes/volume-details/volume-details.resolver';
+
+const confirmPendingChanges: CanDeactivateFn<{ canDeactivate(): boolean | Promise<boolean> }> = component =>
+  component.canDeactivate();
 
 export const routes: Routes = [
   {
@@ -21,7 +23,7 @@ export const routes: Routes = [
   },
   {
     path: 'containers/:id',
-    canDeactivate: [(component: ContainerDetailsPage) => component.canDeactivate()],
+    canDeactivate: [confirmPendingChanges],
     runGuardsAndResolvers: 'always',
     resolve: {
       preloadedContainerDetails: containerDetailsResolver
@@ -31,10 +33,12 @@ export const routes: Routes = [
   },
   {
     path: 'images',
+    canDeactivate: [confirmPendingChanges],
     loadComponent: () => import('@docker-images/images-list/images-list').then(m => m.ImagesPage)
   },
   {
     path: 'images/:id',
+    canDeactivate: [confirmPendingChanges],
     runGuardsAndResolvers: 'always',
     resolve: {
       preloadedImageDetails: imageDetailsResolver
@@ -43,6 +47,7 @@ export const routes: Routes = [
   },
   {
     path: 'volumes',
+    canDeactivate: [confirmPendingChanges],
     loadComponent: () => import('@docker-volumes/volumes-list/volumes-list').then(m => m.VolumesPage)
   },
   {
@@ -55,6 +60,7 @@ export const routes: Routes = [
   },
   {
     path: 'networks',
+    canDeactivate: [confirmPendingChanges],
     loadComponent: () => import('@docker-networks/networks-list/networks-list').then(m => m.NetworksPage)
   },
   {
