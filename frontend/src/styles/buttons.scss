@@ -480,6 +480,12 @@ $btn-icon-glyph-lg: 1.35rem;
   }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .catbee-action-btn .mat-icon-filled.spin {
+    animation: refresh-spin 900ms linear infinite;
+  }
+}
+
 @keyframes refresh-spin {
   to {
     transform: rotate(360deg);

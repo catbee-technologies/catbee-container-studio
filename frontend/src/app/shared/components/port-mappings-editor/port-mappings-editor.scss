@@ -115,7 +115,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr auto;
     gap: 0.5rem;
-    align-items: flex-end;
+    align-items: start;
 
     .field-col {
       display: flex;
@@ -134,6 +134,11 @@
         font-size: var(--font-size-sm);
         padding: 0.35rem 0.5rem;
         border-radius: 0.45rem;
+
+        &.is-invalid {
+          border-color: var(--color-danger, #ef4444);
+          box-shadow: 0 0 0 1px var(--color-danger, #ef4444);
+        }
       }
 
       .add-field-select {

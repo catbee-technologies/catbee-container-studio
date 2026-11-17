@@ -1,4 +1,5 @@
 .switch-toggle {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -12,7 +13,20 @@
   }
 
   input {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  input:focus-visible + .switch-slider {
+    outline: 2px solid var(--border-color-focus, #38bdf8);
+    outline-offset: 3px;
   }
 
   span {

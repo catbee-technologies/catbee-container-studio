@@ -1,4 +1,5 @@
-import { Component, inject, input, model } from '@angular/core';
+import { Component, inject, input, model, output } from '@angular/core';
+import { FormCheckboxControl } from '@angular/forms/signals';
 import { LocalStorageService } from '@ng-catbee/storage';
 
 @Component({
@@ -6,11 +7,12 @@ import { LocalStorageService } from '@ng-catbee/storage';
   templateUrl: './switch-input.html',
   styleUrl: './switch-input.scss'
 })
-export class SwitchInputComponent {
+export class SwitchInputComponent implements FormCheckboxControl {
   readonly checked = model.required<boolean>();
   readonly label = input<string>();
   readonly storageKey = input<string>();
   readonly disabled = input(false);
+  readonly touch = output<void>();
 
   private localStorage = inject(LocalStorageService);
 

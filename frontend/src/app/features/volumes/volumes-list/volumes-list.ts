@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
+import { apply, disabled, form, FormField, FormRoot } from '@angular/forms/signals';
+import { fieldError, resourceNameSchema } from '@utils/configuration-form.utils';
 import { DockerApiService } from '@core/docker-api.service';
 import { ElectronApiService } from '@core/electron-api.service';
 import { DockerVolumeInfo } from '@shared/types/docker-api.types';
@@ -65,7 +67,9 @@ export const MIN_VOLUME_COLUMN_WIDTHS: Record<VolumeColumn, number> = {
     CatbeeTooltip,
     TooltipDateComponent,
     TableColumnActionsMenuComponent,
-    CatbeeLoader
+    CatbeeLoader,
+    FormField,
+    FormRoot
   ],
   templateUrl: './volumes-list.html',
   styleUrl: './volumes-list.scss'
@@ -112,9 +116,23 @@ export class VolumesPage {
   readonly error = signal<string | null>(null);
 
   readonly createDialogOpen = signal(false);
-  readonly volumeName = signal('');
-  readonly volumeDriver = signal('local');
-  readonly volumeHostPath = signal('');
+  readonly showConfirmCloseCreate = signal(false);
+  private readonly createModel = signal({ name: '', driver: 'local', hostPath: '' });
+  readonly createForm = form(
+    this.createModel,
+    path => {
+      apply(path.name, resourceNameSchema);
+      disabled(path, { when: () => this.isCreating() });
+    },
+    { submission: { action: async () => this.createVolume() } }
+  );
+  readonly fieldError = fieldError;
+  readonly volumeName = this.createForm.name().value;
+  readonly volumeDriver = this.createForm.driver().value;
+  readonly volumeHostPath = this.createForm.hostPath().value;
+  readonly hasCreateChanges = computed(
+    () => this.volumeName().length > 0 || this.volumeDriver() !== 'local' || this.volumeHostPath().length > 0
+  );
   readonly isCreating = signal(false);
   readonly createError = signal<string | null>(null);
 
@@ -558,29 +576,44 @@ export class VolumesPage {
   }
 
   openCreateDialog(): void {
-    this.volumeName.set('');
-    this.volumeDriver.set('local');
-    this.volumeHostPath.set('');
+    this.showConfirmCloseCreate.set(false);
+    this.createForm().reset({ name: '', driver: 'local', hostPath: '' });
     this.createError.set(null);
     this.createDialogOpen.set(true);
   }
 
   closeCreateDialog(): void {
-    if (!this.isCreating()) {
-      this.createDialogOpen.set(false);
+    if (this.isCreating()) {
+      return;
     }
+    if (this.hasCreateChanges()) {
+      this.showConfirmCloseCreate.set(true);
+      return;
+    }
+    this.confirmCloseCreateDialog();
+  }
+
+  confirmCloseCreateDialog(): void {
+    this.showConfirmCloseCreate.set(false);
+    this.createDialogOpen.set(false);
   }
 
   async pickHostPath(): Promise<void> {
     const selected = await this.electronApi.selectDirectory();
     if (selected) {
       this.volumeHostPath.set(selected);
+      this.createForm.hostPath().markAsDirty();
+      this.createForm.hostPath().markAsTouched();
     }
   }
 
   async createVolume(): Promise<void> {
     const name = this.volumeName().trim();
-    if (!name || this.isCreating()) {
+    if (this.isCreating()) {
+      return;
+    }
+    this.createForm().markAsTouched();
+    if (this.createForm().invalid()) {
       return;
     }
 

@@ -1,17 +1,21 @@
-import { Component, ElementRef, inject, input, model } from '@angular/core';
+import { Component, ElementRef, computed, inject, input } from '@angular/core';
+import { FieldTree, FormField } from '@angular/forms/signals';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { EnvVarRow, parseEnvFileContent } from '@utils/env.utils';
+import { fieldError } from '@utils/configuration-form.utils';
 
 @Component({
   selector: 'catbee-container-studio-env-variables-editor',
-  imports: [EmptyStateComponent],
+  imports: [EmptyStateComponent, FormField],
   templateUrl: './env-variables-editor.html',
   styleUrl: './env-variables-editor.scss'
 })
 export class EnvVariablesEditorComponent {
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
-  readonly rows = model<EnvVarRow[]>([]);
+  readonly fields = input.required<FieldTree<EnvVarRow[]>>();
+  readonly rows = computed(() => this.fields()().value());
+  readonly fieldError = fieldError;
   readonly disabled = input(false);
   readonly keyPlaceholder = input('KEY');
   readonly valuePlaceholder = input('Value');
@@ -22,20 +26,14 @@ export class EnvVariablesEditorComponent {
     'Click "Add Variable" above or paste the contents of an .env file to populate variables automatically.'
   );
 
-  setKey(index: number, key: string): void {
-    this.rows.update(current => current.map((row, i) => (i === index ? { ...row, key } : row)));
-  }
-
-  setValue(index: number, value: string): void {
-    this.rows.update(current => current.map((row, i) => (i === index ? { ...row, value } : row)));
-  }
-
   removeRow(index: number): void {
-    this.rows.update(current => current.filter((_, i) => i !== index));
+    this.fields()().value.update(current => current.filter((_, i) => i !== index));
+    this.fields()().markAsDirty();
   }
 
   addRow(): void {
-    this.rows.update(current => [...current, { key: '', value: '' }]);
+    this.fields()().value.update(current => [...current, { key: '', value: '' }]);
+    this.fields()().markAsDirty();
     this.scrollToBottomAndFocus();
   }
 
@@ -81,7 +79,7 @@ export class EnvVariablesEditorComponent {
     }
 
     event.preventDefault();
-    this.rows.update(current => {
+    this.fields()().value.update(current => {
       const currentRow = current[index];
       const isCurrentEmpty = !!currentRow && !currentRow.key.trim() && !currentRow.value.trim();
       if (isCurrentEmpty) {
@@ -89,5 +87,6 @@ export class EnvVariablesEditorComponent {
       }
       return [...current, ...parsedRows];
     });
+    this.fields()().markAsDirty();
   }
 }

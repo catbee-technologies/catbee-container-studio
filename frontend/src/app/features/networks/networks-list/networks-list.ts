@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, computed, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
+import { apply, disabled, form, FormField, FormRoot } from '@angular/forms/signals';
+import { fieldError, resourceNameSchema } from '@utils/configuration-form.utils';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { DockerApiService } from '@core/docker-api.service';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
@@ -74,7 +76,9 @@ export const MIN_NETWORK_COLUMN_WIDTHS: Record<NetworkResizableColumn, number> =
     EmptyStateComponent,
     ErrorBannerComponent,
     CatbeeTooltip,
-    CatbeeLoader
+    CatbeeLoader,
+    FormField,
+    FormRoot
   ],
   templateUrl: './networks-list.html',
   styleUrl: './networks-list.scss'
@@ -118,10 +122,28 @@ export class NetworksPage {
   readonly pendingDeleteNetworkIds = signal<string[]>([]);
   readonly confirmPruneOpen = signal(false);
   readonly createDialogOpen = signal(false);
-  readonly networkName = signal('');
-  readonly networkDriver = signal('bridge');
-  readonly networkInternal = signal(false);
-  readonly networkAttachable = signal(false);
+  readonly showConfirmCloseCreate = signal(false);
+  private readonly createModel = signal({ name: '', driver: 'bridge', internal: false, attachable: false });
+  readonly createForm = form(
+    this.createModel,
+    path => {
+      apply(path.name, resourceNameSchema);
+      disabled(path, { when: () => this.isCreating() });
+    },
+    { submission: { action: async () => this.createNetwork() } }
+  );
+  readonly fieldError = fieldError;
+  readonly networkName = this.createForm.name().value;
+  readonly networkDriver = this.createForm.driver().value;
+  readonly networkInternal = this.createForm.internal().value;
+  readonly networkAttachable = this.createForm.attachable().value;
+  readonly hasCreateChanges = computed(
+    () =>
+      this.networkName().length > 0 ||
+      this.networkDriver() !== 'bridge' ||
+      this.networkInternal() ||
+      this.networkAttachable()
+  );
   readonly isCreating = signal(false);
   readonly createError = signal<string | null>(null);
   readonly columnOptions: ColumnOption<NetworkColumn>[] = [
@@ -535,20 +557,30 @@ export class NetworksPage {
   }
 
   openCreateDialog(): void {
-    this.networkName.set('');
-    this.networkDriver.set('bridge');
-    this.networkInternal.set(false);
-    this.networkAttachable.set(false);
+    this.showConfirmCloseCreate.set(false);
+    this.createForm().reset({ name: '', driver: 'bridge', internal: false, attachable: false });
     this.createError.set(null);
     this.createDialogOpen.set(true);
   }
   closeCreateDialog(): void {
-    if (!this.isCreating()) this.createDialogOpen.set(false);
+    if (this.isCreating()) return;
+    if (this.hasCreateChanges()) {
+      this.showConfirmCloseCreate.set(true);
+      return;
+    }
+    this.confirmCloseCreateDialog();
+  }
+
+  confirmCloseCreateDialog(): void {
+    this.showConfirmCloseCreate.set(false);
+    this.createDialogOpen.set(false);
   }
 
   async createNetwork(): Promise<void> {
     const name = this.networkName().trim();
-    if (!name || this.isCreating()) return;
+    if (this.isCreating()) return;
+    this.createForm().markAsTouched();
+    if (this.createForm().invalid()) return;
     this.isCreating.set(true);
     this.createError.set(null);
     try {

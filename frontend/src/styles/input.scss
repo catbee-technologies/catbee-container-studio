@@ -36,6 +36,17 @@
   }
 }
 
+.field-input.is-invalid,
+.field-select.is-invalid {
+  border-color: var(--color-danger-base);
+}
+
+.field-error {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-danger-text);
+}
+
 // Search input container and controls
 catbee-container-studio-search-input {
   display: inline-flex;

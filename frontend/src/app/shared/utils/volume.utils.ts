@@ -4,6 +4,21 @@ export interface VolumeMappingRow {
   readOnly: boolean;
 }
 
+export function getVolumeMappingError(row: VolumeMappingRow): string | null {
+  const hasHost = row.hostPath.trim().length > 0;
+  const hasContainer = row.containerPath.trim().length > 0;
+  if (!hasHost && !hasContainer && !row.readOnly) {
+    return null;
+  }
+  if (!hasHost && !hasContainer) {
+    return 'Host path or volume and container path are required.';
+  }
+  if (!hasHost) {
+    return 'Host path or volume is required.';
+  }
+  return hasContainer ? null : 'Container path is required.';
+}
+
 /**
  * Converts Docker Engine HostConfig.Binds (['/host:/container', '/host:/container:ro'])
  * into VolumeMappingRow array.

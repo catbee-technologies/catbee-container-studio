@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideRouter, withHashLocation } from '@angular/router';
+import { provideRouter, withHashLocation, withRouterConfig } from '@angular/router';
 import { provideCatbeeLoader } from '@ng-catbee/loader';
 import { provideCatbeeMonacoEditor } from '@ng-catbee/monaco-editor';
 
@@ -11,7 +11,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     DatePipe,
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes, withHashLocation()),
+    provideRouter(routes, withHashLocation(), withRouterConfig({ canceledNavigationResolution: 'computed' })),
     provideCatbeeLoader({
       animation: 'ball-spin-clockwise',
       size: 'medium',

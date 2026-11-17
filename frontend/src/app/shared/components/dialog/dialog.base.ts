@@ -1,4 +1,4 @@
-import { Directive, OnDestroy, TemplateRef, ViewContainerRef, inject } from '@angular/core';
+import { Directive, OnDestroy, TemplateRef, ViewContainerRef, inject, output } from '@angular/core';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import { TemplatePortal } from '@angular/cdk/portal';
 
@@ -6,6 +6,7 @@ import { TemplatePortal } from '@angular/cdk/portal';
 export abstract class DialogOverlayBase implements OnDestroy {
   protected readonly overlay = inject(Overlay);
   protected readonly viewContainerRef = inject(ViewContainerRef);
+  readonly closed = output<void>();
 
   private overlayRef: OverlayRef | null = null;
   private dialogPortal: TemplatePortal<unknown> | null = null;
@@ -72,6 +73,7 @@ export abstract class DialogOverlayBase implements OnDestroy {
         overlayRef.dispose();
         this.overlayRef = null;
         this.dialogPortal = null;
+        this.closed.emit();
       }
     }, this.closeAnimationDuration);
   }

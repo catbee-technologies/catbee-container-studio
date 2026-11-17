@@ -128,24 +128,69 @@
 
     <div class="toolbar-spacer"></div>
 
+    <button
+      type="button"
+      class="catbee-action-btn fix-height"
+      [disabled]="isRecreating() || (!hasUnsavedChanges() && !mountsForm().dirty())"
+      (click)="resetEditing()"
+    >
+      Reset
+    </button>
+
     <button type="button" class="catbee-action-btn fix-height" [disabled]="isRecreating()" (click)="cancelEditing()">
       Cancel
     </button>
 
     <button
-      type="button"
+      type="submit"
+      form="mounts-edit-form"
       class="catbee-action-btn fix-height action-start"
-      [disabled]="isRecreating() || !isBindsChanged()"
-      (click)="requestSave()"
+      [disabled]="isRecreating() || !hasUnsavedChanges()"
     >
       <span class="mat-icon-filled" aria-hidden="true">refresh</span>
       Save & Recreate
     </button>
   </div>
 
-  <div class="catbee-container-list-body catbee-base-panel mounts-edit-panel">
-    <catbee-container-studio-volume-mappings-editor [(rows)]="editableBinds" [disabled]="isRecreating()" />
-  </div>
+  <form
+    id="mounts-edit-form"
+    [formRoot]="mountsForm"
+    class="catbee-container-list-body catbee-base-panel mounts-edit-panel"
+  >
+    <catbee-container-studio-volume-mappings-editor [fields]="mountsForm" [disabled]="isRecreating()" />
+  </form>
+
+  <catbee-container-studio-confirm-dialog
+    [open]="showConfirmClear()"
+    title="Clear Mounts"
+    message="Remove all mounts from this edit? Changes will not be applied until you save and recreate the container."
+    confirmLabel="Clear All"
+    [dangerous]="true"
+    (cancelAction)="showConfirmClear.set(false)"
+    (confirm)="confirmClearMounts()"
+  />
+
+  <catbee-container-studio-confirm-dialog
+    [open]="showConfirmReset()"
+    title="Reset Changes?"
+    message="Discard your unsaved mount changes and restore the last configured values?"
+    confirmLabel="Reset Changes"
+    cancelLabel="Keep Editing"
+    [dangerous]="true"
+    (cancelAction)="showConfirmReset.set(false)"
+    (confirm)="confirmResetEditing()"
+  />
+
+  <catbee-container-studio-confirm-dialog
+    [open]="showConfirmDiscard()"
+    title="Discard Unsaved Changes?"
+    message="You have unsaved mount changes. Discard them and leave the editor?"
+    confirmLabel="Discard Changes"
+    cancelLabel="Keep Editing"
+    [dangerous]="true"
+    (cancelAction)="cancelDiscardEditing()"
+    (confirm)="confirmDiscardEditing()"
+  />
 
   <catbee-container-studio-confirm-dialog
     [open]="showConfirmRecreate()"

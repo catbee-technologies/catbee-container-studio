@@ -10,6 +10,15 @@ export interface MinimalPortInfo {
   Type?: string;
 }
 
+export function isValidPort(value: string, minimum = 1): boolean {
+  const port = value.trim();
+  return /^\d+$/.test(port) && Number(port) >= minimum && Number(port) <= 65535;
+}
+
+export function isValidHostPort(value: string): boolean {
+  return value.trim() === '' || isValidPort(value, 0);
+}
+
 /**
  * Converts Docker exposed ports & port bindings into PortMappingRow array.
  * Checks HostConfig.PortBindings, NetworkSettings.Ports, and container.Ports

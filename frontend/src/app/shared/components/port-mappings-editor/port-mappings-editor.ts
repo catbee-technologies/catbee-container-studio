@@ -1,16 +1,21 @@
-import { Component, computed, input, model, signal } from '@angular/core';
+import { Component, computed, input, signal } from '@angular/core';
+import { apply, disabled, FieldTree, form, FormField, submit, validate } from '@angular/forms/signals';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
-import { PortMappingRow, findDuplicateHostPorts } from '@utils/port.utils';
+import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
+import { PortMappingRow } from '@utils/port.utils';
+import { fieldError, portMappingSchema } from '@utils/configuration-form.utils';
 
 @Component({
   selector: 'catbee-container-studio-port-mappings-editor',
-  imports: [EmptyStateComponent, CatbeeTooltip],
+  imports: [EmptyStateComponent, CatbeeTooltip, ConfirmDialogComponent, FormField],
   templateUrl: './port-mappings-editor.html',
   styleUrl: './port-mappings-editor.scss'
 })
 export class PortMappingsEditorComponent {
-  readonly rows = model<PortMappingRow[]>([]);
+  readonly fields = input.required<FieldTree<PortMappingRow[]>>();
+  readonly rows = computed(() => this.fields()().value());
+  readonly fieldError = fieldError;
   readonly isLoading = input(false);
   readonly disabled = input(false);
   readonly allowAdd = input(false);
@@ -21,101 +26,84 @@ export class PortMappingsEditorComponent {
   readonly loadingMessage = input('Checking exposed ports...');
 
   readonly showAddForm = signal(false);
-  readonly newHostPort = signal('');
-  readonly newContainerPort = signal('');
-  readonly newProtocol = signal<'tcp' | 'udp'>('tcp');
-  readonly addError = signal<string | null>(null);
+  private readonly newPortModel = signal<PortMappingRow>({ hostPort: '', containerPort: '', protocol: 'tcp' });
+  readonly newPortForm = form(this.newPortModel, path => {
+    apply(path, portMappingSchema);
+    disabled(path, { when: () => this.disabled() });
+    validate(path.hostPort, ({ value, valueOf }) => {
+      const hostPort = value().trim();
+      if (!hostPort || hostPort === '0') {
+        return undefined;
+      }
+      const duplicate = this.rows().find(
+        row => row.hostPort.trim() === hostPort && row.protocol === valueOf(path.protocol)
+      );
+      return duplicate
+        ? {
+            kind: 'duplicate',
+            message: `Host port ${hostPort} is already assigned to container port :${duplicate.containerPort}/${duplicate.protocol}.`
+          }
+        : undefined;
+    });
+    validate(path.containerPort, ({ value, valueOf }) =>
+      this.rows().some(row => row.containerPort === value() && row.protocol === valueOf(path.protocol))
+        ? { kind: 'duplicate', message: `Port ${value()}/${valueOf(path.protocol)} is already in the list.` }
+        : undefined
+    );
+  });
+  readonly showConfirmDiscard = signal(false);
+  readonly hasAddFormChanges = computed(
+    () =>
+      this.showAddForm() &&
+      (this.newPortModel().hostPort.length > 0 ||
+        this.newPortModel().containerPort.length > 0 ||
+        this.newPortModel().protocol !== 'tcp')
+  );
+  readonly newHostPortError = computed(() => fieldError(this.newPortForm.hostPort()));
+  readonly newContainerPortError = computed(() => fieldError(this.newPortForm.containerPort()));
 
-  readonly duplicateHostPorts = computed(() => findDuplicateHostPorts(this.rows()));
-
-  isDuplicateHostPort(port: PortMappingRow): boolean {
-    const h = port.hostPort.trim();
-    if (!h || h === '0') {
-      return false;
-    }
-    return this.duplicateHostPorts().has(`${h}/${port.protocol}`);
-  }
-
-  setPortHost(index: number, value: string): void {
-    const sanitized = value.replace(/[^0-9]/g, '').slice(0, 5);
-    this.rows.update(current => current.map((row, i) => (i === index ? { ...row, hostPort: sanitized } : row)));
-  }
-
-  sanitizePortInput(event: Event): string {
+  normalizePortInput(field: FieldTree<string>, event: Event): void {
     const target = event.target as HTMLInputElement;
-    const sanitized = target.value.replace(/[^0-9]/g, '').slice(0, 5);
+    const sanitized = target.value.replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
     if (target.value !== sanitized) {
       target.value = sanitized;
     }
-    return sanitized;
+    field().value.set(sanitized);
   }
 
   openAddForm(): void {
-    this.newHostPort.set('');
-    this.newContainerPort.set('');
-    this.newProtocol.set('tcp');
-    this.addError.set(null);
+    this.resetAddForm();
     this.showAddForm.set(true);
   }
 
-  cancelAddForm(): void {
+  resetAddForm(): void {
     this.showAddForm.set(false);
-    this.addError.set(null);
+    this.newPortForm().reset({ hostPort: '', containerPort: '', protocol: 'tcp' });
+    this.showConfirmDiscard.set(false);
   }
 
-  confirmAddPort(): void {
-    const protocol = this.newProtocol();
-    const cPort = this.newContainerPort().trim();
-    if (!cPort) {
-      this.addError.set('Container port is required');
+  cancelAddForm(): void {
+    if (this.hasAddFormChanges()) {
+      this.showConfirmDiscard.set(true);
       return;
     }
+    this.resetAddForm();
+  }
 
-    const cNum = Number.parseInt(cPort, 10);
-    if (Number.isNaN(cNum) || cNum < 1 || cNum > 65535) {
-      this.addError.set('Container port must be between 1 and 65535');
+  async confirmAddPort(): Promise<void> {
+    if (this.disabled()) {
       return;
     }
-
-    const hPort = this.newHostPort().trim();
-    if (hPort) {
-      const hNum = Number.parseInt(hPort, 10);
-      if (Number.isNaN(hNum) || hNum < 0 || hNum > 65535) {
-        this.addError.set('Host port must be between 0 and 65535');
-        return;
-      }
-      if (hPort !== '0') {
-        const duplicateHost = this.rows().find(r => r.hostPort.trim() === hPort && r.protocol === protocol);
-        if (duplicateHost) {
-          this.addError.set(
-            `Host port ${hPort} is already assigned to container port :${duplicateHost.containerPort}/${duplicateHost.protocol}`
-          );
-          return;
-        }
-      }
-    }
-
-    const existing = this.rows().find(r => r.containerPort === cPort && r.protocol === protocol);
-    if (existing) {
-      this.addError.set(`Port ${cPort}/${protocol} is already in the list`);
-      return;
-    }
-
-    this.rows.update(current => [
-      ...current,
-      {
-        containerPort: cPort,
-        protocol,
-        hostPort: hPort
-      }
-    ]);
-
-    this.showAddForm.set(false);
-    this.addError.set(null);
+    await submit(this.newPortForm, async () => {
+      this.fields()().value.update(current => [...current, { ...this.newPortModel() }]);
+      this.fields()().markAsDirty();
+      this.resetAddForm();
+    });
   }
 
   removeRow(index: number): void {
-    this.rows.update(current => current.filter((_, i) => i !== index));
+    this.fields()().value.update(current => current.filter((_, i) => i !== index));
+    this.fields()().markAsDirty();
   }
 
   onPortKeydown(event: KeyboardEvent): void {

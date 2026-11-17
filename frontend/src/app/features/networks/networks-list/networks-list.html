@@ -368,9 +368,11 @@
 <catbee-container-studio-dialog
   [open]="createDialogOpen()"
   title="Create Network"
+  [closable]="!isCreating()"
   [style]="{ width: '30rem' }"
   (closeDialog)="closeCreateDialog()"
-  ><div catbeeDialogBody class="network-form">
+>
+  <form catbeeDialogBody id="create-network-form" [formRoot]="createForm" class="network-form">
     @if (createError(); as errorMessage) {
       <catbee-container-studio-error-banner
         [errorMessage]="errorMessage"
@@ -378,41 +380,55 @@
         size="small"
       />
     }
-    <label class="field"
-      ><span class="field-label">Name</span
-      ><input
+    @let nameError = fieldError(createForm.name());
+    <div class="field">
+      <label class="field-label" for="network-name">Name</label>
+      <input
+        id="network-name"
         class="field-input"
         type="text"
         placeholder="e.g. app-network"
-        [value]="networkName()"
-        [disabled]="isCreating()"
-        (input)="networkName.set($any($event.target).value)" /></label
-    ><label class="field"
+        [formField]="createForm.name"
+        aria-required="true"
+        [class.is-invalid]="nameError !== null"
+        [attr.aria-invalid]="nameError !== null"
+        [attr.aria-describedby]="nameError ? 'network-name-error' : null"
+      />
+      @if (nameError) {
+        <span id="network-name-error" class="field-error" aria-live="polite">{{ nameError }}</span>
+      }
+    </div>
+    <label class="field"
       ><span class="field-label">Driver</span
-      ><select
-        class="field-input"
-        [value]="networkDriver()"
-        [disabled]="isCreating()"
-        (change)="networkDriver.set($any($event.target).value)"
-      >
+      ><select class="field-input" [formField]="createForm.driver">
         <option value="bridge">Bridge</option>
         <option value="macvlan">Macvlan</option>
         <option value="ipvlan">IPvlan</option>
       </select></label
-    ><catbee-container-studio-switch-input [(checked)]="networkInternal" label="Internal network" />
-    <catbee-container-studio-switch-input [(checked)]="networkAttachable" label="Manually attachable" />
-  </div>
+    ><catbee-container-studio-switch-input [formField]="createForm.internal" label="Internal network" />
+    <catbee-container-studio-switch-input [formField]="createForm.attachable" label="Manually attachable" />
+  </form>
 
   <ng-container catbeeDialogFooter>
     <button type="button" class="catbee-action-btn" [disabled]="isCreating()" (click)="closeCreateDialog()">
       Cancel</button
-    ><button
-      type="button"
-      class="catbee-action-btn action-start"
-      [disabled]="isCreating() || networkName().trim().length === 0"
-      (click)="createNetwork()"
-    >
-      <span class="mat-icon-filled" aria-hidden="true">add</span>{{ isCreating() ? 'Creating...' : 'Create' }}
+    ><button type="submit" form="create-network-form" class="catbee-action-btn action-start" [disabled]="isCreating()">
+      @if (isCreating()) {
+        <span class="mat-icon-filled spin" aria-hidden="true">refresh</span>Creating...
+      } @else {
+        <span class="mat-icon-filled" aria-hidden="true">add</span>Create
+      }
     </button>
   </ng-container>
 </catbee-container-studio-dialog>
+
+<catbee-container-studio-confirm-dialog
+  [open]="showConfirmCloseCreate()"
+  title="Cancel Network Creation?"
+  message="Close this dialog and discard the network configuration?"
+  confirmLabel="Discard & Close"
+  cancelLabel="Keep Editing"
+  [dangerous]="true"
+  (cancelAction)="showConfirmCloseCreate.set(false)"
+  (confirm)="confirmCloseCreateDialog()"
+/>

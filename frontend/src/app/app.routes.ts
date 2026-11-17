@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { containerDetailsResolver } from '@docker-containers/container-details/container-details.resolver';
+import type { ContainerDetailsPage } from '@docker-containers/container-details/container-details';
 import { imageDetailsResolver } from '@docker-images/image-details/image-details.resolver';
 import { networkDetailsResolver } from '@docker-networks/network-details/network-details.resolver';
 import { volumeDetailsResolver } from '@docker-volumes/volume-details/volume-details.resolver';
@@ -20,6 +21,7 @@ export const routes: Routes = [
   },
   {
     path: 'containers/:id',
+    canDeactivate: [(component: ContainerDetailsPage) => component.canDeactivate()],
     runGuardsAndResolvers: 'always',
     resolve: {
       preloadedContainerDetails: containerDetailsResolver

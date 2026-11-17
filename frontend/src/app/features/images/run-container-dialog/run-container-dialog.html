@@ -1,11 +1,12 @@
 <catbee-container-studio-dialog
   [open]="open() && isDialogReady()"
   [title]="'Run a new container'"
+  [closable]="!isSubmitting()"
   [style]="{ width: 'min(95vw, 50rem)' }"
   (closeDialog)="onClose()"
 >
   <ng-container catbeeDialogBody>
-    <div class="run-container-form">
+    <form id="run-container-form" [formRoot]="runForm" class="run-container-form">
       @if (error(); as errorMessage) {
         <catbee-container-studio-error-banner [errorMessage]="errorMessage" (closeErr)="error.set(null)" size="small" />
       }
@@ -22,8 +23,7 @@
           type="text"
           class="field-input"
           placeholder="Optional, auto-generated if empty"
-          [value]="containerName()"
-          (input)="containerName.set($any($event.target).value)"
+          [formField]="runForm.containerName"
         />
       </label>
 
@@ -33,7 +33,7 @@
         </header>
 
         <catbee-container-studio-port-mappings-editor
-          [(rows)]="ports"
+          [fields]="runForm.ports"
           [isLoading]="isLoadingPorts()"
           [disabled]="isSubmitting()"
         />
@@ -67,7 +67,7 @@
         </header>
 
         <catbee-container-studio-volume-mappings-editor
-          [(rows)]="volumes"
+          [fields]="runForm.volumes"
           [disabled]="isSubmitting()"
           emptyMessage="No mounted volumes."
           emptyHint="The container will use its own filesystem only."
@@ -83,6 +83,7 @@
                 type="button"
                 class="catbee-action-btn fix-height"
                 aria-label="Clear all environment variables"
+                [disabled]="isSubmitting()"
                 (click)="clearEnvVars()"
               >
                 Clear all
@@ -92,6 +93,7 @@
               type="button"
               class="catbee-action-btn icon-only"
               aria-label="Add environment variable"
+              [disabled]="isSubmitting()"
               (click)="addEnvVar()"
             >
               <span class="mat-icon-filled" aria-hidden="true">add</span>
@@ -100,7 +102,7 @@
         </header>
 
         <catbee-container-studio-env-variables-editor
-          [(rows)]="envVars"
+          [fields]="runForm.envVars"
           [disabled]="isSubmitting()"
           [showPasteHint]="false"
           keyPlaceholder="Key"
@@ -108,19 +110,42 @@
           emptyHint="Paste the contents of an .env file to populate variables automatically."
         />
       </section>
-    </div>
+    </form>
   </ng-container>
 
   <ng-container catbeeDialogFooter>
     <button type="button" class="catbee-action-btn" [disabled]="isSubmitting()" (click)="onClose()">Cancel</button>
-    <button
-      type="button"
-      class="catbee-action-btn action-start"
-      [disabled]="isSubmitting() || hasDuplicatePorts()"
-      (click)="run()"
-    >
-      <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
-      {{ isSubmitting() ? 'Running...' : 'Run Container' }}
+    <button type="submit" form="run-container-form" class="catbee-action-btn action-start" [disabled]="isSubmitting()">
+      @if (isSubmitting()) {
+        <span class="mat-icon-filled spin" aria-hidden="true">refresh</span>Running...
+      } @else {
+        <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>Run Container
+      }
     </button>
   </ng-container>
 </catbee-container-studio-dialog>
+
+<catbee-container-studio-confirm-dialog
+  [open]="showConfirmClose()"
+  title="Cancel Container Creation?"
+  message="Close this dialog and discard the container configuration?"
+  confirmLabel="Discard & Close"
+  cancelLabel="Keep Editing"
+  [dangerous]="true"
+  (cancelAction)="showConfirmClose.set(false)"
+  (confirm)="confirmClose()"
+/>
+
+<catbee-container-studio-confirm-dialog
+  [open]="clearTarget() !== null"
+  [title]="clearTarget() === 'volumes' ? 'Clear Volumes' : 'Clear Environment Variables'"
+  [message]="
+    clearTarget() === 'volumes'
+      ? 'Remove all configured volume mappings?'
+      : 'Remove all configured environment variables?'
+  "
+  confirmLabel="Clear All"
+  [dangerous]="true"
+  (cancelAction)="clearTarget.set(null)"
+  (confirm)="confirmClear()"
+/>

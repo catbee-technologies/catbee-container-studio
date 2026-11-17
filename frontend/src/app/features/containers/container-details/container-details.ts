@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, ElementRef, OnDestroy, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { apply, disabled, form, FormRoot } from '@angular/forms/signals';
 import { combineLatest } from 'rxjs';
 import { DockerApiService } from '@core/docker-api.service';
 import {
@@ -30,13 +31,8 @@ import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
 import { DialogComponent } from '@components/dialog/dialog';
 import { PortMappingsEditorComponent } from '@components/port-mappings-editor/port-mappings-editor';
-import {
-  PortMappingRow,
-  arePortMappingsEqual,
-  dockerPortsToRows,
-  findDuplicateHostPorts,
-  rowsToDockerPortBindings
-} from '@utils/port.utils';
+import { PortMappingRow, arePortMappingsEqual, dockerPortsToRows, rowsToDockerPortBindings } from '@utils/port.utils';
+import { portRowsSchema, resetFormRows } from '@utils/configuration-form.utils';
 
 enum ContainerTab {
   Logs = 'logs',
@@ -67,7 +63,8 @@ enum ContainerTab {
     CatbeeTooltip,
     ConfirmDialogComponent,
     DialogComponent,
-    PortMappingsEditorComponent
+    PortMappingsEditorComponent,
+    FormRoot
   ],
   templateUrl: './container-details.html',
   styleUrl: './container-details.scss',
@@ -87,7 +84,9 @@ export class ContainerDetailsPage implements OnDestroy {
   private readonly logsTab = viewChild(LogsTabComponent);
   private readonly inspectTab = viewChild(InspectTabComponent);
   private readonly envTab = viewChild(EnvTabComponent);
+  private readonly mountsTab = viewChild(MountsTabComponent);
   private readonly shellTab = viewChild(ShellTabComponent);
+  private readonly portEditor = viewChild(PortMappingsEditorComponent);
 
   readonly tooltipDelay = 300;
 
@@ -125,10 +124,33 @@ export class ContainerDetailsPage implements OnDestroy {
   readonly showRecreateConfirm = signal(false);
   readonly isRecreating = signal(false);
   readonly showEditPortsDialog = signal(false);
+  readonly showConfirmDiscardPorts = signal(false);
+  readonly showConfirmResetPorts = signal(false);
   readonly initialPorts = signal<PortMappingRow[]>([]);
   readonly editablePorts = signal<PortMappingRow[]>([]);
-  readonly hasDuplicatePorts = computed(() => findDuplicateHostPorts(this.editablePorts()).size > 0);
+  readonly portsForm = form(
+    this.editablePorts,
+    path => {
+      apply(path, portRowsSchema);
+      disabled(path, { when: () => this.isRecreating() || !this.showEditPortsDialog() });
+    },
+    { submission: { action: async () => this.confirmSavePortsAndRecreate() } }
+  );
   readonly isPortsChanged = computed(() => !arePortMappingsEqual(this.initialPorts(), this.editablePorts()));
+  readonly hasNewPortDraft = computed(() => this.portEditor()?.hasAddFormChanges() ?? false);
+  readonly hasUnsavedPortChanges = computed(() => this.isPortsChanged() || this.hasNewPortDraft());
+  readonly isPortFormDirty = computed(
+    () => this.portsForm().dirty() || (this.portEditor()?.newPortForm().dirty() ?? false)
+  );
+  readonly hasUnsavedChanges = computed(
+    () =>
+      (this.envTab()?.hasUnsavedChanges() ?? false) ||
+      (this.mountsTab()?.hasUnsavedChanges() ?? false) ||
+      (this.showEditPortsDialog() && this.hasUnsavedPortChanges())
+  );
+  readonly showConfirmLeave = signal(false);
+  private resolveNavigation: ((allow: boolean) => void) | null = null;
+  private isNavigatingAfterRecreate = false;
 
   readonly deleteMessage = computed(() => {
     return `Delete ${this.name()} permanently? \n This action cannot be undone.`;
@@ -307,13 +329,62 @@ export class ContainerDetailsPage implements OnDestroy {
   }
 
   setActiveTab(tab: string): void {
+    if (this.isRecreating()) {
+      return;
+    }
     const allowedTabs = Object.values(ContainerTab);
     if (!allowedTabs.includes(tab as ContainerTab)) {
       return;
     }
-    this.activeTab.set(tab as ContainerTab);
+    if (tab === this.activeTab()) {
+      return;
+    }
+    const editor = this.envTab() ?? this.mountsTab();
+    if (editor) {
+      editor.cancelEditing(() => this.activateTab(tab as ContainerTab));
+      return;
+    }
+    this.activateTab(tab as ContainerTab);
+  }
+
+  private activateTab(tab: ContainerTab): void {
+    this.activeTab.set(tab);
     this.sessionStorage.set(`${UI_STORAGE_KEYS.CONTAINERS_SELECTED_TAB_PREFIX}${this.containerId()}`, tab);
     this.scrollTabPanelToTop();
+  }
+
+  canDeactivate(): boolean | Promise<boolean> {
+    if (this.isRedirectingToList || this.isNavigatingAfterRecreate) {
+      return true;
+    }
+    if (this.isRecreating() || this.isDeleting()) {
+      return false;
+    }
+    if (!this.hasUnsavedChanges()) {
+      return true;
+    }
+    this.resolveNavigation?.(false);
+    this.showConfirmLeave.set(true);
+    return new Promise<boolean>(resolve => {
+      this.resolveNavigation = resolve;
+    });
+  }
+
+  cancelLeave(): void {
+    this.showConfirmLeave.set(false);
+    const resolve = this.resolveNavigation;
+    this.resolveNavigation = null;
+    resolve?.(false);
+  }
+
+  confirmLeave(): void {
+    this.envTab()?.finishEditing();
+    this.mountsTab()?.finishEditing();
+    this.confirmDiscardPorts();
+    this.showConfirmLeave.set(false);
+    const resolve = this.resolveNavigation;
+    this.resolveNavigation = null;
+    resolve?.(true);
   }
 
   async refresh(): Promise<void> {
@@ -382,11 +453,11 @@ export class ContainerDetailsPage implements OnDestroy {
   }
 
   async recreateContainerWithEnv(env: string[]): Promise<void> {
-    await this.executeRecreate({ env });
+    await this.executeRecreate({ env }, () => this.envTab()?.finishEditing());
   }
 
   async recreateContainerWithMounts(options: { binds: string[] }): Promise<void> {
-    await this.executeRecreate({ binds: options.binds });
+    await this.executeRecreate({ binds: options.binds }, () => this.mountsTab()?.finishEditing());
   }
 
   openEditPortsDialog(): void {
@@ -399,7 +470,7 @@ export class ContainerDetailsPage implements OnDestroy {
       currentContainer?.Ports
     );
     this.initialPorts.set(rows.map(r => ({ ...r })));
-    this.editablePorts.set(rows);
+    this.portsForm().reset(rows);
     this.showEditPortsDialog.set(true);
   }
 
@@ -407,20 +478,60 @@ export class ContainerDetailsPage implements OnDestroy {
     if (this.isRecreating()) {
       return;
     }
+    if (this.hasUnsavedPortChanges()) {
+      this.showConfirmDiscardPorts.set(true);
+      return;
+    }
+    this.confirmDiscardPorts();
+  }
+
+  confirmDiscardPorts(): void {
+    this.showConfirmDiscardPorts.set(false);
+    this.showConfirmResetPorts.set(false);
     this.showEditPortsDialog.set(false);
   }
 
+  onEditPortsDialogClosed(): void {
+    if (this.showEditPortsDialog()) {
+      return;
+    }
+    this.showConfirmResetPorts.set(false);
+    this.initialPorts.set([]);
+    this.portsForm().reset([]);
+    this.portEditor()?.resetAddForm();
+  }
+
+  requestResetPorts(): void {
+    if (this.isRecreating() || !this.showEditPortsDialog()) {
+      return;
+    }
+    if (this.hasUnsavedPortChanges()) {
+      this.showConfirmResetPorts.set(true);
+      return;
+    }
+    this.resetPorts();
+  }
+
+  resetPorts(): void {
+    if (this.isRecreating() || !this.showEditPortsDialog()) {
+      return;
+    }
+    this.showConfirmResetPorts.set(false);
+    resetFormRows(this.portsForm, this.initialPorts());
+    this.portEditor()?.resetAddForm();
+  }
+
   async confirmSavePortsAndRecreate(): Promise<void> {
-    if (this.isRecreating() || this.hasDuplicatePorts() || !this.isPortsChanged()) {
+    if (this.isRecreating() || !this.showEditPortsDialog()) {
+      return;
+    }
+    this.portsForm().markAsTouched();
+    if (this.portsForm().invalid() || this.hasNewPortDraft() || !this.isPortsChanged()) {
       return;
     }
     const { exposedPorts, portBindings } = rowsToDockerPortBindings(this.editablePorts());
-    try {
-      await this.executeRecreate({ exposedPorts, portBindings });
+    if (await this.executeRecreate({ exposedPorts, portBindings })) {
       this.showEditPortsDialog.set(false);
-    } catch {
-      // Recreate error will be surfaced by runAction banner,
-      // dialog remains open for the user to adjust or cancel.
     }
   }
 
@@ -436,26 +547,33 @@ export class ContainerDetailsPage implements OnDestroy {
     });
   }
 
-  private async executeRecreate(options?: RecreateContainerOptions): Promise<void> {
+  private async executeRecreate(options?: RecreateContainerOptions, onRecreated?: () => void): Promise<boolean> {
     const id = this.containerId();
     if (!id) {
-      return;
+      return false;
     }
 
     this.isRecreating.set(true);
-    await this.runAction(async () => {
-      try {
+    try {
+      return await this.runAction(async () => {
         const result = await this.dockerApi.recreateContainer(id, options);
+        onRecreated?.();
         const targetId = result.containerId || id;
         if (result.containerId && result.containerId !== id) {
           void this.shellTab()?.teardown();
-          await this.router.navigate(['/containers', targetId], { replaceUrl: true });
+          this.sessionStorage.set(`${UI_STORAGE_KEYS.CONTAINERS_SELECTED_TAB_PREFIX}${targetId}`, this.activeTab());
+          this.isNavigatingAfterRecreate = true;
+          try {
+            await this.router.navigate(['/containers', targetId], { replaceUrl: true });
+          } finally {
+            this.isNavigatingAfterRecreate = false;
+          }
         }
         await this.loadContainer(targetId, true);
-      } finally {
-        this.isRecreating.set(false);
-      }
-    });
+      }, false);
+    } finally {
+      this.isRecreating.set(false);
+    }
   }
 
   async confirmDelete(): Promise<void> {
@@ -469,6 +587,7 @@ export class ContainerDetailsPage implements OnDestroy {
     await this.runAction(async () => {
       await this.dockerApi.removeContainer(id, true);
       void this.shellTab()?.teardown();
+      this.isRedirectingToList = true;
       this.backToContainers();
     });
     this.isDeleting.set(false);
@@ -487,7 +606,9 @@ export class ContainerDetailsPage implements OnDestroy {
   }
 
   onShellUnavailable(): void {
-    this.redirectToContainers();
+    if (!this.isRecreating()) {
+      this.redirectToContainers();
+    }
   }
 
   setShowAllPorts(expanded: boolean): void {
@@ -505,8 +626,14 @@ export class ContainerDetailsPage implements OnDestroy {
   ): Promise<void> {
     if (this.containerId() !== containerId) {
       this.containerId.set(containerId);
-      this.container.set(null);
-      this.inspectData.set(null);
+      // Keep editors mounted during recreation so unrelated drafts retain their form state.
+      if (!this.isNavigatingAfterRecreate) {
+        this.envTab()?.finishEditing();
+        this.mountsTab()?.finishEditing();
+        this.confirmDiscardPorts();
+        this.container.set(null);
+        this.inspectData.set(null);
+      }
       this.stats.set(null);
       this.error.set(null);
       this.showAllPorts.set(false);
@@ -564,16 +691,18 @@ export class ContainerDetailsPage implements OnDestroy {
     }
   }
 
-  private async runAction(action: () => Promise<void>): Promise<void> {
+  private async runAction(action: () => Promise<void>, redirectOnUnavailable = true): Promise<boolean> {
     try {
       this.error.set(null);
       await action();
+      return true;
     } catch (error) {
-      if (this.isContainerUnavailableError(error)) {
+      if (redirectOnUnavailable && this.isContainerUnavailableError(error)) {
         this.redirectToContainers();
       } else {
         this.error.set(error instanceof Error ? error.message : 'Container action failed.');
       }
+      return false;
     }
   }
 
@@ -627,6 +756,8 @@ export class ContainerDetailsPage implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.resolveNavigation?.(false);
+    this.resolveNavigation = null;
     this.isDisposed = true;
     void this.shellTab()?.teardown();
   }

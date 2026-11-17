@@ -73,7 +73,6 @@ export class TabsComponent {
     if (tabId === this.activeTab()) {
       return;
     }
-    this.updateIndicatorForTab(tabId);
     this.activeTabChange.emit(tabId);
   }
 

@@ -152,7 +152,7 @@ input {
 }
 
 .catbee-container-list-layout {
-  padding: 0;
+  padding: 1px;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
@@ -407,7 +407,7 @@ input {
 
   &.catbee-container-list-layout {
     overflow: hidden;
-    padding: 0;
+    padding: 1px;
     border: none;
     background: transparent;
   }

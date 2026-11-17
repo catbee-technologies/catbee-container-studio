@@ -3,6 +3,10 @@ export interface EnvVarRow {
   value: string;
 }
 
+export function getEnvVarError(row: EnvVarRow): string | null {
+  return !row.key.trim() && row.value.length > 0 ? 'Variable name is required when a value is provided.' : null;
+}
+
 /**
  * Parses multi-line .env content into key-value rows.
  * Handles quoted values, strips comments (#), and trims whitespace.

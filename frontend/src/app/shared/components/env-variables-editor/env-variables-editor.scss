@@ -47,3 +47,13 @@
   color: var(--ink-400);
   text-align: center;
 }
+
+.field-input.is-invalid {
+  border-color: var(--color-danger, #ef4444);
+}
+
+.row-error {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-danger, #ef4444);
+}

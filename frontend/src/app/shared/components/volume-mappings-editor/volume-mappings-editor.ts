@@ -1,20 +1,25 @@
-import { Component, ElementRef, inject, input, model } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, inject, input } from '@angular/core';
+import { FieldTree, FormField } from '@angular/forms/signals';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { SwitchInputComponent } from '@components/switch-input/switch-input';
 import { ElectronApiService } from '@core/electron-api.service';
 import { VolumeMappingRow } from '@utils/volume.utils';
+import { fieldError } from '@utils/configuration-form.utils';
 
 @Component({
   selector: 'catbee-container-studio-volume-mappings-editor',
-  imports: [EmptyStateComponent, SwitchInputComponent],
+  imports: [EmptyStateComponent, SwitchInputComponent, FormField],
   templateUrl: './volume-mappings-editor.html',
   styleUrl: './volume-mappings-editor.scss'
 })
 export class VolumeMappingsEditorComponent {
   private readonly electronApi = inject(ElectronApiService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
 
-  readonly rows = model<VolumeMappingRow[]>([]);
+  readonly fields = input.required<FieldTree<VolumeMappingRow[]>>();
+  readonly rows = computed(() => this.fields()().value());
+  readonly fieldError = fieldError;
   readonly disabled = input(false);
   readonly hostPlaceholder = input('Host path or volume');
   readonly containerPlaceholder = input('Container path');
@@ -22,33 +27,32 @@ export class VolumeMappingsEditorComponent {
   readonly emptyMessage = input('No mounted volumes.');
   readonly emptyHint = input('Click "Add Volume" to map a host folder or volume into the container.');
 
-  setHost(index: number, hostPath: string): void {
-    this.rows.update(current => current.map((row, i) => (i === index ? { ...row, hostPath } : row)));
-  }
-
-  setContainer(index: number, containerPath: string): void {
-    this.rows.update(current => current.map((row, i) => (i === index ? { ...row, containerPath } : row)));
-  }
-
-  setReadOnly(index: number, readOnly: boolean): void {
-    this.rows.update(current => current.map((row, i) => (i === index ? { ...row, readOnly } : row)));
-  }
-
   removeRow(index: number): void {
-    this.rows.update(current => current.filter((_, i) => i !== index));
+    this.fields()().value.update(current => current.filter((_, i) => i !== index));
+    this.fields()().markAsDirty();
   }
 
   addRow(): void {
-    this.rows.update(current => [...current, { hostPath: '', containerPath: '', readOnly: false }]);
+    this.fields()().value.update(current => [...current, { hostPath: '', containerPath: '', readOnly: false }]);
+    this.fields()().markAsDirty();
     this.scrollToBottomAndFocus();
   }
 
   async pickHostPath(index: number): Promise<void> {
+    const hostField = this.fields()[index].hostPath;
+    const initialRow = this.fields()[index]().value();
     const selected = await this.electronApi.selectDirectory();
-    if (!selected) {
+    if (
+      !selected ||
+      this.destroyRef.destroyed ||
+      !Array.from(this.fields()).some(row => row.hostPath === hostField && row().value() === initialRow)
+    ) {
       return;
     }
-    this.setHost(index, selected);
+    const field = hostField();
+    field.value.set(selected);
+    field.markAsDirty();
+    field.markAsTouched();
   }
 
   scrollToBottomAndFocus(): void {

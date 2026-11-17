@@ -146,6 +146,7 @@
         [containerId]="containerId()"
         [active]="activeTab() === 'logs'"
         [style.display]="activeTab() === 'logs' ? 'grid' : 'none'"
+        [style.padding]="'1px'"
         (unavailable)="onShellUnavailable()"
         (streamError)="error.set($event)"
       />
@@ -189,6 +190,7 @@
               [container]="container()"
               [isRecreating]="isRecreating()"
               (recreate)="recreateContainerWithMounts($event)"
+              (openContainerPath)="openContainerPath($event)"
             />
           }
           @if (activeTab() === 'files') {
@@ -203,6 +205,17 @@
     <catbee-container-studio-empty-state [icon]="'error_outline'" [message]="'Container not found.'" />
   }
 </main>
+
+<catbee-container-studio-confirm-dialog
+  [open]="showConfirmLeave()"
+  title="Discard Unsaved Changes?"
+  message="You have unsaved container configuration changes. Discard them and leave this page?"
+  confirmLabel="Discard Changes"
+  cancelLabel="Keep Editing"
+  [dangerous]="true"
+  (cancelAction)="cancelLeave()"
+  (confirm)="confirmLeave()"
+/>
 
 <catbee-container-studio-confirm-dialog
   [open]="showDeleteConfirm()"
@@ -230,39 +243,51 @@
   [open]="showEditPortsDialog()"
   title="Edit Port Mappings"
   [closable]="!isRecreating()"
-  [style]="{ width: '480px', 'max-width': '95vw' }"
+  [style]="{ width: '550px', 'max-width': '95vw' }"
   (closeDialog)="closeEditPortsDialog()"
+  (closed)="onEditPortsDialogClosed()"
 >
-  <div catbeeDialogBody class="edit-ports-dialog-body">
+  <form catbeeDialogBody id="edit-ports-form" [formRoot]="portsForm" class="edit-ports-dialog-body">
     <p class="edit-ports-intro">
       Update published host ports for container <strong>{{ name() }}</strong
       >. Saving will recreate the container to apply port changes.
     </p>
 
     <catbee-container-studio-port-mappings-editor
-      [(rows)]="editablePorts"
-      [disabled]="isRecreating()"
+      [fields]="portsForm"
+      [disabled]="isRecreating() || !showEditPortsDialog()"
       [allowAdd]="true"
       [allowRemove]="true"
       emptyMessage="No ports exposed by this container."
       emptyHint="Click 'Add Port Mapping' below to map a host port to this container."
     />
-  </div>
+    @if (hasNewPortDraft()) {
+      <p class="edit-ports-intro">Add or cancel the new port mapping before saving.</p>
+    }
+  </form>
 
   <div catbeeDialogFooter class="edit-ports-dialog-footer">
     <button
       type="button"
       class="catbee-action-btn fix-height"
-      [disabled]="isRecreating()"
+      [disabled]="isRecreating() || !showEditPortsDialog() || (!hasUnsavedPortChanges() && !isPortFormDirty())"
+      (click)="requestResetPorts()"
+    >
+      Reset
+    </button>
+    <button
+      type="button"
+      class="catbee-action-btn fix-height"
+      [disabled]="isRecreating() || !showEditPortsDialog()"
       (click)="closeEditPortsDialog()"
     >
       Cancel
     </button>
     <button
-      type="button"
-      class="catbee-action-btn primary fix-height"
-      [disabled]="isRecreating() || hasDuplicatePorts() || !isPortsChanged()"
-      (click)="confirmSavePortsAndRecreate()"
+      type="submit"
+      form="edit-ports-form"
+      class="catbee-action-btn fix-height action-start"
+      [disabled]="isRecreating() || !showEditPortsDialog() || hasNewPortDraft() || !isPortsChanged()"
     >
       @if (isRecreating()) {
         <span class="mat-icon-filled spin" aria-hidden="true">refresh</span>
@@ -273,3 +298,25 @@
     </button>
   </div>
 </catbee-container-studio-dialog>
+
+<catbee-container-studio-confirm-dialog
+  [open]="showConfirmResetPorts()"
+  title="Reset Changes?"
+  message="Discard your unsaved port mapping changes, including any unadded mapping, and restore the last configured values?"
+  confirmLabel="Reset Changes"
+  cancelLabel="Keep Editing"
+  [dangerous]="true"
+  (cancelAction)="showConfirmResetPorts.set(false)"
+  (confirm)="resetPorts()"
+/>
+
+<catbee-container-studio-confirm-dialog
+  [open]="showConfirmDiscardPorts()"
+  title="Discard Port Changes?"
+  message="You have unsaved port mapping changes. Discard them and close the editor?"
+  confirmLabel="Discard Changes"
+  cancelLabel="Keep Editing"
+  [dangerous]="true"
+  (cancelAction)="showConfirmDiscardPorts.set(false)"
+  (confirm)="confirmDiscardPorts()"
+/>

@@ -17,18 +17,16 @@
       [containerState]="container().State"
       noPortsLabel="No Ports"
     />
-    @if (normalizedPorts().length > 0) {
-      <button
-        type="button"
-        class="metric-edit-btn"
-        aria-label="Edit port mappings"
-        [catbeeTooltip]="'Edit port mappings & recreate'"
-        [catbeeTooltipPosition]="'top'"
-        (click)="editPorts.emit()"
-      >
-        <span class="mat-icon-filled" aria-hidden="true">edit</span>
-      </button>
-    }
+    <button
+      type="button"
+      class="metric-edit-btn"
+      aria-label="Edit port mappings"
+      [catbeeTooltip]="'Edit port mappings & recreate'"
+      [catbeeTooltipPosition]="'top'"
+      (click)="editPorts.emit()"
+    >
+      <span class="mat-icon-filled" aria-hidden="true">edit</span>
+    </button>
   </div>
 
   <div class="metric metric-restart">

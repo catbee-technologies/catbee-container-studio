@@ -5,7 +5,6 @@ import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { MenuComponent } from '@components/menu/menu';
 import { DockerContainerInfo, DockerContainerInspectInfo, DockerContainerStats } from '@shared/types/docker-api.types';
 import { formatDockerBytes } from '@utils/docker-display.utils';
-import { normalizeDockerPorts } from '@utils/docker-port.utils';
 
 @Component({
   selector: 'catbee-container-studio-container-overview-card',
@@ -24,7 +23,6 @@ export class OverviewCardComponent {
   readonly restartPolicyChange = output<string>();
   readonly editPorts = output<void>();
 
-  readonly normalizedPorts = computed(() => normalizeDockerPorts(this.container().Ports));
   readonly restartPolicy = computed(() => this.inspectData()?.HostConfig?.RestartPolicy?.Name || 'no');
   readonly isRestartMenuOpen = signal(false);
   readonly restartPolicies = ['no', 'always', 'unless-stopped', 'on-failure'] as const;

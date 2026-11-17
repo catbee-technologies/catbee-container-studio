@@ -19,25 +19,30 @@
     <p class="field-group-hint">Enter "0" to assign a randomly generated host port. Leave blank to unbind.</p>
 
     <div class="port-rows-container">
-      @for (port of rows(); track port.containerPort + '/' + port.protocol; let idx = $index) {
+      @for (port of fields(); track port; let idx = $index) {
+        @let hostError = fieldError(port.hostPort());
         <div class="port-row-wrapper">
           <div class="port-row">
-            <div class="port-input-wrapper" [class.has-error]="isDuplicateHostPort(port)">
+            <div class="port-input-wrapper" [class.has-error]="hostError !== null">
               <input
                 id="port-host-{{ idx }}"
                 type="text"
                 inputmode="numeric"
-                pattern="[0-9]*"
-                maxlength="5"
                 class="field-input port-input"
-                [class.is-invalid]="isDuplicateHostPort(port)"
+                [class.is-invalid]="hostError !== null"
+                [attr.aria-invalid]="hostError !== null"
+                [attr.aria-describedby]="hostError ? 'port-error-' + idx : null"
+                [attr.aria-label]="
+                  'Host port for container port ' + port.containerPort().value() + '/' + port.protocol().value()
+                "
                 placeholder="Host port"
-                [value]="port.hostPort"
-                [disabled]="disabled()"
+                [formField]="port.hostPort"
                 (keydown)="onPortKeydown($event)"
-                (input)="setPortHost(idx, sanitizePortInput($event))"
+                (input)="normalizePortInput(port.hostPort, $event)"
               />
-              <span class="port-suffix mono" aria-hidden="true">:{{ port.containerPort }}/{{ port.protocol }}</span>
+              <span class="port-suffix mono" aria-hidden="true"
+                >:{{ port.containerPort().value() }}/{{ port.protocol().value() }}</span
+              >
             </div>
 
             @if (allowRemove()) {
@@ -54,10 +59,8 @@
               </button>
             }
           </div>
-          @if (isDuplicateHostPort(port)) {
-            <span class="port-duplicate-error">
-              Host port {{ port.hostPort }} is already assigned to another port mapping.
-            </span>
+          @if (hostError) {
+            <span class="port-duplicate-error" id="port-error-{{ idx }}" aria-live="polite">{{ hostError }}</span>
           }
         </div>
       }
@@ -98,15 +101,19 @@
               id="new-host-port"
               type="text"
               inputmode="numeric"
-              pattern="[0-9]*"
-              maxlength="5"
               class="field-input add-field-input"
+              [class.is-invalid]="newHostPortError() !== null"
+              [attr.aria-invalid]="newHostPortError() !== null"
+              [attr.aria-describedby]="newHostPortError() ? 'new-host-port-error' : null"
               placeholder="e.g. 8080 (or 0)"
-              [value]="newHostPort()"
+              [formField]="newPortForm.hostPort"
               (keydown)="onPortKeydown($event)"
-              (input)="newHostPort.set(sanitizePortInput($event))"
-              (keydown.enter)="confirmAddPort()"
+              (input)="normalizePortInput(newPortForm.hostPort, $event)"
+              (keydown.enter)="$event.preventDefault(); confirmAddPort()"
             />
+            @if (newHostPortError(); as error) {
+              <p id="new-host-port-error" class="add-port-error" aria-live="polite">{{ error }}</p>
+            }
           </div>
 
           <div class="field-col">
@@ -115,15 +122,19 @@
               id="new-container-port"
               type="text"
               inputmode="numeric"
-              pattern="[0-9]*"
-              maxlength="5"
               class="field-input add-field-input"
+              [class.is-invalid]="newContainerPortError() !== null"
+              [attr.aria-invalid]="newContainerPortError() !== null"
+              [attr.aria-describedby]="newContainerPortError() ? 'new-container-port-error' : null"
               placeholder="e.g. 8080"
-              [value]="newContainerPort()"
+              [formField]="newPortForm.containerPort"
               (keydown)="onPortKeydown($event)"
-              (input)="newContainerPort.set(sanitizePortInput($event))"
-              (keydown.enter)="confirmAddPort()"
+              (input)="normalizePortInput(newPortForm.containerPort, $event)"
+              (keydown.enter)="$event.preventDefault(); confirmAddPort()"
             />
+            @if (newContainerPortError(); as error) {
+              <p id="new-container-port-error" class="add-port-error" aria-live="polite">{{ error }}</p>
+            }
           </div>
 
           <div class="field-col protocol-col">
@@ -131,8 +142,8 @@
             <select
               id="new-protocol"
               class="field-select add-field-select"
-              [value]="newProtocol()"
-              (change)="newProtocol.set($any($event.target).value)"
+              [formField]="newPortForm.protocol"
+              (keydown.enter)="$event.preventDefault(); confirmAddPort()"
             >
               <option value="tcp">tcp</option>
               <option value="udp">udp</option>
@@ -140,15 +151,26 @@
           </div>
         </div>
 
-        @if (addError(); as err) {
-          <p class="add-port-error">{{ err }}</p>
-        }
-
         <div class="add-port-form-actions">
-          <button type="button" class="catbee-action-btn fix-height" (click)="cancelAddForm()">Cancel</button>
-          <button type="button" class="catbee-action-btn primary fix-height" (click)="confirmAddPort()">Add</button>
+          <button type="button" class="catbee-action-btn fix-height" [disabled]="disabled()" (click)="cancelAddForm()">
+            Cancel
+          </button>
+          <button type="button" class="catbee-action-btn fix-height" [disabled]="disabled()" (click)="confirmAddPort()">
+            Add
+          </button>
         </div>
       </div>
     }
+
+    <catbee-container-studio-confirm-dialog
+      [open]="showConfirmDiscard()"
+      title="Discard New Port Mapping?"
+      message="You have an unsaved new port mapping. Discard it?"
+      confirmLabel="Discard Changes"
+      cancelLabel="Keep Editing"
+      [dangerous]="true"
+      (cancelAction)="showConfirmDiscard.set(false)"
+      (confirm)="resetAddForm()"
+    />
   }
 }

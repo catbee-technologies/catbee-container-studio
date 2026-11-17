@@ -314,7 +314,7 @@
   [style]="{ width: '32rem' }"
   (closeDialog)="closeCreateDialog()"
 >
-  <div catbeeDialogBody class="volume-form">
+  <form catbeeDialogBody id="create-volume-form" [formRoot]="createForm" class="volume-form">
     @if (createError(); as errorMessage) {
       <catbee-container-studio-error-banner
         [errorMessage]="errorMessage"
@@ -322,29 +322,27 @@
         size="small"
       />
     }
-    <label class="field">
-      <span class="field-label">Name</span>
+    @let nameError = fieldError(createForm.name());
+    <div class="field">
+      <label class="field-label" for="volume-name">Name</label>
       <input
+        id="volume-name"
         class="field-input"
         type="text"
         placeholder="e.g. app-data"
-        [value]="volumeName()"
-        [disabled]="isCreating()"
-        (input)="volumeName.set($any($event.target).value)"
-        (keydown.enter)="createVolume()"
+        [formField]="createForm.name"
+        aria-required="true"
+        [class.is-invalid]="nameError !== null"
+        [attr.aria-invalid]="nameError !== null"
+        [attr.aria-describedby]="nameError ? 'volume-name-error' : null"
       />
-    </label>
+      @if (nameError) {
+        <span id="volume-name-error" class="field-error" aria-live="polite">{{ nameError }}</span>
+      }
+    </div>
     <label class="field">
       <span class="field-label">Driver</span>
-      <input
-        class="field-input"
-        type="text"
-        placeholder="local"
-        [value]="volumeDriver()"
-        [disabled]="isCreating()"
-        (input)="volumeDriver.set($any($event.target).value)"
-        (keydown.enter)="createVolume()"
-      />
+      <input class="field-input" type="text" placeholder="local" [formField]="createForm.driver" />
     </label>
     <div class="field">
       <span class="field-label">Host Directory Path (Optional)</span>
@@ -353,10 +351,7 @@
           class="field-input host-path-input"
           type="text"
           placeholder="e.g. C:\data or /var/data (Leave empty for default)"
-          [value]="volumeHostPath()"
-          [disabled]="isCreating()"
-          (input)="volumeHostPath.set($any($event.target).value)"
-          (keydown.enter)="createVolume()"
+          [formField]="createForm.hostPath"
         />
         <button
           type="button"
@@ -370,18 +365,13 @@
       </div>
       <span class="field-hint">Binds this volume to an existing folder on your host machine.</span>
     </div>
-  </div>
+  </form>
 
   <ng-container catbeeDialogFooter>
     <button type="button" class="catbee-action-btn" [disabled]="isCreating()" (click)="closeCreateDialog()">
       Cancel
     </button>
-    <button
-      type="button"
-      class="catbee-action-btn action-start"
-      [disabled]="isCreating() || volumeName().trim().length === 0"
-      (click)="createVolume()"
-    >
+    <button type="submit" form="create-volume-form" class="catbee-action-btn action-start" [disabled]="isCreating()">
       @if (isCreating()) {
         <span class="mat-icon-filled spin" aria-hidden="true">refresh</span>Creating...
       } @else {
@@ -390,3 +380,14 @@
     </button>
   </ng-container>
 </catbee-container-studio-dialog>
+
+<catbee-container-studio-confirm-dialog
+  [open]="showConfirmCloseCreate()"
+  title="Cancel Volume Creation?"
+  message="Close this dialog and discard the volume configuration?"
+  confirmLabel="Discard & Close"
+  cancelLabel="Keep Editing"
+  [dangerous]="true"
+  (cancelAction)="showConfirmCloseCreate.set(false)"
+  (confirm)="confirmCloseCreateDialog()"
+/>

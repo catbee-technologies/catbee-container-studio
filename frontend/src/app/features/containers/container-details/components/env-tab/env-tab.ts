@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, ElementRef, computed, effect, input, output, signal, viewChild } from '@angular/core';
+import { apply, disabled, form, FormRoot } from '@angular/forms/signals';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
@@ -7,6 +8,7 @@ import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
 import { EnvVariablesEditorComponent } from '@components/env-variables-editor/env-variables-editor';
 import { DockerContainerInfo, DockerContainerInspectInfo } from '@shared/types/docker-api.types';
 import { EnvVarRow, areEnvVarsEqual, dockerEnvToRows, rowsToDockerEnv } from '@utils/env.utils';
+import { envRowsSchema, resetFormRows } from '@utils/configuration-form.utils';
 import {
   escapeSearchHtml,
   findVisibleMatchIndex,
@@ -29,7 +31,8 @@ interface EnvMatch {
     CopyButtonComponent,
     EmptyStateComponent,
     ConfirmDialogComponent,
-    EnvVariablesEditorComponent
+    EnvVariablesEditorComponent,
+    FormRoot
   ],
   templateUrl: './env-tab.html',
   styleUrl: './env-tab.scss'
@@ -50,8 +53,25 @@ export class EnvTabComponent {
   readonly isEditing = signal(false);
   readonly initialEnvVars = signal<EnvVarRow[]>([]);
   readonly editableEnvVars = signal<EnvVarRow[]>([]);
+  readonly envForm = form(
+    this.editableEnvVars,
+    path => {
+      apply(path, envRowsSchema);
+      disabled(path, { when: () => this.isRecreating() });
+    },
+    { submission: { action: async () => this.requestSave() } }
+  );
   readonly isEnvChanged = computed(() => !areEnvVarsEqual(this.initialEnvVars(), this.editableEnvVars()));
+  readonly hasUnsavedChanges = computed(
+    () =>
+      this.isEditing() &&
+      (this.isEnvChanged() || this.editableEnvVars().some(row => !row.key.trim() && row.value.length > 0))
+  );
   readonly showConfirmRecreate = signal(false);
+  readonly showConfirmClear = signal(false);
+  readonly showConfirmReset = signal(false);
+  readonly showConfirmDiscard = signal(false);
+  private afterDiscard: (() => void) | undefined;
 
   readonly envRows = computed<EnvVarRow[]>(() => {
     const inspectData = this.inspectData();
@@ -141,10 +161,6 @@ export class EnvTabComponent {
   constructor() {
     effect(() => {
       this.inspectData();
-      if (!this.isRecreating()) {
-        this.isEditing.set(false);
-        this.editableEnvVars.set([]);
-      }
       queueMicrotask(() => this.selectNearestMatchFromViewport());
     });
   }
@@ -152,26 +168,85 @@ export class EnvTabComponent {
   startEditing(): void {
     const current = this.envRows().map(row => ({ key: row.key, value: row.value }));
     this.initialEnvVars.set(current.map(row => ({ ...row })));
-    this.editableEnvVars.set(current.length > 0 ? current : [{ key: '', value: '' }]);
+    this.envForm().reset(current.length > 0 ? current : [{ key: '', value: '' }]);
     this.isEditing.set(true);
   }
 
-  cancelEditing(): void {
+  resetEditing(): void {
+    if (this.isRecreating()) {
+      return;
+    }
+    if (this.hasUnsavedChanges()) {
+      this.showConfirmReset.set(true);
+      return;
+    }
+    this.confirmResetEditing();
+  }
+
+  confirmResetEditing(): void {
+    if (this.isRecreating()) {
+      return;
+    }
+    this.showConfirmReset.set(false);
+    resetFormRows(this.envForm, this.initialEnvVars());
+  }
+
+  cancelEditing(afterDiscard?: () => void): void {
+    this.afterDiscard = afterDiscard;
+    if (this.hasUnsavedChanges()) {
+      this.showConfirmDiscard.set(true);
+      return;
+    }
+    this.confirmDiscardEditing();
+  }
+
+  cancelDiscardEditing(): void {
+    this.showConfirmDiscard.set(false);
+    this.afterDiscard = undefined;
+  }
+
+  confirmDiscardEditing(): void {
+    const afterDiscard = this.afterDiscard;
+    this.finishEditing();
+    afterDiscard?.();
+  }
+
+  finishEditing(): void {
     this.isEditing.set(false);
-    this.editableEnvVars.set([]);
+    this.envForm().reset([]);
+    this.showConfirmDiscard.set(false);
+    this.showConfirmClear.set(false);
+    this.showConfirmReset.set(false);
+    this.showConfirmRecreate.set(false);
+    this.afterDiscard = undefined;
   }
 
   addEnvVar(): void {
     this.editableEnvVars.update(rows => [...rows, { key: '', value: '' }]);
+    this.envForm().markAsDirty();
     this.envEditor()?.scrollToBottomAndFocus();
   }
 
   clearEnvVars(): void {
+    if (this.editableEnvVars().some(row => row.key.length > 0 || row.value.length > 0)) {
+      this.showConfirmClear.set(true);
+      return;
+    }
+    this.confirmClearEnvVars();
+  }
+
+  confirmClearEnvVars(): void {
+    this.showConfirmClear.set(false);
     this.editableEnvVars.set([]);
+    this.envForm().markAsDirty();
   }
 
   requestSave(): void {
-    if (this.isRecreating() || !this.isEnvChanged()) {
+    if (this.isRecreating()) {
+      return;
+    }
+    this.envForm().markAsTouched();
+    if (this.envForm().invalid() || !this.isEnvChanged()) {
       return;
     }
     this.showConfirmRecreate.set(true);
@@ -182,10 +257,11 @@ export class EnvTabComponent {
   }
 
   confirmSaveAndRecreate(): void {
+    if (this.isRecreating() || this.envForm().invalid() || !this.isEnvChanged()) {
+      return;
+    }
     this.showConfirmRecreate.set(false);
     const env = rowsToDockerEnv(this.editableEnvVars());
-    this.isEditing.set(false);
-    this.editableEnvVars.set([]);
     this.recreate.emit(env);
   }
 

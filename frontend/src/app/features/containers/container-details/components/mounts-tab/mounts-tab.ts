@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, effect, inject, input, output, signal, viewChild } from '@angular/core';
+import { Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
+import { apply, disabled, form, FormRoot } from '@angular/forms/signals';
 import { Router } from '@angular/router';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
@@ -8,6 +9,7 @@ import { DockerContainerInfo, DockerContainerInspectInfo } from '@shared/types/d
 import { ElectronApiService } from '@core/electron-api.service';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { VolumeMappingRow, areVolumeMappingsEqual, dockerBindsToRows, rowsToDockerBinds } from '@utils/volume.utils';
+import { resetFormRows, volumeRowsSchema } from '@utils/configuration-form.utils';
 
 interface MountRow {
   type: string;
@@ -22,7 +24,14 @@ interface MountRow {
 
 @Component({
   selector: 'catbee-container-studio-container-mounts-tab',
-  imports: [CommonModule, EmptyStateComponent, CatbeeTooltip, ConfirmDialogComponent, VolumeMappingsEditorComponent],
+  imports: [
+    CommonModule,
+    EmptyStateComponent,
+    CatbeeTooltip,
+    ConfirmDialogComponent,
+    VolumeMappingsEditorComponent,
+    FormRoot
+  ],
   templateUrl: './mounts-tab.html',
   styleUrl: './mounts-tab.scss'
 })
@@ -39,8 +48,30 @@ export class MountsTabComponent {
   readonly isEditing = signal(false);
   readonly initialBinds = signal<VolumeMappingRow[]>([]);
   readonly editableBinds = signal<VolumeMappingRow[]>([]);
+  readonly mountsForm = form(
+    this.editableBinds,
+    path => {
+      apply(path, volumeRowsSchema);
+      disabled(path, { when: () => this.isRecreating() });
+    },
+    { submission: { action: async () => this.requestSave() } }
+  );
   readonly isBindsChanged = computed(() => !areVolumeMappingsEqual(this.initialBinds(), this.editableBinds()));
+  readonly hasUnsavedChanges = computed(
+    () =>
+      this.isEditing() &&
+      (this.isBindsChanged() ||
+        this.editableBinds().some(
+          row =>
+            (!row.hostPath.trim() || !row.containerPath.trim()) &&
+            (row.hostPath.length > 0 || row.containerPath.length > 0 || row.readOnly)
+        ))
+  );
   readonly showConfirmRecreate = signal(false);
+  readonly showConfirmClear = signal(false);
+  readonly showConfirmReset = signal(false);
+  readonly showConfirmDiscard = signal(false);
+  private afterDiscard: (() => void) | undefined;
 
   readonly mountRows = computed<MountRow[]>(() => {
     const inspectData = this.inspectData();
@@ -119,22 +150,12 @@ export class MountsTabComponent {
     return `Force recreate container "${name}" with updated mounts? \n This will stop, remove, and recreate the container using the same configuration with your updated volume mappings.`;
   });
 
-  constructor() {
-    effect(() => {
-      this.inspectData();
-      if (!this.isRecreating()) {
-        this.isEditing.set(false);
-        this.editableBinds.set([]);
-      }
-    });
-  }
-
   startEditing(): void {
     const inspect = this.inspectData();
     const existingBinds = dockerBindsToRows(inspect?.HostConfig?.Binds);
     if (existingBinds.length > 0) {
       this.initialBinds.set(existingBinds.map(b => ({ ...b })));
-      this.editableBinds.set(existingBinds);
+      this.mountsForm().reset(existingBinds);
     } else {
       const fromMounts: VolumeMappingRow[] = this.mountRows()
         .filter(m => m.source !== '--' && m.destination !== '--')
@@ -144,29 +165,88 @@ export class MountsTabComponent {
           readOnly: !m.readWrite
         }));
       this.initialBinds.set(fromMounts.map(b => ({ ...b })));
-      this.editableBinds.set(
+      this.mountsForm().reset(
         fromMounts.length > 0 ? fromMounts : [{ hostPath: '', containerPath: '', readOnly: false }]
       );
     }
     this.isEditing.set(true);
   }
 
-  cancelEditing(): void {
+  resetEditing(): void {
+    if (this.isRecreating()) {
+      return;
+    }
+    if (this.hasUnsavedChanges()) {
+      this.showConfirmReset.set(true);
+      return;
+    }
+    this.confirmResetEditing();
+  }
+
+  confirmResetEditing(): void {
+    if (this.isRecreating()) {
+      return;
+    }
+    this.showConfirmReset.set(false);
+    resetFormRows(this.mountsForm, this.initialBinds());
+  }
+
+  cancelEditing(afterDiscard?: () => void): void {
+    this.afterDiscard = afterDiscard;
+    if (this.hasUnsavedChanges()) {
+      this.showConfirmDiscard.set(true);
+      return;
+    }
+    this.confirmDiscardEditing();
+  }
+
+  cancelDiscardEditing(): void {
+    this.showConfirmDiscard.set(false);
+    this.afterDiscard = undefined;
+  }
+
+  confirmDiscardEditing(): void {
+    const afterDiscard = this.afterDiscard;
+    this.finishEditing();
+    afterDiscard?.();
+  }
+
+  finishEditing(): void {
     this.isEditing.set(false);
-    this.editableBinds.set([]);
+    this.mountsForm().reset([]);
+    this.showConfirmDiscard.set(false);
+    this.showConfirmClear.set(false);
+    this.showConfirmReset.set(false);
+    this.showConfirmRecreate.set(false);
+    this.afterDiscard = undefined;
   }
 
   addMount(): void {
     this.editableBinds.update(rows => [...rows, { hostPath: '', containerPath: '', readOnly: false }]);
+    this.mountsForm().markAsDirty();
     this.volumeEditor()?.scrollToBottomAndFocus();
   }
 
   clearMounts(): void {
+    if (this.editableBinds().some(row => row.hostPath.length > 0 || row.containerPath.length > 0 || row.readOnly)) {
+      this.showConfirmClear.set(true);
+      return;
+    }
+    this.confirmClearMounts();
+  }
+
+  confirmClearMounts(): void {
+    this.showConfirmClear.set(false);
     this.editableBinds.set([]);
+    this.mountsForm().markAsDirty();
   }
 
   requestSave(): void {
-    if (this.isRecreating() || !this.isBindsChanged()) {
+    if (this.isRecreating()) {
+      return;
+    }
+    this.mountsForm().markAsTouched();
+    if (this.mountsForm().invalid() || !this.isBindsChanged()) {
       return;
     }
     this.showConfirmRecreate.set(true);
@@ -177,10 +257,11 @@ export class MountsTabComponent {
   }
 
   confirmSaveAndRecreate(): void {
+    if (this.isRecreating() || this.mountsForm().invalid() || !this.isBindsChanged()) {
+      return;
+    }
     this.showConfirmRecreate.set(false);
     const binds = rowsToDockerBinds(this.editableBinds());
-    this.isEditing.set(false);
-    this.editableBinds.set([]);
     this.recreate.emit({ binds });
   }
 

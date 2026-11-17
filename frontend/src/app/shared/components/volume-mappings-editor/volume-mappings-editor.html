@@ -8,17 +8,20 @@
   />
 } @else {
   <div class="volume-rows-container">
-    @for (volume of rows(); track $index) {
+    @for (volume of fields(); track volume) {
+      @let hostError = fieldError(volume.hostPath());
+      @let containerError = fieldError(volume.containerPath());
       <div class="volume-row">
         <div class="path-input">
           <input
             id="volume-host-{{ $index }}"
             type="text"
             class="field-input volume-host-input"
+            [class.is-invalid]="hostError !== null"
+            [attr.aria-invalid]="hostError !== null"
+            [attr.aria-describedby]="hostError ? 'volume-host-error-' + $index : null"
             [placeholder]="hostPlaceholder()"
-            [value]="volume.hostPath"
-            [disabled]="disabled()"
-            (input)="setHost($index, $any($event.target).value)"
+            [formField]="volume.hostPath"
           />
           <button
             type="button"
@@ -35,17 +38,13 @@
           id="volume-container-{{ $index }}"
           type="text"
           class="field-input volume-container-input"
+          [class.is-invalid]="containerError !== null"
+          [attr.aria-invalid]="containerError !== null"
+          [attr.aria-describedby]="containerError ? 'volume-container-error-' + $index : null"
           [placeholder]="containerPlaceholder()"
-          [value]="volume.containerPath"
-          [disabled]="disabled()"
-          (input)="setContainer($index, $any($event.target).value)"
+          [formField]="volume.containerPath"
         />
-        <catbee-container-studio-switch-input
-          [checked]="volume.readOnly"
-          label="Read-only"
-          [disabled]="disabled()"
-          (checkedChange)="setReadOnly($index, $event)"
-        />
+        <catbee-container-studio-switch-input [formField]="volume.readOnly" label="Read-only" />
         <button
           type="button"
           class="catbee-action-btn icon-only no-bg"
@@ -55,6 +54,14 @@
         >
           <span class="mat-icon-filled" aria-hidden="true">close</span>
         </button>
+        @if (hostError) {
+          <p id="volume-host-error-{{ $index }}" class="row-error" aria-live="polite">{{ hostError }}</p>
+        }
+        @if (containerError) {
+          <p id="volume-container-error-{{ $index }}" class="row-error container-error" aria-live="polite">
+            {{ containerError }}
+          </p>
+        }
       </div>
     }
   </div>
