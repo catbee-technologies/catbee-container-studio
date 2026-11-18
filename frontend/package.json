@@ -1,6 +1,6 @@
 {
   "name": "catbee-container-studio",
-  "version": "0.6.0",
+  "version": "0.0.0-test-deps.1",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
