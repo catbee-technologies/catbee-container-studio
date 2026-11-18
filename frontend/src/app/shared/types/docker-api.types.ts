@@ -90,6 +90,7 @@ export interface DockerContainerInspectInfo {
     Cmd?: string[];
     Entrypoint?: string[];
     Env?: string[];
+    Image?: string;
     Volumes?: Record<string, unknown>;
     Labels?: Record<string, string>;
     ExposedPorts?: Record<string, unknown>;
@@ -110,6 +111,11 @@ export interface DockerContainerInspectInfo {
     Status?: string;
     Running?: boolean;
     Paused?: boolean;
+    Health?: {
+      Status?: string;
+    };
+    StartedAt?: string;
+    FinishedAt?: string;
   };
 }
 
