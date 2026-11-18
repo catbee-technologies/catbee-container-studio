@@ -27,6 +27,20 @@ jobs:
             package-lock.json
             frontend/package-lock.json
 
+      - name: Validate tag matches package.json version
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          EXPECTED_TAG="v${PKG_VERSION}"
+          if [[ "$TAG" != "$EXPECTED_TAG" ]]; then
+            echo "::error::Tag '$TAG' does not match package.json version '${PKG_VERSION}'!"
+            echo "Expected tag: '${EXPECTED_TAG}'"
+            echo "Please use 'npm version <version>' to create and bump release tags properly."
+            exit 1
+          fi
+
       - name: Install dependencies
         shell: pwsh
         run: |
