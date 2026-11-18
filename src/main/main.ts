@@ -11,6 +11,11 @@ import { dockerManager } from './docker/services/docker.manager';
 
 const gotTheLock = app.requestSingleInstanceLock();
 
+// eslint-disable-next-line n/no-process-env
+if (process.env.SNAP) {
+  app.commandLine.appendSwitch('disable-gpu-compositing');
+}
+
 if (!gotTheLock) {
   app.quit();
 } else {
