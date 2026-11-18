@@ -1,8 +1,10 @@
+const artifactSuffix = process.env.ARTIFACT_SUFFIX ? `-${process.env.ARTIFACT_SUFFIX}` : '';
+
 /** @type {import('electron-builder').Configuration} */
 export default {
   appId: 'in.catbee.container.studio',
   productName: 'CatBee Container Studio',
-  artifactName: 'CatBee-Container-Studio-${version}-${os}-${arch}.${ext}',
+  artifactName: `CatBee-Container-Studio-\${version}-\${os}-\${arch}${artifactSuffix}.\${ext}`,
   extraMetadata: {
     main: 'backend/main/main.js'
   },

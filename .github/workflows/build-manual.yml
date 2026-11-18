@@ -1,0 +1,212 @@
+name: Manual OS Builds (Testing)
+run-name: Manual OS Build [TESTING] (${{ inputs.platform }}${{ inputs.include_msix && '+msix' || '' }}) by @${{ github.actor }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Target OS platform to build'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - windows
+          - macos
+          - linux
+      include_msix:
+        description: 'Include MSIX package for Windows'
+        required: false
+        default: false
+        type: boolean
+      retention_days:
+        description: 'Days to retain build artifacts (1-90)'
+        required: false
+        default: 3
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    name: Prepare Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      retention_days: ${{ steps.set-matrix.outputs.retention_days }}
+    steps:
+      - name: Resolve target matrix and validate inputs
+        id: set-matrix
+        shell: bash
+        env:
+          SELECTED_PLATFORM: ${{ inputs.platform }}
+          INCLUDE_MSIX: ${{ inputs.include_msix }}
+          RETENTION_DAYS: ${{ inputs.retention_days }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const selection = process.env.SELECTED_PLATFORM || "all";
+            const includeMsix = process.env.INCLUDE_MSIX === "true";
+            const rawRetention = process.env.RETENTION_DAYS;
+            const retentionDays = Number(rawRetention || 3);
+
+            if (!Number.isInteger(retentionDays) || retentionDays < 1 || retentionDays > 90) {
+              throw new Error("Invalid retention_days: " + rawRetention + ". Must be an integer between 1 and 90.");
+            }
+
+            if (includeMsix && !["all", "windows"].includes(selection)) {
+              throw new Error("MSIX builds are only available when platform is windows or all.");
+            }
+
+            let winCommand = "npm run dist:win -- --publish never";
+            let winPaths = "build/*.exe\nbuild/*.zip\nbuild/*.yml\nbuild/*.blockmap";
+
+            if (includeMsix) {
+              winCommand += " && npx electron-builder --win --config electron-builder-msix.config.mjs --publish never";
+              winPaths += "\nbuild/*.msix\nbuild/*.msixupload";
+            }
+
+            const allPlatforms = [
+              {
+                os: "windows-latest",
+                platform: "windows",
+                command: winCommand,
+                artifact_name: "catbee-windows-manual",
+                artifact_paths: winPaths
+              },
+              {
+                os: "macos-latest",
+                platform: "macos",
+                command: "npm run dist:mac -- --publish never",
+                artifact_name: "catbee-macos-manual",
+                artifact_paths: "build/*.dmg\nbuild/*.zip\nbuild/*.yml\nbuild/*.blockmap"
+              },
+              {
+                os: "ubuntu-latest",
+                platform: "linux",
+                command: "npm run dist:linux -- --publish never",
+                artifact_name: "catbee-linux-manual",
+                artifact_paths: "build/*.AppImage\nbuild/*.deb\nbuild/*.rpm\nbuild/*.tar.gz\nbuild/*.yml\nbuild/*.blockmap"
+              }
+            ];
+
+            const filtered = selection === "all"
+              ? allPlatforms
+              : allPlatforms.filter(p => p.platform === selection);
+
+            if (filtered.length === 0) {
+              throw new Error("Invalid platform selection: " + selection + ". Allowed values: all, windows, macos, linux.");
+            }
+
+            const matrix = JSON.stringify({ include: filtered });
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `matrix=${matrix}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `retention_days=${retentionDays}\n`);
+          '
+
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: setup
+    runs-on: ${{ matrix.os }}
+
+    env:
+      ELECTRON_BUILDER_UPDATE_SIGN_KEY: ${{ secrets.ELECTRON_BUILDER_UPDATE_SIGN_KEY }}
+      ARTIFACT_SUFFIX: manual-${{ github.run_number }}-${{ github.run_attempt }}
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+
+    steps:
+      - name: Log test build notice
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          echo "========================================================================"
+          echo "⚠️  NOTICE: THIS BUILD IS INTENDED FOR TESTING / QA PURPOSES ONLY"
+          echo "========================================================================"
+          echo "Platform : $PLATFORM"
+          echo "Triggered: @$ACTOR"
+          echo "Notice   : This package contains the '-manual' suffix and is NOT an"
+          echo "           official production release."
+          echo "========================================================================"
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci && cd frontend && npm ci
+
+      - name: Build ${{ matrix.platform }} package
+        run: ${{ matrix.command }}
+
+      - name: Upload ${{ matrix.platform }} build artifacts
+        id: upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_paths }}
+          if-no-files-found: error
+          retention-days: ${{ fromJSON(needs.setup.outputs.retention_days) }}
+
+      - name: Add download link to job summary
+        if: always() && steps.upload-artifact.outcome == 'success'
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          ARTIFACT_NAME: ${{ matrix.artifact_name }}
+          ARTIFACT_URL: ${{ steps.upload-artifact.outputs.artifact-url }}
+        run: |
+          echo "### 📦 $PLATFORM Build (Testing)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> [!WARNING]" >> "$GITHUB_STEP_SUMMARY"
+          echo "> **TEST BUILD ONLY**: These artifacts are compiled manually for testing and verification. They are NOT official releases." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "📦 **Build Artifact:** [$ARTIFACT_NAME]($ARTIFACT_URL)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "#### Generated Packages:" >> "$GITHUB_STEP_SUMMARY"
+          for file in build/*; do
+            if [ -f "$file" ]; then
+              echo "- \`$(basename "$file")\`" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [setup, build]
+    if: always()
+    steps:
+      - name: Workflow Run Summary
+        shell: bash
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          INCLUDE_MSIX: ${{ inputs.include_msix }}
+          BUILD_STATUS: ${{ needs.build.result }}
+          RUN_ID: ${{ github.run_id }}
+          SERVER_URL: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "# 🧪 Manual OS Builds (Testing Only)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "> [!WARNING]" >> "$GITHUB_STEP_SUMMARY"
+          echo "> **TEST BUILD ONLY**: All packages produced in this run contain the \`-manual\` suffix and are intended strictly for development/QA verification. They are NOT official production releases." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Platform Selection:** \`$PLATFORM\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Include MSIX (Windows):** \`$INCLUDE_MSIX\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Build Status:** **$BUILD_STATUS**" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### 📥 Download Links" >> "$GITHUB_STEP_SUMMARY"
+          echo "All generated build packages are attached to this workflow run." >> "$GITHUB_STEP_SUMMARY"
+          echo "You can download them from the [Artifacts Section]($SERVER_URL/$REPOSITORY/actions/runs/$RUN_ID#artifacts) or using the links in each job summary above." >> "$GITHUB_STEP_SUMMARY"
