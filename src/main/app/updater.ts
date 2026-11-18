@@ -38,7 +38,7 @@ export function initializeAutoUpdater(window: BrowserWindow): void {
   mainWindow = window;
 
   autoUpdater.autoDownload = false;
-  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.autoInstallEvent = 'onQuit';
 
   autoUpdater.on('checking-for-update', () => {
     logger.info('[AutoUpdater] Checking for update...');
