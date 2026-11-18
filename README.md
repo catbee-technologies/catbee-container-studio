@@ -6,6 +6,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/catbee-technologies/catbee-container-studio)](https://github.com/catbee-technologies/catbee-container-studio/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/catbee-technologies/catbee-container-studio/total)](https://github.com/catbee-technologies/catbee-container-studio/releases)
 [![License](https://img.shields.io/github/license/catbee-technologies/catbee-container-studio)](https://github.com/catbee-technologies/catbee-container-studio/blob/main/LICENSE)
+[![Website](https://img.shields.io/badge/website-catbee.in-blue)](https://catbee.in/catbee-container-studio)
 
 **CatBee Container Studio** is a cross-platform desktop application for managing and monitoring Docker resources through a clean, native desktop interface.
 
@@ -15,7 +16,7 @@ Built with **Electron, TypeScript, and Angular**, CatBee Container Studio provid
 
 ## Download
 
-Download the latest version from **[GitHub Releases](https://github.com/catbee-technologies/catbee-container-studio/releases/latest)**.
+Visit the **[Official Website](https://catbee.in/catbee-container-studio)** or download the latest release from **[GitHub Releases](https://github.com/catbee-technologies/catbee-container-studio/releases/latest)**.
 
 ### Microsoft Store
 

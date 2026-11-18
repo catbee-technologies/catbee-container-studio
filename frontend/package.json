@@ -1,6 +1,7 @@
 {
   "name": "catbee-container-studio",
   "version": "0.6.0",
+  "homepage": "https://catbee.in/catbee-container-studio",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",

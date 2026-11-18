@@ -1,0 +1,112 @@
+name: Feature Request
+description: Suggest an idea or improvement for CatBee Container Studio.
+title: '[Feature]: '
+labels: ['enhancement', 'feature-request']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea or feature you'd like to see in CatBee Container Studio?  
+        We'd love to hear it! Please provide details to help us evaluate and design it.
+
+  - type: checkboxes
+    id: prechecks
+    attributes:
+      label: Pre-checks
+      description: Help us triage faster by confirming the following.
+      options:
+        - label: I searched existing issues and discussions to avoid duplicates.
+          required: true
+        - label: I checked the README and roadmap for planned features.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Target Feature Area
+      options:
+        - Containers Management & Recreation
+        - Docker Compose Stacks
+        - Real-time Metrics & Health Monitoring
+        - Logs Viewer & Search
+        - Terminal / Shell
+        - Files Browser & Monaco Editor
+        - Images Management
+        - Volumes Management
+        - Networks Management
+        - Multi-Host / Remote Docker Connection
+        - Kubernetes / Podman Support
+        - UI / UX / Themes / Customization
+        - Application Performance
+        - Other
+      multiple: true
+    validations:
+      required: true
+
+  - type: input
+    id: title
+    attributes:
+      label: Feature Summary
+      description: A short, clear summary of the requested feature.
+      placeholder: e.g., Add ability to export container logs to a file or support remote Docker over SSH.
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement (Optional)
+      description: Is your feature request related to a problem or workflow limitation?
+      placeholder: |
+        Explain the workflow limitation or issue you're encountering today.
+    validations:
+      required: false
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution / Design
+      description: Describe how this feature should work and look.
+      placeholder: |
+        Describe the feature behavior, UI layout, or interaction flow you'd like to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use Cases & Motivation
+      description: Explain who benefits from this feature and why it is valuable.
+      placeholder: |
+        - As a developer, I want ...
+        - This enables ...
+        - This improves workflow efficiency by ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority / Value
+      options:
+        - High (essential workflow improvement)
+        - Medium (nice-to-have improvement)
+        - Low (minor convenience)
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative solutions or CLI workarounds you currently use?
+      placeholder: |
+        - Alternative or workaround tried ...
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional Context
+      placeholder: Mockups, UI wireframes, CLI references, or relevant links.

@@ -4,6 +4,7 @@
   "description": "CatBee Container Studio Desktop Application",
   "main": "dist/main/main.js",
   "author": "Catbee <harig@catbee.in>",
+  "homepage": "https://catbee.in/catbee-container-studio",
   "private": true,
   "scripts": {
     "build": "tsc",

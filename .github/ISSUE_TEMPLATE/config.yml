@@ -1,0 +1,20 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Official Website
+    url: https://catbee.in/catbee-container-studio
+    about: Explore features, documentation, and product highlights.
+  - name: Readme
+    url: https://github.com/catbee-technologies/catbee-container-studio#readme
+    about: Check the README for installation, architecture, and feature overview.
+  - name: Latest Releases & Downloads
+    url: https://github.com/catbee-technologies/catbee-container-studio/releases/latest
+    about: Download the latest official installers for Windows, macOS, and Linux.
+  - name: Microsoft Store
+    url: https://apps.microsoft.com/detail/9NX6H3J2RNX2
+    about: Install and update CatBee Container Studio via the Microsoft Store on Windows.
+  - name: Discussions & Q&A
+    url: https://github.com/catbee-technologies/catbee-container-studio/discussions
+    about: Ask questions, share ideas, or start a discussion with the community.
+  - name: Security Policy
+    url: https://github.com/catbee-technologies/catbee-container-studio/security/policy
+    about: Report security vulnerabilities responsibly.

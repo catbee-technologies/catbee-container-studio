@@ -1,0 +1,177 @@
+name: Bug Report
+description: File a bug report to help us improve CatBee Container Studio.
+title: '[Bug]: '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug!  
+        Please fill in the details below to help us diagnose and resolve it quickly.
+
+  - type: checkboxes
+    id: prechecks
+    attributes:
+      label: Pre-checks
+      description: Help us triage faster by confirming the following.
+      options:
+        - label: I searched existing issues and discussions to avoid duplicates.
+          required: true
+        - label: I checked the README and known issues.
+          required: true
+        - label: I am using the latest release of CatBee Container Studio.
+          required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Operating System / Platform
+      options:
+        - Windows 11 (x64)
+        - Windows 10 (x64)
+        - macOS (Apple Silicon / arm64)
+        - macOS (Intel / x64)
+        - Linux (Ubuntu / Debian)
+        - Linux (Fedora / RHEL / CentOS)
+        - Linux (Arch / Manjaro)
+        - Other (specify in environment details)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install_type
+    attributes:
+      label: Installation Package Type
+      options:
+        - Windows Installer (.exe - NSIS)
+        - Windows Portable (.zip)
+        - Microsoft Store (.msix)
+        - macOS Disk Image (.dmg)
+        - macOS Portable (.zip)
+        - Linux AppImage (.AppImage)
+        - Linux Debian Package (.deb)
+        - Linux RPM Package (.rpm)
+        - Linux Tarball (.tar.gz)
+        - Built from Source
+    validations:
+      required: true
+
+  - type: input
+    id: app_version
+    attributes:
+      label: Application Version
+      placeholder: e.g., 0.6.0
+    validations:
+      required: true
+
+  - type: input
+    id: docker_version
+    attributes:
+      label: Docker / Container Engine Version
+      placeholder: e.g., Docker Desktop 4.35 / Docker Engine 27.3.1 / Podman 5.2
+      description: Run `docker version` in your terminal to check.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Area / Feature
+      options:
+        - Containers (Start, Stop, Restart, Pause, Delete)
+        - Container Configuration & Recreation (Env, Mounts, Ports)
+        - Docker Compose (Groups, Aggregated Metrics, Group Actions)
+        - Real-time Metrics & Charts (CPU, Memory, I/O)
+        - Logs Viewer (Streaming, Search, Filters)
+        - Terminal / Shell (xterm.js)
+        - Files Browser & Monaco Editor
+        - Images (List, Pull, Inspect, Delete)
+        - Volumes (Inspect, Files, Prune)
+        - Networks (Inspect, Connect/Disconnect)
+        - Docker Daemon Connection (Local Socket, TCP, Named Pipe)
+        - Auto-Updater / Installation
+        - UI / Layout / Theming
+        - Other
+      multiple: true
+    validations:
+      required: true
+
+  - type: input
+    id: summary
+    attributes:
+      label: Bug Summary
+      description: Short and clear description of the problem.
+      placeholder: e.g., Container recreation fails when modifying environment variables.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Step-by-step instructions to reproduce the behavior.
+      placeholder: |
+        1. Open CatBee Container Studio
+        2. Click on container '...'
+        3. Navigate to '...' tab and click '...'
+        4. See error ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: regression
+    attributes:
+      label: Is this a regression?
+      description: Did this work in an earlier version?
+      options:
+        - 'Yes (it worked in a previous version)'
+        - 'No (new feature or always broken)'
+        - 'Unsure'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Critical (app crashes, prevents basic usage or data loss)
+        - Major (feature broken with no obvious workaround)
+        - Minor (feature broken but a workaround exists)
+        - Trivial (cosmetic, typo, visual glitch)
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      placeholder: Describe what should have happened.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      placeholder: Describe what actually happened, including any error messages.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs & Output
+      description: Paste relevant logs from Developer Tools (Ctrl+Shift+I / Cmd+Option+I) or application logs.
+      placeholder: |
+        ```
+        <paste logs or error traces here>
+        ```
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots & Additional Context
+      placeholder: Drag and drop screenshots or paste additional details here.
