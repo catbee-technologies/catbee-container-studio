@@ -14,22 +14,26 @@ export default {
     repo: 'catbee-container-studio',
     releaseType: 'draft'
   },
-  files: [
-    {
-      from: 'dist',
-      to: 'backend'
-    },
-    {
-      from: 'frontend/dist/catbee-container-studio/browser',
-      to: 'app'
-    },
-    'package.json'
-  ],
+  fileOptions: {
+    files: [
+      {
+        from: 'dist',
+        to: 'backend'
+      },
+      {
+        from: 'frontend/dist/catbee-container-studio/browser',
+        to: 'app'
+      },
+      'package.json',
+      '!**/sshcrypto.node'
+    ]
+  },
   directories: {
     output: 'build',
     buildResources: 'assets'
   },
   win: {
+    verifyUpdateCodeSignature: false,
     icon: 'icons/windows/catbee-icon.ico',
     target: [
       {
@@ -88,5 +92,6 @@ export default {
     shortcutName: 'CatBee Container Studio',
     runAfterFinish: true,
     deleteAppDataOnUninstall: false
-  }
+  },
+  electronUpdaterCompatibility: '>=7'
 };
