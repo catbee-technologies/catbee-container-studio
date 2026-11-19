@@ -1,0 +1,1942 @@
+<ng-template #buttonLoader let-action>
+  <ng-catbee-loader
+    class="button-loader"
+    [name]="'settings-' + action"
+    [forceShow]="true"
+    [fullscreen]="false"
+    size="small"
+    backgroundColor="transparent"
+    aria-hidden="true"
+  />
+</ng-template>
+
+<div class="settings-shell">
+  <!-- Left Side Pane: Search & Categories -->
+  <aside class="settings-nav-pane" aria-label="Settings navigation">
+    <div class="settings-search-wrapper">
+      <catbee-container-studio-search-input
+        inputId="settings-search"
+        placeholder="Search settings..."
+        ariaLabel="Search settings"
+        width="100%"
+        [value]="searchQuery()"
+        (valueChange)="onSearchInput($event)"
+        (inputKeydown)="onSearchKeydown($event)"
+      />
+
+      <!-- Instant Search Results Dropdown -->
+      @if (isSearchDropdownOpen() && searchQuery().trim().length > 0) {
+        <div class="settings-search-dropdown" id="settings-search-results" aria-label="Settings search results">
+          <div class="search-dropdown-header">
+            <span class="results-count">
+              @if (searchMatches().length === 0) {
+                No settings found
+              } @else {
+                {{ searchMatches().length }} {{ searchMatches().length === 1 ? 'match' : 'matches' }}
+              }
+            </span>
+            <span class="keyboard-hints">
+              <kbd>↑</kbd><kbd>↓</kbd> navigate <kbd>↵</kbd> select <kbd>esc</kbd> close
+            </span>
+          </div>
+
+          <ul class="search-dropdown-list">
+            @for (item of searchMatches(); track item.id; let i = $index) {
+              <li role="presentation">
+                <button
+                  type="button"
+                  class="search-result-item"
+                  [attr.aria-selected]="activeSearchIndex() === i"
+                  [class.is-selected]="activeSearchIndex() === i"
+                  (mouseenter)="activeSearchIndex.set(i)"
+                  (click)="selectSearchResult(item)"
+                >
+                  <div class="result-icon-box">
+                    <span class="mat-icon-filled" aria-hidden="true">{{ item.icon || 'tune' }}</span>
+                  </div>
+                  <div class="result-content">
+                    <div class="result-title-row">
+                      <span class="result-title">{{ item.title }}</span>
+                      <span class="result-badge">
+                        {{ item.categoryLabel }}
+                        @if (item.subTabLabel) {
+                          <span class="badge-separator">›</span> {{ item.subTabLabel }}
+                        }
+                      </span>
+                    </div>
+                    <span class="result-desc">{{ item.description }}</span>
+                  </div>
+                </button>
+              </li>
+            }
+
+            @if (searchMatches().length === 0) {
+              <li class="search-empty-state">
+                <span class="mat-icon-filled empty-icon" aria-hidden="true">search_off</span>
+                <p class="empty-title">No matching settings</p>
+                <p class="empty-hint">Try searching for "proxy", "memory", "subnet", "daemon", or "theme".</p>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    </div>
+
+    <ul class="settings-category-list">
+      @for (cat of filteredCategories(); track cat.id) {
+        <li>
+          <button
+            type="button"
+            class="settings-category-btn"
+            [class.is-active]="activeCategory() === cat.id"
+            (click)="selectCategory(cat.id)"
+          >
+            <span class="mat-icon-filled" aria-hidden="true">{{ cat.icon }}</span>
+            <span class="category-btn-label">{{ cat.label }}</span>
+            @if (categoryMatchCounts()[cat.id]; as count) {
+              <span
+                class="category-match-badge"
+                [class.is-circle]="count < 10"
+                [attr.aria-label]="count + ' matches'"
+                >{{ count }}</span
+              >
+            }
+          </button>
+        </li>
+      }
+    </ul>
+  </aside>
+
+  <!-- Right Content Pane -->
+  <main class="settings-content-pane">
+    <form
+      id="settings-form"
+      class="settings-body"
+      [formRoot]="settingsForm"
+      (submit)="$event.preventDefault(); applySettings()"
+    >
+      @if (settingsErrorMessage(); as err) {
+        <div class="settings-error-banner-wrapper">
+          <catbee-container-studio-error-banner
+            [errorMessage]="err"
+            (closeErr)="settingsErrorMessage.set(null)"
+            size="small"
+          />
+        </div>
+      }
+
+      <!-- GENERAL TAB -->
+      @if (activeCategory() === 'general') {
+        <section class="settings-section">
+          <header class="settings-section-header"><h2>General</h2></header>
+          <div class="settings-section-body">
+            <div id="setting-start-at-login" class="form-group">
+              <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+              <div class="checkbox-row switch-row" (click)="toggleSwitchRow($event, startAtLogin)">
+                <catbee-container-studio-switch-input
+                  [formField]="settingsForm.startAtLogin"
+                  inputId="field-start-at-login"
+                />
+                <label class="switch-row-text" for="field-start-at-login">
+                  <span class="checkbox-label">Start CatBee Container Studio when you sign in to your computer</span>
+                </label>
+              </div>
+            </div>
+
+            <div id="setting-theme-selection" class="form-group theme-selection-group">
+              <div class="theme-selection-header">
+                <h3 class="group-title">Theme selection</h3>
+                <div class="theme-mode-radios" role="radiogroup" aria-label="Theme mode">
+                  <catbee-container-studio-radio-input
+                    name="themeSyncMode"
+                    value="system"
+                    [checked]="selectedTheme() === 'system'"
+                    (selectChange)="selectTheme('system')"
+                  >
+                    <span>Sync with system</span>
+                  </catbee-container-studio-radio-input>
+                  <catbee-container-studio-radio-input
+                    name="themeSyncMode"
+                    value="manual"
+                    [checked]="selectedTheme() !== 'system'"
+                    (selectChange)="selectTheme(themeService.currentTheme() === 'light' ? 'light' : 'dark')"
+                  >
+                    <span>Manual</span>
+                  </catbee-container-studio-radio-input>
+                </div>
+              </div>
+
+              <div class="theme-cards-grid">
+                <!-- Day Theme Card -->
+                <div
+                  class="theme-card theme-card-light"
+                  [class.is-active]="themeService.currentTheme() === 'light'"
+                  [class.is-selected]="
+                    selectedTheme() === 'light' ||
+                    (selectedTheme() === 'system' && themeService.currentTheme() === 'light')
+                  "
+                  (click)="selectTheme('light')"
+                  role="button"
+                  tabindex="0"
+                  (keydown.enter)="selectTheme('light')"
+                  (keydown.space)="selectTheme('light')"
+                >
+                  <div class="theme-card-header">
+                    <div class="theme-card-icon-box">
+                      <span class="mat-icon-filled" aria-hidden="true">light_mode</span>
+                    </div>
+                    <div class="theme-card-info">
+                      <div class="theme-card-title-row">
+                        <span class="theme-card-title">Day Theme</span>
+                        @if (themeService.currentTheme() === 'light') {
+                          <span class="theme-active-badge">Active</span>
+                        }
+                      </div>
+                      <span class="theme-card-desc">
+                        @if (selectedTheme() === 'system') {
+                          Active when system is set to light.
+                        } @else {
+                          Active in light mode.
+                        }
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Mock Window Preview (Day) -->
+                  <ng-container *ngTemplateOutlet="themePreviewWindow; context: { isLight: true }" />
+                </div>
+
+                <!-- Night Theme Card -->
+                <div
+                  class="theme-card theme-card-dark"
+                  [class.is-active]="themeService.currentTheme() === 'dark'"
+                  [class.is-selected]="
+                    selectedTheme() === 'dark' ||
+                    (selectedTheme() === 'system' && themeService.currentTheme() === 'dark')
+                  "
+                  (click)="selectTheme('dark')"
+                  role="button"
+                  tabindex="0"
+                  (keydown.enter)="selectTheme('dark')"
+                  (keydown.space)="selectTheme('dark')"
+                >
+                  <div class="theme-card-header">
+                    <div class="theme-card-icon-box">
+                      <span class="mat-icon-filled" aria-hidden="true">nightlight</span>
+                    </div>
+                    <div class="theme-card-info">
+                      <div class="theme-card-title-row">
+                        <span class="theme-card-title">Night Theme</span>
+                        @if (themeService.currentTheme() === 'dark') {
+                          <span class="theme-active-badge">Active</span>
+                        }
+                      </div>
+                      <span class="theme-card-desc">
+                        @if (selectedTheme() === 'system') {
+                          Active when system is set to dark.
+                        } @else {
+                          Active in dark mode.
+                        }
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Mock Window Preview (Night) -->
+                  <ng-container *ngTemplateOutlet="themePreviewWindow; context: { isLight: false }" />
+                </div>
+              </div>
+
+              <!-- Shared Mock Window Preview Template -->
+              <ng-template #themePreviewWindow let-isLight="isLight">
+                <div
+                  class="theme-preview-window"
+                  [class.window-light]="isLight"
+                  [class.window-dark]="!isLight"
+                  aria-hidden="true"
+                >
+                  <div class="preview-titlebar">
+                    <div class="preview-pills">
+                      <span class="preview-pill"></span>
+                      <span class="preview-pill"></span>
+                    </div>
+                    <div class="preview-search"></div>
+                    <div class="preview-window-dots">
+                      <span class="window-dot"></span>
+                      <span class="window-dot dot-accent"></span>
+                      <span class="window-dot"></span>
+                    </div>
+                  </div>
+                  <div class="preview-content">
+                    <div class="preview-bar preview-bar-title"></div>
+                    <div class="preview-field-row">
+                      <div class="preview-input-box"></div>
+                      <div class="preview-btn-primary"></div>
+                    </div>
+                    <div class="preview-tabs-row">
+                      <div class="preview-tab tab-active">
+                        <span class="preview-tab-text"></span>
+                        <span class="preview-tab-indicator"></span>
+                      </div>
+                      <div class="preview-tab">
+                        <span class="preview-tab-text"></span>
+                      </div>
+                      <div class="preview-tab">
+                        <span class="preview-tab-text"></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </ng-template>
+            </div>
+
+            <div id="setting-engine-mode" class="form-group">
+              <h3 class="group-title">Choose how to run Docker containers</h3>
+              <div class="radio-group vertical" role="radiogroup" aria-label="Docker engine mode">
+                <catbee-container-studio-radio-input
+                  class="radio-card"
+                  name="engineMode"
+                  value="auto"
+                  [checked]="engineMode() === 'auto'"
+                  (selectChange)="engineMode.set('auto')"
+                >
+                  <div class="option-content">
+                    <span class="option-title"
+                      >Auto (External First) <span class="badge-recommended">Recommended</span></span
+                    >
+                    <span class="option-desc">{{ autoModeDesc() }}</span>
+                  </div>
+                </catbee-container-studio-radio-input>
+                <catbee-container-studio-radio-input
+                  class="radio-card"
+                  name="engineMode"
+                  value="embedded"
+                  [checked]="engineMode() === 'embedded'"
+                  (selectChange)="engineMode.set('embedded')"
+                >
+                  <div class="option-content">
+                    <span class="option-title">{{ builtInEngineLabel() }}</span>
+                    <span class="option-desc">{{ builtInEngineDesc() }}</span>
+                  </div>
+                </catbee-container-studio-radio-input>
+                <catbee-container-studio-radio-input
+                  class="radio-card"
+                  name="engineMode"
+                  value="external"
+                  [checked]="engineMode() === 'external'"
+                  (selectChange)="engineMode.set('external')"
+                >
+                  <div class="option-content">
+                    <span class="option-title">External Engine Only</span>
+                    <span class="option-desc"
+                      >Only connects to host-installed Docker Desktop or external socket without running a built-in
+                      distro.</span
+                    >
+                  </div>
+                </catbee-container-studio-radio-input>
+              </div>
+              @if (pendingEngineModeLabel(); as pending) {
+                <div class="info-callout subtle pending-mode-note">
+                  <span class="mat-icon-filled" aria-hidden="true">schedule</span>
+                  <p>
+                    <strong>{{ pending }}</strong> takes effect when you apply. Until then CatBee keeps using the
+                    current mode.
+                  </p>
+                </div>
+              }
+            </div>
+
+            <div id="setting-expose-tcp" class="form-group" [class.is-disabled-group]="isExternalMode()">
+              <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+              <div
+                class="checkbox-row switch-row"
+                [class.is-disabled]="isExternalMode()"
+                (click)="toggleSwitchRow($event, exposeTcp, isExternalMode())"
+              >
+                <catbee-container-studio-switch-input [formField]="settingsForm.exposeTcp" inputId="field-expose-tcp" />
+                <label class="switch-row-text" for="field-expose-tcp">
+                  <span class="checkbox-label">Expose daemon on {{ exposedTcpLabel }} without TLS</span>
+                  <span class="field-hint">
+                    Lets legacy tools connect over TCP. Only bound to localhost, but any local process can then control
+                    Docker. Applies to the CatBee built-in engine.
+                    @if (isExternalMode()) {
+                      <span class="external-note"> (Managed by external Docker daemon in External Engine mode)</span>
+                    }
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+      }
+
+      <!-- RESOURCES TAB -->
+      @if (activeCategory() === 'resources') {
+        <section class="settings-section">
+          <header class="settings-section-header">
+            <h2>Resources</h2>
+            <!-- Reusable Tabs Component for Resources Navigation -->
+            <div class="resources-tabs-nav-wrapper">
+              <catbee-container-studio-tabs
+                [tabs]="resourceTabItems()"
+                [activeTab]="activeResourceTab()"
+                ariaLabel="Resource Settings Tabs"
+                (activeTabChange)="onResourceTabChange($event)"
+              />
+            </div>
+          </header>
+          <div class="settings-section-body">
+            <!-- Advanced Sub-tab -->
+            @if (activeResourceTab() === 'advanced') {
+              <div class="tab-content-area">
+                @if (isExternalMode()) {
+                  <div class="info-callout warning">
+                    <span class="mat-icon-filled" aria-hidden="true">info</span>
+                    <div>
+                      <strong>External Engine Mode Active</strong>
+                      <p>
+                        Hardware resource limits and disk image management are managed directly by your external Docker
+                        engine.
+                      </p>
+                    </div>
+                  </div>
+                }
+
+                @if (!showVmResources()) {
+                  <div class="info-callout">
+                    @if (capabilities(); as caps) {
+                      <p>You are using the {{ caps.backendLabel }} backend.</p>
+                      @if (caps.resourcesNote) {
+                        <p>{{ caps.resourcesNote }}</p>
+                      }
+                    } @else {
+                      <p>Resource limits are not managed by CatBee on this platform.</p>
+                    }
+                  </div>
+                } @else {
+                  <!-- VM resource allocation (macOS / Lima) -->
+                  <div class="resource-sliders-card" [class.is-disabled-card]="isExternalMode()">
+                    <div class="sliders-title-group">
+                      <h3 class="group-title">Virtual Machine Allocation</h3>
+                      <p class="field-hint">
+                        Adjust the hardware resources dedicated to the CatBee container engine VM.
+                        @if (capabilities()?.resourcesNote; as note) {
+                          {{ note }}
+                        }
+                      </p>
+                    </div>
+
+                    @for (slider of vmSliders(); track slider.id) {
+                      <div
+                        [id]="'setting-res-' + slider.id"
+                        class="resource-slider-row"
+                        [class.is-danger]="slider.value > slider.dangerFrom"
+                      >
+                        <div class="slider-header">
+                          <span class="slider-title">{{ slider.label }}</span>
+                          <span class="slider-value">{{ slider.value }} {{ slider.unit }}</span>
+                        </div>
+                        <input
+                          type="range"
+                          class="resource-range-slider"
+                          [attr.aria-label]="slider.label"
+                          [min]="slider.min"
+                          [max]="slider.max"
+                          [step]="slider.step"
+                          [style.--fill-percent]="sliderPercent(slider, slider.value)"
+                          [style.--danger-percent]="sliderPercent(slider, slider.dangerFrom)"
+                          [disabled]="isExternalMode()"
+                          [value]="slider.value"
+                          (input)="setVmResource(slider.id, +$any($event.target).value)"
+                        />
+                        <div class="slider-ticks-row">
+                          <span>{{ slider.minLabel }}</span>
+                          <span>{{ slider.maxLabel }}</span>
+                        </div>
+                        @if (slider.value > slider.dangerFrom) {
+                          <span class="slider-warning">
+                            <span class="mat-icon-filled" aria-hidden="true">warning</span>
+                            {{ slider.warning }}
+                          </span>
+                        }
+                      </div>
+                    }
+
+                    @if (supportsRosetta()) {
+                      <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+                      <div
+                        id="setting-res-rosetta"
+                        class="checkbox-row switch-row"
+                        [class.is-disabled]="isExternalMode()"
+                        (click)="toggleSwitchRow($event, rosettaEnabled, isExternalMode())"
+                      >
+                        <catbee-container-studio-switch-input
+                          [(checked)]="rosettaEnabled"
+                          inputId="field-rosetta"
+                          [disabled]="isExternalMode()"
+                        />
+                        <label class="switch-row-text" for="field-rosetta">
+                          <span class="checkbox-label">Use Rosetta for x86_64/amd64 emulation on Apple Silicon</span>
+                          <span class="field-hint">
+                            Runs linux/amd64 images much faster than QEMU emulation. Requires Rosetta 2 to be installed.
+                          </span>
+                        </label>
+                      </div>
+                    }
+                  </div>
+                }
+
+                @if (dataLocation()) {
+                  <div id="setting-disk-location" class="form-group" [class.is-disabled-group]="isExternalMode()">
+                    <label class="group-title" for="field-disk-location">Disk image location</label>
+                    <div class="path-input-row">
+                      <input
+                        id="field-disk-location"
+                        type="text"
+                        class="field-input path-input"
+                        readonly
+                        [value]="dataLocation()"
+                      />
+                      <button type="button" class="catbee-action-btn" (click)="revealDataLocation()">Reveal</button>
+                    </div>
+                  </div>
+                }
+
+                @if (supportsResourceSaver()) {
+                  <!-- Resource Saver Card with discrete slider matching Docker Desktop -->
+                  <div
+                    id="setting-resource-saver"
+                    class="resource-saver-box"
+                    [class.is-disabled-card]="isExternalMode()"
+                  >
+                    <div class="section-header-row">
+                      <h3 class="group-title">Resource Saver</h3>
+                      <span class="mat-icon-filled moon-icon" aria-hidden="true">nightlight</span>
+                    </div>
+
+                    <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+                    <div
+                      class="checkbox-row switch-row"
+                      [class.is-disabled]="isExternalMode()"
+                      (click)="toggleSwitchRow($event, resourceSaverEnabled, isExternalMode())"
+                    >
+                      <catbee-container-studio-switch-input
+                        [formField]="settingsForm.resourceSaverEnabled"
+                        inputId="field-resource-saver"
+                      />
+                      <label class="switch-row-text" for="field-resource-saver">
+                        <span class="checkbox-label">Enable Resource Saver</span>
+                        <span class="field-hint">
+                          Reduces CPU and memory utilization when no containers are running. Exit from Resource Saver
+                          mode happens automatically when containers are started.
+                        </span>
+                      </label>
+                    </div>
+
+                    <div class="saver-slider-group" [class.is-disabled]="!resourceSaverEnabled() || isExternalMode()">
+                      <div class="saver-slider-header">
+                        <p class="field-hint">
+                          Set the duration of time between no containers running and CatBee entering Resource Saver
+                          mode:
+                        </p>
+                        <span class="saver-current-badge">{{ saverTimeoutLabel() }}</span>
+                      </div>
+
+                      <catbee-container-studio-discrete-slider
+                        [min]="0"
+                        [max]="12"
+                        [step]="1"
+                        [value]="resourceSaverSliderIndex()"
+                        [disabled]="!resourceSaverEnabled() || isExternalMode()"
+                        [labels]="resourceSaverLabels"
+                        ariaLabel="Resource Saver timeout slider"
+                        (valueChange)="onResourceSaverSliderChange($event)"
+                      />
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- File sharing Sub-tab (Docker Desktop Parity) -->
+            @if (activeResourceTab() === 'file-sharing') {
+              <div id="setting-res-file-sharing" class="tab-content-area">
+                @if (isExternalMode()) {
+                  <div class="info-callout warning">
+                    <span class="mat-icon-filled" aria-hidden="true">info</span>
+                    <div>
+                      <strong>External Engine Mode Active</strong>
+                      <p>
+                        Bind mount permissions and file sharing paths are managed directly in your external Docker
+                        application settings.
+                      </p>
+                    </div>
+                  </div>
+                }
+
+                <p class="section-desc">
+                  These directories (and their subdirectories) can be bind mounted into Docker containers.
+                  {{ fileSharingDesc() }} Changes restart the engine VM.
+                </p>
+
+                <div class="file-sharing-input-row" [class.is-disabled]="isExternalMode()">
+                  <div class="file-sharing-box" [class.is-invalid]="sharePathError()">
+                    <input
+                      id="setting-file-sharing-path"
+                      type="text"
+                      class="path-input-embedded"
+                      [placeholder]="defaultSharedPath()"
+                      [disabled]="isExternalMode()"
+                      [value]="newSharePath()"
+                      (input)="onSharePathInput($any($event.target).value)"
+                      (keydown.enter)="addSharePath()"
+                      aria-label="Path to share with containers"
+                    />
+                    <button
+                      type="button"
+                      class="browse-action-text-btn"
+                      [disabled]="isExternalMode()"
+                      (click)="browseSharePath()"
+                    >
+                      Browse
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    class="catbee-action-btn icon-only primary"
+                    [disabled]="isExternalMode() || !newSharePath().trim()"
+                    (click)="addSharePath()"
+                    aria-label="Add directory"
+                  >
+                    <span class="mat-icon-filled" aria-hidden="true">add</span>
+                  </button>
+                </div>
+                @if (sharePathError(); as err) {
+                  <p class="field-error file-sharing-error">{{ err }}</p>
+                }
+
+                <div class="file-sharing-table-container">
+                  <table class="file-sharing-table">
+                    <thead>
+                      <tr>
+                        <th>Shared Paths</th>
+                        <th class="col-actions"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (path of fileSharingPaths(); track path) {
+                        <tr>
+                          <td class="path-cell">
+                            <span class="mat-icon-filled folder-icon" aria-hidden="true">folder</span>
+                            <span class="path-text">{{ path }}</span>
+                          </td>
+                          <td class="col-actions">
+                            <button
+                              type="button"
+                              class="catbee-action-btn icon-only sm danger"
+                              [disabled]="isExternalMode()"
+                              (click)="removeSharePath(path)"
+                              aria-label="Remove path"
+                            >
+                              <span class="mat-icon-filled" aria-hidden="true">delete</span>
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                      @if (fileSharingPaths().length === 0) {
+                        <tr>
+                          <td colspan="2" class="empty-table-cell">
+                            No directories configured — your home folder and /var/folders are shared by default.
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            }
+
+            <!-- Proxies Sub-tab (Docker Desktop Parity) -->
+            @if (activeResourceTab() === 'proxies') {
+              <div class="tab-content-area">
+                @if (isExternalMode()) {
+                  <div class="info-callout warning">
+                    <span class="mat-icon-filled" aria-hidden="true">info</span>
+                    <div>
+                      <strong>External Engine Mode Active</strong>
+                      <p>
+                        Engine and container proxy configurations are managed directly in your external Docker
+                        application settings.
+                      </p>
+                    </div>
+                  </div>
+                }
+
+                <p class="section-desc">
+                  Configure HTTP/HTTPS proxies used by the CatBee built-in engine. Proxy changes are applied by
+                  reconfiguring the running engine.
+                </p>
+
+                <!-- Section 1: Docker Desktop proxy -->
+                <div id="setting-res-desktop-proxy" class="proxy-block" [class.is-disabled-card]="isExternalMode()">
+                  <h3 class="group-title">Engine proxy</h3>
+                  <p class="field-hint">
+                    Used by the Docker daemon for pulling and pushing images, and while installing the engine.
+                  </p>
+
+                  <div class="proxy-mode-row">
+                    <span class="proxy-mode-heading">Proxy mode</span>
+                    <div class="radio-inline-group" role="radiogroup" aria-label="Desktop proxy mode">
+                      <catbee-container-studio-radio-input
+                        name="desktopProxyMode"
+                        value="system"
+                        [disabled]="isExternalMode()"
+                        [checked]="desktopProxy().mode === 'system'"
+                        (selectChange)="setDesktopProxyMode('system')"
+                      >
+                        <span>System proxy</span>
+                      </catbee-container-studio-radio-input>
+                      <catbee-container-studio-radio-input
+                        name="desktopProxyMode"
+                        value="none"
+                        [disabled]="isExternalMode()"
+                        [checked]="desktopProxy().mode === 'none'"
+                        (selectChange)="setDesktopProxyMode('none')"
+                      >
+                        <span>No proxy</span>
+                      </catbee-container-studio-radio-input>
+                      <catbee-container-studio-radio-input
+                        name="desktopProxyMode"
+                        value="manual"
+                        [disabled]="isExternalMode()"
+                        [checked]="desktopProxy().mode === 'manual'"
+                        (selectChange)="setDesktopProxyMode('manual')"
+                      >
+                        <span>Manual configuration</span>
+                      </catbee-container-studio-radio-input>
+                    </div>
+                  </div>
+
+                  @if (desktopProxy().mode === 'manual') {
+                    <div class="proxy-manual-card">
+                      <div class="form-group">
+                        <label class="field-label" for="setting-desktop-http-proxy">Web Server (HTTP)</label>
+                        <input
+                          id="setting-desktop-http-proxy"
+                          type="text"
+                          class="field-input"
+                          [class.is-invalid]="desktopHttpProxyError()"
+                          placeholder="http://proxy.example.com:8080"
+                          [disabled]="isExternalMode()"
+                          [value]="desktopProxy().httpProxy || ''"
+                          (input)="updateDesktopProxyField('httpProxy', $any($event.target).value)"
+                        />
+                        @if (desktopHttpProxyError(); as err) {
+                          <p class="field-error">{{ err }}</p>
+                        }
+                      </div>
+                      <div class="form-group">
+                        <label class="field-label" for="setting-desktop-https-proxy">Secure Web Server (HTTPS)</label>
+                        <input
+                          id="setting-desktop-https-proxy"
+                          type="text"
+                          class="field-input"
+                          [class.is-invalid]="desktopHttpsProxyError()"
+                          placeholder="https://proxy.example.com:8443"
+                          [disabled]="isExternalMode()"
+                          [value]="desktopProxy().httpsProxy || ''"
+                          (input)="updateDesktopProxyField('httpsProxy', $any($event.target).value)"
+                        />
+                        @if (desktopHttpsProxyError(); as err) {
+                          <p class="field-error">{{ err }}</p>
+                        }
+                      </div>
+                      <div class="form-group">
+                        <label class="field-label" for="setting-desktop-no-proxy"
+                          >Bypass proxy settings for these hosts & domains</label
+                        >
+                        <input
+                          id="setting-desktop-no-proxy"
+                          type="text"
+                          class="field-input"
+                          placeholder="localhost,127.0.0.1,docker.internal"
+                          [disabled]="isExternalMode()"
+                          [value]="desktopProxy().noProxy || ''"
+                          (input)="updateDesktopProxyField('noProxy', $any($event.target).value)"
+                        />
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <!-- Section 2: Containers proxy -->
+                <div id="setting-res-containers-proxy" class="proxy-block" [class.is-disabled-card]="isExternalMode()">
+                  <h3 class="group-title">Containers proxy</h3>
+                  <p class="field-hint">
+                    Injected as HTTP(S)_PROXY into new containers created by CatBee and into containers and builds
+                    started with the Docker CLI against the catbee-desktop context. Variables you set yourself win.
+                  </p>
+
+                  <div class="proxy-mode-row">
+                    <span class="proxy-mode-heading">Proxy mode</span>
+                    <div class="radio-inline-group" role="radiogroup" aria-label="Containers proxy mode">
+                      <catbee-container-studio-radio-input
+                        name="containersProxyMode"
+                        value="same-as-host"
+                        [disabled]="isExternalMode()"
+                        [checked]="containersProxy().mode === 'same-as-host'"
+                        (selectChange)="setContainersProxyMode('same-as-host')"
+                      >
+                        <span>Same as host proxy</span>
+                      </catbee-container-studio-radio-input>
+                      <catbee-container-studio-radio-input
+                        name="containersProxyMode"
+                        value="system"
+                        [disabled]="isExternalMode()"
+                        [checked]="containersProxy().mode === 'system'"
+                        (selectChange)="setContainersProxyMode('system')"
+                      >
+                        <span>System proxy</span>
+                      </catbee-container-studio-radio-input>
+                      <catbee-container-studio-radio-input
+                        name="containersProxyMode"
+                        value="none"
+                        [disabled]="isExternalMode()"
+                        [checked]="containersProxy().mode === 'none'"
+                        (selectChange)="setContainersProxyMode('none')"
+                      >
+                        <span>No proxy</span>
+                      </catbee-container-studio-radio-input>
+                      <catbee-container-studio-radio-input
+                        name="containersProxyMode"
+                        value="manual"
+                        [disabled]="isExternalMode()"
+                        [checked]="containersProxy().mode === 'manual'"
+                        (selectChange)="setContainersProxyMode('manual')"
+                      >
+                        <span>Manual configuration</span>
+                      </catbee-container-studio-radio-input>
+                    </div>
+                  </div>
+
+                  @if (containersProxy().mode === 'manual') {
+                    <div class="proxy-manual-card">
+                      <div class="form-group">
+                        <label class="field-label" for="setting-containers-http-proxy">Web Server (HTTP)</label>
+                        <input
+                          id="setting-containers-http-proxy"
+                          type="text"
+                          class="field-input"
+                          [class.is-invalid]="containersHttpProxyError()"
+                          placeholder="http://proxy.example.com:8080"
+                          [disabled]="isExternalMode()"
+                          [value]="containersProxy().httpProxy || ''"
+                          (input)="updateContainersProxyField('httpProxy', $any($event.target).value)"
+                        />
+                        @if (containersHttpProxyError(); as err) {
+                          <p class="field-error">{{ err }}</p>
+                        }
+                      </div>
+                      <div class="form-group">
+                        <label class="field-label" for="setting-containers-https-proxy"
+                          >Secure Web Server (HTTPS)</label
+                        >
+                        <input
+                          id="setting-containers-https-proxy"
+                          type="text"
+                          class="field-input"
+                          [class.is-invalid]="containersHttpsProxyError()"
+                          placeholder="https://proxy.example.com:8443"
+                          [disabled]="isExternalMode()"
+                          [value]="containersProxy().httpsProxy || ''"
+                          (input)="updateContainersProxyField('httpsProxy', $any($event.target).value)"
+                        />
+                        @if (containersHttpsProxyError(); as err) {
+                          <p class="field-error">{{ err }}</p>
+                        }
+                      </div>
+                      <div class="form-group">
+                        <label class="field-label" for="setting-containers-no-proxy"
+                          >Bypass proxy settings for these hosts & domains</label
+                        >
+                        <input
+                          id="setting-containers-no-proxy"
+                          type="text"
+                          class="field-input"
+                          placeholder="localhost,127.0.0.1"
+                          [disabled]="isExternalMode()"
+                          [value]="containersProxy().noProxy || ''"
+                          (input)="updateContainersProxyField('noProxy', $any($event.target).value)"
+                        />
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Network Sub-tab (Docker Desktop Parity) -->
+            @if (activeResourceTab() === 'network') {
+              <div class="tab-content-area">
+                @if (isExternalMode()) {
+                  <div class="info-callout warning">
+                    <span class="mat-icon-filled" aria-hidden="true">info</span>
+                    <div>
+                      <strong>External Engine Mode Active</strong>
+                      <p>
+                        Network daemon configurations, subnet allocations, and bridge behaviors are controlled by your
+                        external engine host.
+                      </p>
+                    </div>
+                  </div>
+                }
+
+                <p class="section-desc">Configure the way Docker containers interact with the network</p>
+
+                <!-- Docker subnet -->
+                <div id="setting-res-network-subnet" class="form-group" [class.is-disabled-group]="isExternalMode()">
+                  <label class="field-label" for="setting-docker-subnet">Docker subnet</label>
+                  <input
+                    id="setting-docker-subnet"
+                    type="text"
+                    class="field-input subnet-input"
+                    [class.is-invalid]="dockerSubnetError()"
+                    [disabled]="isExternalMode()"
+                    [value]="networkSettings().dockerSubnet"
+                    (input)="updateDockerSubnet($any($event.target).value)"
+                  />
+                  @if (dockerSubnetError(); as err) {
+                    <p class="field-error">{{ err }}</p>
+                  }
+                  <span class="field-hint">Default bridge (docker0) network. Default: 192.168.65.0/24</span>
+                </div>
+
+                <!-- Port binding behavior -->
+                <div
+                  id="setting-res-network-port-binding"
+                  class="form-group"
+                  [class.is-disabled-group]="isExternalMode()"
+                >
+                  <label class="field-label" for="setting-port-binding-behavior">Port binding behavior</label>
+                  <div class="select-wrapper">
+                    <select
+                      id="setting-port-binding-behavior"
+                      class="field-select network-select"
+                      [disabled]="isExternalMode()"
+                      [value]="networkSettings().portBindingBehavior"
+                      (change)="updatePortBindingBehavior($any($event.target).value)"
+                    >
+                      <option value="open">Open (Default)</option>
+                      <option value="localhost">Localhost only</option>
+                    </select>
+                  </div>
+                  <span class="field-hint">{{ portBindingHint() }}</span>
+                </div>
+
+                <!-- Default networking mode -->
+                <div id="setting-res-network-mode" class="form-group" [class.is-disabled-group]="isExternalMode()">
+                  <label class="field-label" for="setting-default-networking-mode">Default networking mode</label>
+                  <div class="select-wrapper">
+                    <select
+                      id="setting-default-networking-mode"
+                      class="field-select network-select"
+                      [disabled]="isExternalMode()"
+                      [value]="networkSettings().defaultNetworkingMode"
+                      (change)="updateDefaultNetworkingMode($any($event.target).value)"
+                    >
+                      <option value="ipv4">IPv4 only</option>
+                      <option value="dualstack">Dual (IPv4 and IPv6)</option>
+                    </select>
+                  </div>
+                  <span class="field-hint">
+                    Docker networks set to support only IPv4 by default. This can be overridden on a per-network basis.
+                  </span>
+                </div>
+              </div>
+            }
+
+            <!-- WSL Integration Sub-tab (Docker Desktop Parity) -->
+            @if (activeResourceTab() === 'wsl' && isWindows()) {
+              <div id="setting-res-wsl" class="tab-content-area">
+                @if (isExternalMode()) {
+                  <div class="info-callout warning">
+                    <span class="mat-icon-filled" aria-hidden="true">info</span>
+                    <div>
+                      <strong>External Engine Mode Active</strong>
+                      <p>WSL 2 integration is managed by your external Docker provider.</p>
+                    </div>
+                  </div>
+                }
+
+                <p class="section-desc">Configure which WSL 2 distros you want to access Docker from.</p>
+
+                <div class="form-group" [class.is-disabled-group]="isExternalMode()">
+                  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+                  <div
+                    class="checkbox-row switch-row"
+                    [class.is-disabled]="isExternalMode()"
+                    (click)="toggleSwitchRow($event, wslIntegrationEnabled, isExternalMode())"
+                  >
+                    <catbee-container-studio-switch-input
+                      [formField]="settingsForm.wslIntegrationEnabled"
+                      inputId="field-wsl-integration"
+                    />
+                    <label class="switch-row-text" for="field-wsl-integration">
+                      <span class="checkbox-label">Enable integration with my default WSL distro</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="distros-block">
+                  <span class="group-title">Enable integration with additional distros:</span>
+                  <div class="distros-switch-list">
+                    @for (distro of installedWslDistros(); track distro) {
+                      <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+                      <div class="distro-switch-row" (click)="toggleDistroRow($event, distro)">
+                        <catbee-container-studio-switch-input
+                          [checked]="isDistroIntegrated(distro)"
+                          [disabled]="isExternalMode() || !wslIntegrationEnabled()"
+                          (checkedChange)="toggleDistroIntegration(distro)"
+                        />
+                        <span class="distro-name">{{ distro }}</span>
+                      </div>
+                    }
+                    @if (installedWslDistros().length === 0 && !isLoadingDistros()) {
+                      <p class="field-hint">No additional WSL 2 distributions found.</p>
+                    }
+                  </div>
+
+                  <button
+                    type="button"
+                    class="catbee-action-btn"
+                    [disabled]="isExternalMode() || isLoadingDistros()"
+                    (click)="loadWslDistros()"
+                  >
+                    <span class="mat-icon-filled" [class.spin]="isLoadingDistros()" aria-hidden="true">refresh</span>
+                    <span>Refetch distros</span>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- DOCKER ENGINE TAB -->
+      @if (activeCategory() === 'engine') {
+        <section class="settings-section">
+          <header class="settings-section-header">
+            <h2>Docker Engine</h2>
+            <p class="section-desc">Manage your active container daemon and inspect runtime configuration.</p>
+          </header>
+          <div class="settings-section-body">
+            @if (engineErrorMessage(); as err) {
+              <div class="settings-error-banner-wrapper">
+                <catbee-container-studio-error-banner
+                  [errorMessage]="err"
+                  (closeErr)="engineErrorMessage.set(null)"
+                  size="small"
+                />
+              </div>
+            }
+
+            <div id="setting-engine-built-in" class="engine-card">
+              <div class="engine-card-header">
+                <div class="engine-title-group">
+                  <span class="mat-icon-filled engine-icon" aria-hidden="true">developer_board</span>
+                  <div>
+                    <h3>CatBee Built-in Container Engine</h3>
+                    <span class="engine-subtitle">{{ engineBackendSubtitle() }}</span>
+                  </div>
+                </div>
+                <div class="engine-header-actions">
+                  @if (canUseCatBeeEngine()) {
+                    <button
+                      type="button"
+                      class="catbee-action-btn primary sm use-catbee-engine-btn"
+                      (click)="requestActivateCatBeeContext()"
+                      [disabled]="isContextSwitching() || isEngineBusy()"
+                    >
+                      <span class="mat-icon-filled" [class.spin]="isContextSwitching()" aria-hidden="true">{{
+                        isContextSwitching() ? 'sync' : 'check'
+                      }}</span>
+                      <span>{{ isContextSwitching() ? 'Switching...' : 'Use CatBee engine' }}</span>
+                    </button>
+                  }
+                  <span
+                    class="engine-status-badge"
+                    [class.status-running]="isEngineRunning()"
+                    [class.status-error]="engineState() === 'error'"
+                    [class.status-busy]="isEngineBusy()"
+                    [class.status-inactive]="!isEngineRunning() && engineState() !== 'error' && !isEngineBusy()"
+                  >
+                    <span class="mat-icon-filled status-icon" aria-hidden="true">
+                      {{
+                        isEngineRunning()
+                          ? 'play_arrow'
+                          : engineState() === 'error'
+                            ? 'error'
+                            : isEngineBusy()
+                              ? 'sync'
+                              : 'stop'
+                      }}
+                    </span>
+                    <span>{{ engineStateLabel() }}</span>
+                  </span>
+                </div>
+              </div>
+
+              @if (engineOperation(); as op) {
+                <output class="engine-progress" aria-live="polite">
+                  <div class="engine-progress-header">
+                    <span class="engine-progress-title">
+                      {{ op.operation === 'install' ? 'Installing built-in engine' : 'Uninstalling built-in engine' }}
+                    </span>
+                    <span class="engine-progress-percent">{{ op.progress }}%</span>
+                  </div>
+                  <progress
+                    class="engine-progress-track"
+                    [class.is-uninstall]="op.operation === 'uninstall'"
+                    max="100"
+                    [value]="op.progress"
+                    [attr.aria-label]="op.operation === 'install' ? 'Install progress' : 'Uninstall progress'"
+                  ></progress>
+                  <span class="engine-progress-stage" [title]="op.stage">{{ op.stage }}</span>
+                </output>
+              }
+
+              <div class="engine-details-grid">
+                <div class="detail-cell">
+                  <span class="detail-label">Distribution</span>
+                  <span class="detail-value">{{ engineDistroLabel() }}</span>
+                </div>
+                <div class="detail-cell">
+                  <span class="detail-label">Docker Engine</span>
+                  <span class="detail-value">{{ engineVersion() ?? '—' }}</span>
+                </div>
+                <div class="detail-cell">
+                  <span class="detail-label">Architecture</span>
+                  <span class="detail-value">{{ platformInfo()?.arch ?? '—' }}</span>
+                </div>
+                <div class="detail-cell is-wide">
+                  <span class="detail-label">Endpoint</span>
+                  <span class="detail-value">{{ endpointLabel() }}</span>
+                </div>
+                @if (engineStatus()?.exposedTcpEndpoint; as tcp) {
+                  <div class="detail-cell is-wide">
+                    <span class="detail-label">Exposed TCP</span>
+                    <span class="detail-value">{{ tcp }}</span>
+                  </div>
+                }
+                @if (engineInfo()?.daemonConfigLocation; as cfg) {
+                  <div class="detail-cell is-wide">
+                    <span class="detail-label">daemon.json</span>
+                    <span class="detail-value">{{ cfg }}</span>
+                  </div>
+                }
+              </div>
+
+              @if (engineStatus()?.lastError; as lastError) {
+                <div class="info-callout warning">
+                  <span class="mat-icon-filled" aria-hidden="true">error</span>
+                  <div>
+                    <strong>Last engine error</strong>
+                    <p>{{ lastError }}</p>
+                  </div>
+                </div>
+              }
+
+              @if (isExternalMode()) {
+                <div class="info-callout warning">
+                  <span class="mat-icon-filled" aria-hidden="true">info</span>
+                  <div>
+                    <strong>External Engine Mode Active</strong>
+                    @if (isEngineRunning()) {
+                      <p>
+                        CatBee is using an external Docker engine, but the built-in engine is still running in the
+                        background and using resources. Stop it if you don't need it.
+                      </p>
+                    } @else {
+                      <p>
+                        CatBee is using an external Docker engine. Switch the engine mode to Auto or Built-in to start,
+                        restart or reinstall the built-in engine.
+                      </p>
+                    }
+                  </div>
+                </div>
+              }
+
+              <div class="engine-action-buttons">
+                <button
+                  type="button"
+                  class="catbee-action-btn action-start"
+                  [attr.aria-busy]="isStarting()"
+                  [disabled]="isActionLoading() || isEngineBusy() || isExternalMode() || isEngineRunning()"
+                  (click)="startEngine()"
+                >
+                  <span class="button-icon" aria-hidden="true">
+                    <span class="mat-icon-filled">play_arrow</span>
+                    @if (isStarting()) {
+                      <ng-container
+                        [ngTemplateOutlet]="buttonLoader"
+                        [ngTemplateOutletContext]="{ $implicit: 'start' }"
+                      />
+                    }
+                  </span>
+                  <span>{{ startButtonLabel() }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="catbee-action-btn action-stop"
+                  [attr.aria-busy]="activeAction() === 'stop'"
+                  [disabled]="isActionLoading() || isEngineBusy() || !isEngineRunning()"
+                  (click)="requestStopEngine()"
+                >
+                  <span class="button-icon" aria-hidden="true">
+                    <span class="mat-icon-filled">stop</span>
+                    @if (activeAction() === 'stop') {
+                      <ng-container
+                        [ngTemplateOutlet]="buttonLoader"
+                        [ngTemplateOutletContext]="{ $implicit: 'stop' }"
+                      />
+                    }
+                  </span>
+                  <span>Stop</span>
+                </button>
+                <button
+                  type="button"
+                  class="catbee-action-btn action-restart"
+                  [attr.aria-busy]="activeAction() === 'restart'"
+                  [disabled]="isActionLoading() || isEngineBusy() || isExternalMode() || !isEngineInstalled()"
+                  (click)="restartEngine()"
+                >
+                  <span class="button-icon" aria-hidden="true">
+                    <span class="mat-icon-filled">refresh</span>
+                    @if (activeAction() === 'restart') {
+                      <ng-container
+                        [ngTemplateOutlet]="buttonLoader"
+                        [ngTemplateOutletContext]="{ $implicit: 'restart' }"
+                      />
+                    }
+                  </span>
+                  <span>Restart</span>
+                </button>
+                <button
+                  type="button"
+                  class="catbee-action-btn danger"
+                  [attr.aria-busy]="activeAction() === 'reinstall'"
+                  [disabled]="isActionLoading() || isEngineBusy() || isExternalMode() || !isEngineInstalled()"
+                  (click)="requestReinstallEngine()"
+                >
+                  <span class="button-icon" aria-hidden="true">
+                    <span class="mat-icon-filled">build</span>
+                    @if (activeAction() === 'reinstall') {
+                      <ng-container
+                        [ngTemplateOutlet]="buttonLoader"
+                        [ngTemplateOutletContext]="{ $implicit: 'reinstall' }"
+                      />
+                    }
+                  </span>
+                  <span>Reinstall</span>
+                </button>
+                <button
+                  type="button"
+                  class="catbee-action-btn danger"
+                  [attr.aria-busy]="activeAction() === 'uninstall'"
+                  [disabled]="isActionLoading() || isEngineBusy() || !isEngineInstalled()"
+                  (click)="requestUninstallEngine()"
+                >
+                  <span class="button-icon" aria-hidden="true">
+                    <span class="mat-icon-filled">delete_forever</span>
+                    @if (activeAction() === 'uninstall') {
+                      <ng-container
+                        [ngTemplateOutlet]="buttonLoader"
+                        [ngTemplateOutletContext]="{ $implicit: 'uninstall' }"
+                      />
+                    }
+                  </span>
+                  <span>Uninstall</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Builders & BuildKit Card -->
+            <div id="setting-engine-builders" class="form-group builders-section">
+              <div class="builders-header-row">
+                <div>
+                  <h3 class="group-title">Builders & BuildKit</h3>
+                  <p class="field-hint">Default container build instance and BuildKit storage allocations.</p>
+                </div>
+                @if (builderInfo()?.builders?.length) {
+                  <button
+                    id="setting-engine-prune-cache"
+                    type="button"
+                    class="catbee-action-btn"
+                    [attr.aria-busy]="isPruningBuildCache()"
+                    [disabled]="isPruningBuildCache()"
+                    (click)="requestPruneBuildCache()"
+                    catbeeTooltip="Prune unused BuildKit cache"
+                    catbeeTooltipPosition="top"
+                  >
+                    <span class="button-icon" aria-hidden="true">
+                      <span class="mat-icon-filled">delete_sweep</span>
+                      @if (isPruningBuildCache()) {
+                        <ng-container
+                          [ngTemplateOutlet]="buttonLoader"
+                          [ngTemplateOutletContext]="{ $implicit: 'prune-cache' }"
+                        />
+                      }
+                    </span>
+                    <span>Clear build cache</span>
+                  </button>
+                }
+              </div>
+
+              @if (dockerContext()?.envOverride; as override) {
+                <div class="info-callout warning">
+                  <span class="mat-icon-filled" aria-hidden="true">warning</span>
+                  <div>
+                    <strong>{{ override.variable }} overrides the selected builder context</strong>
+                    <p>
+                      Your environment sets <code>{{ override.variable }}={{ override.value }}</code>
+                      @if (override.source) {
+                        in <code>{{ override.source }}</code>
+                      }
+                      , so <code>docker</code> commands in your terminal ignore the context selected here. Remove that
+                      line and open a new terminal to use
+                      <code>{{ dockerContext()?.currentContext ?? 'catbee-desktop' }}</code>.
+                    </p>
+                  </div>
+                </div>
+              }
+
+              @if (contextSuccessMessage()) {
+                <div class="success-callout">
+                  <span class="mat-icon-filled" aria-hidden="true">check_circle</span>
+                  <span>{{ contextSuccessMessage() }}</span>
+                </div>
+              }
+
+              @if (contextErrorMessage(); as err) {
+                <catbee-container-studio-error-banner
+                  [errorMessage]="err"
+                  (closeErr)="contextErrorMessage.set(null)"
+                  size="small"
+                />
+              }
+
+              @if (pruneBuildCacheMessage(); as msg) {
+                <output class="build-cache-toast-banner" aria-live="polite">
+                  <span class="mat-icon-filled" aria-hidden="true">check_circle</span>
+                  <span class="toast-text">{{ msg }}</span>
+                  <button
+                    type="button"
+                    class="toast-dismiss-btn"
+                    (click)="pruneBuildCacheMessage.set(null)"
+                    aria-label="Dismiss notification"
+                  >
+                    <span class="mat-icon-filled" aria-hidden="true">close</span>
+                  </button>
+                </output>
+              }
+
+              @if (builderInfo(); as bInfo) {
+                <div class="builders-group-wrapper">
+                  <!-- Selected Builder Header & Card -->
+                  <div class="selected-builder-section">
+                    <div class="builder-group-label-row">
+                      <h4 class="subgroup-title">Selected builder</h4>
+                      <p class="field-hint">The default builder used when you start a build.</p>
+                    </div>
+
+                    @for (builder of bInfo.builders; track builder.name) {
+                      @if (builder.isCurrent) {
+                        <div
+                          class="builder-card active-builder-card"
+                          [class.is-expanded]="isBuilderExpanded(builder.name)"
+                        >
+                          <button
+                            type="button"
+                            class="builder-card-top"
+                            (click)="toggleBuilderExpansion(builder.name)"
+                            [attr.aria-expanded]="isBuilderExpanded(builder.name)"
+                          >
+                            <div class="builder-identity">
+                              <span class="mat-icon-filled builder-icon" aria-hidden="true">layers</span>
+                              <div>
+                                <div class="builder-name-row">
+                                  <span class="builder-name">{{ builder.name }}</span>
+                                  <span
+                                    class="builder-status-badge"
+                                    [class.status-running]="builder.status === 'running'"
+                                    [class.status-error]="builder.status === 'error'"
+                                    [class.status-inactive]="builder.status === 'stopped' || !builder.status"
+                                  >
+                                    <span class="mat-icon-filled status-icon" aria-hidden="true">
+                                      {{
+                                        builder.status === 'running'
+                                          ? 'play_arrow'
+                                          : builder.status === 'error'
+                                            ? 'error'
+                                            : 'stop'
+                                      }}
+                                    </span>
+                                    <span>{{
+                                      builder.status === 'running'
+                                        ? 'Running'
+                                        : builder.status === 'error'
+                                          ? 'Error'
+                                          : 'Stopped'
+                                    }}</span>
+                                  </span>
+                                  <span class="badge-subtle">Default</span>
+                                </div>
+                                <span class="builder-sub">{{ builder.driver }}</span>
+                              </div>
+                            </div>
+
+                            <div class="builder-top-actions">
+                              <span class="mat-icon-filled accordion-chevron" aria-hidden="true"
+                                >keyboard_arrow_down</span
+                              >
+                            </div>
+                          </button>
+
+                          <div class="accordion-collapse-wrapper" [class.is-expanded]="isBuilderExpanded(builder.name)">
+                            <div class="accordion-collapse-inner">
+                              <div class="builder-card-content">
+                                @if (
+                                  (builder.status === 'error' || builder.error) && builder.name !== 'catbee-desktop'
+                                ) {
+                                  <div class="builder-error-callout" role="alert">
+                                    <span class="mat-icon-filled error-icon" aria-hidden="true">error</span>
+                                    <div class="error-content">
+                                      <span class="error-title">Builder Connection Error</span>
+                                      <p class="error-desc">
+                                        {{
+                                          builder.error ||
+                                            'Cannot connect to this builder instance. Ensure the engine daemon is running.'
+                                        }}
+                                      </p>
+                                    </div>
+                                  </div>
+                                }
+
+                                <ng-container
+                                  *ngTemplateOutlet="builderDetails; context: { builder: builder, isCurrent: true }"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      }
+                    }
+                  </div>
+
+                  <!-- Available Builders Section with Expansion Accordion Headers -->
+                  @if (hasAvailableBuilders(bInfo)) {
+                    <div class="available-builders-section">
+                      <div class="builder-group-label-row">
+                        <h4 class="subgroup-title">Available builders</h4>
+                        <p class="field-hint">Inspect and manage your builders.</p>
+                      </div>
+
+                      <div class="available-builders-list">
+                        @for (builder of bInfo.builders; track builder.name) {
+                          @if (!builder.isCurrent) {
+                            <div class="available-builder-card" [class.is-expanded]="isBuilderExpanded(builder.name)">
+                              <!-- Expandable Accordion Header -->
+                              <button
+                                type="button"
+                                class="available-builder-header"
+                                (click)="toggleBuilderExpansion(builder.name)"
+                                [attr.aria-expanded]="isBuilderExpanded(builder.name)"
+                              >
+                                <div class="builder-left">
+                                  <span class="mat-icon-filled builder-card-icon" aria-hidden="true">layers</span>
+                                  <div>
+                                    <div class="builder-title-row">
+                                      <span class="builder-name">{{ builder.name }}</span>
+                                    </div>
+                                    <span class="builder-driver">{{ builder.driver }}</span>
+                                  </div>
+                                </div>
+
+                                <div class="builder-right">
+                                  <span
+                                    class="builder-status-badge"
+                                    [class.status-running]="builder.status === 'running'"
+                                    [class.status-error]="builder.status === 'error'"
+                                    [class.status-inactive]="builder.status === 'stopped' || !builder.status"
+                                  >
+                                    <span class="mat-icon-filled status-icon" aria-hidden="true">
+                                      {{
+                                        builder.status === 'running'
+                                          ? 'play_arrow'
+                                          : builder.status === 'error'
+                                            ? 'error'
+                                            : 'stop'
+                                      }}
+                                    </span>
+                                    <span>{{
+                                      builder.status === 'running'
+                                        ? 'Running · Not in use'
+                                        : builder.status === 'error'
+                                          ? 'Error'
+                                          : 'Stopped'
+                                    }}</span>
+                                  </span>
+
+                                  <span class="mat-icon-filled accordion-chevron" aria-hidden="true"
+                                    >keyboard_arrow_down</span
+                                  >
+                                </div>
+                              </button>
+
+                              <!-- Expandable Accordion Details with Height Animation -->
+                              <div
+                                class="accordion-collapse-wrapper"
+                                [class.is-expanded]="isBuilderExpanded(builder.name)"
+                              >
+                                <div class="accordion-collapse-inner">
+                                  <div class="available-builder-body">
+                                    @if (
+                                      (builder.status === 'error' || builder.error) && builder.name !== 'catbee-desktop'
+                                    ) {
+                                      <div class="builder-error-callout" role="alert">
+                                        <span class="mat-icon-filled error-icon" aria-hidden="true">error</span>
+                                        <div class="error-content">
+                                          <span class="error-title">Builder Connection Error</span>
+                                          <p class="error-desc">
+                                            {{
+                                              builder.error ||
+                                                'Cannot connect to this builder instance. Ensure the engine daemon is running.'
+                                            }}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    }
+
+                                    <ng-container
+                                      *ngTemplateOutlet="
+                                        builderDetails;
+                                        context: { builder: builder, isCurrent: false }
+                                      "
+                                    />
+
+                                    <div class="builder-card-footer">
+                                      <button
+                                        type="button"
+                                        class="catbee-action-btn secondary small-btn"
+                                        [disabled]="
+                                          (builder.status === 'error' && builder.name !== 'catbee-desktop') ||
+                                          isContextSwitching()
+                                        "
+                                        (click)="requestSwitchDockerContext(builder.name)"
+                                        [catbeeTooltip]="
+                                          builder.status === 'error' && builder.name !== 'catbee-desktop'
+                                            ? 'Cannot set an unreachable builder as default. Start this engine first.'
+                                            : ''
+                                        "
+                                        catbeeTooltipPosition="top"
+                                      >
+                                        <span class="mat-icon-filled" aria-hidden="true">swap_horiz</span>
+                                        <span>Use as default builder</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          }
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="info-callout subtle">
+                  <p>BuildKit information will appear here once the engine is connected.</p>
+                </div>
+              }
+
+              <!-- Shared Builder Details Template (Stats, Endpoint, Platforms) -->
+              <ng-template #builderDetails let-builder="builder" let-isCurrent="isCurrent">
+                <div class="builder-stats-grid">
+                  <div class="stat-cell">
+                    <span class="stat-label">Driver</span>
+                    <span class="stat-value">{{ builder.driver }}</span>
+                  </div>
+                  <div class="stat-cell">
+                    <span class="stat-label">Status</span>
+                    <span class="stat-value">{{
+                      builder.status === 'running'
+                        ? isCurrent
+                          ? 'Running'
+                          : 'Running (Not in use)'
+                        : builder.status === 'error'
+                          ? 'Error'
+                          : 'Stopped'
+                    }}</span>
+                  </div>
+                  <div class="stat-cell">
+                    <span class="stat-label">Storage limit</span>
+                    <span class="stat-value">{{ builder.storageLimit ?? '20 GB' }}</span>
+                  </div>
+                  <div class="stat-cell">
+                    <span class="stat-label">Used cache</span>
+                    <span class="stat-value">{{ formatBytes(builder.usedBytes) }}</span>
+                  </div>
+                  <div class="stat-cell">
+                    <span class="stat-label">Shared cache</span>
+                    <span class="stat-value">{{ formatBytes(builder.sharedBytes) }}</span>
+                  </div>
+                </div>
+
+                <div class="builder-endpoint-row">
+                  <span class="endpoint-label">Endpoint</span>
+                  <div class="endpoint-box">
+                    <span class="mat-icon-filled endpoint-icon" aria-hidden="true">terminal</span>
+                    <code class="endpoint-value">{{ builder.endpoint || '—' }}</code>
+                    @if (builder.endpoint) {
+                      <button
+                        type="button"
+                        class="copy-endpoint-btn"
+                        (click)="copyEndpoint(builder.endpoint)"
+                        [catbeeTooltip]="copiedEndpoint() === builder.endpoint ? 'Copied!' : 'Copy endpoint'"
+                        catbeeTooltipPosition="top"
+                        aria-label="Copy endpoint to clipboard"
+                      >
+                        <span class="mat-icon-filled" aria-hidden="true">
+                          {{ copiedEndpoint() === builder.endpoint ? 'check' : 'content_copy' }}
+                        </span>
+                      </button>
+                    }
+                  </div>
+                </div>
+
+                @if (builder.platforms?.length) {
+                  <div class="builder-platforms-row">
+                    <span class="platforms-heading">Supported platforms</span>
+                    <div class="platforms-pill-group">
+                      @for (platform of builder.platforms; track platform) {
+                        <span class="platform-pill">
+                          <span class="mat-icon-filled" aria-hidden="true">memory</span>
+                          {{ platform.replace('linux/', '') }}
+                        </span>
+                      }
+                    </div>
+                  </div>
+                }
+              </ng-template>
+            </div>
+
+            <div id="setting-engine-daemon-config" class="form-group">
+              <div class="config-header-row">
+                <h3 class="group-title">Daemon Configuration (daemon.json)</h3>
+                <span class="badge-subtle">Generated from current settings</span>
+              </div>
+              <catbee-container-studio-json-viewer
+                [data]="daemonConfigPreview()"
+                searchPlaceholder="Search daemon.json..."
+                maxHeight="420px"
+              />
+            </div>
+          </div>
+        </section>
+      }
+
+      <!-- SOFTWARE UPDATES TAB -->
+      @if (activeCategory() === 'updates') {
+        <section class="settings-section">
+          <header class="settings-section-header"><h2>Software updates</h2></header>
+          <div class="settings-section-body">
+            @if (updateErrorMessage(); as err) {
+              <div class="settings-error-banner-wrapper">
+                <catbee-container-studio-error-banner
+                  [errorMessage]="err"
+                  (closeErr)="updateErrorMessage.set(null)"
+                  size="small"
+                />
+              </div>
+            }
+
+            <div id="setting-updates-auto" class="updates-card">
+              <span class="mat-icon-filled update-icon" aria-hidden="true">verified</span>
+              <div>
+                <h3>CatBee Container Studio v{{ platformInfo()?.appVersion ?? '0.4.0' }}</h3>
+                <p class="field-hint">You are on the latest stable release channel.</p>
+              </div>
+              <button
+                type="button"
+                class="catbee-action-btn primary"
+                [disabled]="isActionLoading()"
+                (click)="checkForUpdates()"
+              >
+                {{ activeAction() === 'check-updates' ? 'Checking...' : 'Check for updates' }}
+              </button>
+            </div>
+          </div>
+        </section>
+      }
+
+      <!-- ABOUT TAB -->
+      @if (activeCategory() === 'about') {
+        <section class="settings-section">
+          <header class="settings-section-header"><h2>About</h2></header>
+          <div class="settings-section-body">
+            <div id="setting-about" class="about-hero">
+              <h3>CatBee Container Studio</h3>
+              <span class="field-hint"
+                >Desktop container management studio with embedded and external engine support.</span
+              >
+            </div>
+
+            <div class="diagnostics-table">
+              <div class="diag-row">
+                <span class="diag-key">Version</span>
+                <span class="diag-val">{{ platformInfo()?.appVersion ?? '0.4.0' }}</span>
+              </div>
+              <div class="diag-row">
+                <span class="diag-key">Platform / OS</span>
+                <span class="diag-val">{{ platformInfo()?.platform }} ({{ platformInfo()?.osRelease }})</span>
+              </div>
+              <div class="diag-row">
+                <span class="diag-key">Architecture</span>
+                <span class="diag-val">{{ platformInfo()?.arch }}</span>
+              </div>
+              <div class="diag-row">
+                <span class="diag-key">Electron</span>
+                <span class="diag-val">{{ platformInfo()?.electronVersion }}</span>
+              </div>
+              <div class="diag-row">
+                <span class="diag-key">Node.js</span>
+                <span class="diag-val">{{ platformInfo()?.nodeVersion }}</span>
+              </div>
+              <div class="diag-row">
+                <span class="diag-key">Total RAM</span>
+                <span class="diag-val">{{ platformInfo()?.totalMemory }} GB</span>
+              </div>
+              <div class="diag-row">
+                <span class="diag-key">CPU Cores</span>
+                <span class="diag-val">{{ platformInfo()?.cpuCount }}</span>
+              </div>
+            </div>
+
+            <div class="about-actions-row">
+              <button type="button" class="catbee-action-btn" (click)="openLogsFolder()">
+                <span class="mat-icon-filled" aria-hidden="true">folder_open</span>
+                <span>Open Logs Folder</span>
+              </button>
+              <span
+                class="disabled-tooltip-wrapper"
+                [catbeeTooltip]="
+                  isExternalMode()
+                    ? 'Engine directory is only available for CatBee Built-in Engine (disabled in External mode)'
+                    : ''
+                "
+                catbeeTooltipPosition="top"
+              >
+                <button
+                  type="button"
+                  class="catbee-action-btn"
+                  [disabled]="isExternalMode()"
+                  (click)="openEngineDirectory()"
+                >
+                  <span class="mat-icon-filled" aria-hidden="true">dns</span>
+                  <span>Open Engine Directory</span>
+                </button>
+              </span>
+            </div>
+          </div>
+        </section>
+      }
+    </form>
+
+    <!-- Bottom Actions Bar -->
+    <footer class="settings-footer">
+      <div class="footer-left">
+        @if (applySuccessMessage()) {
+          <span class="success-message">
+            <span class="mat-icon-filled" aria-hidden="true">check_circle</span>
+            {{ applySuccessMessage() }}
+          </span>
+        }
+      </div>
+      <div class="footer-right">
+        @if (hasChanges()) {
+          <button
+            type="button"
+            class="catbee-action-btn plain-btn"
+            [disabled]="isApplying()"
+            (click)="requestDiscardChanges()"
+          >
+            Discard
+          </button>
+        }
+        <button type="button" class="catbee-action-btn" (click)="close()">Close</button>
+        <button
+          type="button"
+          class="catbee-action-btn primary"
+          [attr.aria-busy]="isApplying()"
+          [disabled]="!hasChanges() || isActionLoading() || hasValidationErrors()"
+          (click)="applySettings()"
+        >
+          <span class="button-label">Apply</span>
+          @if (isApplying()) {
+            <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'apply' }" />
+          }
+        </button>
+      </div>
+    </footer>
+
+    <!-- Restart Docker Engine Dialog -->
+    <catbee-container-studio-dialog
+      [open]="showRestartModal()"
+      [closable]="!isApplying()"
+      title="Restart Docker Engine?"
+      [style]="{ width: '32rem' }"
+      (closeDialog)="cancelRestartModal()"
+    >
+      <ng-container catbeeDialogBody>
+        <div class="restart-dialog-content">
+          <p>{{ restartDialogMessage() }}</p>
+          <p class="field-hint">
+            Apply the changes to the container engine now, or save them for the next engine start?
+          </p>
+        </div>
+      </ng-container>
+
+      <ng-container catbeeDialogFooter>
+        <button
+          type="button"
+          class="catbee-action-btn plain-btn"
+          [disabled]="isApplying()"
+          (click)="cancelRestartModal()"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="catbee-action-btn secondary"
+          [attr.aria-busy]="isSavingSettings() && !isRestarting()"
+          [disabled]="isActionLoading()"
+          (click)="confirmRestartLater()"
+        >
+          <span class="button-label">Restart Later</span>
+          @if (isSavingSettings() && !isRestarting()) {
+            <ng-container
+              [ngTemplateOutlet]="buttonLoader"
+              [ngTemplateOutletContext]="{ $implicit: 'restart-later' }"
+            />
+          }
+        </button>
+        <button
+          type="button"
+          class="catbee-action-btn primary"
+          [attr.aria-busy]="isRestarting()"
+          [disabled]="isActionLoading()"
+          (click)="confirmRestartNow()"
+        >
+          <span class="button-label">Restart Now</span>
+          @if (isRestarting()) {
+            <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'restart-now' }" />
+          }
+        </button>
+      </ng-container>
+    </catbee-container-studio-dialog>
+
+    <!-- Stop Engine Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingStopEngine()"
+      title="Stop Container Engine"
+      message="Are you sure you want to stop the CatBee container engine? All running containers and active connections will be terminated."
+      confirmLabel="Stop Engine"
+      cancelLabel="Cancel"
+      [dangerous]="true"
+      (cancelAction)="cancelStopEngine()"
+      (confirm)="confirmStopEngine()"
+    />
+
+    <!-- Reinstall Engine Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingReinstallEngine()"
+      title="Reinstall Container Engine"
+      message="Reinstalling will reset the CatBee container engine distribution to its default state and stop all running containers. Any non-persisted container state will be recreated. Are you sure you want to proceed?"
+      confirmLabel="Reinstall Engine"
+      cancelLabel="Cancel"
+      [dangerous]="true"
+      (cancelAction)="cancelReinstallEngine()"
+      (confirm)="confirmReinstallEngine()"
+    />
+
+    <!-- Uninstall Engine Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingUninstallEngine()"
+      title="Uninstall Built-in Engine"
+      message="This stops the CatBee built-in engine and permanently deletes it together with all of its images, containers, volumes and build cache. The catbee-desktop CLI context is removed and CatBee switches back to Auto mode. Continue?"
+      confirmLabel="Uninstall Engine"
+      cancelLabel="Cancel"
+      [dangerous]="true"
+      (cancelAction)="cancelUninstallEngine()"
+      (confirm)="confirmUninstallEngine()"
+    />
+
+    <!-- Switch Docker Context Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingContextSwitch() !== null"
+      title="Switch Docker Context"
+      [message]="pendingContextSwitchMessage()"
+      confirmLabel="Switch Context"
+      cancelLabel="Cancel"
+      (cancelAction)="cancelSwitchDockerContext()"
+      (confirm)="confirmSwitchDockerContext()"
+    />
+
+    <!-- Activate CatBee Context Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingActivateCatBeeContext()"
+      title="Activate CatBee Desktop Context"
+      [message]="activateCatBeeContextMessage()"
+      confirmLabel="Activate Context"
+      cancelLabel="Cancel"
+      (cancelAction)="cancelActivateCatBeeContext()"
+      (confirm)="confirmActivateCatBeeContext()"
+    />
+
+    <!-- Discard Changes Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingDiscardChanges()"
+      title="Discard Unsaved Changes"
+      message="Are you sure you want to discard all unsaved configuration changes and revert to your previous settings?"
+      confirmLabel="Discard Changes"
+      cancelLabel="Keep Editing"
+      [dangerous]="true"
+      (cancelAction)="cancelDiscardChanges()"
+      (confirm)="confirmDiscardChanges()"
+    />
+
+    <!-- Clear Build Cache Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingPruneBuildCache()"
+      title="Clear Build Cache"
+      message="Are you sure you want to prune all BuildKit build cache? Future image builds may take longer while layers are regenerated."
+      confirmLabel="Clear Cache"
+      cancelLabel="Cancel"
+      [dangerous]="false"
+      (cancelAction)="cancelPruneBuildCache()"
+      (confirm)="confirmPruneBuildCache()"
+    />
+
+    <!-- Leave With Unsaved Changes Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingLeave()"
+      title="Leave Without Applying?"
+      message="You have unsaved settings changes. Leaving this page will discard them."
+      confirmLabel="Discard & Leave"
+      cancelLabel="Keep Editing"
+      [dangerous]="true"
+      (cancelAction)="cancelLeave()"
+      (confirm)="confirmLeave()"
+    />
+  </main>
+</div>

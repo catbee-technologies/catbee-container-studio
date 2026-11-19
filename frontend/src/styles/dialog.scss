@@ -92,13 +92,27 @@
       font-size: var(--font-size-base);
 
       &.primary {
-        color: var(--ink-100);
+        color: var(--btn-primary-text);
+        background: var(--btn-primary-bg);
+        border: 1px solid var(--btn-primary-border);
+
+        &:hover:not(:disabled) {
+          color: var(--btn-primary-text);
+          background: var(--btn-primary-bg-hover);
+          border-color: var(--btn-primary-border-hover);
+        }
       }
 
       &.secondary {
         background: transparent;
-        color: var(--ink-300);
-        border: 1px solid var(--border-color-accent);
+        color: var(--ink-200);
+        border: 1px solid var(--border-color-primary);
+
+        &:hover:not(:disabled) {
+          background: var(--bg-hover-subtle);
+          color: var(--ink-100);
+          border-color: var(--border-color-control);
+        }
       }
     }
   }

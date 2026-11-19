@@ -7,7 +7,7 @@
   font-size: 0.84rem;
 
   &.disabled {
-    opacity: 0.5;
+    opacity: 0.72;
     pointer-events: none;
     cursor: not-allowed;
   }
@@ -25,7 +25,7 @@
   }
 
   input:focus-visible + .switch-slider {
-    outline: 2px solid var(--border-color-focus, #38bdf8);
+    outline: 2px solid var(--border-color-focus);
     outline-offset: 3px;
   }
 
@@ -40,7 +40,13 @@
     border: 1px solid var(--border-color-control);
     background: var(--bg-toggle);
     position: relative;
-    transition: background-color 140ms ease;
+    transition:
+      background-color 140ms ease,
+      border-color 140ms ease;
+
+    &:hover {
+      border-color: var(--border-color-hover);
+    }
 
     &::after {
       content: '';
@@ -51,7 +57,8 @@
       height: 0.84rem;
       border-radius: 50%;
       transform: translateY(-50%);
-      background: var(--ink-100);
+      background: var(--switch-thumb, #ffffff);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
       transition: transform 140ms ease;
     }
   }

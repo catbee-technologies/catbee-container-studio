@@ -89,7 +89,7 @@ $btn-icon-glyph-lg: 1.35rem;
   @include catbee-action-btn();
 
   &:focus-visible {
-    outline: 2px solid var(--border-color-focus, #38bdf8);
+    outline: 2px solid var(--border-color-focus);
     outline-offset: 2px;
   }
 

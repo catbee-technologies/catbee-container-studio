@@ -1,0 +1,56 @@
+@if (searchable() || showCopy()) {
+  <div class="json-viewer-toolbar">
+    @if (searchable()) {
+      <catbee-container-studio-search-input
+        #searchInput
+        [placeholder]="searchPlaceholder()"
+        [ariaLabel]="searchPlaceholder()"
+        [value]="searchTerm()"
+        (valueChange)="setSearch($event)"
+        (inputKeydown)="onSearchKeydown($event)"
+        [width]="searchInputWidth()"
+      />
+
+      @if (searchTerm().trim().length > 0) {
+        <div class="search-nav">
+          <button
+            type="button"
+            class="catbee-action-btn search-nav-btn"
+            (click)="prevMatch()"
+            [disabled]="!hasMatches()"
+            title="Previous match (Shift+Enter)"
+            aria-label="Previous match"
+          >
+            <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_up</span>
+          </button>
+          <button
+            type="button"
+            class="catbee-action-btn search-nav-btn"
+            (click)="nextMatch()"
+            [disabled]="!hasMatches()"
+            title="Next match (Enter)"
+            aria-label="Next match"
+          >
+            <span class="mat-icon-filled" aria-hidden="true">keyboard_arrow_down</span>
+          </button>
+          <span class="match-count">{{ matchSummary() }}</span>
+        </div>
+      }
+    }
+
+    <div class="toolbar-spacer"></div>
+
+    @if (showCopy()) {
+      <catbee-container-studio-copy-button
+        [text]="jsonText()"
+        idleTitle="Copy JSON"
+        successTitle="Copied JSON"
+        ariaLabel="Copy JSON to clipboard"
+      />
+    }
+  </div>
+}
+
+<div #scrollArea class="json-viewer-scroll-panel" [style.maxHeight]="maxHeight()">
+  <pre class="json-block"><code [innerHTML]="renderedJsonHtml()"></code></pre>
+</div>

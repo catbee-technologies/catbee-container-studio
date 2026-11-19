@@ -31,9 +31,19 @@
   }
 
   &:disabled {
-    opacity: 0.6;
-    color: var(--ink-500);
+    opacity: 1;
+    color: var(--ink-200);
+    background: var(--bg-hover-subtle);
+    border-color: var(--border-color-light);
     cursor: not-allowed;
+
+    &::placeholder {
+      color: var(--ink-400);
+    }
+  }
+
+  &[readonly] {
+    color: var(--ink-200);
   }
 }
 
@@ -53,11 +63,10 @@
   min-height: 80px;
 }
 
-// Range slider styling (cross-browser)
+// Range slider styling
 .catbee-range-slider,
 .resource-range-slider {
   appearance: none;
-  -webkit-appearance: none;
   width: 100%;
   height: 6px;
   border-radius: 999px;
@@ -74,38 +83,25 @@
     // Optional danger zone: set --danger-percent to tint the track red from that point on.
     background: linear-gradient(
       to right,
-      var(--color-brand-500, #3b82f6) 0%,
-      var(--color-brand-500, #3b82f6) min(var(--fill-percent, 0%), var(--danger-percent, 100%)),
+      var(--color-primary-base) 0%,
+      var(--color-primary-base) min(var(--fill-percent, 0%), var(--danger-percent, 100%)),
       var(--color-danger-base, #ff6b6b) min(var(--fill-percent, 0%), var(--danger-percent, 100%)),
       var(--color-danger-base, #ff6b6b) var(--fill-percent, 0%),
-      var(--border-color-control, rgba(255, 255, 255, 0.12)) var(--fill-percent, 0%),
-      var(--border-color-control, rgba(255, 255, 255, 0.12)) max(var(--fill-percent, 0%), var(--danger-percent, 100%)),
+      var(--bg-toggle) var(--fill-percent, 0%),
+      var(--bg-toggle) max(var(--fill-percent, 0%), var(--danger-percent, 100%)),
       rgba(255, 107, 107, 0.3) max(var(--fill-percent, 0%), var(--danger-percent, 100%)),
       rgba(255, 107, 107, 0.3) 100%
     );
   }
 
-  &::-moz-range-track {
-    height: 6px;
-    border-radius: 999px;
-    background: var(--border-color-control, rgba(255, 255, 255, 0.12));
-  }
-
-  &::-moz-range-progress {
-    height: 6px;
-    border-radius: 999px;
-    background: var(--color-brand-500, #3b82f6);
-  }
-
   &::-webkit-slider-thumb {
     appearance: none;
-    -webkit-appearance: none;
     width: 18px;
     height: 18px;
     border-radius: 50%;
-    background: #ffffff;
-    border: 2px solid var(--color-brand-500, #3b82f6);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    background: var(--switch-thumb, #ffffff);
+    border: 2px solid var(--color-primary-base);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     margin-top: -6px;
     cursor: grab;
     transition:
@@ -114,37 +110,13 @@
 
     &:hover {
       transform: scale(1.15);
-      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25);
+      box-shadow: var(--shadow-control-focus);
     }
 
     &:active {
       cursor: grabbing;
       transform: scale(1.05);
-      box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.35);
-    }
-  }
-
-  &::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #ffffff;
-    border: 2px solid var(--color-brand-500, #3b82f6);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-    cursor: grab;
-    transition:
-      transform var(--transition-fast),
-      box-shadow var(--transition-fast);
-
-    &:hover {
-      transform: scale(1.15);
-      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25);
-    }
-
-    &:active {
-      cursor: grabbing;
-      transform: scale(1.05);
-      box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.35);
+      box-shadow: var(--shadow-control-focus);
     }
   }
 
@@ -152,26 +124,15 @@
     outline: none;
 
     &::-webkit-slider-thumb {
-      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
-    }
-
-    &::-moz-range-thumb {
-      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
+      box-shadow: var(--shadow-control-focus);
     }
   }
 
   &:disabled {
-    opacity: 0.45;
+    opacity: 0.65;
     cursor: not-allowed;
 
     &::-webkit-slider-thumb {
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-      border-color: var(--ink-400, #94a3b8);
-    }
-
-    &::-moz-range-thumb {
       cursor: not-allowed;
       transform: none;
       box-shadow: none;
@@ -254,5 +215,111 @@ catbee-container-studio-search-input {
   &:not(:disabled):hover {
     color: var(--color-danger-text);
     background: var(--bg-error-hover);
+  }
+}
+
+.radio-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  font-size: var(--font-size-base, 0.95rem);
+  color: var(--ink-100);
+
+  &.is-disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
+    pointer-events: none;
+  }
+
+  .radio-text,
+  .radio-label {
+    display: inline-flex;
+    align-items: center;
+    color: var(--ink-100);
+    transition: color var(--transition-base, 0.2s ease);
+  }
+
+  input.radio-input,
+  input[type='radio'] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    margin: 0;
+    cursor: pointer;
+
+    &:focus-visible ~ .radio-custom,
+    &:focus-visible ~ .radio-control {
+      outline: 2px solid var(--border-color-focus);
+      outline-offset: 2px;
+    }
+  }
+
+  .radio-custom,
+  .radio-control {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid var(--border-color-control);
+    background-color: var(--bg-input);
+    border-radius: 50%;
+    margin-right: 12px;
+    transition:
+      border-color var(--transition-base, 0.2s ease),
+      box-shadow var(--transition-base, 0.2s ease),
+      transform var(--transition-fast, 0.15s ease);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &::before {
+      content: '';
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background-color: var(--color-primary-base);
+      border-radius: 50%;
+      transform: scale(0);
+      opacity: 0;
+      transition:
+        transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+        opacity 0.15s ease;
+    }
+  }
+
+  &:hover:not(.is-disabled) {
+    .radio-custom,
+    .radio-control {
+      border-color: var(--border-color-hover);
+      box-shadow: var(--shadow-control-focus);
+    }
+
+    .radio-text,
+    .radio-label {
+      color: var(--color-primary-text);
+    }
+  }
+
+  &.is-checked,
+  input:checked ~ {
+    .radio-custom,
+    .radio-control {
+      border-color: var(--color-primary-base);
+      box-shadow: var(--shadow-control-focus);
+
+      &::before {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .radio-text,
+    .radio-label {
+      color: var(--ink-100);
+      font-weight: 500;
+    }
   }
 }
