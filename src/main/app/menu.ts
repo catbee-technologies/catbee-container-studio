@@ -1,7 +1,8 @@
-import { BrowserWindow, Menu, shell } from 'electron';
+import { app, BrowserWindow, dialog, Menu, shell } from 'electron';
 import { isDev, isMacOS, LOG_DIR_PATH, ZOOM_CONFIG } from './constants';
 import { syncMacTrafficLights } from './mac-traffic-lights';
-import { showAboutDialog } from './about';
+import { logger } from '../logger';
+import { IPC_CHANNELS } from '../../ipc/channels';
 
 export interface ApplicationMenuOptions {
   getMainWindow: () => BrowserWindow | null;
@@ -146,7 +147,80 @@ function createWindowSubmenu(): Electron.MenuItemConstructorOptions[] {
   ];
 }
 
-function createHelpSubmenu(): Electron.MenuItemConstructorOptions[] {
+type EngineMenuAction = 'start' | 'stop' | 'restart';
+
+function runEngineAction(action: EngineMenuAction): void {
+  void (async () => {
+    const { dockerManager } = await import('../docker/services/docker.manager.js');
+    switch (action) {
+      case 'start':
+        return await dockerManager.startEmbeddedEngine();
+      case 'stop':
+        return await dockerManager.stopEmbeddedEngine();
+      case 'restart':
+        return await dockerManager.restartEmbeddedEngine();
+    }
+  })().catch((error: unknown) => {
+    logger.error({ err: error }, `[Menu] Built-in engine ${action} failed.`);
+    dialog.showErrorBox(
+      `Could not ${action} the built-in engine`,
+      error instanceof Error ? error.message : String(error)
+    );
+  });
+}
+
+function createEngineSubmenu(): Electron.MenuItemConstructorOptions[] {
+  return [
+    { label: 'Start Built-in Engine', click: () => runEngineAction('start') },
+    { label: 'Stop Built-in Engine', click: () => runEngineAction('stop') },
+    { label: 'Restart Built-in Engine', click: () => runEngineAction('restart') }
+  ];
+}
+
+function navigateToSettingsAbout(options: ApplicationMenuOptions): void {
+  options.showOrCreateMainWindow();
+  const window = options.getMainWindow();
+  if (!window || window.isDestroyed()) {
+    return;
+  }
+  const sendNavigate = (): void => {
+    if (!window.isDestroyed()) {
+      window.webContents.send(IPC_CHANNELS.App.Navigate, {
+        path: '/settings',
+        queryParams: { tab: 'about' }
+      });
+    }
+  };
+  if (window.webContents.isLoading()) {
+    window.webContents.once('did-finish-load', sendNavigate);
+  } else {
+    sendNavigate();
+  }
+}
+
+function createAppSubmenu(options: ApplicationMenuOptions): Electron.MenuItemConstructorOptions {
+  return {
+    label: app.name,
+    submenu: [
+      {
+        label: `About ${app.name}`,
+        click: () => {
+          navigateToSettingsAbout(options);
+        }
+      },
+      { type: 'separator' },
+      { role: 'services' },
+      { type: 'separator' },
+      { role: 'hide' },
+      { role: 'hideOthers' },
+      { role: 'unhide' },
+      { type: 'separator' },
+      { role: 'quit' }
+    ]
+  };
+}
+
+function createHelpSubmenu(options: ApplicationMenuOptions): Electron.MenuItemConstructorOptions[] {
   return [
     {
       label: 'View Logs',
@@ -158,22 +232,17 @@ function createHelpSubmenu(): Electron.MenuItemConstructorOptions[] {
     {
       label: 'About CatBee Container Studio',
       click: () => {
-        showAboutDialog();
+        navigateToSettingsAbout(options);
       }
     }
   ];
 }
 
-export function buildApplicationMenu({ getMainWindow, showOrCreateMainWindow }: ApplicationMenuOptions): void {
+export function buildApplicationMenu(options: ApplicationMenuOptions): void {
+  const { getMainWindow, showOrCreateMainWindow } = options;
   const template: Electron.MenuItemConstructorOptions[] = [
     // macOS has a native application menu.
-    ...(isMacOS
-      ? [
-          {
-            role: 'appMenu' as const
-          }
-        ]
-      : []),
+    ...(isMacOS ? [createAppSubmenu(options)] : []),
     {
       label: 'File',
       submenu: createFileSubmenu(showOrCreateMainWindow)
@@ -186,12 +255,16 @@ export function buildApplicationMenu({ getMainWindow, showOrCreateMainWindow }: 
       submenu: createViewSubmenu(getMainWindow)
     },
     {
+      label: 'Engine',
+      submenu: createEngineSubmenu()
+    },
+    {
       label: 'Window',
       submenu: createWindowSubmenu()
     },
     {
       role: 'help',
-      submenu: createHelpSubmenu()
+      submenu: createHelpSubmenu(options)
     }
   ];
 
