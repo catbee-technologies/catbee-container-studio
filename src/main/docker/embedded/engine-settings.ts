@@ -1,0 +1,200 @@
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import { logger } from '../../logger';
+import { getEngineSettingsFilePath } from './engine-paths';
+
+export interface DesktopProxyConfig {
+  mode: 'system' | 'none' | 'manual';
+  httpProxy?: string;
+  httpsProxy?: string;
+  noProxy?: string;
+}
+
+export interface ContainersProxyConfig {
+  mode: 'same-as-host' | 'system' | 'none' | 'manual';
+  httpProxy?: string;
+  httpsProxy?: string;
+  noProxy?: string;
+}
+
+export interface NetworkSettingsConfig {
+  dockerSubnet: string;
+  portBindingBehavior: 'open' | 'localhost';
+  defaultNetworkingMode: 'ipv4' | 'dualstack';
+}
+
+/** VM resource allocation. Only honoured by VM-based backends (macOS / Lima). */
+export interface ResourceSettingsConfig {
+  cpus: number;
+  memoryGb: number;
+  swapGb: number;
+  diskGb: number;
+  /** Apple Silicon only: run linux/amd64 containers through Rosetta 2. */
+  rosetta: boolean;
+}
+
+export interface EngineSettings {
+  engineMode: 'auto' | 'embedded' | 'external';
+  exposeTcp: boolean;
+  resourceSaverEnabled: boolean;
+  resourceSaverTimeout: number;
+  wslIntegrationEnabled: boolean;
+  wslAdditionalDistros: string[];
+  fileSharingPaths: string[];
+  desktopProxy: DesktopProxyConfig;
+  containersProxy: ContainersProxyConfig;
+  network: NetworkSettingsConfig;
+  resources: ResourceSettingsConfig;
+  endpoint?: string;
+}
+
+function defaultResources(): ResourceSettingsConfig {
+  const cpuCount = os.cpus().length || 2;
+  const totalGb = Math.floor(os.totalmem() / 1024 ** 3) || 4;
+  return {
+    cpus: Math.min(4, Math.max(1, Math.floor(cpuCount / 2))),
+    memoryGb: Math.min(8, Math.max(2, Math.floor(totalGb / 2))),
+    swapGb: 1,
+    diskGb: 64,
+    rosetta: process.platform === 'darwin' && process.arch === 'arm64'
+  };
+}
+
+export const DEFAULT_ENGINE_SETTINGS: EngineSettings = {
+  engineMode: 'auto',
+  exposeTcp: false,
+  resourceSaverEnabled: false,
+  resourceSaverTimeout: 300,
+  wslIntegrationEnabled: true,
+  wslAdditionalDistros: [],
+  // Directories shared into the macOS VM. An empty list also falls back to these in the Lima driver.
+  fileSharingPaths: process.platform === 'darwin' ? [os.homedir(), '/var/folders'] : [],
+  desktopProxy: {
+    mode: 'system',
+    httpProxy: '',
+    httpsProxy: '',
+    noProxy: 'localhost,127.0.0.1,docker.internal'
+  },
+  containersProxy: {
+    mode: 'same-as-host',
+    httpProxy: '',
+    httpsProxy: '',
+    noProxy: 'localhost,127.0.0.1'
+  },
+  network: {
+    dockerSubnet: ['192', '168', '65', '0/24'].join('.'),
+    portBindingBehavior: 'open',
+    defaultNetworkingMode: 'ipv4'
+  },
+  resources: defaultResources()
+};
+
+const IPV4_CIDR = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/;
+
+export function isValidIpv4Cidr(value: string): boolean {
+  const match = IPV4_CIDR.exec(value.trim());
+  if (!match) return false;
+  const octets = match.slice(1, 5).map(Number);
+  const prefix = Number(match[5]);
+  return octets.every(o => o >= 0 && o <= 255) && prefix >= 8 && prefix <= 30;
+}
+
+function clamp(value: unknown, min: number, max: number, fallback: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function uniqueStrings(values: unknown): string[] {
+  if (!Array.isArray(values)) return [];
+  return [
+    ...new Set(
+      values
+        .filter((v): v is string => typeof v === 'string')
+        .map(v => v.trim())
+        .filter(Boolean)
+    )
+  ];
+}
+
+/** Keeps only known network keys so options removed in older versions don't linger in settings.json. */
+function pickNetwork(network: NetworkSettingsConfig): NetworkSettingsConfig {
+  const { dockerSubnet, portBindingBehavior, defaultNetworkingMode } = network;
+  return {
+    dockerSubnet,
+    portBindingBehavior: portBindingBehavior === 'localhost' ? 'localhost' : 'open',
+    defaultNetworkingMode: defaultNetworkingMode === 'dualstack' ? 'dualstack' : 'ipv4'
+  };
+}
+
+/** Deep-merges a partial settings object over a base and normalises every field. */
+export function mergeEngineSettings(base: EngineSettings, patch: Partial<EngineSettings>): EngineSettings {
+  const merged: EngineSettings = {
+    ...base,
+    ...patch,
+    desktopProxy: { ...base.desktopProxy, ...patch.desktopProxy },
+    containersProxy: { ...base.containersProxy, ...patch.containersProxy },
+    network: pickNetwork({ ...base.network, ...patch.network }),
+    resources: { ...base.resources, ...patch.resources }
+  };
+
+  if (!['auto', 'embedded', 'external'].includes(merged.engineMode)) {
+    merged.engineMode = DEFAULT_ENGINE_SETTINGS.engineMode;
+  }
+  merged.exposeTcp = Boolean(merged.exposeTcp);
+  merged.resourceSaverEnabled = Boolean(merged.resourceSaverEnabled);
+  merged.resourceSaverTimeout = clamp(merged.resourceSaverTimeout, 30, 3600, 300);
+  merged.wslIntegrationEnabled = Boolean(merged.wslIntegrationEnabled);
+  merged.wslAdditionalDistros = uniqueStrings(merged.wslAdditionalDistros);
+  merged.fileSharingPaths = uniqueStrings(merged.fileSharingPaths);
+
+  if (!isValidIpv4Cidr(merged.network.dockerSubnet ?? '')) {
+    merged.network.dockerSubnet = DEFAULT_ENGINE_SETTINGS.network.dockerSubnet;
+  }
+
+  const defaults = defaultResources();
+  merged.resources = {
+    cpus: Math.round(clamp(merged.resources.cpus, 1, os.cpus().length || 64, defaults.cpus)),
+    memoryGb: clamp(
+      merged.resources.memoryGb,
+      1,
+      Math.max(2, Math.floor(os.totalmem() / 1024 ** 3)),
+      defaults.memoryGb
+    ),
+    swapGb: clamp(merged.resources.swapGb, 0, 16, defaults.swapGb),
+    diskGb: Math.round(clamp(merged.resources.diskGb, 16, 2048, defaults.diskGb)),
+    rosetta: Boolean(merged.resources.rosetta) && process.platform === 'darwin' && process.arch === 'arm64'
+  };
+
+  return merged;
+}
+
+export async function getEngineSettings(): Promise<EngineSettings> {
+  const filePath = getEngineSettingsFilePath();
+  try {
+    const content = await readFile(filePath, 'utf8');
+    const parsed = JSON.parse(content) as Partial<EngineSettings>;
+    return mergeEngineSettings(DEFAULT_ENGINE_SETTINGS, parsed);
+  } catch {
+    return mergeEngineSettings(DEFAULT_ENGINE_SETTINGS, {});
+  }
+}
+
+export async function saveEngineSettings(settings: Partial<EngineSettings>): Promise<EngineSettings> {
+  const filePath = getEngineSettingsFilePath();
+  try {
+    await mkdir(path.dirname(filePath), { recursive: true });
+    const updated = mergeEngineSettings(await getEngineSettings(), settings);
+
+    // Write atomically so a crash mid-write cannot corrupt the settings file.
+    const tempPath = `${filePath}.tmp`;
+    await writeFile(tempPath, JSON.stringify(updated, null, 2), 'utf8');
+    await rename(tempPath, filePath);
+    logger.info({ settings: updated }, '[EngineSettings] Successfully saved engine settings.');
+    return updated;
+  } catch (error) {
+    logger.error({ err: error }, '[EngineSettings] Failed to save engine settings.');
+    throw error;
+  }
+}
