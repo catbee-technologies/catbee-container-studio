@@ -32,6 +32,7 @@ export class MenuComponent implements OnDestroy {
   readonly open = input(false);
   readonly style = input<Record<string, string>>();
   readonly closeOnScroll = input(true, { transform: booleanAttribute });
+  readonly alignment = input<'start' | 'end'>('end');
 
   readonly dismissed = output<void>();
 
@@ -92,10 +93,30 @@ export class MenuComponent implements OnDestroy {
       return;
     }
 
+    const isStart = this.alignment() === 'start';
+    const positions: ConnectedPosition[] = isStart
+      ? [
+          {
+            originX: 'start',
+            originY: 'top',
+            overlayX: 'start',
+            overlayY: 'bottom',
+            offsetY: -6
+          },
+          {
+            originX: 'start',
+            originY: 'bottom',
+            overlayX: 'start',
+            overlayY: 'top',
+            offsetY: 6
+          }
+        ]
+      : this.positions;
+
     const positionStrategy = this.overlay
       .position()
       .flexibleConnectedTo(trigger)
-      .withPositions(this.positions)
+      .withPositions(positions)
       .withFlexibleDimensions(false)
       .withPush(true)
       .withViewportMargin(8);

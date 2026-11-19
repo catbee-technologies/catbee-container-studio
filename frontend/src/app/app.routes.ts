@@ -70,5 +70,10 @@ export const routes: Routes = [
       preloadedNetworkDetails: networkDetailsResolver
     },
     loadComponent: () => import('@docker-networks/network-details/network-details').then(m => m.NetworkDetailsPage)
+  },
+  {
+    path: 'settings',
+    canDeactivate: [confirmPendingChanges],
+    loadComponent: () => import('./features/settings/settings-page/settings-page').then(m => m.SettingsPageComponent)
   }
 ];
