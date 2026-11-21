@@ -4,8 +4,12 @@ import { imageDetailsResolver } from '@docker-images/image-details/image-details
 import { networkDetailsResolver } from '@docker-networks/network-details/network-details.resolver';
 import { volumeDetailsResolver } from '@docker-volumes/volume-details/volume-details.resolver';
 
-const confirmPendingChanges: CanDeactivateFn<{ canDeactivate(): boolean | Promise<boolean> }> = component =>
-  component.canDeactivate();
+interface CanDeactivateComponent {
+  canDeactivate?: () => boolean | Promise<boolean>;
+}
+
+const confirmPendingChanges: CanDeactivateFn<CanDeactivateComponent | null | undefined> = component =>
+  component?.canDeactivate ? component.canDeactivate() : true;
 
 export const routes: Routes = [
   {
@@ -70,5 +74,10 @@ export const routes: Routes = [
       preloadedNetworkDetails: networkDetailsResolver
     },
     loadComponent: () => import('@docker-networks/network-details/network-details').then(m => m.NetworkDetailsPage)
+  },
+  {
+    path: 'settings',
+    canDeactivate: [confirmPendingChanges],
+    loadComponent: () => import('@features/settings/settings-page/settings-page').then(m => m.SettingsPageComponent)
   }
 ];
