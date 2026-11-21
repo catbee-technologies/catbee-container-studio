@@ -90,6 +90,16 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
       - name: Generate changelog
         shell: bash
         env:
@@ -99,339 +109,62 @@ jobs:
           set -euo pipefail
 
           echo "Generating changelog for ${TAG}"
+          node scripts/generate-changelog.mjs --tag "${TAG}" --repo "${REPOSITORY}" --output changelog.md
 
-          # Find the previous release tag according to release type.
-          #
-          # Rules:
-          #   Main release:
-          #     - Use the previous main release.
-          #     - Ignore all prerelease tags.
-          #
-          #   Prerelease:
-          #     - First look for a previous prerelease with the same
-          #       base version AND same prerelease identifier.
-          #       Example:
-          #         v1.1.0-rc.1 -> v1.1.0-rc.0
-          #
-          #     - If no matching prerelease exists, fall back to the
-          #       previous main release.
-          #       Example:
-          #         v1.1.0-rc.0 -> v1.0.0
-          #
-          #     - A prerelease from another base version is never used.
-          #       Example:
-          #         v1.2.0-rc.0 -> v1.1.0
-          #       NOT:
-          #         v1.1.0-rc.1
+          echo "Generated changelog:"
+          cat changelog.md
 
-          get_previous_tag() {
-            local current_tag="$1"
-            local current_version="${current_tag#v}"
-            local tag
-            local version
-            local base_version
-            local prerelease
-            local prerelease_id
-            local other_base_version
-            local other_prerelease
-            local other_prerelease_id
+      - name: Generate contributors
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
 
-            # ------------------------------------------------------------
-            # Main release
-            # ------------------------------------------------------------
-            #
-            # Example:
-            #
-            #   v1.0.0
-            #   v1.1.0-rc.0
-            #   v1.1.0-rc.1
-            #   v1.1.0
-            #
-            # For v1.1.0 we want v1.0.0.
-            #
-            if [[ "$current_version" != *-* ]]; then
-              while IFS= read -r tag; do
-                [[ -z "$tag" ]] && continue
-                [[ "$tag" == "$current_tag" ]] && continue
-
-                version="${tag#v}"
-
-                # Skip prerelease tags.
-                [[ "$version" == *-* ]] && continue
-
-                echo "$tag"
-                return 0
-              done < <(git tag --sort=-version:refname)
-
-              return 0
-            fi
-
-            # ------------------------------------------------------------
-            # Prerelease
-            # ------------------------------------------------------------
-
-            # Extract the base version.
-            #
-            #   1.1.0-rc.0
-            #   ^^^^^
-            #
-            base_version="${current_version%%-*}"
-
-            # Extract the prerelease portion.
-            #
-            #   1.1.0-rc.0
-            #         ^^^^
-            #
-            prerelease="${current_version#*-}"
-
-            # Extract the prerelease identifier.
-            #
-            #   rc.0
-            #   ^^
-            #
-            prerelease_id="${prerelease%%.*}"
-
-            # ------------------------------------------------------------
-            # First try to find the previous prerelease from the SAME
-            # base version and SAME prerelease channel.
-            # ------------------------------------------------------------
-            #
-            # Example:
-            #
-            #   v1.1.0-rc.0
-            #   v1.1.0-rc.1
-            #   v1.1.0-rc.2
-            #
-            # For v1.1.0-rc.2:
-            #
-            #   -> v1.1.0-rc.1
-            #
-            # We deliberately do NOT select:
-            #
-            #   v1.0.0-rc.5
-            #   v1.2.0-rc.0
-            #   v1.1.0-beta.0
-            #
-            while IFS= read -r tag; do
-              [[ -z "$tag" ]] && continue
-              [[ "$tag" == "$current_tag" ]] && continue
-
-              version="${tag#v}"
-
-              # Must be a prerelease.
-              [[ "$version" != *-* ]] && continue
-
-              other_base_version="${version%%-*}"
-
-              # Must be the same base version.
-              [[ "$other_base_version" != "$base_version" ]] && continue
-
-              other_prerelease="${version#*-}"
-              other_prerelease_id="${other_prerelease%%.*}"
-
-              # Must be the same prerelease identifier.
-              [[ "$other_prerelease_id" != "$prerelease_id" ]] && continue
-
-              echo "$tag"
-              return 0
-            done < <(git tag --sort=-version:refname)
-
-            # ------------------------------------------------------------
-            # No matching prerelease found.
-            #
-            # Fall back to the previous MAIN release.
-            # ------------------------------------------------------------
-            #
-            # Example:
-            #
-            #   v1.0.0
-            #   v1.1.0-rc.0
-            #
-            # For v1.1.0-rc.0:
-            #
-            #   -> v1.0.0
-            #
-            while IFS= read -r tag; do
-              [[ -z "$tag" ]] && continue
-              [[ "$tag" == "$current_tag" ]] && continue
-
-              version="${tag#v}"
-
-              # Only consider main releases.
-              [[ "$version" == *-* ]] && continue
-
-              echo "$tag"
-              return 0
-            done < <(git tag --sort=-version:refname)
-
-            return 0
-          }
-
-          PREVIOUS_TAG="$(get_previous_tag "$TAG")"
-
-          echo "Current tag:  ${TAG}"
-
-          if [[ -n "$PREVIOUS_TAG" ]]; then
-            echo "Previous tag: ${PREVIOUS_TAG}"
-          else
-            echo "No previous release tag found. Treating this as the first release."
+          # Fallback to previous_tag.txt if PREVIOUS_TAG is not yet populated
+          if [[ -z "${PREVIOUS_TAG:-}" && -f "previous_tag.txt" ]]; then
+            PREVIOUS_TAG="$(cat previous_tag.txt | tr -d '[:space:]')"
           fi
 
-          # Temporary files for generated sections.
-          FEATURES_FILE="$(mktemp)"
-          FIXES_FILE="$(mktemp)"
-          OTHER_FILE="$(mktemp)"
+          echo "Resolved previous tag: '${PREVIOUS_TAG:-}'"
 
-          touch "$FEATURES_FILE"
-          touch "$FIXES_FILE"
-          touch "$OTHER_FILE"
-
-          # Determine commit range
-
-          if [[ -n "$PREVIOUS_TAG" ]]; then
-            COMMIT_RANGE="${PREVIOUS_TAG}..${TAG}"
-          else
-            COMMIT_RANGE="${TAG}"
-          fi
-
-          echo "Commit range: ${COMMIT_RANGE}"
-
-          # Conventional commit regexes.
-          #
-          # Keep these outside [[ =~ ]] so Bash does not try to parse
-          # the parentheses in the regex as shell syntax.
-          FEAT_REGEX='^feat(\([^)]*\))?:[[:space:]]*(.*)$'
-          FIX_REGEX='^fix(\([^)]*\))?:[[:space:]]*(.*)$'
-          RELEASE_VERSION_REGEX='^[0-9]+\.[0-9]+\.[0-9]+([.-].*)?$'
-          RELEASE_COMMIT_REGEX='^chore\(release\):'
-
-          # Generate changelog from commits
-
-          while IFS=$'\t' read -r SUBJECT AUTHOR; do
-            [[ -z "$SUBJECT" ]] && continue
-            # Skip release/version bookkeeping commits.
-            if [[ "$SUBJECT" =~ $RELEASE_VERSION_REGEX ]]; then
-              continue
-            fi
-            if [[ "$SUBJECT" =~ $RELEASE_COMMIT_REGEX ]]; then
-              continue
-            fi
-            # Skip merge commits.
-            if [[ "$SUBJECT" =~ ^Merge[[:space:]] ]]; then
-              continue
-            fi
-
-            # Classify commit
-
-            if [[ "$SUBJECT" =~ $FEAT_REGEX ]]; then
-              MESSAGE="${BASH_REMATCH[2]}"
-              # Capitalize first character.
-              MESSAGE="$(printf '%s' "$MESSAGE" | sed 's/^./\U&/')"
-              echo "- ${MESSAGE}." >> "$FEATURES_FILE"
-
-            elif [[ "$SUBJECT" =~ $FIX_REGEX ]]; then
-              MESSAGE="${BASH_REMATCH[2]}"
-              MESSAGE="$(printf '%s' "$MESSAGE" | sed 's/^./\U&/')"
-              echo "- ${MESSAGE}." >> "$FIXES_FILE"
-
-            else
-              # Everything else goes into Other Changes.
-              MESSAGE="$SUBJECT"
-
-              # Remove conventional commit prefix.
-              MESSAGE="$(printf '%s' "$MESSAGE" | sed -E \
-                's/^(chore|refactor|docs|ci|perf|test|build|style)(\([^)]*\))?:[[:space:]]*//')"
-              MESSAGE="$(printf '%s' "$MESSAGE" | sed 's/^./\U&/')"
-              echo "- ${MESSAGE}." >> "$OTHER_FILE"
-            fi
-
-          done < <(
-            git log \
-              --no-merges \
-              --format='%s%x09%an' \
-              "$COMMIT_RANGE"
-          )
-
-          # Generate contributors
-
-          if [[ -n "$PREVIOUS_TAG" ]]; then
+          if [[ -n "${PREVIOUS_TAG:-}" ]]; then
             CONTRIBUTORS="$(
               gh api \
                 "repos/${REPOSITORY}/compare/${PREVIOUS_TAG}...${TAG}" \
                 --paginate \
-                --jq '.commits[].author.login // empty' |
+                --jq '.commits[].author.login // empty' 2>/dev/null |
+              grep -Ev '(\[bot\]|github-actions)' |
               sort -fu |
               sed 's/^/- **@/' |
-              sed 's/$/**/'
+              sed 's/$/**/' || true
             )"
           else
             CONTRIBUTORS="$(
               gh api \
                 "repos/${REPOSITORY}/commits?sha=${TAG}" \
                 --paginate \
-                --jq '.[].author.login // empty' |
+                --jq '.[].author.login // empty' 2>/dev/null |
+              grep -Ev '(\[bot\]|github-actions)' |
               sort -fu |
               sed 's/^/- **@/' |
-              sed 's/$/**/'
+              sed 's/$/**/' || true
             )"
           fi
 
-          # Make contributors available to later steps.
+          if [[ -z "$CONTRIBUTORS" ]]; then
+            CONTRIBUTORS="- **@${REPOSITORY%%/*}**"
+          fi
+
+          echo "Generated contributors:"
+          echo "$CONTRIBUTORS"
+
           {
             echo 'CONTRIBUTORS<<EOF'
             echo "$CONTRIBUTORS"
             echo 'EOF'
           } >> "$GITHUB_ENV"
-
-          # Full changelog URL
-
-          if [[ -n "$PREVIOUS_TAG" ]]; then
-            FULL_CHANGELOG_URL="https://github.com/${REPOSITORY}/compare/${PREVIOUS_TAG}...${TAG}"
-          else
-            FULL_CHANGELOG_URL="https://github.com/${REPOSITORY}/commits/${TAG}"
-          fi
-
-          # Build changelog
-
-          {
-            if [[ -s "$FEATURES_FILE" ]]; then
-              echo "### ✨ Features"
-              echo
-              cat "$FEATURES_FILE"
-              echo
-            fi
-
-            if [[ -s "$FIXES_FILE" ]]; then
-              echo "### 🐛 Fixes"
-              echo
-              cat "$FIXES_FILE"
-              echo
-            fi
-
-            if [[ -s "$OTHER_FILE" ]]; then
-              echo "### 🧹 Other Changes"
-              echo
-              cat "$OTHER_FILE"
-              echo
-            fi
-          } > changelog.md
-
-          echo "Generated changelog:"
-          cat changelog.md
-
-          echo "Generated contributors:"
-          echo "$CONTRIBUTORS"
-
-          echo "Full changelog URL:"
-          echo "$FULL_CHANGELOG_URL"
-
-          echo "FULL_CHANGELOG_URL=$FULL_CHANGELOG_URL" >> "$GITHUB_ENV"
-
-          # Cleanup temporary files
-          rm -f \
-            "$FEATURES_FILE" \
-            "$FIXES_FILE" \
-            "$OTHER_FILE"
 
       - name: Generate release notes
         shell: bash
@@ -503,8 +236,9 @@ jobs:
 
           ### 🔄 Updates
 
-          CatBee Container Studio supports automatic updates.
-          Use **Help → Check for Updates...** to manually check for a new release.
+          On macOS, download the latest \`.dmg\` and replace the app in **Applications**.
+
+          Use **Settings → Software Updates** for the Windows installer and Linux AppImage, DEB, and RPM packages. For Windows ZIP and Linux TAR.GZ downloads, replace the extracted application with the latest archive.
 
           ### 👥 Contributors
 
