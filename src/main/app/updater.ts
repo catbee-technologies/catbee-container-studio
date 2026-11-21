@@ -45,19 +45,28 @@ export interface ReleaseNotesInfo {
 const releaseNotesCache = new Map<string, ReleaseNotesInfo>();
 
 export async function getReleaseNotes(version?: string): Promise<ReleaseNotesInfo | null> {
+  const currentAppVersion = app.getVersion();
+  const isPrereleaseChannel = currentAppVersion.includes('-');
+
   let targetTag: string | null = null;
-  if (version) {
+  if (version && version !== 'latest') {
     targetTag = version.startsWith('v') ? version : `v${version}`;
+  } else if (!version) {
+    targetTag = `v${currentAppVersion}`;
   }
-  const cacheKey = targetTag ?? 'latest';
+  const cacheKey = targetTag ?? (isPrereleaseChannel ? 'latest-prerelease' : 'latest');
 
   if (releaseNotesCache.has(cacheKey)) {
     return releaseNotesCache.get(cacheKey)!;
   }
 
+  // GitHub's /releases/latest returns ONLY stable releases, ignoring all pre-releases.
+  // For pre-release channels when requesting latest, fetch /releases to get the true latest (including pre-releases).
   const url = targetTag
     ? `https://api.github.com/repos/catbee-technologies/catbee-container-studio/releases/tags/${encodeURIComponent(targetTag)}`
-    : `https://api.github.com/repos/catbee-technologies/catbee-container-studio/releases/latest`;
+    : isPrereleaseChannel
+      ? `https://api.github.com/repos/catbee-technologies/catbee-container-studio/releases?per_page=5`
+      : `https://api.github.com/repos/catbee-technologies/catbee-container-studio/releases/latest`;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -76,7 +85,8 @@ export async function getReleaseNotes(version?: string): Promise<ReleaseNotesInf
       return null;
     }
 
-    const data = (await res.json()) as {
+    const rawData = await res.json();
+    const data = (Array.isArray(rawData) ? rawData[0] : rawData) as {
       tag_name?: string;
       name?: string;
       body?: string;
@@ -84,8 +94,12 @@ export async function getReleaseNotes(version?: string): Promise<ReleaseNotesInf
       html_url?: string;
     };
 
+    if (!data?.tag_name) {
+      return null;
+    }
+
     const info: ReleaseNotesInfo = {
-      version: data.tag_name?.replace(/^v/, '') ?? version ?? '',
+      version: data.tag_name?.replace(/^v/, '') ?? version ?? currentAppVersion,
       releaseName: data.name ?? data.tag_name ?? '',
       notes: data.body ?? 'No release notes provided for this version.',
       publishedAt: data.published_at ?? '',
@@ -190,6 +204,7 @@ export function initializeAutoUpdater(window: BrowserWindow): void {
 
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallEvent = 'onQuit';
+  autoUpdater.allowPrerelease = app.getVersion().includes('-');
 
   autoUpdater.on('checking-for-update', () => {
     logger.info('[AutoUpdater] Checking for update...');
@@ -233,12 +248,12 @@ export function isMicrosoftStoreInstallation(): boolean {
   if (process.platform !== 'win32' || isDev) {
     return false;
   }
-  return process.execPath.toLowerCase().includes('\\windowsapps\\');
+  return process.windowsStore || process.execPath.toLowerCase().includes('\\windowsapps\\');
 }
 
 export async function checkForUpdates(): Promise<void> {
   if (isDev) {
-    logger.info('[AutoUpdater] Skipping update check in development.');
+    logger.debug('[AutoUpdater] Skipping update check in development.');
     return;
   }
 
@@ -266,7 +281,13 @@ export async function checkForUpdates(): Promise<void> {
   }
 
   try {
-    await autoUpdater.checkForUpdates();
+    const result = await autoUpdater.checkForUpdates();
+    if (result === null && process.platform === 'linux') {
+      sendStatus({
+        status: 'error',
+        message: 'Update checks are unavailable for this package. Download a new archive from GitHub Releases.'
+      });
+    }
   } catch (error) {
     logger.error({ err: error }, '[AutoUpdater] Failed to check for updates');
     sendStatus({
