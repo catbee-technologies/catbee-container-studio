@@ -19,11 +19,17 @@
     </div>
 
     <div class="catbee-dialog-footer-actions">
-      <button type="button" class="catbee-action-btn" (click)="onCancel()">
+      <button type="button" class="catbee-action-btn secondary" (click)="onCancel()">
         {{ cancelLabel() }}
       </button>
 
-      <button type="button" class="catbee-action-btn" [class.danger]="dangerous()" (click)="onConfirm()">
+      <button
+        type="button"
+        class="catbee-action-btn"
+        [class.primary]="!dangerous()"
+        [class.danger]="dangerous()"
+        (click)="onConfirm()"
+      >
         {{ confirmLabel() }}
       </button>
     </div>
