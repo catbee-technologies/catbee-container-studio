@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, DestroyRef, HostListener, inject, OnInit, signal } from '@angular/core';
 import { timer, exhaustMap, from, catchError, of } from 'rxjs';
 import {
   NavigationCancel,
@@ -23,6 +23,7 @@ import { DockerInitializationStatus } from '@shared/types';
 import { FooterComponent } from '@components/footer/footer';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { GlobalLogsService } from '@features/logs/services/global-logs.service';
+import { SettingsService } from '@features/settings/services/settings.service';
 
 @Component({
   selector: 'catbee-container-studio-root',
@@ -49,6 +50,7 @@ export class App implements OnInit {
   private readonly loader = inject(CatbeeLoaderService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly globalLogs = inject(GlobalLogsService);
+  private readonly settingsService = inject(SettingsService);
   private navigationLoaderTimeout: ReturnType<typeof setTimeout> | null = null;
 
   readonly NAVIGATION_LOADER_NAME = 'catbee-navigation-loader';
@@ -71,13 +73,50 @@ export class App implements OnInit {
       state === 'checking' ||
       state === 'detecting-runtime' ||
       state === 'starting-runtime' ||
-      state === 'waiting-for-engine'
+      state === 'waiting-for-engine' ||
+      state === 'stopping-engine' ||
+      state === 'installing-engine'
     );
   });
+  readonly isEngineNotInstalled = computed(() => {
+    return this.dockerInitStatus().state === 'engine-not-installed';
+  });
+  readonly engineInstallBlocker = computed(() => {
+    const status = this.dockerInitStatus();
+    if (status.state !== 'engine-not-installed' || status.prerequisitesOk) {
+      return null;
+    }
+    return {
+      reason: status.reason ?? 'This computer does not meet the requirements for the built-in engine.',
+      actionHint: status.actionHint
+    };
+  });
+  readonly isInstallingEngine = computed(() => {
+    return this.dockerInitStatus().state === 'installing-engine';
+  });
+  readonly isInstalling = signal(false);
+
+  readonly currentUrl = signal(this.router.url);
+  readonly isSettingsRoute = computed(() => this.currentUrl().startsWith('/settings'));
+
   readonly dockerErrorStatus = computed(() => {
     const status = this.dockerInitStatus();
     return status.state === 'error' ? status : null;
   });
+
+  async installBuiltInEngine(): Promise<void> {
+    if (this.isInstalling()) {
+      return;
+    }
+    this.isInstalling.set(true);
+    try {
+      await this.electronApi.installEmbeddedEngine();
+    } catch (error) {
+      console.error('Failed to install embedded engine:', error);
+    } finally {
+      this.isInstalling.set(false);
+    }
+  }
 
   private unsubscribeDockerStatus?: () => void;
 
@@ -90,6 +129,7 @@ export class App implements OnInit {
   ];
 
   ngOnInit(): void {
+    void this.settingsService.syncFromBackend();
     this.unsubscribeDockerStatus = this.electronApi.onDockerInitializationStatus(status => {
       this.dockerInitStatus.set(status);
       this.sessionStorage.setJson(UI_STORAGE_KEYS.DOCKER_INIT_STATUS, status);
@@ -102,8 +142,13 @@ export class App implements OnInit {
 
     this.electronApi.notifyDockerRendererReady();
 
+    const unsubscribeNavigate = this.electronApi.onNavigate(payload => {
+      void this.router.navigate([payload.path], { queryParams: payload.queryParams });
+    });
+
     this.destroyRef.onDestroy(() => {
       this.unsubscribeDockerStatus?.();
+      unsubscribeNavigate();
     });
 
     timer(0, 5000)
@@ -132,6 +177,9 @@ export class App implements OnInit {
       }
 
       if (event instanceof NavigationEnd || event instanceof NavigationCancel || event instanceof NavigationError) {
+        if (event instanceof NavigationEnd) {
+          this.currentUrl.set(event.urlAfterRedirects);
+        }
         if (this.navigationLoaderTimeout) {
           clearTimeout(this.navigationLoaderTimeout);
           this.navigationLoaderTimeout = null;
@@ -150,6 +198,14 @@ export class App implements OnInit {
   onNavClick(event: MouseEvent): void {
     if (event.metaKey || event.ctrlKey) {
       event.preventDefault();
+    }
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  handleGlobalShortcuts(event: KeyboardEvent): void {
+    if ((event.ctrlKey || event.metaKey) && event.key === ',') {
+      event.preventDefault();
+      void this.router.navigate(['/settings']);
     }
   }
 

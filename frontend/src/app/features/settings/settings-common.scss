@@ -1,0 +1,215 @@
+@mixin group-title($margin: 0, $display: null) {
+  margin: $margin;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink-100);
+  @if $display {
+    display: $display;
+  }
+}
+
+@mixin subgroup-title($margin: 0) {
+  margin: $margin;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink-100);
+}
+
+.group-title {
+  @include group-title;
+}
+
+.subgroup-title {
+  @include subgroup-title;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.settings-section-header {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 2rem 2.5rem 1rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--ink-100);
+  }
+
+  .section-desc {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--ink-300);
+    line-height: 1.5;
+  }
+}
+
+.settings-section-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  contain: content;
+  will-change: scroll-position;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem 2.5rem 2rem;
+
+  > * {
+    flex-shrink: 0;
+    max-width: 52rem;
+  }
+}
+
+.section-desc {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--ink-300);
+  line-height: 1.5;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.field-label {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--ink-100);
+  cursor: default;
+  user-select: none;
+}
+
+.field-hint {
+  font-size: 0.82rem;
+  color: var(--ink-300);
+  line-height: 1.4;
+  margin: 0.2rem 0 0;
+  display: block;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+
+  catbee-container-studio-switch-input {
+    flex-shrink: 0;
+    margin-top: 0.05rem;
+  }
+
+  .switch-row-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+    cursor: pointer;
+  }
+
+  &.switch-row {
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    background: var(--bg-surface, rgba(255, 255, 255, 0.02));
+    background-color: var(--bg-card-base, #060e18);
+    border: 1px solid var(--border-color-light, rgba(255, 255, 255, 0.08));
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--ink-300, rgba(255, 255, 255, 0.25));
+      background: var(--bg-hover, rgba(255, 255, 255, 0.05));
+    }
+  }
+
+  &.is-disabled {
+    cursor: not-allowed;
+    opacity: 0.75;
+    pointer-events: none;
+
+    .disabled-group &,
+    .disabled-card & {
+      opacity: 1 !important;
+    }
+  }
+
+  .checkbox-label {
+    font-size: 0.92rem;
+    color: var(--ink-100);
+  }
+}
+
+.info-callout {
+  background: var(--bg-surface);
+  border-left: 3px solid var(--color-primary-base);
+  padding: 0.85rem 1.15rem;
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+
+  &.subtle {
+    border-left-color: var(--border-color-accent);
+  }
+
+  &.warning {
+    border-left-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.08);
+
+    .mat-icon-filled {
+      color: #f59e0b;
+    }
+  }
+
+  p {
+    margin: 0 0 0.35rem;
+    font-size: 0.88rem;
+    color: var(--ink-200);
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .code-link {
+    background: var(--bg-sidebar);
+    padding: 0.15rem 0.4rem;
+    border-radius: var(--radius-sm);
+    color: var(--color-primary-text);
+    font-family: var(--mono-font);
+  }
+}
+
+.badge-subtle {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--ink-300);
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color-light);
+  border-radius: 4px;
+  padding: 0.1rem 0.45rem;
+}
+
+.badge-recommended {
+  background: var(--bg-selected-row);
+  border: 1px solid var(--border-color-selected);
+  color: var(--color-active-text);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+  margin-left: 0.5rem;
+  text-transform: uppercase;
+}

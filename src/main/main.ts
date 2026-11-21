@@ -1,4 +1,4 @@
-import { app, BrowserWindow, protocol } from 'electron';
+import { app, BrowserWindow, dialog, protocol } from 'electron';
 import { registerIpcHandlers } from '../ipc';
 import { registerAppProtocol } from './app/protocol';
 import { createMainWindow } from './window';
@@ -8,6 +8,12 @@ import { isDev, isMacOS } from './app/constants';
 import { initializeAutoUpdater } from './app/updater';
 import { IPC_CHANNELS } from '../ipc/channels';
 import { dockerManager } from './docker/services/docker.manager';
+import { engineManager } from './docker/embedded/engine.manager';
+import { stopAllStreamSessions } from '../ipc/docker/streams.ipc';
+
+app.commandLine.appendSwitch('force-color-profile', 'srgb');
+
+const SHUTDOWN_TIMEOUT_MS = 30_000;
 
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -21,6 +27,17 @@ if (!gotTheLock) {
     logger.debug('Creating main window');
     mainWindow = createMainWindow();
     mainWindow.maximize();
+
+    mainWindow.on('close', event => {
+      if (quitConfirmed || shutdownState !== 'idle') {
+        return;
+      }
+      if (!isMacOS) {
+        event.preventDefault();
+        app.quit();
+      }
+    });
+
     mainWindow.on('closed', () => {
       logger.debug('Main window closed');
       mainWindow = null;
@@ -46,6 +63,93 @@ if (!gotTheLock) {
 
     mainWindow.focus();
   }
+
+  let quitConfirmed = false;
+  let isConfirmingQuit = false;
+  let shutdownState: 'idle' | 'running' | 'done' = 'idle';
+
+  async function requestQuitConfirmation(parentWindow?: BrowserWindow | null): Promise<boolean> {
+    const target = parentWindow && !parentWindow.isDestroyed() ? parentWindow : mainWindow;
+    if (target && !target.isDestroyed()) {
+      if (target.isMinimized()) {
+        target.restore();
+      }
+      target.show();
+      target.focus();
+    }
+
+    const options: Electron.MessageBoxOptions = {
+      type: 'question',
+      buttons: ['Quit', 'Cancel'],
+      defaultId: 0,
+      cancelId: 1,
+      title: 'Quit CatBee Container Studio',
+      message: 'Are you sure you want to quit CatBee Container Studio?',
+      detail: 'Any running containers and background services may be stopped.'
+    };
+
+    const { response } =
+      target && !target.isDestroyed()
+        ? await dialog.showMessageBox(target, options)
+        : await dialog.showMessageBox(options);
+
+    return response === 0;
+  }
+
+  // Stop the built-in engine before exiting on every quit path (menu, Cmd+Q, window close, IPC).
+  app.on('before-quit', event => {
+    if (shutdownState === 'done') {
+      return;
+    }
+    event.preventDefault();
+    if (shutdownState === 'running') {
+      return;
+    }
+
+    if (!quitConfirmed) {
+      if (isConfirmingQuit) {
+        return;
+      }
+      isConfirmingQuit = true;
+      void (async () => {
+        try {
+          const confirmed = await requestQuitConfirmation(mainWindow);
+          if (confirmed) {
+            quitConfirmed = true;
+            logger.info('[App] Quit confirmed by user.');
+            app.quit();
+          } else {
+            logger.info('[App] Quit cancelled by user.');
+          }
+        } finally {
+          isConfirmingQuit = false;
+        }
+      })();
+      return;
+    }
+
+    shutdownState = 'running';
+    logger.info('Shutting down background services before quit');
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(IPC_CHANNELS.App.Quitting);
+    }
+
+    try {
+      stopAllStreamSessions();
+    } catch (err) {
+      logger.warn({ err }, 'Error stopping stream sessions on quit');
+    }
+
+    const timeout = new Promise<void>(resolve => setTimeout(resolve, SHUTDOWN_TIMEOUT_MS));
+    void Promise.race([
+      dockerManager.shutdown().catch(err => logger.warn({ err }, 'Error stopping built-in engine on quit')),
+      timeout
+    ]).finally(() => {
+      shutdownState = 'done';
+      app.quit();
+    });
+  });
 
   app.on('second-instance', () => {
     logger.info('Second application instance detected');
@@ -78,6 +182,12 @@ if (!gotTheLock) {
       if (mainWindow) {
         initializeAutoUpdater(mainWindow);
       }
+
+      engineManager.onOperationProgress(progress => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send(IPC_CHANNELS.App.Engine.Progress, progress);
+        }
+      });
 
       void dockerManager
         .initialize(

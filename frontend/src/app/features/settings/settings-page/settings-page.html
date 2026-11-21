@@ -1,0 +1,341 @@
+<ng-template #buttonLoader let-action>
+  <ng-catbee-loader
+    class="button-loader"
+    [name]="'settings-' + action"
+    [forceShow]="true"
+    [fullscreen]="false"
+    size="small"
+    backgroundColor="transparent"
+    aria-hidden="true"
+  />
+</ng-template>
+
+<div class="settings-shell">
+  <!-- Left Side Pane: Search & Categories -->
+  <aside class="settings-nav-pane" aria-label="Settings navigation">
+    <div class="settings-search-wrapper">
+      <catbee-container-studio-search-input
+        inputId="settings-search"
+        placeholder="Search settings..."
+        ariaLabel="Search settings"
+        width="100%"
+        [value]="searchQuery()"
+        (valueChange)="onSearchInput($event)"
+        (inputKeydown)="onSearchKeydown($event)"
+      />
+
+      <!-- Instant Search Results Dropdown -->
+      @if (isSearchDropdownOpen() && searchQuery().trim().length > 0) {
+        <div class="settings-search-dropdown" id="settings-search-results" aria-label="Settings search results">
+          <div class="search-dropdown-header">
+            <span class="results-count">
+              @if (searchMatches().length === 0) {
+                No settings found
+              } @else {
+                {{ searchMatches().length }} {{ searchMatches().length === 1 ? 'match' : 'matches' }}
+              }
+            </span>
+            <span class="keyboard-hints">
+              <kbd>↑</kbd><kbd>↓</kbd> navigate <kbd>↵</kbd> select <kbd>esc</kbd> close
+            </span>
+          </div>
+
+          <ul class="search-dropdown-list">
+            @for (item of searchMatches(); track item.id; let i = $index) {
+              <li role="presentation">
+                <button
+                  type="button"
+                  class="search-result-item"
+                  [attr.aria-selected]="activeSearchIndex() === i"
+                  [class.is-selected]="activeSearchIndex() === i"
+                  (mouseenter)="activeSearchIndex.set(i)"
+                  (click)="selectSearchResult(item)"
+                >
+                  <div class="result-icon-box">
+                    <span class="mat-icon-filled" aria-hidden="true">{{ item.icon || 'tune' }}</span>
+                  </div>
+                  <div class="result-content">
+                    <div class="result-title-row">
+                      <span class="result-title">{{ item.title }}</span>
+                      <span class="result-badge">
+                        {{ item.categoryLabel }}
+                        @if (item.subTabLabel) {
+                          <span class="badge-separator">›</span> {{ item.subTabLabel }}
+                        }
+                      </span>
+                    </div>
+                    <span class="result-desc">{{ item.description }}</span>
+                  </div>
+                </button>
+              </li>
+            }
+
+            @if (searchMatches().length === 0) {
+              <li class="search-empty-state">
+                <span class="mat-icon-filled empty-icon" aria-hidden="true">search_off</span>
+                <p class="empty-title">No matching settings</p>
+                <p class="empty-hint">Try searching for "proxy", "memory", "subnet", "daemon", or "theme".</p>
+              </li>
+            }
+          </ul>
+        </div>
+      }
+    </div>
+
+    <ul class="settings-category-list">
+      @for (cat of filteredCategories(); track cat.id) {
+        <li>
+          <button
+            type="button"
+            class="settings-category-btn"
+            [class.is-active]="activeCategory() === cat.id"
+            (click)="selectCategory(cat.id)"
+          >
+            <span class="mat-icon-filled" aria-hidden="true">{{ cat.icon }}</span>
+            <span class="category-btn-label">{{ cat.label }}</span>
+            @if (categoryMatchCounts()[cat.id]; as count) {
+              <span
+                class="category-match-badge"
+                [class.is-circle]="count < 10"
+                [attr.aria-label]="count + ' matches'"
+                >{{ count }}</span
+              >
+            }
+          </button>
+        </li>
+      }
+    </ul>
+  </aside>
+
+  <!-- Right Content Pane -->
+  <main class="settings-content-pane">
+    <form
+      id="settings-form"
+      class="settings-body"
+      [formRoot]="settingsForm"
+      (submit)="$event.preventDefault(); applySettings()"
+    >
+      @if (settingsErrorMessage(); as err) {
+        <div class="settings-error-banner-wrapper">
+          <catbee-container-studio-error-banner
+            [errorMessage]="err"
+            (closeErr)="settingsErrorMessage.set(null)"
+            size="small"
+          />
+        </div>
+      }
+
+      <!-- GENERAL TAB -->
+      @if (activeCategory() === 'general') {
+        <catbee-settings-general />
+      }
+
+      <!-- RESOURCES TAB -->
+      @if (activeCategory() === 'resources') {
+        <catbee-settings-resources />
+      }
+
+      <!-- DOCKER ENGINE TAB -->
+      @if (activeCategory() === 'engine') {
+        <catbee-settings-docker-engine />
+      }
+
+      <!-- SOFTWARE UPDATES TAB -->
+      @if (activeCategory() === 'updates') {
+        <catbee-settings-updates />
+      }
+
+      <!-- ABOUT TAB -->
+      @if (activeCategory() === 'about') {
+        <catbee-settings-about />
+      }
+    </form>
+
+    <!-- Bottom Actions Bar -->
+    <footer class="settings-footer">
+      <div class="footer-left">
+        @if (applySuccessMessage()) {
+          <span class="success-message">
+            <span class="mat-icon-filled" aria-hidden="true">check_circle</span>
+            {{ applySuccessMessage() }}
+          </span>
+        }
+      </div>
+      <div class="footer-right">
+        @if (hasChanges()) {
+          <button
+            type="button"
+            class="catbee-action-btn plain-btn"
+            [disabled]="isApplying()"
+            (click)="requestDiscardChanges()"
+          >
+            Discard
+          </button>
+        }
+        <button type="button" class="catbee-action-btn" (click)="close()">Close</button>
+        <button
+          type="button"
+          class="catbee-action-btn primary"
+          [attr.aria-busy]="isApplying()"
+          [disabled]="!hasChanges() || isActionLoading() || hasValidationErrors()"
+          (click)="applySettings()"
+        >
+          <span class="button-label">Apply</span>
+          @if (isApplying()) {
+            <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'apply' }" />
+          }
+        </button>
+      </div>
+    </footer>
+
+    <!-- Restart Docker Engine Dialog -->
+    <catbee-container-studio-dialog
+      [open]="showRestartModal()"
+      [closable]="!isApplying()"
+      title="Restart Docker Engine?"
+      [style]="{ width: '32rem' }"
+      (closeDialog)="cancelRestartModal()"
+    >
+      <ng-container catbeeDialogBody>
+        <div class="restart-dialog-content">
+          <p>{{ restartDialogMessage() }}</p>
+          <p class="field-hint">
+            Apply the changes to the container engine now, or save them for the next engine start?
+          </p>
+        </div>
+      </ng-container>
+
+      <ng-container catbeeDialogFooter>
+        <button
+          type="button"
+          class="catbee-action-btn plain-btn"
+          [disabled]="isApplying()"
+          (click)="cancelRestartModal()"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          class="catbee-action-btn secondary"
+          [attr.aria-busy]="isSavingSettings() && !isRestarting()"
+          [disabled]="isActionLoading()"
+          (click)="confirmRestartLater()"
+        >
+          <span class="button-label">Restart Later</span>
+          @if (isSavingSettings() && !isRestarting()) {
+            <ng-container
+              [ngTemplateOutlet]="buttonLoader"
+              [ngTemplateOutletContext]="{ $implicit: 'restart-later' }"
+            />
+          }
+        </button>
+        <button
+          type="button"
+          class="catbee-action-btn primary"
+          [attr.aria-busy]="isRestarting()"
+          [disabled]="isActionLoading()"
+          (click)="confirmRestartNow()"
+        >
+          <span class="button-label">Restart Now</span>
+          @if (isRestarting()) {
+            <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'restart-now' }" />
+          }
+        </button>
+      </ng-container>
+    </catbee-container-studio-dialog>
+
+    <!-- Stop Engine Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingStopEngine()"
+      title="Stop Container Engine"
+      message="Are you sure you want to stop the CatBee container engine? All running containers and active connections will be terminated."
+      confirmLabel="Stop Engine"
+      cancelLabel="Cancel"
+      [dangerous]="true"
+      (cancelAction)="cancelStopEngine()"
+      (confirm)="confirmStopEngine()"
+    />
+
+    <!-- Reinstall Engine Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingReinstallEngine()"
+      title="Reinstall Container Engine"
+      message="Reinstalling will reset the CatBee container engine distribution to its default state and stop all running containers. Any non-persisted container state will be recreated. Are you sure you want to proceed?"
+      confirmLabel="Reinstall Engine"
+      cancelLabel="Cancel"
+      [dangerous]="true"
+      (cancelAction)="cancelReinstallEngine()"
+      (confirm)="confirmReinstallEngine()"
+    />
+
+    <!-- Uninstall Engine Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingUninstallEngine()"
+      title="Uninstall Built-in Engine"
+      message="This stops the CatBee built-in engine and permanently deletes it together with all of its images, containers, volumes and build cache. The catbee-desktop CLI context is removed and CatBee switches back to Auto mode. Continue?"
+      confirmLabel="Uninstall Engine"
+      cancelLabel="Cancel"
+      [dangerous]="true"
+      (cancelAction)="cancelUninstallEngine()"
+      (confirm)="confirmUninstallEngine()"
+    />
+
+    <!-- Switch Docker Context Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingContextSwitch() !== null"
+      title="Switch Docker Context"
+      [message]="pendingContextSwitchMessage()"
+      confirmLabel="Switch Context"
+      cancelLabel="Cancel"
+      (cancelAction)="cancelSwitchDockerContext()"
+      (confirm)="confirmSwitchDockerContext()"
+    />
+
+    <!-- Activate CatBee Context Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingActivateCatBeeContext()"
+      title="Activate CatBee Desktop Context"
+      [message]="activateCatBeeContextMessage()"
+      confirmLabel="Activate Context"
+      cancelLabel="Cancel"
+      (cancelAction)="cancelActivateCatBeeContext()"
+      (confirm)="confirmActivateCatBeeContext()"
+    />
+
+    <!-- Discard Changes Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingDiscardChanges()"
+      title="Discard Unsaved Changes"
+      message="Are you sure you want to discard all unsaved configuration changes and revert to your previous settings?"
+      confirmLabel="Discard Changes"
+      cancelLabel="Keep Editing"
+      [dangerous]="true"
+      (cancelAction)="cancelDiscardChanges()"
+      (confirm)="confirmDiscardChanges()"
+    />
+
+    <!-- Clear Build Cache Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingPruneBuildCache()"
+      title="Clear Build Cache"
+      message="Are you sure you want to prune all BuildKit build cache? Future image builds may take longer while layers are regenerated."
+      confirmLabel="Clear Cache"
+      cancelLabel="Cancel"
+      [dangerous]="false"
+      (cancelAction)="cancelPruneBuildCache()"
+      (confirm)="confirmPruneBuildCache()"
+    />
+
+    <!-- Leave With Unsaved Changes Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingLeave()"
+      title="Leave Without Applying?"
+      message="You have unsaved settings changes. Leaving this page will discard them."
+      confirmLabel="Discard & Leave"
+      cancelLabel="Keep Editing"
+      [dangerous]="true"
+      (cancelAction)="cancelLeave()"
+      (confirm)="confirmLeave()"
+    />
+  </main>
+</div>

@@ -1,0 +1,16 @@
+<label class="radio-label" [class.is-checked]="checked()" [class.is-disabled]="disabled()">
+  <input
+    class="radio-input"
+    type="radio"
+    [attr.id]="inputId() || null"
+    [attr.name]="name() || null"
+    [value]="value()"
+    [checked]="checked()"
+    [disabled]="disabled()"
+    (change)="onSelect()"
+  />
+  <span class="radio-custom" aria-hidden="true"></span>
+  <span class="radio-text">
+    <ng-content />
+  </span>
+</label>

@@ -1,11 +1,24 @@
-export type DockerRuntime = 'docker-desktop' | 'rancher-desktop';
+import type { DockerConnection } from './connection.types';
+
+export type DockerRuntime = 'docker-desktop' | 'rancher-desktop' | 'catbee-embedded' | 'system';
+
+export type DockerRuntimeSource = 'external' | 'embedded';
 
 export interface DockerRuntimeInfo {
   runtime: DockerRuntime;
   executablePath: string;
 }
 
-export type DockerInitializationStatus =
+export interface SelectedDockerRuntime {
+  source: DockerRuntimeSource;
+  runtimeName: string;
+  connection: DockerConnection;
+  runtimeInfo?: DockerRuntimeInfo;
+}
+
+export type EngineStatusOperation = 'restart' | 'stop' | 'apply-settings';
+
+export type DockerInitializationStatus = (
   | {
       state: 'checking';
       message: string;
@@ -17,13 +30,33 @@ export type DockerInitializationStatus =
       hint: string;
     }
   | {
+      state: 'engine-not-installed';
+      message: string;
+      hint: string;
+      prerequisitesOk: boolean;
+      reason?: string;
+      actionHint?: string;
+    }
+  | {
+      state: 'installing-engine';
+      progress: number;
+      stage: string;
+      message: string;
+      hint: string;
+    }
+  | {
       state: 'starting-runtime';
-      runtime: DockerRuntime;
+      runtime: string;
       message: string;
       hint: string;
     }
   | {
       state: 'waiting-for-engine';
+      message: string;
+      hint: string;
+    }
+  | {
+      state: 'stopping-engine';
       message: string;
       hint: string;
     }
@@ -36,4 +69,8 @@ export type DockerInitializationStatus =
       state: 'error';
       message: string;
       hint: string;
-    };
+    }
+) & {
+  /** Set while a user-initiated operation drives the status, so UIs can say "restarting" rather than "starting". */
+  operation?: EngineStatusOperation;
+};

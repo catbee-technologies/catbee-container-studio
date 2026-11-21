@@ -1,6 +1,6 @@
 {
   "name": "catbee-container-studio",
-  "version": "0.6.0",
+  "version": "1.0.0-alpha.2",
   "description": "CatBee Container Studio Desktop Application",
   "main": "dist/main/main.js",
   "author": "Catbee <harig@catbee.in>",
@@ -30,6 +30,7 @@
     "lint:all:fix": "npm-run-all lint:fix lint:ui:fix",
     "postinstall": "electron-builder install-app-deps",
     "generate:logos": "node scripts/generate-logos.mjs",
+    "changelog": "node scripts/generate-changelog.mjs",
     "preversion": "npm-run-all lint lint:ui package",
     "version": "node scripts/update-version.mjs && git add ."
   },
@@ -54,6 +55,7 @@
     "npm-run-all2": "^9.0.4",
     "pino-pretty": "^13.2.0",
     "rimraf": "^6.1.4",
+    "semver": "^7.8.6",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.73.0",

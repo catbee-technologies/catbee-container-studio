@@ -1,0 +1,230 @@
+<section class="settings-section">
+  <header class="settings-section-header"><h2>General</h2></header>
+  <div class="settings-section-body">
+    <div id="setting-start-at-login" class="form-group">
+      <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+      <div class="checkbox-row switch-row" (click)="page.toggleSwitchRow($event, page.startAtLogin)">
+        <catbee-container-studio-switch-input
+          [formField]="page.settingsForm.startAtLogin"
+          inputId="field-start-at-login"
+        />
+        <label class="switch-row-text" for="field-start-at-login">
+          <span class="checkbox-label">Start CatBee Container Studio when you sign in to your computer</span>
+        </label>
+      </div>
+    </div>
+
+    <div id="setting-theme-selection" class="form-group theme-selection-group">
+      <div class="theme-selection-header">
+        <h3 class="group-title">Theme selection</h3>
+        <div class="theme-mode-radios" role="radiogroup" aria-label="Theme mode">
+          <catbee-container-studio-radio-input
+            name="themeSyncMode"
+            value="system"
+            [checked]="page.selectedTheme() === 'system'"
+            (selectChange)="page.selectTheme('system')"
+          >
+            <span>Sync with system</span>
+          </catbee-container-studio-radio-input>
+          <catbee-container-studio-radio-input
+            name="themeSyncMode"
+            value="manual"
+            [checked]="page.selectedTheme() !== 'system'"
+            (selectChange)="page.selectTheme(page.themeService.currentTheme() === 'light' ? 'light' : 'dark')"
+          >
+            <span>Manual</span>
+          </catbee-container-studio-radio-input>
+        </div>
+      </div>
+
+      <div class="theme-cards-grid">
+        <!-- Day Theme Card -->
+        <button
+          type="button"
+          class="theme-card theme-card-light"
+          [class.is-active]="page.themeService.currentTheme() === 'light'"
+          [class.is-selected]="
+            page.selectedTheme() === 'light' ||
+            (page.selectedTheme() === 'system' && page.themeService.currentTheme() === 'light')
+          "
+          (click)="page.selectTheme('light')"
+        >
+          <div class="theme-card-header">
+            <div class="theme-card-icon-box">
+              <span class="mat-icon-filled" aria-hidden="true">light_mode</span>
+            </div>
+            <div class="theme-card-info">
+              <div class="theme-card-title-row">
+                <span class="theme-card-title">Day Theme</span>
+                @if (page.themeService.currentTheme() === 'light') {
+                  <span class="theme-active-badge">Active</span>
+                }
+              </div>
+              <span class="theme-card-desc">
+                @if (page.selectedTheme() === 'system') {
+                  Active when system is set to light.
+                } @else {
+                  Active in light mode.
+                }
+              </span>
+            </div>
+          </div>
+
+          <!-- Mock Window Preview (Day) -->
+          <ng-container *ngTemplateOutlet="themePreviewWindow; context: { isLight: true }" />
+        </button>
+
+        <!-- Night Theme Card -->
+        <button
+          type="button"
+          class="theme-card theme-card-dark"
+          [class.is-active]="page.themeService.currentTheme() === 'dark'"
+          [class.is-selected]="
+            page.selectedTheme() === 'dark' ||
+            (page.selectedTheme() === 'system' && page.themeService.currentTheme() === 'dark')
+          "
+          (click)="page.selectTheme('dark')"
+        >
+          <div class="theme-card-header">
+            <div class="theme-card-icon-box">
+              <span class="mat-icon-filled" aria-hidden="true">nightlight</span>
+            </div>
+            <div class="theme-card-info">
+              <div class="theme-card-title-row">
+                <span class="theme-card-title">Night Theme</span>
+                @if (page.themeService.currentTheme() === 'dark') {
+                  <span class="theme-active-badge">Active</span>
+                }
+              </div>
+              <span class="theme-card-desc">
+                @if (page.selectedTheme() === 'system') {
+                  Active when system is set to dark.
+                } @else {
+                  Active in dark mode.
+                }
+              </span>
+            </div>
+          </div>
+
+          <!-- Mock Window Preview (Night) -->
+          <ng-container *ngTemplateOutlet="themePreviewWindow; context: { isLight: false }" />
+        </button>
+      </div>
+
+      <!-- Shared Mock Window Preview Template -->
+      <ng-template #themePreviewWindow let-isLight="isLight">
+        <div
+          class="theme-preview-window"
+          [class.window-light]="isLight"
+          [class.window-dark]="!isLight"
+          aria-hidden="true"
+        >
+          <div class="preview-titlebar">
+            <div class="preview-pills">
+              <span class="preview-pill"></span>
+              <span class="preview-pill"></span>
+            </div>
+            <div class="preview-search"></div>
+            <div class="preview-window-dots">
+              <span class="window-dot"></span>
+              <span class="window-dot dot-accent"></span>
+              <span class="window-dot"></span>
+            </div>
+          </div>
+          <div class="preview-content">
+            <div class="preview-bar preview-bar-title"></div>
+            <div class="preview-field-row">
+              <div class="preview-input-box"></div>
+              <div class="preview-btn-primary"></div>
+            </div>
+            <div class="preview-tabs-row">
+              <div class="preview-tab tab-active">
+                <span class="preview-tab-text"></span>
+                <span class="preview-tab-indicator"></span>
+              </div>
+              <div class="preview-tab">
+                <span class="preview-tab-text"></span>
+              </div>
+              <div class="preview-tab">
+                <span class="preview-tab-text"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-template>
+    </div>
+
+    <div id="setting-engine-mode" class="form-group">
+      <h3 class="group-title">Choose how to run Docker containers</h3>
+      <div class="radio-group vertical" role="radiogroup" aria-label="Docker engine mode">
+        <catbee-container-studio-radio-input
+          class="radio-card"
+          name="engineMode"
+          value="auto"
+          [checked]="page.engineMode() === 'auto'"
+          (selectChange)="page.engineMode.set('auto')"
+        >
+          <div class="option-content">
+            <span class="option-title">Auto (External First) <span class="badge-recommended">Recommended</span></span>
+            <span class="option-desc">{{ page.autoModeDesc() }}</span>
+          </div>
+        </catbee-container-studio-radio-input>
+        <catbee-container-studio-radio-input
+          class="radio-card"
+          name="engineMode"
+          value="embedded"
+          [checked]="page.engineMode() === 'embedded'"
+          (selectChange)="page.engineMode.set('embedded')"
+        >
+          <div class="option-content">
+            <span class="option-title">{{ page.builtInEngineLabel() }}</span>
+            <span class="option-desc">{{ page.builtInEngineDesc() }}</span>
+          </div>
+        </catbee-container-studio-radio-input>
+        <catbee-container-studio-radio-input
+          class="radio-card"
+          name="engineMode"
+          value="external"
+          [checked]="page.engineMode() === 'external'"
+          (selectChange)="page.engineMode.set('external')"
+        >
+          <div class="option-content">
+            <span class="option-title">External Engine Only</span>
+            <span class="option-desc"
+              >Only connects to host-installed Docker Desktop or external socket without running a built-in
+              distro.</span
+            >
+          </div>
+        </catbee-container-studio-radio-input>
+      </div>
+      @if (page.pendingEngineModeLabel(); as pending) {
+        <catbee-container-studio-callout type="subtle" icon="schedule" class="pending-mode-note">
+          <p>
+            <strong>{{ pending }}</strong> takes effect when you apply. Until then CatBee keeps using the current mode.
+          </p>
+        </catbee-container-studio-callout>
+      }
+    </div>
+
+    <div id="setting-expose-tcp" class="form-group" [class.disabled-group]="page.isExternalMode()">
+      <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+      <div
+        class="checkbox-row switch-row"
+        [class.is-disabled]="page.isExternalMode()"
+        (click)="page.toggleSwitchRow($event, page.exposeTcp, page.isExternalMode())"
+      >
+        <catbee-container-studio-switch-input [formField]="page.settingsForm.exposeTcp" inputId="field-expose-tcp" />
+        <label class="switch-row-text" for="field-expose-tcp">
+          <span class="checkbox-label">Expose daemon on {{ page.exposedTcpLabel }} without TLS</span>
+          <span class="field-hint">
+            Lets legacy tools connect over TCP. Only bound to localhost, but any local process can then control Docker.
+            Applies to the CatBee built-in engine.
+            @if (page.isExternalMode()) {
+              <span class="external-note"> (Managed by external Docker daemon in External Engine mode)</span>
+            }
+          </span>
+        </label>
+      </div>
+    </div>
+  </div>
+</section>
