@@ -143,35 +143,17 @@ export class DropdownComponent<T = string> {
       case 'Enter':
       case ' ':
         event.preventDefault();
-        if (this.isOpen()) {
-          const idx = this.activeIndex();
-          const option = this.options()[idx];
-          if (option && !option.disabled) {
-            this.selectOption(option);
-          } else {
-            this.close();
-          }
-        } else {
-          this.open();
-        }
+        this.handleEnterOrSpace();
         break;
 
       case 'ArrowDown':
         event.preventDefault();
-        if (!this.isOpen()) {
-          this.open();
-        } else {
-          this.moveActive(1);
-        }
+        this.handleArrow(1);
         break;
 
       case 'ArrowUp':
         event.preventDefault();
-        if (!this.isOpen()) {
-          this.open();
-        } else {
-          this.moveActive(-1);
-        }
+        this.handleArrow(-1);
         break;
 
       case 'Escape':
@@ -186,6 +168,28 @@ export class DropdownComponent<T = string> {
           this.close();
         }
         break;
+    }
+  }
+
+  private handleEnterOrSpace(): void {
+    if (!this.isOpen()) {
+      this.open();
+      return;
+    }
+    const idx = this.activeIndex();
+    const option = this.options()[idx];
+    if (option && !option.disabled) {
+      this.selectOption(option);
+    } else {
+      this.close();
+    }
+  }
+
+  private handleArrow(delta: 1 | -1): void {
+    if (!this.isOpen()) {
+      this.open();
+    } else {
+      this.moveActive(delta);
     }
   }
 

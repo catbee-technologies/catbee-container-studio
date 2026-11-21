@@ -537,6 +537,10 @@ $btn-icon-glyph-lg: 1.35rem;
   align-items: center;
   justify-content: center;
   transform-origin: 50% 50%;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation-duration: 4s;
+  }
 }
 
 /* BUTTON LOADER & BUSY STATES */
@@ -567,6 +571,10 @@ $btn-icon-glyph-lg: 1.35rem;
       display: inline-flex !important;
       transform-origin: 50% 50%;
       visibility: visible !important;
+
+      @media (prefers-reduced-motion: reduce) {
+        animation-duration: 4s;
+      }
     }
   }
 

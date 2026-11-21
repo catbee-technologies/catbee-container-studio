@@ -1,0 +1,522 @@
+<section class="settings-section">
+  <header class="settings-section-header"><h2>Software updates</h2></header>
+  <div class="settings-section-body">
+    @if (page.updateErrorMessage(); as err) {
+      <div class="settings-error-banner-wrapper">
+        <catbee-container-studio-error-banner
+          [errorMessage]="err"
+          (closeErr)="page.updateErrorMessage.set(null)"
+          size="small"
+        />
+      </div>
+    }
+
+    @let status = page.updaterStatus();
+    @let currentVer = page.platformInfo()?.appVersion ?? '';
+    @let isAlphaOrBeta = isPrerelease(currentVer);
+
+    <div id="setting-updates-auto" class="updates-card" [class.has-available-update]="status.status === 'available'">
+      @switch (status.status) {
+        @case ('checking') {
+          <div class="update-icon-wrapper">
+            <ng-catbee-loader
+              name="updater-checking"
+              [forceShow]="true"
+              [fullscreen]="false"
+              size="default"
+              backgroundColor="transparent"
+            />
+          </div>
+          <div class="updates-details">
+            <div class="version-header-row">
+              <h3>Checking for updates...</h3>
+            </div>
+            <p class="field-hint">Checking for the latest release of CatBee Container Studio.</p>
+          </div>
+          <div class="updates-action-col">
+            <button type="button" class="catbee-action-btn primary" disabled>
+              <span class="mat-icon-filled spin" aria-hidden="true">sync</span>
+              Checking...
+            </button>
+          </div>
+        }
+
+        @case ('available') {
+          <div class="updates-header-row">
+            <div class="updates-header-left">
+              <div class="update-icon-wrapper">
+                <span class="mat-icon-filled update-icon update-available" aria-hidden="true">system_update</span>
+              </div>
+              <div class="updates-title-group">
+                <h3>A new version of CatBee Container Studio is available</h3>
+                <span class="badge small running">Update available</span>
+              </div>
+            </div>
+
+            <div class="updates-action-col">
+              @if (page.isMicrosoftStore()) {
+                <button
+                  type="button"
+                  class="microsoft-store-button"
+                  (click)="page.openMicrosoftStorePage()"
+                  aria-label="Open Microsoft Store"
+                >
+                  <img [src]="page.microsoftStoreImageUrl()" alt="Get it from Microsoft" class="microsoft-store-logo" />
+                </button>
+              } @else if (page.isMacOS()) {
+                <button type="button" class="catbee-action-btn primary" (click)="page.openGithubLatestRelease()">
+                  <span class="mat-icon-filled" aria-hidden="true">download</span>
+                  Download Latest Version
+                </button>
+              } @else {
+                <button type="button" class="catbee-action-btn primary" (click)="page.downloadUpdate()">
+                  <span class="mat-icon-filled" aria-hidden="true">download</span>
+                  Download Update
+                </button>
+              }
+            </div>
+          </div>
+
+          <div class="updates-body-content">
+            <div class="version-summary-strip">
+              <div class="version-pill">
+                <span class="version-label">Current version</span>
+                <strong class="version-number">v{{ currentVer }}</strong>
+              </div>
+              <span class="mat-icon-filled version-arrow" aria-hidden="true">arrow_forward</span>
+              <div class="version-pill highlight">
+                <span class="version-label">New version</span>
+                <strong class="version-number">v{{ status.version }}</strong>
+              </div>
+            </div>
+
+            @if (page.isMicrosoftStore()) {
+              <catbee-container-studio-callout type="info">
+                Updates are managed by the Microsoft Store. Open the Microsoft Store to install the latest version.
+              </catbee-container-studio-callout>
+            }
+
+            @if (page.isMacOS()) {
+              <catbee-container-studio-callout type="info">
+                Automatic updates aren't available on macOS yet. Download the latest version from GitHub and replace
+                your current application.
+              </catbee-container-studio-callout>
+
+              <div class="macos-quarantine-hint">
+                <span class="quarantine-title">After replacing the app, run this command in Terminal:</span>
+                <div class="quarantine-command-row">
+                  <code>xattr -d com.apple.quarantine &quot;/Applications/CatBee Container Studio.app&quot;</code>
+                  <catbee-container-studio-copy-button
+                    text='xattr -d com.apple.quarantine "/Applications/CatBee Container Studio.app"'
+                    idleTitle="Copy command"
+                    successTitle="Copied command"
+                    ariaLabel="Copy quarantine command to clipboard"
+                  />
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        @case ('downloading') {
+          <div class="update-icon-wrapper">
+            <ng-catbee-loader
+              name="updater-downloading"
+              [forceShow]="true"
+              [fullscreen]="false"
+              size="default"
+              backgroundColor="transparent"
+            />
+          </div>
+          <div class="updates-details full-width">
+            <h3>Downloading the latest version...</h3>
+
+            <div
+              class="catbee-updater-progress engine-progress-track"
+              role="progressbar"
+              [attr.aria-valuenow]="status.percent"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              [attr.aria-valuetext]="formatDockerBytes(status.transferred) + ' of ' + formatDockerBytes(status.total)"
+            >
+              <div class="catbee-updater-progress-bar" [style.width.%]="status.percent"></div>
+            </div>
+
+            <div class="catbee-updater-progress-info">
+              <span>{{ status.percent | number: '1.0-0' }}%</span>
+              <span>{{ formatDockerBytes(status.transferred) }} / {{ formatDockerBytes(status.total) }}</span>
+              <span>{{ formatDockerBytes(status.bytesPerSecond) }}/s</span>
+            </div>
+          </div>
+        }
+
+        @case ('downloaded') {
+          <div class="update-icon-wrapper">
+            <span class="mat-icon-filled update-icon update-success" aria-hidden="true">download_done</span>
+          </div>
+          <div class="updates-details">
+            <h3>CatBee Container Studio v{{ status.version }} ready to install</h3>
+            <p class="field-hint">
+              The update has been downloaded successfully. Restart the application to finish the update.
+            </p>
+          </div>
+          <div class="updates-action-col">
+            <button type="button" class="catbee-action-btn primary" (click)="page.restartAndInstall()">
+              <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
+              Restart Now
+            </button>
+          </div>
+        }
+
+        @case ('error') {
+          <div class="update-icon-wrapper">
+            <span class="mat-icon-filled update-icon update-error" aria-hidden="true">error_outline</span>
+          </div>
+          <div class="updates-details">
+            <h3>Update check encountered an error</h3>
+            <p class="field-hint error-hint">{{ status.message }}</p>
+          </div>
+          <div class="updates-action-col">
+            <button
+              type="button"
+              class="catbee-action-btn primary"
+              [disabled]="page.isActionLoading()"
+              (click)="page.checkForUpdates()"
+            >
+              <span class="mat-icon-filled" [class.spin]="page.activeAction() === 'check-updates'" aria-hidden="true"
+                >refresh</span
+              >
+              Try Again
+            </button>
+          </div>
+        }
+
+        @default {
+          <div class="update-icon-wrapper">
+            <span class="mat-icon-filled update-icon" aria-hidden="true">verified</span>
+          </div>
+          <div class="updates-details">
+            <div class="version-header-row">
+              <h3>CatBee Container Studio v{{ currentVer }}</h3>
+              @if (isAlphaOrBeta) {
+                <span class="badge small paused">Pre-release</span>
+              } @else {
+                <span class="badge small running">Stable</span>
+              }
+            </div>
+            <p class="field-hint">
+              {{
+                isAlphaOrBeta
+                  ? status.status === 'not-available'
+                    ? 'CatBee Container Studio is up to date on the pre-release channel.'
+                    : 'You are running a preview build from the pre-release channel.'
+                  : status.status === 'not-available'
+                    ? 'CatBee Container Studio is already up to date.'
+                    : 'You are on the latest stable release channel.'
+              }}
+            </p>
+          </div>
+          <div class="updates-action-col">
+            <button
+              type="button"
+              class="catbee-action-btn primary"
+              [disabled]="page.isActionLoading()"
+              (click)="page.checkForUpdates()"
+            >
+              <span class="mat-icon-filled" [class.spin]="page.activeAction() === 'check-updates'" aria-hidden="true"
+                >sync</span
+              >
+              {{ page.activeAction() === 'check-updates' ? 'Checking...' : 'Check for updates' }}
+            </button>
+          </div>
+        }
+      }
+    </div>
+
+    @let hasUpdate = status.status === 'available' || status.status === 'downloading' || status.status === 'downloaded';
+    @let updateVer =
+      ('version' in status && status.version) || page.targetUpdateVersion() || page.updateReleaseNotes()?.version || '';
+
+    @if (hasUpdate) {
+      <!-- Available/Downloading/Downloaded Update Release Highlights Section (Standalone Sibling Card) -->
+      <catbee-container-studio-expansion-card
+        [expanded]="page.showUpdateNotes()"
+        (toggled)="page.toggleUpdateNotes()"
+        icon="auto_awesome"
+        [title]="'What\'s new in v' + (updateVer || ('version' in status && status.version ? status.version : ''))"
+        subtitle="Features, bug fixes, and improvements in this update"
+      >
+        <div class="release-card-body">
+          @if (page.isLoadingUpdateNotes()) {
+            <catbee-container-studio-empty-state
+              icon="auto_awesome"
+              message="Loading release notes..."
+              [showLoader]="true"
+              size="small"
+              [style]="{ 'min-height': '9rem', padding: '1.5rem 0' }"
+            />
+          } @else if (page.updateReleaseNotes(); as notes) {
+            @let parsed = getParsedNotes(notes.notes);
+            <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+            <div class="release-notes-scroll-area" (click)="onReleaseNotesClick($event)">
+              <div class="release-notes-content" [innerHTML]="formatReleaseNotes(notes.notes)"></div>
+
+              @if (parsed.contributors.length > 0) {
+                <div class="release-contributors-section">
+                  <span class="contributors-title">
+                    <span class="mat-icon-filled" aria-hidden="true">group</span>
+                    Contributors
+                  </span>
+                  <div class="contributors-pill-group">
+                    @for (user of parsed.contributors; track user) {
+                      <button
+                        type="button"
+                        class="contributor-pill"
+                        (click)="openContributorProfile(user, $event)"
+                        [catbeeTooltip]="'View @' + user + ' on GitHub'"
+                        catbeeTooltipPosition="top"
+                      >
+                        @if (!hasAvatarFailed(user)) {
+                          <img
+                            [src]="getContributorAvatarUrl(user)"
+                            [alt]="user"
+                            class="contributor-avatar"
+                            (error)="onAvatarError(user)"
+                            loading="lazy"
+                          />
+                        } @else {
+                          <span class="mat-icon-filled contributor-fallback-icon" aria-hidden="true">person</span>
+                        }
+                        <span class="contributor-name">@{{ user }}</span>
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+
+            <div class="release-footer-row">
+              <div class="footer-left">
+                @if (notes.publishedAt) {
+                  <span
+                    class="release-date"
+                    [catbeeTooltip]="(notes.publishedAt | date: 'full') || ''"
+                    catbeeTooltipPosition="top"
+                  >
+                    Released on {{ notes.publishedAt | date: 'mediumDate' }}
+                  </span>
+                }
+              </div>
+              <div class="footer-right">
+                @if (parsed.compareUrl) {
+                  <button type="button" class="link-btn outline-btn" (click)="openUrl(parsed.compareUrl, $event)">
+                    <span class="mat-icon-filled" aria-hidden="true">compare_arrows</span>
+                    Compare changes
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="link-btn outline-btn"
+                    (click)="
+                      page.openChangelog(
+                        currentVer,
+                        updateVer || ('version' in status && status.version ? status.version : '')
+                      )
+                    "
+                  >
+                    <span class="mat-icon-filled" aria-hidden="true">compare_arrows</span>
+                    Compare on GitHub
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="link-btn outline-btn"
+                  (click)="openUrl(bugReportUrl, $event)"
+                  catbeeTooltip="Report a bug on GitHub"
+                  catbeeTooltipPosition="top"
+                >
+                  <span class="mat-icon-filled" aria-hidden="true">bug_report</span>
+                  Report bug
+                </button>
+                <button
+                  type="button"
+                  class="link-btn outline-btn"
+                  (click)="openUrl(featureRequestUrl, $event)"
+                  catbeeTooltip="Request a feature on GitHub"
+                  catbeeTooltipPosition="top"
+                >
+                  <span class="mat-icon-filled" aria-hidden="true">lightbulb</span>
+                  Request feature
+                </button>
+                @if (notes.htmlUrl) {
+                  <button type="button" class="link-btn" (click)="openUrl(notes.htmlUrl, $event)">
+                    View on GitHub
+                    <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
+                  </button>
+                }
+              </div>
+            </div>
+          } @else {
+            <catbee-container-studio-empty-state
+              icon="description"
+              message="Release notes could not be loaded from GitHub."
+              size="small"
+              [style]="{ 'min-height': '8rem', padding: '1.25rem 0' }"
+            >
+              <button
+                type="button"
+                class="link-btn"
+                (click)="
+                  page.openChangelog(
+                    currentVer,
+                    updateVer || ('version' in status && status.version ? status.version : '')
+                  )
+                "
+              >
+                View Changelog on GitHub
+                <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
+              </button>
+            </catbee-container-studio-empty-state>
+          }
+        </div>
+      </catbee-container-studio-expansion-card>
+    } @else {
+      <!-- Current Release Highlights Section (Shown when no update is active) -->
+      <catbee-container-studio-expansion-card
+        [expanded]="page.showCurrentNotes()"
+        (toggled)="page.toggleCurrentReleaseNotes()"
+        icon="auto_awesome"
+        [title]="'What\'s new in v' + currentVer"
+        subtitle="Features, bug fixes, and improvements in your installed version"
+      >
+        <div class="release-card-body">
+          @if (page.isLoadingCurrentNotes()) {
+            <catbee-container-studio-empty-state
+              icon="auto_awesome"
+              message="Fetching release notes from GitHub..."
+              [showLoader]="true"
+              size="small"
+              [style]="{ 'min-height': '9rem', padding: '1.5rem 0' }"
+            />
+          } @else if (page.currentReleaseNotes(); as notes) {
+            @let parsed = getParsedNotes(notes.notes);
+            <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+            <div class="release-notes-scroll-area" (click)="onReleaseNotesClick($event)">
+              <div class="release-notes-content" [innerHTML]="formatReleaseNotes(notes.notes)"></div>
+
+              @if (parsed.contributors.length > 0) {
+                <div class="release-contributors-section">
+                  <span class="contributors-title">
+                    <span class="mat-icon-filled" aria-hidden="true">group</span>
+                    Contributors
+                  </span>
+                  <div class="contributors-pill-group">
+                    @for (user of parsed.contributors; track user) {
+                      <button
+                        type="button"
+                        class="contributor-pill"
+                        (click)="openContributorProfile(user, $event)"
+                        [catbeeTooltip]="'View @' + user + ' on GitHub'"
+                        catbeeTooltipPosition="top"
+                      >
+                        @if (!hasAvatarFailed(user)) {
+                          <img
+                            [src]="getContributorAvatarUrl(user)"
+                            [alt]="user"
+                            class="contributor-avatar"
+                            (error)="onAvatarError(user)"
+                            loading="lazy"
+                          />
+                        } @else {
+                          <span class="mat-icon-filled contributor-fallback-icon" aria-hidden="true">person</span>
+                        }
+                        <span class="contributor-name">@{{ user }}</span>
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+
+            <div class="release-footer-row">
+              <div class="footer-left">
+                @if (notes.publishedAt) {
+                  <span
+                    class="release-date"
+                    [catbeeTooltip]="(notes.publishedAt | date: 'full') || ''"
+                    catbeeTooltipPosition="top"
+                  >
+                    Released on {{ notes.publishedAt | date: 'mediumDate' }}
+                  </span>
+                }
+              </div>
+              <div class="footer-right">
+                @if (parsed.compareUrl) {
+                  <button type="button" class="link-btn outline-btn" (click)="openUrl(parsed.compareUrl, $event)">
+                    <span class="mat-icon-filled" aria-hidden="true">compare_arrows</span>
+                    Compare changes
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="link-btn outline-btn"
+                  (click)="openUrl(bugReportUrl, $event)"
+                  catbeeTooltip="Report a bug on GitHub"
+                  catbeeTooltipPosition="top"
+                >
+                  <span class="mat-icon-filled" aria-hidden="true">bug_report</span>
+                  Report bug
+                </button>
+                <button
+                  type="button"
+                  class="link-btn outline-btn"
+                  (click)="openUrl(featureRequestUrl, $event)"
+                  catbeeTooltip="Request a feature on GitHub"
+                  catbeeTooltipPosition="top"
+                >
+                  <span class="mat-icon-filled" aria-hidden="true">lightbulb</span>
+                  Request feature
+                </button>
+                <button type="button" class="link-btn" (click)="openUrl(notes.htmlUrl, $event)">
+                  View on GitHub
+                  <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
+                </button>
+              </div>
+            </div>
+          } @else {
+            <catbee-container-studio-empty-state
+              icon="description"
+              message="Could not fetch release notes directly. You can view the release on GitHub."
+              size="small"
+              [style]="{ 'min-height': '8rem', padding: '1.25rem 0' }"
+            >
+              <div class="release-empty-actions">
+                <button type="button" class="link-btn outline-btn" (click)="openUrl(bugReportUrl, $event)">
+                  <span class="mat-icon-filled" aria-hidden="true">bug_report</span>
+                  Report bug
+                </button>
+                <button type="button" class="link-btn outline-btn" (click)="openUrl(featureRequestUrl, $event)">
+                  <span class="mat-icon-filled" aria-hidden="true">lightbulb</span>
+                  Request feature
+                </button>
+                <button
+                  type="button"
+                  class="link-btn"
+                  (click)="
+                    openUrl(
+                      'https://github.com/catbee-technologies/catbee-container-studio/releases/tag/v' + currentVer,
+                      $event
+                    )
+                  "
+                >
+                  Open GitHub Release
+                  <span class="mat-icon-filled" aria-hidden="true">open_in_new</span>
+                </button>
+              </div>
+            </catbee-container-studio-empty-state>
+          }
+        </div>
+      </catbee-container-studio-expansion-card>
+    }
+  </div>
+</section>
