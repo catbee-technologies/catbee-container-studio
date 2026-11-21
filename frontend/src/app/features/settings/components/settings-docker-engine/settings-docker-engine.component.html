@@ -1,0 +1,545 @@
+<ng-template #buttonLoader let-action>
+  <ng-catbee-loader
+    class="button-loader"
+    [name]="'settings-' + action"
+    [forceShow]="true"
+    [fullscreen]="false"
+    size="small"
+    backgroundColor="transparent"
+    aria-hidden="true"
+  />
+</ng-template>
+
+<section class="settings-section">
+  <header class="settings-section-header">
+    <h2>Docker Engine</h2>
+    <p class="section-desc">Manage your active container daemon and inspect runtime configuration.</p>
+  </header>
+  <div class="settings-section-body">
+    @if (page.engineErrorMessage(); as err) {
+      <div class="settings-error-banner-wrapper">
+        <catbee-container-studio-error-banner
+          [errorMessage]="err"
+          (closeErr)="page.engineErrorMessage.set(null)"
+          size="small"
+        />
+      </div>
+    }
+
+    <div id="setting-engine-built-in" class="engine-card">
+      <div class="engine-card-header">
+        <div class="engine-title-group">
+          <span class="mat-icon-filled engine-icon" aria-hidden="true">developer_board</span>
+          <div>
+            <h3>CatBee Built-in Container Engine</h3>
+            <span class="engine-subtitle">{{ page.engineBackendSubtitle() }}</span>
+          </div>
+        </div>
+        <div class="engine-header-actions">
+          @if (page.canUseCatBeeEngine()) {
+            <button
+              type="button"
+              class="catbee-action-btn primary sm use-catbee-engine-btn"
+              [attr.aria-busy]="page.isContextSwitching()"
+              (click)="page.requestActivateCatBeeContext()"
+              [disabled]="page.isContextSwitching() || page.isEngineBusy()"
+            >
+              <span class="button-icon" aria-hidden="true">
+                <span class="mat-icon-filled">check</span>
+                @if (page.isContextSwitching()) {
+                  <ng-container
+                    [ngTemplateOutlet]="buttonLoader"
+                    [ngTemplateOutletContext]="{ $implicit: 'context-switch' }"
+                  />
+                }
+              </span>
+              <span>{{ page.isContextSwitching() ? 'Switching...' : 'Use CatBee engine' }}</span>
+            </button>
+          }
+          <span
+            class="engine-status-badge"
+            [class.status-running]="page.isEngineRunning()"
+            [class.status-error]="page.engineState() === 'error'"
+            [class.status-busy]="page.isEngineBusy()"
+            [class.status-inactive]="!page.isEngineRunning() && page.engineState() !== 'error' && !page.isEngineBusy()"
+          >
+            <span class="mat-icon-filled status-icon" aria-hidden="true">
+              {{
+                page.isEngineRunning()
+                  ? 'play_arrow'
+                  : page.engineState() === 'error'
+                    ? 'error'
+                    : page.isEngineBusy()
+                      ? 'sync'
+                      : 'stop'
+              }}
+            </span>
+            <span>{{ page.engineStateLabel() }}</span>
+          </span>
+        </div>
+      </div>
+
+      @if (page.engineOperation(); as op) {
+        <output class="engine-progress" aria-live="polite">
+          <div class="engine-progress-header">
+            <span class="engine-progress-title">
+              {{ op.operation === 'install' ? 'Installing built-in engine' : 'Uninstalling built-in engine' }}
+            </span>
+            <span class="engine-progress-percent">{{ op.progress }}%</span>
+          </div>
+          <progress
+            class="engine-progress-track"
+            [class.is-uninstall]="op.operation === 'uninstall'"
+            max="100"
+            [value]="op.progress"
+            [attr.aria-label]="op.operation === 'install' ? 'Install progress' : 'Uninstall progress'"
+          ></progress>
+          <span class="engine-progress-stage">{{ op.stage }}</span>
+        </output>
+      }
+
+      <div class="engine-details-grid">
+        <div class="detail-cell is-wide">
+          <span class="detail-label">Distribution</span>
+          <span class="detail-value" [title]="page.engineDistroLabel()">{{ page.engineDistroLabel() }}</span>
+        </div>
+        <div class="detail-cell">
+          <span class="detail-label">Docker Engine</span>
+          <span class="detail-value">{{ page.engineVersion() ?? '—' }}</span>
+        </div>
+        <div class="detail-cell">
+          <span class="detail-label">Architecture</span>
+          <span class="detail-value">{{ page.platformInfo()?.arch ?? '—' }}</span>
+        </div>
+        <div class="detail-cell is-wide">
+          <span class="detail-label">Endpoint</span>
+          <span class="detail-value">{{ page.endpointLabel() }}</span>
+        </div>
+        @if (page.engineStatus()?.exposedTcpEndpoint; as tcp) {
+          <div class="detail-cell is-wide">
+            <span class="detail-label">Exposed TCP</span>
+            <span class="detail-value">{{ tcp }}</span>
+          </div>
+        }
+        @if (page.engineInfo()?.daemonConfigLocation; as cfg) {
+          <div class="detail-cell is-wide">
+            <span class="detail-label">daemon.json</span>
+            <span class="detail-value">{{ cfg }}</span>
+          </div>
+        }
+      </div>
+
+      @if (page.engineStatus()?.lastError; as lastError) {
+        <catbee-container-studio-callout type="error" title="Last engine error">
+          <p>{{ lastError }}</p>
+        </catbee-container-studio-callout>
+      }
+
+      @if (page.isExternalMode()) {
+        <catbee-container-studio-callout type="warning" title="External Engine Mode Active">
+          @if (page.isEngineRunning()) {
+            <p>
+              CatBee is using an external Docker engine, but the built-in engine is still running in the background and
+              using resources. Stop it if you don't need it.
+            </p>
+          } @else {
+            <p>
+              CatBee is using an external Docker engine. Switch the engine mode to Auto or Built-in to start, restart or
+              reinstall the built-in engine.
+            </p>
+          }
+        </catbee-container-studio-callout>
+      }
+
+      <div class="engine-action-buttons">
+        <button
+          type="button"
+          class="catbee-action-btn action-start"
+          [attr.aria-busy]="page.isStarting()"
+          [disabled]="page.isActionLoading() || page.isEngineBusy() || page.isExternalMode() || page.isEngineRunning()"
+          (click)="page.startEngine()"
+        >
+          <span class="button-icon" aria-hidden="true">
+            <span class="mat-icon-filled">play_arrow</span>
+            @if (page.isStarting()) {
+              <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'start' }" />
+            }
+          </span>
+          <span>{{ page.startButtonLabel() }}</span>
+        </button>
+        <button
+          type="button"
+          class="catbee-action-btn action-stop"
+          [attr.aria-busy]="page.activeAction() === 'stop'"
+          [disabled]="page.isActionLoading() || page.isEngineBusy() || !page.isEngineRunning()"
+          (click)="page.requestStopEngine()"
+        >
+          <span class="button-icon" aria-hidden="true">
+            <span class="mat-icon-filled">stop</span>
+            @if (page.activeAction() === 'stop') {
+              <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'stop' }" />
+            }
+          </span>
+          <span>Stop</span>
+        </button>
+        <button
+          type="button"
+          class="catbee-action-btn action-restart"
+          [attr.aria-busy]="page.activeAction() === 'restart'"
+          [disabled]="
+            page.isActionLoading() || page.isEngineBusy() || page.isExternalMode() || !page.isEngineInstalled()
+          "
+          (click)="page.restartEngine()"
+        >
+          <span class="button-icon" aria-hidden="true">
+            <span class="mat-icon-filled">refresh</span>
+            @if (page.activeAction() === 'restart') {
+              <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'restart' }" />
+            }
+          </span>
+          <span>Restart</span>
+        </button>
+        <button
+          type="button"
+          class="catbee-action-btn danger"
+          [attr.aria-busy]="page.activeAction() === 'reinstall'"
+          [disabled]="
+            page.isActionLoading() || page.isEngineBusy() || page.isExternalMode() || !page.isEngineInstalled()
+          "
+          (click)="page.requestReinstallEngine()"
+        >
+          <span class="button-icon" aria-hidden="true">
+            <span class="mat-icon-filled">build</span>
+            @if (page.activeAction() === 'reinstall') {
+              <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'reinstall' }" />
+            }
+          </span>
+          <span>Reinstall</span>
+        </button>
+        <button
+          type="button"
+          class="catbee-action-btn danger"
+          [attr.aria-busy]="page.activeAction() === 'uninstall'"
+          [disabled]="page.isActionLoading() || page.isEngineBusy() || !page.isEngineInstalled()"
+          (click)="page.requestUninstallEngine()"
+        >
+          <span class="button-icon" aria-hidden="true">
+            <span class="mat-icon-filled">delete_forever</span>
+            @if (page.activeAction() === 'uninstall') {
+              <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'uninstall' }" />
+            }
+          </span>
+          <span>Uninstall</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Builders & BuildKit Card -->
+    <div id="setting-engine-builders" class="form-group builders-section">
+      <div class="builders-header-row">
+        <div>
+          <h3 class="group-title">Builders & BuildKit</h3>
+          <p class="field-hint">Default container build instance and BuildKit storage allocations.</p>
+        </div>
+        @if (page.builderInfo()?.builders?.length) {
+          <button
+            id="setting-engine-prune-cache"
+            type="button"
+            class="catbee-action-btn"
+            [attr.aria-busy]="page.isPruningBuildCache()"
+            [disabled]="page.isPruningBuildCache()"
+            (click)="page.requestPruneBuildCache()"
+            catbeeTooltip="Prune unused BuildKit cache"
+            catbeeTooltipPosition="top"
+          >
+            <span class="button-icon" aria-hidden="true">
+              <span class="mat-icon-filled">delete_sweep</span>
+              @if (page.isPruningBuildCache()) {
+                <ng-container
+                  [ngTemplateOutlet]="buttonLoader"
+                  [ngTemplateOutletContext]="{ $implicit: 'prune-cache' }"
+                />
+              }
+            </span>
+            <span>Clear build cache</span>
+          </button>
+        }
+      </div>
+
+      @if (page.dockerContext()?.envOverride; as override) {
+        <catbee-container-studio-callout
+          type="warning"
+          [title]="override.variable + ' overrides the selected builder context'"
+        >
+          <p>
+            Your environment sets <code>{{ override.variable }}={{ override.value }}</code>
+            @if (override.source) {
+              in <code>{{ override.source }}</code>
+            }
+            , so <code>docker</code> commands in your terminal ignore the context selected here. Remove that line and
+            open a new terminal to use <code>{{ page.dockerContext()?.currentContext ?? 'catbee-desktop' }}</code>.
+          </p>
+        </catbee-container-studio-callout>
+      }
+
+      @if (page.contextErrorMessage(); as err) {
+        <catbee-container-studio-error-banner
+          [errorMessage]="err"
+          (closeErr)="page.contextErrorMessage.set(null)"
+          size="small"
+        />
+      }
+
+      @if (page.pruneBuildCacheMessage(); as msg) {
+        <catbee-container-studio-callout
+          type="success"
+          [closable]="true"
+          (closed)="page.pruneBuildCacheMessage.set(null)"
+        >
+          <p>{{ msg }}</p>
+        </catbee-container-studio-callout>
+      }
+
+      @if (page.builderInfo(); as bInfo) {
+        <div class="builders-group-wrapper">
+          <!-- Selected Builder Header & Card -->
+          <div class="selected-builder-section">
+            <div class="builder-group-label-row">
+              <h4 class="subgroup-title">Selected builder</h4>
+              <p class="field-hint">The default builder used when you start a build.</p>
+            </div>
+
+            @for (builder of bInfo.builders; track builder.name) {
+              @if (builder.isCurrent) {
+                <div
+                  class="builder-card active-builder-card"
+                  [class.is-expanded]="page.isBuilderExpanded(builder.name)"
+                >
+                  <button
+                    type="button"
+                    class="builder-card-top"
+                    (click)="page.toggleBuilderExpansion(builder.name)"
+                    [attr.aria-expanded]="page.isBuilderExpanded(builder.name)"
+                  >
+                    <div class="builder-identity">
+                      <span class="mat-icon-filled builder-icon" aria-hidden="true">layers</span>
+                      <div>
+                        <div class="builder-name-row">
+                          <span class="builder-name">{{ builder.name }}</span>
+                          <span
+                            class="builder-status-badge"
+                            [class.status-running]="builder.status === 'running'"
+                            [class.status-error]="builder.status === 'error'"
+                            [class.status-inactive]="builder.status === 'stopped' || !builder.status"
+                          >
+                            <span class="mat-icon-filled status-icon" aria-hidden="true">
+                              {{
+                                builder.status === 'running'
+                                  ? 'play_arrow'
+                                  : builder.status === 'error'
+                                    ? 'error'
+                                    : 'stop'
+                              }}
+                            </span>
+                            <span>{{
+                              builder.status === 'running'
+                                ? 'Running'
+                                : builder.status === 'error'
+                                  ? 'Error'
+                                  : 'Stopped'
+                            }}</span>
+                          </span>
+                          <span class="badge-subtle">Default</span>
+                        </div>
+                        <span class="builder-sub">{{ builder.driver }}</span>
+                      </div>
+                    </div>
+
+                    <div class="builder-top-actions">
+                      <span class="mat-icon-filled accordion-chevron" aria-hidden="true">keyboard_arrow_down</span>
+                    </div>
+                  </button>
+
+                  <div class="accordion-collapse-wrapper" [class.is-expanded]="page.isBuilderExpanded(builder.name)">
+                    <div class="accordion-collapse-inner">
+                      <div class="builder-card-content">
+                        @if ((builder.status === 'error' || builder.error) && builder.name !== 'catbee-desktop') {
+                          <catbee-container-studio-callout type="error" title="Builder Connection Error">
+                            <p>
+                              {{
+                                builder.error ||
+                                  'Cannot connect to this builder instance. Ensure the engine daemon is running.'
+                              }}
+                            </p>
+                          </catbee-container-studio-callout>
+                        }
+
+                        <ng-container
+                          *ngTemplateOutlet="builderDetails; context: { builder: builder, isCurrent: true }"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              }
+            }
+          </div>
+
+          <!-- Available Builders Section with Expansion Accordion Headers -->
+          @if (page.hasAvailableBuilders(bInfo)) {
+            <div class="available-builders-section">
+              <div class="builder-group-label-row">
+                <h4 class="subgroup-title">Available builders</h4>
+                <p class="field-hint">Inspect and manage your builders.</p>
+              </div>
+
+              <div class="available-builders-list">
+                @for (builder of bInfo.builders; track builder.name) {
+                  @if (!builder.isCurrent) {
+                    <catbee-container-studio-expansion-card
+                      [expanded]="page.isBuilderExpanded(builder.name)"
+                      (toggled)="page.toggleBuilderExpansion(builder.name)"
+                      icon="layers"
+                      [title]="builder.name"
+                      [subtitle]="builder.driver"
+                    >
+                      <div expansion-actions class="builder-expansion-actions">
+                        <button
+                          type="button"
+                          class="catbee-action-btn secondary sm use-default-builder-btn"
+                          [disabled]="
+                            (builder.status === 'error' && builder.name !== 'catbee-desktop') ||
+                            page.isContextSwitching()
+                          "
+                          (click)="$event.stopPropagation(); page.requestSwitchDockerContext(builder.name)"
+                          [catbeeTooltip]="
+                            builder.status === 'error' && builder.name !== 'catbee-desktop'
+                              ? 'Start this engine first.'
+                              : ''
+                          "
+                          catbeeTooltipPosition="top"
+                        >
+                          <span class="mat-icon-filled" aria-hidden="true">swap_horiz</span>
+                          <span>Use as default builder</span>
+                        </button>
+
+                        <span
+                          class="builder-status-badge"
+                          [class.status-running]="builder.status === 'running'"
+                          [class.status-error]="builder.status === 'error'"
+                          [class.status-inactive]="builder.status === 'stopped' || !builder.status"
+                        >
+                          <span class="mat-icon-filled status-icon" aria-hidden="true">
+                            {{
+                              builder.status === 'running'
+                                ? 'play_arrow'
+                                : builder.status === 'error'
+                                  ? 'error'
+                                  : 'stop'
+                            }}
+                          </span>
+                          <span>{{
+                            builder.status === 'running'
+                              ? 'Running · Not in use'
+                              : builder.status === 'error'
+                                ? 'Error'
+                                : 'Stopped'
+                          }}</span>
+                        </span>
+                      </div>
+
+                      <div class="available-builder-body">
+                        @if ((builder.status === 'error' || builder.error) && builder.name !== 'catbee-desktop') {
+                          <catbee-container-studio-callout type="error" title="Builder Connection Error">
+                            <p>
+                              {{
+                                builder.error ||
+                                  'Cannot connect to this builder instance. Ensure the engine daemon is running.'
+                              }}
+                            </p>
+                          </catbee-container-studio-callout>
+                        }
+
+                        <ng-container
+                          *ngTemplateOutlet="builderDetails; context: { builder: builder, isCurrent: false }"
+                        />
+                      </div>
+                    </catbee-container-studio-expansion-card>
+                  }
+                }
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <catbee-container-studio-callout type="subtle">
+          <p>BuildKit information will appear here once the engine is connected.</p>
+        </catbee-container-studio-callout>
+      }
+
+      <!-- Shared Builder Details Template (Stats, Endpoint, Platforms) -->
+      <ng-template #builderDetails let-builder="builder" let-isCurrent="isCurrent">
+        <div class="builder-stats-grid">
+          <div class="stat-cell">
+            <span class="stat-label">Driver</span>
+            <span class="stat-value">{{ builder.driver }}</span>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-label">Storage limit</span>
+            <span class="stat-value">{{ builder.storageLimit ?? '20 GB' }}</span>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-label">Used cache</span>
+            <span class="stat-value">{{ page.formatBytes(builder.usedBytes) }}</span>
+          </div>
+          <div class="stat-cell">
+            <span class="stat-label">Shared cache</span>
+            <span class="stat-value">{{ page.formatBytes(builder.sharedBytes) }}</span>
+          </div>
+        </div>
+
+        <div class="builder-endpoint-row">
+          <span class="endpoint-label">Endpoint</span>
+          <div class="endpoint-box">
+            <span class="mat-icon-filled endpoint-icon" aria-hidden="true">terminal</span>
+            <code class="endpoint-value">{{ builder.endpoint || '—' }}</code>
+            @if (builder.endpoint) {
+              <catbee-container-studio-copy-button
+                [text]="builder.endpoint"
+                idleTitle="Copy endpoint"
+                successTitle="Endpoint copied"
+                ariaLabel="Copy endpoint to clipboard"
+              />
+            }
+          </div>
+        </div>
+
+        @if (builder.platforms?.length) {
+          <div class="builder-platforms-row">
+            <span class="platforms-heading">Supported platforms</span>
+            <div class="platforms-pill-group">
+              @for (platform of builder.platforms; track platform) {
+                <span class="platform-pill">
+                  <span class="mat-icon-filled" aria-hidden="true">memory</span>
+                  {{ platform.replace('linux/', '') }}
+                </span>
+              }
+            </div>
+          </div>
+        }
+      </ng-template>
+    </div>
+
+    <div id="setting-engine-daemon-config" class="form-group">
+      <div class="config-header-row">
+        <h3 class="group-title">Daemon Configuration (daemon.json)</h3>
+        <span class="badge-subtle">Generated from current settings</span>
+      </div>
+      <catbee-container-studio-json-viewer
+        [data]="page.daemonConfigPreview()"
+        searchPlaceholder="Search daemon.json..."
+        maxHeight="420px"
+      />
+    </div>
+  </div>
+</section>
