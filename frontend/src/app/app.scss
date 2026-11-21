@@ -6,7 +6,7 @@
 .desktop-shell {
   height: 100dvh;
   display: grid;
-  grid-template-rows: var(--window-header-height) 1fr;
+  grid-template-rows: var(--window-header-height) 1fr auto;
   overflow: hidden;
 }
 
@@ -14,6 +14,8 @@
   display: grid;
   grid-template-columns: 12rem 1fr;
   min-height: 0;
+  height: 100%;
+  overflow: hidden;
   transition: grid-template-columns var(--transition-slow);
 }
 
@@ -24,12 +26,28 @@
 .sidebar {
   border-right: 1px solid var(--border-color-light);
   background: var(--bg-sidebar);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-lg) var(--spacing-md);
   overflow: visible;
   position: relative;
-  display: grid;
-  align-content: start;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   gap: var(--spacing-md);
+  height: 100%;
+}
+
+.sidebar-top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  overflow-y: auto;
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+  border-top: 1px solid var(--border-color-light);
+  padding-top: var(--spacing-sm);
 }
 
 .sidebar-toggle {
@@ -43,19 +61,28 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  right: -0.8rem;
-  z-index: 2;
+  right: -0.875rem;
+  z-index: 10;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   box-shadow: 0 4px 10px var(--shadow-color);
   transition: all var(--transition-base);
+
+  .mat-icon-filled {
+    font-size: 1.15rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
 }
 
 .sidebar-toggle:hover {
   color: var(--color-hover-text);
   border-color: var(--border-color-hover);
+  background: var(--bg-surface-elevated, var(--bg-hover));
 }
 
 .sidebar ul {
@@ -102,8 +129,11 @@
 
 .content-pane {
   position: relative;
-  overflow: auto;
+  overflow: hidden;
   min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 ::ng-deep {
@@ -113,5 +143,78 @@
     left: 0;
     width: 100%;
     height: 100%;
+  }
+}
+
+.engine-install-action {
+  margin-top: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.engine-install-progress {
+  width: min(24rem, 80%);
+  height: 6px;
+  margin-top: var(--spacing-sm);
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--border-color-light);
+}
+
+.engine-install-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary-base);
+  transition: width 0.3s ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.engine-prereq-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 36rem;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: 1px solid var(--color-error-base);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger-text);
+  text-align: center;
+  white-space: pre-line;
+  user-select: text;
+}
+
+.install-engine-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  background: var(--color-primary, #f59e0b);
+  color: #121316;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 0.65rem 1.35rem;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  box-shadow: 0 4px 12px var(--shadow-color);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px var(--shadow-color);
+    filter: brightness(1.08);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .mat-icon-filled {
+    font-size: 1.2rem;
   }
 }
