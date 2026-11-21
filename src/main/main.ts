@@ -11,6 +11,8 @@ import { dockerManager } from './docker/services/docker.manager';
 import { engineManager } from './docker/embedded/engine.manager';
 import { stopAllStreamSessions } from '../ipc/docker/streams.ipc';
 
+app.commandLine.appendSwitch('force-color-profile', 'srgb');
+
 const SHUTDOWN_TIMEOUT_MS = 30_000;
 
 const gotTheLock = app.requestSingleInstanceLock();
