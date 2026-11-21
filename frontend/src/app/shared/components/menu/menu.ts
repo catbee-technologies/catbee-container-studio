@@ -32,6 +32,8 @@ export class MenuComponent implements OnDestroy {
   readonly open = input(false);
   readonly style = input<Record<string, string>>();
   readonly closeOnScroll = input(true, { transform: booleanAttribute });
+  readonly alignment = input<'start' | 'end'>('end');
+  readonly placement = input<'bottom' | 'top'>('bottom');
 
   readonly dismissed = output<void>();
 
@@ -42,6 +44,8 @@ export class MenuComponent implements OnDestroy {
   private overlayRef: OverlayRef | null = null;
   private menuPortal: TemplatePortal<unknown> | null = null;
   private scrollContainer: HTMLElement | null = null;
+  private closeTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly closeAnimationDuration = 120;
 
   private readonly positions: ConnectedPosition[] = [
     {
@@ -82,6 +86,14 @@ export class MenuComponent implements OnDestroy {
   }
 
   private openMenu(): void {
+    if (this.closeTimer !== null) {
+      clearTimeout(this.closeTimer);
+      this.closeTimer = null;
+      this.overlayRef?.dispose();
+      this.overlayRef = null;
+      this.menuPortal = null;
+    }
+
     if (this.overlayRef) {
       return;
     }
@@ -92,10 +104,34 @@ export class MenuComponent implements OnDestroy {
       return;
     }
 
+    const isStart = this.alignment() === 'start';
+    const isTop = this.placement() === 'top';
+
+    const originX: 'start' | 'end' = isStart ? 'start' : 'end';
+    const overlayX: 'start' | 'end' = isStart ? 'start' : 'end';
+
+    const bottomPos: ConnectedPosition = {
+      originX,
+      originY: 'bottom',
+      overlayX,
+      overlayY: 'top',
+      offsetY: 6
+    };
+
+    const topPos: ConnectedPosition = {
+      originX,
+      originY: 'top',
+      overlayX,
+      overlayY: 'bottom',
+      offsetY: -6
+    };
+
+    const positions: ConnectedPosition[] = isTop ? [topPos, bottomPos] : [bottomPos, topPos];
+
     const positionStrategy = this.overlay
       .position()
       .flexibleConnectedTo(trigger)
-      .withPositions(this.positions)
+      .withPositions(positions)
       .withFlexibleDimensions(false)
       .withPush(true)
       .withViewportMargin(8);
@@ -136,13 +172,30 @@ export class MenuComponent implements OnDestroy {
 
   private closeMenu(): void {
     this.removeScrollListener();
-
-    this.overlayRef?.dispose();
-
-    this.overlayRef = null;
-    this.menuPortal = null;
-
     this.menuService.close(this.menuId);
+
+    if (!this.overlayRef) {
+      return;
+    }
+
+    const overlay = this.overlayRef;
+    const menuEl = overlay.overlayElement.querySelector<HTMLElement>('.options-menu');
+
+    if (menuEl) {
+      menuEl.classList.add('closing');
+      this.closeTimer = setTimeout(() => {
+        this.closeTimer = null;
+        if (this.overlayRef === overlay) {
+          overlay.dispose();
+          this.overlayRef = null;
+          this.menuPortal = null;
+        }
+      }, this.closeAnimationDuration);
+    } else {
+      overlay.dispose();
+      this.overlayRef = null;
+      this.menuPortal = null;
+    }
   }
 
   private addScrollListener(): void {
@@ -238,6 +291,14 @@ export class MenuComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.closeMenu();
+    if (this.closeTimer !== null) {
+      clearTimeout(this.closeTimer);
+      this.closeTimer = null;
+    }
+    this.removeScrollListener();
+    this.overlayRef?.dispose();
+    this.overlayRef = null;
+    this.menuPortal = null;
+    this.menuService.close(this.menuId);
   }
 }

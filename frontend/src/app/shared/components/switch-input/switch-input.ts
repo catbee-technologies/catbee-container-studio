@@ -10,6 +10,8 @@ import { LocalStorageService } from '@ng-catbee/storage';
 export class SwitchInputComponent implements FormCheckboxControl {
   readonly checked = model.required<boolean>();
   readonly label = input<string>();
+  /** Id for the inner input, so an external <label for> can toggle it. */
+  readonly inputId = input<string>();
   readonly storageKey = input<string>();
   readonly disabled = input(false);
   readonly touch = output<void>();

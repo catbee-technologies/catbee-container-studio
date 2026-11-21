@@ -1,0 +1,107 @@
+:host {
+  display: inline-flex;
+}
+
+.radio-label {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+  font-size: var(--font-size-base, 0.95rem);
+  color: var(--ink-100);
+
+  &.is-disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
+    pointer-events: none;
+  }
+}
+
+.radio-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  cursor: pointer;
+
+  &:focus-visible ~ .radio-custom,
+  &:focus-visible ~ .radio-control {
+    outline: 2px solid var(--border-color-focus);
+    outline-offset: 2px;
+  }
+}
+
+.radio-custom,
+.radio-control {
+  width: 20px;
+  height: 20px;
+  background-color: var(--bg-input);
+  border: 1.5px solid var(--border-color-control);
+  border-radius: 50%;
+  margin-right: 12px;
+  position: relative;
+  transition:
+    border-color var(--transition-base, 0.2s ease),
+    box-shadow var(--transition-base, 0.2s ease),
+    transform var(--transition-fast, 0.15s ease);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &::before {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background-color: var(--color-primary-base);
+    border-radius: 50%;
+    transform: scale(0);
+    opacity: 0;
+    transition:
+      transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+      opacity 0.15s ease;
+  }
+}
+
+.radio-text,
+.radio-label-text {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-base, 0.95rem);
+  color: var(--ink-100);
+  transition: color var(--transition-base, 0.2s ease);
+}
+
+// Hover state on unchecked (matching textbox hover)
+.radio-label:hover:not(.is-disabled) .radio-input:not(:checked) + .radio-custom,
+.radio-label:hover:not(.is-disabled) .radio-input:not(:checked) + .radio-control {
+  border-color: var(--border-color-hover);
+  box-shadow: var(--shadow-control-focus);
+}
+
+.radio-label:hover:not(.is-disabled) .radio-text {
+  color: var(--color-primary-text);
+}
+
+// Checked state (matching active inputs & slider)
+.radio-input:checked + .radio-custom,
+.radio-input:checked + .radio-control,
+.radio-label.is-checked .radio-custom,
+.radio-label.is-checked .radio-control {
+  border-color: var(--color-primary-base);
+  box-shadow: var(--shadow-control-focus);
+
+  &::before {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.radio-input:checked ~ .radio-text,
+.radio-label.is-checked .radio-text {
+  color: var(--ink-100);
+  font-weight: 500;
+}
