@@ -3,6 +3,7 @@ import { IPC_CHANNELS } from '../channels';
 import {
   checkForUpdates,
   downloadUpdate,
+  getReleaseNotes,
   isMicrosoftStoreInstallation,
   restartAndInstallUpdate
 } from '../../main/app/updater';
@@ -26,5 +27,9 @@ export function registerUpdaterHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.App.Updater.IsMicrosoftStore, () => {
     return ok(isMicrosoftStoreInstallation());
+  });
+
+  ipcMain.handle(IPC_CHANNELS.App.Updater.GetReleaseNotes, async (_event, version?: string) => {
+    return ok(await getReleaseNotes(version));
   });
 }

@@ -1,7 +1,12 @@
 export const IPC_CHANNELS = {
   App: {
     Platform: {
-      Get: 'app:platform:get'
+      Get: 'app:platform:get',
+      GetInfo: 'app:platform:get-info',
+      OpenLogs: 'app:platform:open-logs',
+      OpenEngineDir: 'app:platform:open-engine-dir',
+      GetStartAtLogin: 'app:platform:get-start-at-login',
+      SetStartAtLogin: 'app:platform:set-start-at-login'
     },
     External: {
       Open: 'app:external:open'
@@ -18,6 +23,9 @@ export const IPC_CHANNELS = {
       ToggleMaximize: 'app:window:toggle-maximize',
       Close: 'app:window:close'
     },
+    Quit: 'app:quit',
+    Quitting: 'app:quitting',
+    Navigate: 'app:navigate',
     Menu: {
       Show: 'app:menu:show',
       ShowSubmenu: 'app:menu:show-submenu'
@@ -28,12 +36,37 @@ export const IPC_CHANNELS = {
       },
       RendererReady: 'app:initialization:renderer-ready'
     },
+    Engine: {
+      Install: 'app:engine:install',
+      Start: 'app:engine:start',
+      Stop: 'app:engine:stop',
+      Restart: 'app:engine:restart',
+      Pause: 'app:engine:pause',
+      Resume: 'app:engine:resume',
+      GetPauseStatus: 'app:engine:get-pause-status',
+      Status: 'app:engine:status',
+      CheckPrerequisites: 'app:engine:check-prerequisites',
+      GetContextInfo: 'app:engine:get-context-info',
+      UseContext: 'app:engine:use-context',
+      SetupCatBeeContext: 'app:engine:setup-catbee-context',
+      GetSettings: 'app:engine:get-settings',
+      SaveSettings: 'app:engine:save-settings',
+      GetWslDistros: 'app:engine:get-wsl-distros',
+      ApplyWslDistroIntegration: 'app:engine:apply-wsl-distro-integration',
+      Uninstall: 'app:engine:uninstall',
+      Progress: 'app:engine:progress',
+      ApplySettings: 'app:engine:apply-settings',
+      ResetSettings: 'app:engine:reset-settings',
+      GetDaemonConfig: 'app:engine:get-daemon-config',
+      GetBuilderInfo: 'app:engine:get-builder-info'
+    },
     Updater: {
       CheckForUpdates: 'app:updater:check-for-updates',
       DownloadUpdate: 'app:updater:download-update',
       RestartAndInstallUpdate: 'app:updater:restart-and-install-update',
       Status: 'app:updater:status',
-      IsMicrosoftStore: 'app:updater:is-microsoft-store'
+      IsMicrosoftStore: 'app:updater:is-microsoft-store',
+      GetReleaseNotes: 'app:updater:get-release-notes'
     }
   },
   Docker: {
