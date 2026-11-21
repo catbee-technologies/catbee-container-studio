@@ -1,0 +1,62 @@
+<section class="settings-section">
+  <header class="settings-section-header"><h2>About</h2></header>
+  <div class="settings-section-body">
+    <div id="setting-about" class="about-hero">
+      <h3>CatBee Container Studio</h3>
+      <span class="field-hint">Desktop container management studio with embedded and external engine support.</span>
+    </div>
+
+    <div class="diagnostics-table">
+      <div class="diag-row">
+        <span class="diag-key">Version</span>
+        <span class="diag-val">{{ page.platformInfo()?.appVersion }}</span>
+      </div>
+      <div class="diag-row">
+        <span class="diag-key">Platform / OS</span>
+        <span class="diag-val">{{ page.platformInfo()?.platform }} ({{ page.platformInfo()?.osRelease }})</span>
+      </div>
+      <div class="diag-row">
+        <span class="diag-key">Architecture</span>
+        <span class="diag-val">{{ page.platformInfo()?.arch }}</span>
+      </div>
+      <div class="diag-row">
+        <span class="diag-key">Electron</span>
+        <span class="diag-val">{{ page.platformInfo()?.electronVersion }}</span>
+      </div>
+      <div class="diag-row">
+        <span class="diag-key">Node.js</span>
+        <span class="diag-val">{{ page.platformInfo()?.nodeVersion }}</span>
+      </div>
+      <div class="diag-row">
+        <span class="diag-key">Total RAM</span>
+        <span class="diag-val">{{ page.platformInfo()?.totalMemory }} GB</span>
+      </div>
+      <div class="diag-row">
+        <span class="diag-key">CPU Cores</span>
+        <span class="diag-val">{{ page.platformInfo()?.cpuCount }}</span>
+      </div>
+    </div>
+
+    <div class="about-actions-row">
+      <button type="button" class="catbee-action-btn" (click)="page.openLogsFolder()">
+        <span class="mat-icon-filled" aria-hidden="true">folder_open</span>
+        <span>Open Logs Folder</span>
+      </button>
+      <span
+        class="disabled-tooltip-wrapper"
+        [catbeeTooltip]="page.isExternalMode() ? 'Engine directory is only available for CatBee Built-in Engine' : ''"
+        catbeeTooltipPosition="top"
+      >
+        <button
+          type="button"
+          class="catbee-action-btn"
+          [disabled]="page.isExternalMode()"
+          (click)="page.openEngineDirectory()"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">dns</span>
+          <span>Open Engine Directory</span>
+        </button>
+      </span>
+    </div>
+  </div>
+</section>
