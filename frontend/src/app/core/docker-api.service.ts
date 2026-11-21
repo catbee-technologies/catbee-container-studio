@@ -52,6 +52,11 @@ export class DockerApiService extends ElectronBaseService {
     return this.unwrapResult<unknown>(response);
   }
 
+  async pruneBuildCache(): Promise<unknown> {
+    const response = await this.bridge.docker.system.pruneBuildCache();
+    return this.unwrapResult<unknown>(response);
+  }
+
   async listContainers(options?: Docker.ContainerListOptions): Promise<DockerContainerInfo[]> {
     const response = await this.bridge.docker.containers.list(options);
     return this.unwrapResult<DockerContainerInfo[]>(response);

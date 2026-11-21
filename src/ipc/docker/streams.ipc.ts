@@ -36,6 +36,34 @@ function stopStreamSession(streamId: string): boolean {
   return true;
 }
 
+export function stopAllStreamSessions(ownerWebContentsId?: number): void {
+  for (const [id, session] of streamSessions.entries()) {
+    if (ownerWebContentsId !== undefined && session.ownerWebContentsId !== ownerWebContentsId) {
+      continue;
+    }
+    try {
+      session.abortController?.abort();
+      session.stop();
+    } catch {
+      // Ignore cleanup error
+    }
+    streamSessions.delete(id);
+  }
+}
+
+const watchedWebContents = new Set<number>();
+
+function ensureWebContentsDestroyCleanup(sender: Electron.WebContents): void {
+  if (watchedWebContents.has(sender.id)) {
+    return;
+  }
+  watchedWebContents.add(sender.id);
+  sender.once('destroyed', () => {
+    watchedWebContents.delete(sender.id);
+    stopAllStreamSessions(sender.id);
+  });
+}
+
 interface StreamHandlerContext {
   streamId: string;
   sender: Electron.WebContents;
@@ -67,9 +95,7 @@ function createStreamHandler(
         }
       });
 
-      event.sender.once('destroyed', () => {
-        stopStreamSession(streamId);
-      });
+      ensureWebContentsDestroyCleanup(event.sender);
 
       setupStream({ streamId, sender: event.sender }, stream);
 
@@ -118,9 +144,7 @@ function createProgressHandler<TProgress, TResult>(
         }
       });
 
-      event.sender.once('destroyed', () => {
-        stopStreamSession(streamId);
-      });
+      ensureWebContentsDestroyCleanup(event.sender);
 
       void operationProducer(abortController.signal, progress => {
         if (!active) return;

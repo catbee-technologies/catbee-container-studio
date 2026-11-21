@@ -1,5 +1,5 @@
+import { app, BrowserWindow } from 'electron';
 import { autoUpdater } from 'electron-updater';
-import { BrowserWindow } from 'electron';
 import { isDev } from './constants';
 import { logger } from '../logger';
 import { IPC_CHANNELS } from '../../ipc/channels';
@@ -33,6 +33,157 @@ export type AutoUpdaterStatus =
     };
 
 let mainWindow: BrowserWindow | null = null;
+
+export interface ReleaseNotesInfo {
+  version: string;
+  releaseName: string;
+  notes: string;
+  publishedAt: string;
+  htmlUrl: string;
+}
+
+const releaseNotesCache = new Map<string, ReleaseNotesInfo>();
+
+export async function getReleaseNotes(version?: string): Promise<ReleaseNotesInfo | null> {
+  let targetTag: string | null = null;
+  if (version) {
+    targetTag = version.startsWith('v') ? version : `v${version}`;
+  }
+  const cacheKey = targetTag ?? 'latest';
+
+  if (releaseNotesCache.has(cacheKey)) {
+    return releaseNotesCache.get(cacheKey)!;
+  }
+
+  const url = targetTag
+    ? `https://api.github.com/repos/catbee-technologies/catbee-container-studio/releases/tags/${encodeURIComponent(targetTag)}`
+    : `https://api.github.com/repos/catbee-technologies/catbee-container-studio/releases/latest`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'CatBee-Container-Studio-App',
+        Accept: 'application/vnd.github.v3+json'
+      }
+    });
+
+    if (!res.ok) {
+      logger.warn(`[AutoUpdater] Release not found on GitHub for ${cacheKey} (HTTP ${res.status})`);
+      return null;
+    }
+
+    const data = (await res.json()) as {
+      tag_name?: string;
+      name?: string;
+      body?: string;
+      published_at?: string;
+      html_url?: string;
+    };
+
+    const info: ReleaseNotesInfo = {
+      version: data.tag_name?.replace(/^v/, '') ?? version ?? '',
+      releaseName: data.name ?? data.tag_name ?? '',
+      notes: data.body ?? 'No release notes provided for this version.',
+      publishedAt: data.published_at ?? '',
+      htmlUrl: data.html_url ?? `https://github.com/catbee-technologies/catbee-container-studio/releases`
+    };
+
+    releaseNotesCache.set(cacheKey, info);
+    return info;
+  } catch (error) {
+    logger.warn({ err: error }, `[AutoUpdater] Failed to fetch release notes for ${cacheKey}`);
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+const MS_STORE_PRODUCT_ID = '9NX6H3J2RNX2';
+const MS_STORE_CATALOG_URL = `https://displaycatalog.mp.microsoft.com/v7.0/products/${MS_STORE_PRODUCT_ID}?market=US&languages=en-us`;
+
+function compareVersions(v1: string, v2: string): number {
+  const clean = (v: string) => v.replace(/^v/i, '').split('-')[0];
+  const parts1 = clean(v1)
+    .split('.')
+    .map(n => Number.parseInt(n, 10) || 0);
+  const parts2 = clean(v2)
+    .split('.')
+    .map(n => Number.parseInt(n, 10) || 0);
+  const len = Math.max(parts1.length, parts2.length);
+  for (let i = 0; i < len; i++) {
+    const p1 = parts1[i] ?? 0;
+    const p2 = parts2[i] ?? 0;
+    if (p1 > p2) return 1;
+    if (p1 < p2) return -1;
+  }
+  return 0;
+}
+
+async function checkMicrosoftStoreVersion(): Promise<string | null> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(MS_STORE_CATALOG_URL, { signal: controller.signal });
+    if (!res.ok) {
+      throw new Error(`Display Catalog responded with HTTP ${res.status}`);
+    }
+    const data = (await res.json()) as {
+      Product?: {
+        DisplaySkuAvailabilities?: Array<{
+          Sku?: {
+            Properties?: {
+              Packages?: Array<{
+                PackageFullName?: string;
+                Version?: string;
+              }>;
+            };
+          };
+        }>;
+      };
+    };
+
+    let latestVersion: string | null = null;
+    const availabilities = data.Product?.DisplaySkuAvailabilities ?? [];
+    for (const sku of availabilities) {
+      const packages = sku.Sku?.Properties?.Packages ?? [];
+      for (const pkg of packages) {
+        let ver: string | null = null;
+        if (pkg.PackageFullName) {
+          const match = /_(\d+(?:\.\d+)+)_/.exec(pkg.PackageFullName);
+          if (match) {
+            ver = match[1];
+          }
+        }
+        if (!ver && pkg.Version) {
+          try {
+            const v = BigInt(pkg.Version);
+            const major = (v >> 48n) & 0xffffn;
+            const minor = (v >> 32n) & 0xffffn;
+            const build = (v >> 16n) & 0xffffn;
+            const rev = v & 0xffffn;
+            ver = `${major}.${minor}.${build}.${rev}`;
+          } catch {
+            // ignore
+          }
+        }
+
+        if (ver) {
+          const normalized = ver.replace(/\.0$/, '');
+          if (!latestVersion || compareVersions(normalized, latestVersion) > 0) {
+            latestVersion = normalized;
+          }
+        }
+      }
+    }
+    return latestVersion;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 export function initializeAutoUpdater(window: BrowserWindow): void {
   mainWindow = window;
@@ -86,8 +237,31 @@ export function isMicrosoftStoreInstallation(): boolean {
 }
 
 export async function checkForUpdates(): Promise<void> {
-  if (isDev || isMicrosoftStoreInstallation()) {
+  if (isDev) {
     logger.info('[AutoUpdater] Skipping update check in development.');
+    return;
+  }
+
+  if (isMicrosoftStoreInstallation()) {
+    logger.info('[AutoUpdater] Checking Microsoft Store Display Catalog for updates...');
+    sendStatus({ status: 'checking' });
+    try {
+      const storeVersion = await checkMicrosoftStoreVersion();
+      const currentVersion = app.getVersion();
+      if (storeVersion && compareVersions(storeVersion, currentVersion) > 0) {
+        logger.info(`[AutoUpdater] Microsoft Store update available: ${storeVersion}`);
+        sendStatus({ status: 'available', version: storeVersion });
+      } else {
+        logger.info(`[AutoUpdater] Microsoft Store app is up to date (${currentVersion})`);
+        sendStatus({ status: 'not-available', version: currentVersion });
+      }
+    } catch (error) {
+      logger.error({ err: error }, '[AutoUpdater] Failed to check Microsoft Store updates');
+      sendStatus({
+        status: 'error',
+        message: 'Unable to check for Microsoft Store updates. Please check your internet connection.'
+      });
+    }
     return;
   }
 

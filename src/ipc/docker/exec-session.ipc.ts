@@ -20,6 +20,24 @@ type ExecSession = {
 
 const execSessions = new Map<string, ExecSession>();
 
+const watchedExecWebContents = new Set<number>();
+
+function ensureExecWebContentsCleanup(sender: Electron.WebContents): void {
+  if (watchedExecWebContents.has(sender.id)) {
+    return;
+  }
+  watchedExecWebContents.add(sender.id);
+  sender.once('destroyed', () => {
+    watchedExecWebContents.delete(sender.id);
+    for (const [id, session] of execSessions.entries()) {
+      if (session.ownerWebContentsId === sender.id) {
+        session.stop();
+        execSessions.delete(id);
+      }
+    }
+  });
+}
+
 function stopExecSession(sessionId: string): boolean {
   const session = execSessions.get(sessionId);
   if (!session) {
@@ -78,9 +96,7 @@ export function registerDockerExecSessionHandlers(): void {
           }
         });
 
-        event.sender.once('destroyed', () => {
-          stopExecSession(sessionId);
-        });
+        ensureExecWebContentsCleanup(event.sender);
 
         return ok({ sessionId, execId });
       } catch (error) {

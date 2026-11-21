@@ -9,7 +9,12 @@ import { contextBridge, ipcRenderer } from 'electron';
 const IPC_CHANNELS = {
   App: {
     Platform: {
-      Get: 'app:platform:get'
+      Get: 'app:platform:get',
+      GetInfo: 'app:platform:get-info',
+      OpenLogs: 'app:platform:open-logs',
+      OpenEngineDir: 'app:platform:open-engine-dir',
+      GetStartAtLogin: 'app:platform:get-start-at-login',
+      SetStartAtLogin: 'app:platform:set-start-at-login'
     },
     External: {
       Open: 'app:external:open'
@@ -26,6 +31,9 @@ const IPC_CHANNELS = {
       ToggleMaximize: 'app:window:toggle-maximize',
       Close: 'app:window:close'
     },
+    Quit: 'app:quit',
+    Quitting: 'app:quitting',
+    Navigate: 'app:navigate',
     Menu: {
       Show: 'app:menu:show',
       ShowSubmenu: 'app:menu:show-submenu'
@@ -36,12 +44,37 @@ const IPC_CHANNELS = {
       },
       RendererReady: 'app:initialization:renderer-ready'
     },
+    Engine: {
+      Install: 'app:engine:install',
+      Start: 'app:engine:start',
+      Stop: 'app:engine:stop',
+      Restart: 'app:engine:restart',
+      Pause: 'app:engine:pause',
+      Resume: 'app:engine:resume',
+      GetPauseStatus: 'app:engine:get-pause-status',
+      Status: 'app:engine:status',
+      CheckPrerequisites: 'app:engine:check-prerequisites',
+      GetContextInfo: 'app:engine:get-context-info',
+      UseContext: 'app:engine:use-context',
+      SetupCatBeeContext: 'app:engine:setup-catbee-context',
+      GetSettings: 'app:engine:get-settings',
+      SaveSettings: 'app:engine:save-settings',
+      GetWslDistros: 'app:engine:get-wsl-distros',
+      ApplyWslDistroIntegration: 'app:engine:apply-wsl-distro-integration',
+      Uninstall: 'app:engine:uninstall',
+      Progress: 'app:engine:progress',
+      ApplySettings: 'app:engine:apply-settings',
+      ResetSettings: 'app:engine:reset-settings',
+      GetDaemonConfig: 'app:engine:get-daemon-config',
+      GetBuilderInfo: 'app:engine:get-builder-info'
+    },
     Updater: {
       CheckForUpdates: 'app:updater:check-for-updates',
       DownloadUpdate: 'app:updater:download-update',
       RestartAndInstallUpdate: 'app:updater:restart-and-install-update',
       Status: 'app:updater:status',
-      IsMicrosoftStore: 'app:updater:is-microsoft-store'
+      IsMicrosoftStore: 'app:updater:is-microsoft-store',
+      GetReleaseNotes: 'app:updater:get-release-notes'
     }
   },
   Docker: {
@@ -147,7 +180,12 @@ const IPC_CHANNELS = {
 const electronBridge = {
   app: {
     platform: {
-      get: () => ipcRenderer.invoke(IPC_CHANNELS.App.Platform.Get)
+      get: () => ipcRenderer.invoke(IPC_CHANNELS.App.Platform.Get),
+      getInfo: () => ipcRenderer.invoke(IPC_CHANNELS.App.Platform.GetInfo),
+      openLogs: () => ipcRenderer.invoke(IPC_CHANNELS.App.Platform.OpenLogs),
+      openEngineDir: () => ipcRenderer.invoke(IPC_CHANNELS.App.Platform.OpenEngineDir),
+      getStartAtLogin: () => ipcRenderer.invoke(IPC_CHANNELS.App.Platform.GetStartAtLogin),
+      setStartAtLogin: (enabled: boolean) => ipcRenderer.invoke(IPC_CHANNELS.App.Platform.SetStartAtLogin, enabled)
     },
     external: {
       open: (url: string) => ipcRenderer.invoke(IPC_CHANNELS.App.External.Open, url)
@@ -163,6 +201,28 @@ const electronBridge = {
       getState: () => ipcRenderer.invoke(IPC_CHANNELS.App.Window.GetState),
       toggleMaximize: () => ipcRenderer.invoke(IPC_CHANNELS.App.Window.ToggleMaximize),
       close: () => ipcRenderer.invoke(IPC_CHANNELS.App.Window.Close)
+    },
+    quit: () => ipcRenderer.invoke(IPC_CHANNELS.App.Quit),
+    onNavigate: (callback: (payload: { path: string; queryParams?: Record<string, string> }) => void) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        payload: { path: string; queryParams?: Record<string, string> }
+      ): void => {
+        callback(payload);
+      };
+      ipcRenderer.on(IPC_CHANNELS.App.Navigate, listener);
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.App.Navigate, listener);
+      };
+    },
+    onQuitting: (callback: () => void) => {
+      const listener = (): void => {
+        callback();
+      };
+      ipcRenderer.on(IPC_CHANNELS.App.Quitting, listener);
+      return () => {
+        ipcRenderer.removeListener(IPC_CHANNELS.App.Quitting, listener);
+      };
     },
     menu: {
       show: () => ipcRenderer.invoke(IPC_CHANNELS.App.Menu.Show),
@@ -184,6 +244,40 @@ const electronBridge = {
         ipcRenderer.send(IPC_CHANNELS.App.Initialization.RendererReady);
       }
     },
+    engine: {
+      install: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Install),
+      start: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Start),
+      stop: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Stop),
+      restart: (mode?: string) => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Restart, mode),
+      pause: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Pause),
+      resume: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Resume),
+      getPauseStatus: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetPauseStatus),
+      getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Status),
+      checkPrerequisites: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.CheckPrerequisites),
+      getContextInfo: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetContextInfo),
+      useContext: (contextName: string) => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.UseContext, contextName),
+      setupCatBeeContext: (setAsActive?: boolean, customEndpoint?: string) =>
+        ipcRenderer.invoke(IPC_CHANNELS.App.Engine.SetupCatBeeContext, setAsActive, customEndpoint),
+      getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetSettings),
+      saveSettings: (settings: unknown) => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.SaveSettings, settings),
+      resetSettings: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.ResetSettings),
+      getWslDistros: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetWslDistros),
+      applyWslDistroIntegration: (distroName: string, enabled: boolean) =>
+        ipcRenderer.invoke(IPC_CHANNELS.App.Engine.ApplyWslDistroIntegration, distroName, enabled),
+      uninstall: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.Uninstall),
+      onProgress: (callback: (progress: unknown) => void) => {
+        const listener = (_event: Electron.IpcRendererEvent, progress: unknown): void => {
+          callback(progress);
+        };
+        ipcRenderer.on(IPC_CHANNELS.App.Engine.Progress, listener);
+        return () => {
+          ipcRenderer.removeListener(IPC_CHANNELS.App.Engine.Progress, listener);
+        };
+      },
+      applySettings: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.ApplySettings),
+      getDaemonConfig: (settings?: unknown) => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetDaemonConfig, settings),
+      getBuilderInfo: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetBuilderInfo)
+    },
     updater: {
       checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.App.Updater.CheckForUpdates),
       downloadUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.App.Updater.DownloadUpdate),
@@ -197,7 +291,8 @@ const electronBridge = {
           ipcRenderer.removeListener(IPC_CHANNELS.App.Updater.Status, listener);
         };
       },
-      isMicrosoftStore: () => ipcRenderer.invoke(IPC_CHANNELS.App.Updater.IsMicrosoftStore)
+      isMicrosoftStore: () => ipcRenderer.invoke(IPC_CHANNELS.App.Updater.IsMicrosoftStore),
+      getReleaseNotes: (version?: string) => ipcRenderer.invoke(IPC_CHANNELS.App.Updater.GetReleaseNotes, version)
     }
   },
   docker: {
