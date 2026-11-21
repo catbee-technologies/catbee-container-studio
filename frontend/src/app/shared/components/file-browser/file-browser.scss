@@ -256,7 +256,7 @@ tr.selected td {
 }
 
 .spinning {
-  animation: file-browser-spin 850ms linear infinite;
+  animation: spin 850ms linear infinite;
 }
 
 @media (max-width: 900px) {
@@ -280,11 +280,5 @@ tr.selected td {
   .directory-panel {
     border-right: 0;
     border-bottom: 1px solid var(--border-color-primary);
-  }
-}
-
-@keyframes file-browser-spin {
-  to {
-    transform: rotate(360deg);
   }
 }
