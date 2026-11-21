@@ -7,9 +7,6 @@
 }
 
 .no-select {
-  -moz-user-select: none;
-  -ms-user-select: none;
-  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -21,10 +18,95 @@
   cursor: not-allowed;
 }
 
+.disabled-card,
+.disabled-group {
+  opacity: 0.6;
+  pointer-events: none;
+  user-select: none;
+  cursor: not-allowed;
+  transition: opacity var(--transition-base);
+
+  // Prevent opacity compounding on nested disabled children
+  .is-disabled,
+  .disabled,
+  [disabled],
+  catbee-container-studio-switch-input,
+  .switch-toggle {
+    opacity: 1 !important;
+  }
+
+  * {
+    pointer-events: none !important;
+  }
+}
+
 .hidden {
   display: none !important;
 }
 
 .m-0 {
   margin: 0;
+}
+
+@keyframes settingHighlightPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.75);
+    outline-color: var(--color-active-border);
+  }
+  35% {
+    box-shadow:
+      0 0 0 6px rgba(79, 70, 229, 0.45),
+      0 0 20px rgba(79, 70, 229, 0.3);
+    outline-color: var(--color-active-border);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+    outline-color: transparent;
+  }
+}
+
+.setting-highlight-pulse {
+  animation: settingHighlightPulse 1.25s ease-out 2 !important;
+  border-radius: var(--radius-md) !important;
+  outline: 2px solid var(--color-active-border) !important;
+  outline-offset: 4px !important;
+  transition:
+    outline-color 0.3s ease,
+    box-shadow 0.3s ease !important;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none !important;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.2s ease-out;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none !important;
+  }
 }
