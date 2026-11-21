@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { logger } from '../../logger';
@@ -181,20 +181,90 @@ export async function getEngineSettings(): Promise<EngineSettings> {
   }
 }
 
-export async function saveEngineSettings(settings: Partial<EngineSettings>): Promise<EngineSettings> {
-  const filePath = getEngineSettingsFilePath();
-  try {
-    await mkdir(path.dirname(filePath), { recursive: true });
-    const updated = mergeEngineSettings(await getEngineSettings(), settings);
+let saveQueue = Promise.resolve();
 
-    // Write atomically so a crash mid-write cannot corrupt the settings file.
-    const tempPath = `${filePath}.tmp`;
-    await writeFile(tempPath, JSON.stringify(updated, null, 2), 'utf8');
-    await rename(tempPath, filePath);
-    logger.info({ settings: updated }, '[EngineSettings] Successfully saved engine settings.');
-    return updated;
-  } catch (error) {
-    logger.error({ err: error }, '[EngineSettings] Failed to save engine settings.');
-    throw error;
+async function atomicWriteFile(filePath: string, data: string): Promise<void> {
+  await mkdir(path.dirname(filePath), { recursive: true });
+  const uniqueId = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const tempPath = `${filePath}.${uniqueId}.tmp`;
+
+  try {
+    await writeFile(tempPath, data, 'utf8');
+    let renamed = false;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      try {
+        await rename(tempPath, filePath);
+        renamed = true;
+        break;
+      } catch (err: unknown) {
+        const code = (err as { code?: string })?.code;
+        if (attempt < 5 && (code === 'EPERM' || code === 'EBUSY' || code === 'ENOENT')) {
+          await new Promise(resolve => setTimeout(resolve, attempt * 40));
+          continue;
+        }
+        try {
+          await copyFile(tempPath, filePath);
+          renamed = true;
+          break;
+        } catch {
+          throw err;
+        }
+      }
+    }
+
+    if (!renamed) {
+      await rename(tempPath, filePath);
+    }
+  } finally {
+    await unlink(tempPath).catch(() => {});
   }
+}
+
+export function saveEngineSettings(settings: Partial<EngineSettings>): Promise<EngineSettings> {
+  const op = async (): Promise<EngineSettings> => {
+    const filePath = getEngineSettingsFilePath();
+    try {
+      const current = await getEngineSettings();
+      const updated = mergeEngineSettings(current, settings);
+
+      await atomicWriteFile(filePath, JSON.stringify(updated, null, 2));
+      logger.info({ settings: updated }, '[EngineSettings] Successfully saved engine settings.');
+      return updated;
+    } catch (error) {
+      logger.error({ err: error }, '[EngineSettings] Failed to save engine settings.');
+      throw error;
+    }
+  };
+
+  const next = saveQueue.then(op, op);
+  saveQueue = next.then(
+    () => {},
+    () => {}
+  );
+  return next;
+}
+
+export function resetEngineSettings(): Promise<EngineSettings> {
+  const op = async (): Promise<EngineSettings> => {
+    const filePath = getEngineSettingsFilePath();
+    try {
+      const current = await getEngineSettings();
+      // If the user is currently using the CatBee built-in engine, keep it in embedded mode
+      const preservedMode = current.engineMode === 'embedded' ? 'embedded' : DEFAULT_ENGINE_SETTINGS.engineMode;
+      const reset = mergeEngineSettings(DEFAULT_ENGINE_SETTINGS, { engineMode: preservedMode });
+      await atomicWriteFile(filePath, JSON.stringify(reset, null, 2));
+      logger.info({ settings: reset }, '[EngineSettings] Successfully reset engine settings to defaults.');
+      return reset;
+    } catch (error) {
+      logger.error({ err: error }, '[EngineSettings] Failed to reset engine settings.');
+      throw error;
+    }
+  };
+
+  const next = saveQueue.then(op, op);
+  saveQueue = next.then(
+    () => {},
+    () => {}
+  );
+  return next;
 }
