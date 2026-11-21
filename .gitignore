@@ -45,3 +45,8 @@ __screenshots__/
 Thumbs.db
 
 *.pem
+
+# Release workflow artifacts
+previous_tag.txt
+changelog.md
+release-notes.md
