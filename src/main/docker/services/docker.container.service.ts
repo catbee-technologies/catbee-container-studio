@@ -1,5 +1,6 @@
 import type Docker from 'dockerode';
 import { access } from 'node:fs/promises';
+import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { Readable } from 'node:stream';
@@ -26,7 +27,16 @@ export interface RecreateContainerOptions {
   restartPolicy?: { Name: string; MaximumRetryCount?: number };
 }
 
+export type ContainerEnvDefaultsProvider = () => Promise<Record<string, string>>;
+
 export class DockerContainerService extends DockerBaseService {
+  constructor(
+    client: Docker,
+    private readonly envDefaults?: ContainerEnvDefaultsProvider
+  ) {
+    super(client);
+  }
+
   async listContainers(options?: Docker.ContainerListOptions): Promise<Docker.ContainerInfo[]> {
     const containers = await this.client.listContainers({ all: true, ...(options ?? {}) });
     return containers;
@@ -38,8 +48,26 @@ export class DockerContainerService extends DockerBaseService {
   }
 
   async createContainer(options: Docker.ContainerCreateOptions): Promise<Docker.ContainerInspectInfo> {
-    const container = await this.client.createContainer(options);
+    const container = await this.client.createContainer(await this.withEnvDefaults(options));
     return container.inspect();
+  }
+
+  /** Adds default variables (e.g. proxy settings) without overriding any the caller set, like the Docker CLI. */
+  private async withEnvDefaults(options: Docker.ContainerCreateOptions): Promise<Docker.ContainerCreateOptions> {
+    if (!this.envDefaults) return options;
+    let defaults: Record<string, string>;
+    try {
+      defaults = await this.envDefaults();
+    } catch (err) {
+      logger.debug({ err }, '[DockerContainerService] Could not resolve default container environment.');
+      return options;
+    }
+    const env = options.Env ?? [];
+    const defined = new Set(env.map(entry => entry.split('=')[0]));
+    const additions = Object.entries(defaults)
+      .filter(([name]) => !defined.has(name))
+      .map(([name, value]) => `${name}=${value}`);
+    return additions.length ? { ...options, Env: [...env, ...additions] } : options;
   }
 
   async startContainer(containerId: string): Promise<DockerActionResult> {
@@ -67,18 +95,20 @@ export class DockerContainerService extends DockerBaseService {
     service?: string;
     services?: string[];
   }): Promise<DockerActionResult> {
-    const workingDir = options.workingDir;
-    if (!workingDir) {
-      throw new Error('Cannot recreate compose group: working directory is not specified.');
-    }
-
-    try {
-      await access(workingDir);
-    } catch {
+    const rawWorkingDir = options.workingDir;
+    if (
+      !rawWorkingDir ||
+      typeof rawWorkingDir !== 'string' ||
+      !path.isAbsolute(rawWorkingDir) ||
+      rawWorkingDir.includes('\0') ||
+      rawWorkingDir.includes('..') ||
+      path.normalize(rawWorkingDir) !== rawWorkingDir
+    ) {
       throw new Error(
-        `Cannot recreate compose group: working directory "${workingDir}" does not exist on this machine.`
+        'Cannot recreate compose group: working directory must be a valid absolute path without traversal.'
       );
     }
+    const workingDir = path.resolve(rawWorkingDir);
 
     const dockerCli = (await getDockerCliPath()) || 'docker';
 
@@ -125,6 +155,11 @@ export class DockerContainerService extends DockerBaseService {
       stderr = res.stderr;
     } catch (err: unknown) {
       const errorStr = String(err);
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT' || errorStr.includes('ENOENT')) {
+        throw new Error(
+          `Cannot recreate compose group: working directory "${workingDir}" does not exist on this machine or Docker CLI was not found.`
+        );
+      }
       if (errorStr.includes('is not a docker command') || errorStr.includes('unknown command: docker compose')) {
         logger.warn('[DockerContainerService] "docker compose" failed. Trying "docker-compose" fallback.');
         const standaloneArgs = composeArgs.slice(1);
