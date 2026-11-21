@@ -52,7 +52,11 @@ const START_SCRIPT = `#!/bin/sh
 mount --make-rshared / 2>/dev/null || true
 mkdir -p /var/log/docker /var/run
 if [ -f /var/run/docker.pid ] && kill -0 "$(cat /var/run/docker.pid)" 2>/dev/null; then
-  echo "dockerd already running" >&2
+  echo "dockerd already running, keeping WSL session alive" >&2
+  PID="$(cat /var/run/docker.pid)"
+  while kill -0 "$PID" 2>/dev/null; do
+    sleep 2
+  done
   exit 0
 fi
 rm -f /var/run/docker.pid /var/run/docker.sock /var/run/docker/containerd/containerd.pid
@@ -267,13 +271,22 @@ export class WslEngineDriver implements PlatformEngineDriver {
       await this.writeFileInDistro(DAEMON_CONFIG_PATH, desiredConfig);
     }
 
+    const currentStartScript = await this.sh(`cat ${START_SCRIPT_PATH} 2>/dev/null || true`)
+      .then(r => r.stdout)
+      .catch(() => '');
+    if (currentStartScript.trim() !== START_SCRIPT.trim()) {
+      await this.writeFileInDistro(START_SCRIPT_PATH, START_SCRIPT);
+      await this.sh(`chmod +x ${START_SCRIPT_PATH}`);
+    }
+
     const alreadyRunning = await pingDockerEndpoint(TCP_CONNECTION);
     if (alreadyRunning && configChanged) {
       onStatus?.('Restarting Docker Engine to apply new settings...');
       await this.stopDaemon();
     }
 
-    if (!alreadyRunning || configChanged) {
+    const hasActiveKeeper = this.daemonProcess !== null && this.daemonProcess.exitCode === null;
+    if (!alreadyRunning || configChanged || !hasActiveKeeper) {
       onStatus?.('Starting Docker Engine in WSL 2...');
       this.spawnDaemon();
     }
