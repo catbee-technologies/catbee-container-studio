@@ -1,0 +1,687 @@
+<section class="settings-section">
+  <header class="settings-section-header">
+    <h2>Resources</h2>
+    <!-- Reusable Tabs Component for Resources Navigation -->
+    <div class="resources-tabs-nav-wrapper">
+      <catbee-container-studio-tabs
+        [tabs]="page.resourceTabItems()"
+        [activeTab]="page.activeResourceTab()"
+        ariaLabel="Resource Settings Tabs"
+        (activeTabChange)="page.onResourceTabChange($event)"
+      />
+    </div>
+  </header>
+  <div class="settings-section-body">
+    <!-- Advanced Sub-tab -->
+    @if (page.activeResourceTab() === 'advanced') {
+      <div class="tab-content-area">
+        @if (page.isExternalMode()) {
+          <catbee-container-studio-callout type="warning" title="External Engine Mode Active">
+            <p>
+              Hardware resource limits and disk image management are managed directly by your external Docker engine.
+            </p>
+          </catbee-container-studio-callout>
+        } @else if (page.isAutoExternalRuntime()) {
+          <catbee-container-studio-callout
+            type="subtle"
+            icon="info"
+            title="Connected to External Docker Engine (Auto Mode)"
+          >
+            <p>
+              CatBee is currently connected to an external Docker daemon. Hardware resource limits and VM allocation
+              configure the CatBee built-in engine and will apply whenever CatBee runs its built-in engine.
+            </p>
+          </catbee-container-studio-callout>
+        } @else if (page.isEngineNotInstalled()) {
+          <catbee-container-studio-callout type="subtle" icon="info" title="Built-in Engine Not Installed">
+            <p>
+              The CatBee Built-in Container Engine is not installed yet. You can configure your resource preferences in
+              advance; they will automatically take effect when the built-in engine is installed and started.
+            </p>
+          </catbee-container-studio-callout>
+        }
+
+        @if (!page.showVmResources()) {
+          <catbee-container-studio-callout type="info">
+            @if (page.capabilities(); as caps) {
+              <p>You are using the {{ caps.backendLabel }} backend.</p>
+              @if (caps.resourcesNote) {
+                <p>{{ caps.resourcesNote }}</p>
+              }
+            } @else {
+              <p>Resource limits are not managed by CatBee on this platform.</p>
+            }
+          </catbee-container-studio-callout>
+        } @else {
+          <!-- VM resource allocation (macOS / Lima) -->
+          <div class="resource-sliders-card" [class.disabled-card]="page.isExternalMode()">
+            <div class="sliders-title-group">
+              <h3 class="group-title">Virtual Machine Allocation</h3>
+              <p class="field-hint">
+                Adjust the hardware resources dedicated to the CatBee container engine VM.
+                @if (page.capabilities()?.resourcesNote; as note) {
+                  {{ note }}
+                }
+              </p>
+            </div>
+
+            @for (slider of page.vmSliders(); track slider.id) {
+              <div
+                [id]="'setting-res-' + slider.id"
+                class="resource-slider-row"
+                [class.is-danger]="slider.value > slider.dangerFrom"
+              >
+                <div class="slider-header">
+                  <span class="slider-title">{{ slider.label }}</span>
+                  <span class="slider-value">{{ slider.value }} {{ slider.unit }}</span>
+                </div>
+                <input
+                  type="range"
+                  class="resource-range-slider"
+                  [attr.aria-label]="slider.label"
+                  [min]="slider.min"
+                  [max]="slider.max"
+                  [step]="slider.step"
+                  [style.--fill-percent]="page.sliderPercent(slider, slider.value)"
+                  [style.--danger-percent]="page.sliderPercent(slider, slider.dangerFrom)"
+                  [disabled]="page.isExternalMode()"
+                  [value]="slider.value"
+                  (input)="page.setVmResource(slider.id, +$any($event.target).value)"
+                />
+                <div class="slider-ticks-row">
+                  <span>{{ slider.minLabel }}</span>
+                  <span>{{ slider.maxLabel }}</span>
+                </div>
+                @if (slider.value > slider.dangerFrom) {
+                  <span class="slider-warning">
+                    <span class="mat-icon-filled" aria-hidden="true">warning</span>
+                    {{ slider.warning }}
+                  </span>
+                }
+              </div>
+            }
+
+            @if (page.supportsRosetta()) {
+              <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+              <div
+                id="setting-res-rosetta"
+                class="checkbox-row switch-row"
+                [class.is-disabled]="page.isExternalMode()"
+                (click)="page.toggleSwitchRow($event, page.rosettaEnabled, page.isExternalMode())"
+              >
+                <catbee-container-studio-switch-input
+                  [(checked)]="page.rosettaEnabled"
+                  inputId="field-rosetta"
+                  [disabled]="page.isExternalMode()"
+                />
+                <label class="switch-row-text" for="field-rosetta">
+                  <span class="checkbox-label">Use Rosetta for x86_64/amd64 emulation on Apple Silicon</span>
+                  <span class="field-hint">
+                    Runs linux/amd64 images much faster than QEMU emulation. Requires Rosetta 2 to be installed.
+                  </span>
+                </label>
+              </div>
+            }
+          </div>
+        }
+
+        @if (page.dataLocation()) {
+          <div id="setting-disk-location" class="form-group" [class.disabled-group]="page.isExternalMode()">
+            <label class="group-title" for="field-disk-location">Disk image location</label>
+            <div class="path-input-row">
+              <input
+                id="field-disk-location"
+                type="text"
+                class="field-input path-input"
+                readonly
+                [value]="page.dataLocation()"
+              />
+              <button type="button" class="catbee-action-btn" (click)="page.revealDataLocation()">Reveal</button>
+            </div>
+          </div>
+        }
+
+        @if (page.supportsResourceSaver()) {
+          <!-- Resource Saver Card with discrete slider matching Docker Desktop -->
+          <div id="setting-resource-saver" class="resource-saver-box" [class.disabled-card]="page.isExternalMode()">
+            <div class="section-header-row">
+              <h3 class="group-title">Resource Saver</h3>
+              <span class="mat-icon-filled moon-icon" aria-hidden="true">nightlight</span>
+            </div>
+
+            <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+            <div
+              class="checkbox-row switch-row"
+              [class.is-disabled]="page.isExternalMode()"
+              (click)="page.toggleSwitchRow($event, page.resourceSaverEnabled, page.isExternalMode())"
+            >
+              <catbee-container-studio-switch-input
+                [formField]="page.settingsForm.resourceSaverEnabled"
+                inputId="field-resource-saver"
+              />
+              <label class="switch-row-text" for="field-resource-saver">
+                <span class="checkbox-label">Enable Resource Saver</span>
+                <span class="field-hint">
+                  Reduces CPU and memory utilization when no containers are running. Exit from Resource Saver mode
+                  happens automatically when containers are started.
+                </span>
+              </label>
+            </div>
+
+            <div class="saver-slider-group" [class.is-disabled]="!page.resourceSaverEnabled() || page.isExternalMode()">
+              <div class="saver-slider-header">
+                <p class="field-hint">
+                  Set the duration of time between no containers running and CatBee entering Resource Saver mode:
+                </p>
+                <span class="saver-current-badge">{{ page.saverTimeoutLabel() }}</span>
+              </div>
+
+              <catbee-container-studio-discrete-slider
+                [min]="0"
+                [max]="12"
+                [step]="1"
+                [value]="page.resourceSaverSliderIndex()"
+                [disabled]="!page.resourceSaverEnabled() || page.isExternalMode()"
+                [labels]="page.resourceSaverLabels"
+                ariaLabel="Resource Saver timeout slider"
+                (valueChange)="page.onResourceSaverSliderChange($event)"
+              />
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- File sharing Sub-tab (Docker Desktop Parity) -->
+    @if (page.activeResourceTab() === 'file-sharing') {
+      <div id="setting-res-file-sharing" class="tab-content-area">
+        @if (page.isExternalMode()) {
+          <catbee-container-studio-callout type="warning" title="External Engine Mode Active">
+            <p>
+              Bind mount permissions and file sharing paths are managed directly in your external Docker application
+              settings.
+            </p>
+          </catbee-container-studio-callout>
+        } @else if (page.isAutoExternalRuntime()) {
+          <catbee-container-studio-callout
+            type="subtle"
+            icon="info"
+            title="Connected to External Docker Engine (Auto Mode)"
+          >
+            <p>
+              File sharing paths configure the CatBee built-in engine and will take effect whenever CatBee runs its
+              built-in engine.
+            </p>
+          </catbee-container-studio-callout>
+        }
+
+        <p class="section-desc">
+          These directories (and their subdirectories) can be bind mounted into Docker containers.
+          {{ page.fileSharingDesc() }} Changes restart the engine VM.
+        </p>
+
+        <div class="file-sharing-input-row" [class.is-disabled]="page.isExternalMode()">
+          <div class="file-sharing-box" [class.is-invalid]="page.sharePathError()">
+            <input
+              id="setting-file-sharing-path"
+              type="text"
+              class="path-input-embedded"
+              [placeholder]="page.defaultSharedPath()"
+              [disabled]="page.isExternalMode()"
+              [value]="page.newSharePath()"
+              (input)="page.onSharePathInput($any($event.target).value)"
+              (keydown.enter)="page.addSharePath()"
+              aria-label="Path to share with containers"
+            />
+            <button
+              type="button"
+              class="browse-action-text-btn"
+              [disabled]="page.isExternalMode()"
+              (click)="page.browseSharePath()"
+            >
+              Browse
+            </button>
+          </div>
+          <button
+            type="button"
+            class="catbee-action-btn icon-only primary"
+            [disabled]="page.isExternalMode() || !page.newSharePath().trim()"
+            (click)="page.addSharePath()"
+            aria-label="Add directory"
+          >
+            <span class="mat-icon-filled" aria-hidden="true">add</span>
+          </button>
+        </div>
+        @if (page.sharePathError(); as err) {
+          <p class="field-error file-sharing-error">{{ err }}</p>
+        }
+
+        <div class="file-sharing-table-container">
+          <table class="file-sharing-table">
+            <thead>
+              <tr>
+                <th>Shared Paths</th>
+                <th class="col-actions"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (path of page.fileSharingPaths(); track path) {
+                <tr>
+                  <td class="path-cell">
+                    <span class="mat-icon-filled folder-icon" aria-hidden="true">folder</span>
+                    <span class="path-text">{{ path }}</span>
+                  </td>
+                  <td class="col-actions">
+                    <button
+                      type="button"
+                      class="catbee-action-btn icon-only sm danger"
+                      [disabled]="page.isExternalMode()"
+                      (click)="page.removeSharePath(path)"
+                      aria-label="Remove path"
+                    >
+                      <span class="mat-icon-filled" aria-hidden="true">delete</span>
+                    </button>
+                  </td>
+                </tr>
+              }
+              @if (page.fileSharingPaths().length === 0) {
+                <tr>
+                  <td colspan="2" class="empty-table-cell">
+                    No directories configured — your home folder and /var/folders are shared by default.
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+
+    <!-- Proxies Sub-tab (Docker Desktop Parity) -->
+    @if (page.activeResourceTab() === 'proxies') {
+      <div class="tab-content-area">
+        @if (page.isExternalMode()) {
+          <catbee-container-studio-callout type="warning" title="External Engine Mode Active">
+            <p>
+              Engine and container proxy configurations are managed directly in your external Docker application
+              settings.
+            </p>
+          </catbee-container-studio-callout>
+        } @else if (page.isAutoExternalRuntime()) {
+          <catbee-container-studio-callout
+            type="subtle"
+            icon="info"
+            title="Connected to External Docker Engine (Auto Mode)"
+          >
+            <p>
+              Proxy configurations configure the CatBee built-in engine and will take effect whenever CatBee runs its
+              built-in engine.
+            </p>
+          </catbee-container-studio-callout>
+        }
+
+        <p class="section-desc">
+          Configure HTTP/HTTPS proxies used by the CatBee built-in engine. Proxy changes are applied by reconfiguring
+          the running engine.
+        </p>
+
+        <!-- Section 1: Docker Desktop proxy -->
+        <div id="setting-res-desktop-proxy" class="proxy-block" [class.disabled-card]="page.isExternalMode()">
+          <h3 class="group-title">Engine proxy</h3>
+          <p class="field-hint">
+            Used by the Docker daemon for pulling and pushing images, and while installing the engine.
+          </p>
+
+          <div class="proxy-mode-row">
+            <span class="proxy-mode-heading">Proxy mode</span>
+            <div class="radio-inline-group" role="radiogroup" aria-label="Desktop proxy mode">
+              <catbee-container-studio-radio-input
+                name="desktopProxyMode"
+                value="system"
+                [disabled]="page.isExternalMode()"
+                [checked]="page.desktopProxy().mode === 'system'"
+                (selectChange)="page.setDesktopProxyMode('system')"
+              >
+                <span>System proxy</span>
+              </catbee-container-studio-radio-input>
+              <catbee-container-studio-radio-input
+                name="desktopProxyMode"
+                value="none"
+                [disabled]="page.isExternalMode()"
+                [checked]="page.desktopProxy().mode === 'none'"
+                (selectChange)="page.setDesktopProxyMode('none')"
+              >
+                <span>No proxy</span>
+              </catbee-container-studio-radio-input>
+              <catbee-container-studio-radio-input
+                name="desktopProxyMode"
+                value="manual"
+                [disabled]="page.isExternalMode()"
+                [checked]="page.desktopProxy().mode === 'manual'"
+                (selectChange)="page.setDesktopProxyMode('manual')"
+              >
+                <span>Manual configuration</span>
+              </catbee-container-studio-radio-input>
+            </div>
+          </div>
+
+          @if (page.desktopProxy().mode === 'manual') {
+            <div class="proxy-manual-card">
+              <div class="form-group">
+                <label class="field-label" for="setting-desktop-http-proxy">Web Server (HTTP)</label>
+                <input
+                  id="setting-desktop-http-proxy"
+                  type="text"
+                  class="field-input"
+                  [class.is-invalid]="page.desktopHttpProxyError()"
+                  placeholder="http://proxy.example.com:8080"
+                  [disabled]="page.isExternalMode()"
+                  [value]="page.desktopProxy().httpProxy || ''"
+                  (input)="page.updateDesktopProxyField('httpProxy', $any($event.target).value)"
+                />
+                @if (page.desktopHttpProxyError(); as err) {
+                  <p class="field-error">{{ err }}</p>
+                }
+              </div>
+              <div class="form-group">
+                <label class="field-label" for="setting-desktop-https-proxy">Secure Web Server (HTTPS)</label>
+                <input
+                  id="setting-desktop-https-proxy"
+                  type="text"
+                  class="field-input"
+                  [class.is-invalid]="page.desktopHttpsProxyError()"
+                  placeholder="https://proxy.example.com:8443"
+                  [disabled]="page.isExternalMode()"
+                  [value]="page.desktopProxy().httpsProxy || ''"
+                  (input)="page.updateDesktopProxyField('httpsProxy', $any($event.target).value)"
+                />
+                @if (page.desktopHttpsProxyError(); as err) {
+                  <p class="field-error">{{ err }}</p>
+                }
+              </div>
+              <div class="form-group">
+                <label class="field-label" for="setting-desktop-no-proxy"
+                  >Bypass proxy settings for these hosts & domains</label
+                >
+                <input
+                  id="setting-desktop-no-proxy"
+                  type="text"
+                  class="field-input"
+                  placeholder="localhost,127.0.0.1,docker.internal"
+                  [disabled]="page.isExternalMode()"
+                  [value]="page.desktopProxy().noProxy || ''"
+                  (input)="page.updateDesktopProxyField('noProxy', $any($event.target).value)"
+                />
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Section 2: Containers proxy -->
+        <div id="setting-res-containers-proxy" class="proxy-block" [class.disabled-card]="page.isExternalMode()">
+          <h3 class="group-title">Containers proxy</h3>
+          <p class="field-hint">
+            Injected as HTTP(S)_PROXY into new containers created by CatBee and into containers and builds started with
+            the Docker CLI against the catbee-desktop context. Variables you set yourself win.
+          </p>
+
+          <div class="proxy-mode-row">
+            <span class="proxy-mode-heading">Proxy mode</span>
+            <div class="radio-inline-group" role="radiogroup" aria-label="Containers proxy mode">
+              <catbee-container-studio-radio-input
+                name="containersProxyMode"
+                value="same-as-host"
+                [disabled]="page.isExternalMode()"
+                [checked]="page.containersProxy().mode === 'same-as-host'"
+                (selectChange)="page.setContainersProxyMode('same-as-host')"
+              >
+                <span>Same as host proxy</span>
+              </catbee-container-studio-radio-input>
+              <catbee-container-studio-radio-input
+                name="containersProxyMode"
+                value="system"
+                [disabled]="page.isExternalMode()"
+                [checked]="page.containersProxy().mode === 'system'"
+                (selectChange)="page.setContainersProxyMode('system')"
+              >
+                <span>System proxy</span>
+              </catbee-container-studio-radio-input>
+              <catbee-container-studio-radio-input
+                name="containersProxyMode"
+                value="none"
+                [disabled]="page.isExternalMode()"
+                [checked]="page.containersProxy().mode === 'none'"
+                (selectChange)="page.setContainersProxyMode('none')"
+              >
+                <span>No proxy</span>
+              </catbee-container-studio-radio-input>
+              <catbee-container-studio-radio-input
+                name="containersProxyMode"
+                value="manual"
+                [disabled]="page.isExternalMode()"
+                [checked]="page.containersProxy().mode === 'manual'"
+                (selectChange)="page.setContainersProxyMode('manual')"
+              >
+                <span>Manual configuration</span>
+              </catbee-container-studio-radio-input>
+            </div>
+          </div>
+
+          @if (page.containersProxy().mode === 'manual') {
+            <div class="proxy-manual-card">
+              <div class="form-group">
+                <label class="field-label" for="setting-containers-http-proxy">Web Server (HTTP)</label>
+                <input
+                  id="setting-containers-http-proxy"
+                  type="text"
+                  class="field-input"
+                  [class.is-invalid]="page.containersHttpProxyError()"
+                  placeholder="http://proxy.example.com:8080"
+                  [disabled]="page.isExternalMode()"
+                  [value]="page.containersProxy().httpProxy || ''"
+                  (input)="page.updateContainersProxyField('httpProxy', $any($event.target).value)"
+                />
+                @if (page.containersHttpProxyError(); as err) {
+                  <p class="field-error">{{ err }}</p>
+                }
+              </div>
+              <div class="form-group">
+                <label class="field-label" for="setting-containers-https-proxy">Secure Web Server (HTTPS)</label>
+                <input
+                  id="setting-containers-https-proxy"
+                  type="text"
+                  class="field-input"
+                  [class.is-invalid]="page.containersHttpsProxyError()"
+                  placeholder="https://proxy.example.com:8443"
+                  [disabled]="page.isExternalMode()"
+                  [value]="page.containersProxy().httpsProxy || ''"
+                  (input)="page.updateContainersProxyField('httpsProxy', $any($event.target).value)"
+                />
+                @if (page.containersHttpsProxyError(); as err) {
+                  <p class="field-error">{{ err }}</p>
+                }
+              </div>
+              <div class="form-group">
+                <label class="field-label" for="setting-containers-no-proxy"
+                  >Bypass proxy settings for these hosts & domains</label
+                >
+                <input
+                  id="setting-containers-no-proxy"
+                  type="text"
+                  class="field-input"
+                  placeholder="localhost,127.0.0.1"
+                  [disabled]="page.isExternalMode()"
+                  [value]="page.containersProxy().noProxy || ''"
+                  (input)="page.updateContainersProxyField('noProxy', $any($event.target).value)"
+                />
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- Network Sub-tab (Docker Desktop Parity) -->
+    @if (page.activeResourceTab() === 'network') {
+      <div class="tab-content-area">
+        @if (page.isExternalMode()) {
+          <catbee-container-studio-callout type="warning" title="External Engine Mode Active">
+            <p>
+              Network daemon configurations, subnet allocations, and bridge behaviors are controlled by your external
+              engine host.
+            </p>
+          </catbee-container-studio-callout>
+        } @else if (page.isAutoExternalRuntime()) {
+          <catbee-container-studio-callout
+            type="subtle"
+            icon="info"
+            title="Connected to External Docker Engine (Auto Mode)"
+          >
+            <p>
+              Network daemon configuration applies to the CatBee built-in engine and will take effect whenever CatBee
+              runs its built-in engine.
+            </p>
+          </catbee-container-studio-callout>
+        }
+
+        <p class="section-desc">Configure the way Docker containers interact with the network</p>
+
+        <!-- Docker subnet -->
+        <div id="setting-res-network-subnet" class="form-group" [class.disabled-group]="page.isExternalMode()">
+          <label class="field-label" for="setting-docker-subnet">Docker subnet</label>
+          <input
+            id="setting-docker-subnet"
+            type="text"
+            class="field-input subnet-input"
+            [class.is-invalid]="page.dockerSubnetError()"
+            [disabled]="page.isExternalMode()"
+            [value]="page.networkSettings().dockerSubnet"
+            (input)="page.updateDockerSubnet($any($event.target).value)"
+          />
+          @if (page.dockerSubnetError(); as err) {
+            <p class="field-error">{{ err }}</p>
+          }
+          <span class="field-hint">Default bridge (docker0) network. Default: 192.168.65.0/24</span>
+        </div>
+
+        <!-- Port binding behavior -->
+        <div id="setting-res-network-port-binding" class="form-group" [class.disabled-group]="page.isExternalMode()">
+          <span class="field-label">Port binding behavior</span>
+          <div class="dropdown-wrapper">
+            <catbee-container-studio-dropdown
+              [options]="portBindingOptions"
+              [value]="page.networkSettings().portBindingBehavior"
+              [disabled]="page.isExternalMode()"
+              ariaLabel="Port binding behavior"
+              (valueChange)="page.updatePortBindingBehavior($event)"
+            />
+          </div>
+          <span class="field-hint">{{ page.portBindingHint() }}</span>
+        </div>
+
+        <!-- Default networking mode -->
+        <div id="setting-res-network-mode" class="form-group" [class.disabled-group]="page.isExternalMode()">
+          <span class="field-label">Default networking mode</span>
+          <div class="dropdown-wrapper">
+            <catbee-container-studio-dropdown
+              [options]="networkingModeOptions"
+              [value]="page.networkSettings().defaultNetworkingMode"
+              [disabled]="page.isExternalMode()"
+              ariaLabel="Default networking mode"
+              (valueChange)="page.updateDefaultNetworkingMode($event)"
+            />
+          </div>
+          <span class="field-hint">
+            Docker networks set to support only IPv4 by default. This can be overridden on a per-network basis.
+          </span>
+        </div>
+      </div>
+    }
+
+    <!-- WSL Integration Sub-tab (Docker Desktop Parity) -->
+    @if (page.activeResourceTab() === 'wsl' && page.isWindows()) {
+      <div id="setting-res-wsl" class="tab-content-area">
+        @if (page.isExternalMode()) {
+          <catbee-container-studio-callout type="warning" title="External Engine Mode Active">
+            <p>WSL 2 integration is managed by your external Docker provider.</p>
+          </catbee-container-studio-callout>
+        } @else if (page.isAutoExternalRuntime()) {
+          <catbee-container-studio-callout
+            type="subtle"
+            icon="info"
+            title="Connected to External Docker Engine (Auto Mode)"
+          >
+            <p>
+              CatBee is currently connected to an external Docker daemon. WSL 2 distro integration scripts will take
+              effect when the CatBee built-in engine is active.
+            </p>
+          </catbee-container-studio-callout>
+        } @else if (page.isEngineNotInstalled()) {
+          <catbee-container-studio-callout type="subtle" icon="info" title="Built-in Engine Not Installed">
+            <p>
+              Select which WSL distributions you would like integrated once the CatBee Built-in Engine is installed.
+            </p>
+          </catbee-container-studio-callout>
+        }
+
+        <p class="section-desc">Configure which WSL 2 distros you want to access Docker from.</p>
+
+        <div class="form-group" [class.disabled-group]="page.isExternalMode()">
+          <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+          <div
+            class="checkbox-row switch-row"
+            [class.is-disabled]="page.isExternalMode()"
+            (click)="page.toggleSwitchRow($event, page.wslIntegrationEnabled, page.isExternalMode())"
+          >
+            <catbee-container-studio-switch-input
+              [formField]="page.settingsForm.wslIntegrationEnabled"
+              inputId="field-wsl-integration"
+            />
+            <label class="switch-row-text" for="field-wsl-integration">
+              <span class="checkbox-label">Enable integration with my default WSL distro</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="distros-card" [class.disabled-card]="page.isExternalMode() || !page.wslIntegrationEnabled()">
+          <div class="distros-card-header">
+            <h3 class="group-title">Enable integration with additional distros:</h3>
+            <p class="field-hint">Select the additional installed WSL 2 distributions that can access Docker.</p>
+          </div>
+
+          <div class="distros-switch-list">
+            @for (distro of page.installedWslDistros(); track distro) {
+              <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+              <div
+                class="distro-switch-row"
+                (click)="!page.isExternalMode() && page.wslIntegrationEnabled() && page.toggleDistroRow($event, distro)"
+              >
+                <catbee-container-studio-switch-input
+                  [checked]="page.isDistroIntegrated(distro)"
+                  [disabled]="page.isExternalMode() || !page.wslIntegrationEnabled()"
+                  (checkedChange)="page.toggleDistroIntegration(distro)"
+                />
+                <span class="distro-name">{{ distro }}</span>
+              </div>
+            }
+            @if (page.installedWslDistros().length === 0 && !page.isLoadingDistros()) {
+              <p class="field-hint">No additional WSL 2 distributions found.</p>
+            }
+          </div>
+
+          <div class="distros-card-footer">
+            <button
+              type="button"
+              class="catbee-action-btn"
+              [disabled]="page.isExternalMode() || !page.wslIntegrationEnabled() || page.isLoadingDistros()"
+              (click)="page.loadWslDistros()"
+            >
+              <span class="mat-icon-filled" [class.spin]="page.isLoadingDistros()" aria-hidden="true">refresh</span>
+              <span>Refetch distros</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</section>
