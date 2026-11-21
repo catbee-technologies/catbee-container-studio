@@ -1,0 +1,22 @@
+@if (visible()) {
+  <section class="callout callout-{{ type() }}" [attr.aria-label]="title() || type() + ' notice'">
+    <div class="callout-icon-col">
+      <span class="mat-icon-filled callout-icon" aria-hidden="true">{{ resolvedIcon() }}</span>
+    </div>
+
+    <div class="callout-body">
+      @if (title()) {
+        <strong class="callout-title">{{ title() }}</strong>
+      }
+      <div class="callout-content">
+        <ng-content />
+      </div>
+    </div>
+
+    @if (closable()) {
+      <button type="button" class="callout-close-btn" (click)="onClose($event)" aria-label="Dismiss notice">
+        <span class="mat-icon-filled" aria-hidden="true">close</span>
+      </button>
+    }
+  </section>
+}

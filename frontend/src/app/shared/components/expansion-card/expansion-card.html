@@ -1,0 +1,42 @@
+<div class="expansion-card" [class.is-expanded]="expanded()" [attr.id]="cardId() || null">
+  <div
+    class="expansion-header"
+    [class]="headerClass()"
+    role="button"
+    tabindex="0"
+    (click)="onHeaderClick($event)"
+    (keydown)="onHeaderKeyDown($event)"
+    [attr.aria-expanded]="expanded()"
+  >
+    <div class="expansion-left">
+      @if (icon()) {
+        <span class="mat-icon-filled expansion-icon" aria-hidden="true">{{ icon() }}</span>
+      }
+      <div class="expansion-title-group">
+        <div class="expansion-title-row">
+          @if (title()) {
+            <span class="expansion-title">{{ title() }}</span>
+          }
+          <ng-content select="[expansion-title]" />
+        </div>
+        @if (subtitle()) {
+          <span class="expansion-subtitle">{{ subtitle() }}</span>
+        }
+        <ng-content select="[expansion-subtitle]" />
+      </div>
+    </div>
+
+    <div class="expansion-right">
+      <ng-content select="[expansion-actions]" />
+      <span class="mat-icon-filled accordion-chevron" aria-hidden="true">keyboard_arrow_down</span>
+    </div>
+  </div>
+
+  <div class="accordion-collapse-wrapper" [class.is-expanded]="expanded()">
+    <div class="accordion-collapse-inner">
+      <div class="expansion-body">
+        <ng-content />
+      </div>
+    </div>
+  </div>
+</div>
