@@ -35,5 +35,5 @@
 :host(:hover) .resizer-line,
 :host(.is-resizing) .resizer-line {
   height: 100%;
-  background: var(--color-cyan-base, #39d5ff);
+  background: var(--color-cyan-base);
 }
