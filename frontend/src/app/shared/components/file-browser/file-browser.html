@@ -292,6 +292,8 @@
   [open]="deleteDialogOpen()"
   title="Delete File"
   [message]="deleteMessage()"
+  note="This action is permanent and cannot be undone."
+  noteType="danger"
   confirmLabel="Delete"
   [dangerous]="true"
   (confirm)="confirmDelete()"

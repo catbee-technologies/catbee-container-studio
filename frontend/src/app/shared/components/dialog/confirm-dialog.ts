@@ -10,6 +10,8 @@ export class ConfirmDialogComponent extends DialogOverlayBase {
   readonly open = input(false);
   readonly title = input('Confirm');
   readonly message = input('');
+  readonly note = input<string | null>(null);
+  readonly noteType = input<'neutral' | 'info' | 'warning' | 'success' | 'danger'>('neutral');
   readonly confirmLabel = input('Confirm');
   readonly cancelLabel = input('Cancel');
   readonly dangerous = input(false);
@@ -19,6 +21,7 @@ export class ConfirmDialogComponent extends DialogOverlayBase {
   readonly cancelAction = output<void>();
 
   readonly localMessage = signal('');
+  readonly localNote = signal<string | null>(null);
 
   readonly titleId = `catbee-confirm-dialog-title-${crypto.randomUUID()}`;
 
@@ -30,6 +33,7 @@ export class ConfirmDialogComponent extends DialogOverlayBase {
     effect(() => {
       if (this.open()) {
         this.localMessage.set(this.message());
+        this.localNote.set(this.note());
         this.openDialogOverlay(this.dialogTemplate());
       } else {
         this.closeDialogOverlay();

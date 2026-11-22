@@ -128,7 +128,9 @@
 <catbee-container-studio-confirm-dialog
   [open]="showConfirmClose()"
   title="Cancel Container Creation?"
-  message="Close this dialog and discard the container configuration?"
+  message="Cancel container creation and close dialog?"
+  note="All configured parameters will be discarded."
+  noteType="warning"
   confirmLabel="Discard & Close"
   cancelLabel="Keep Editing"
   [dangerous]="true"
@@ -144,6 +146,8 @@
       ? 'Remove all configured volume mappings?'
       : 'Remove all configured environment variables?'
   "
+  note="Any uncommitted changes for these settings will be cleared."
+  noteType="warning"
   confirmLabel="Clear All"
   [dangerous]="true"
   (cancelAction)="clearTarget.set(null)"

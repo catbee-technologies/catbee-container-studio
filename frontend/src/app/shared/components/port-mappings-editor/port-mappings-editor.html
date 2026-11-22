@@ -172,7 +172,9 @@
     <catbee-container-studio-confirm-dialog
       [open]="showConfirmDiscard()"
       title="Discard New Port Mapping?"
-      message="You have an unsaved new port mapping. Discard it?"
+      message="Discard the unadded port mapping?"
+      note="The entered port and protocol fields will be cleared."
+      noteType="warning"
       confirmLabel="Discard Changes"
       cancelLabel="Keep Editing"
       [dangerous]="true"

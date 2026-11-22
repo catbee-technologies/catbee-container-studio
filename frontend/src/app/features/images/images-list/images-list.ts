@@ -229,6 +229,19 @@ export class ImagesPage {
     return `${ids.length} images`;
   });
 
+  readonly pendingDeleteMessage = computed(() => {
+    const ids = this.pendingDeleteImageIds();
+    if (ids.length === 0) return '';
+    if (ids.length === 1) {
+      const image = this.images().find(item => item.Id === ids[0]);
+      if (!image) return 'Are you sure you want to delete this image?';
+      const [repository, tag] = this.repositoryAndTag(image);
+      return `Are you sure you want to delete image "${repository}:${tag}"?`;
+    }
+
+    return `Are you sure you want to delete ${ids.length} selected images?`;
+  });
+
   readonly columnOptions: ColumnOption<ImageColumn>[] = [
     { key: 'tag', label: 'Tag' },
     { key: 'id', label: 'ID' },
