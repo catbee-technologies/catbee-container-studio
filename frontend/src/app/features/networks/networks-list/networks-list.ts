@@ -291,6 +291,15 @@ export class NetworksPage {
       ? (this.networks().find(network => network.Id === ids[0])?.Name ?? ids[0] ?? '')
       : `${ids.length} networks`;
   });
+  readonly pendingDeleteMessage = computed(() => {
+    const ids = this.pendingDeleteNetworkIds();
+    if (ids.length === 0) return '';
+    if (ids.length === 1) {
+      const name = this.networks().find(network => network.Id === ids[0])?.Name ?? ids[0] ?? '';
+      return `Are you sure you want to delete network "${name}"?`;
+    }
+    return `Are you sure you want to delete ${ids.length} selected networks?`;
+  });
 
   readonly activeNetworkActions = signal<Map<string, NetworkAction>>(new Map());
   readonly selectedDeletableNetworkCount = computed(

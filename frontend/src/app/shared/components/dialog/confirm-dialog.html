@@ -14,7 +14,13 @@
 
     <div class="catbee-dialog-body">
       <div class="catbee-confirm-dialog-message">
-        <p>{{ localMessage() }}</p>
+        <p class="catbee-confirm-dialog-text">{{ localMessage() }}</p>
+
+        @if (localNote(); as noteText) {
+          <div [class]="'catbee-confirm-dialog-note note-' + noteType()">
+            <p>{{ noteText }}</p>
+          </div>
+        }
       </div>
     </div>
 

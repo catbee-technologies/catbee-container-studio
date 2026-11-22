@@ -142,7 +142,9 @@
 <catbee-container-studio-confirm-dialog
   [open]="confirmClearLogsOpen()"
   title="Clear Logs"
-  message="Clear all displayed logs for the selected containers? New log output will continue to appear."
+  message="Clear all displayed logs for the selected containers?"
+  note="New log output will continue to appear in real-time."
+  noteType="info"
   confirmLabel="Clear Logs"
   [dangerous]="true"
   (confirm)="confirmClearLogs()"
