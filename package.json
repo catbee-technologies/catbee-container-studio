@@ -31,6 +31,7 @@
     "postinstall": "electron-builder install-app-deps",
     "generate:logos": "node scripts/generate-logos.mjs",
     "changelog": "node scripts/generate-changelog.mjs",
+    "reset:env": "node scripts/reset-environment.mjs",
     "preversion": "npm-run-all lint lint:ui package",
     "version": "node scripts/update-version.mjs && git add ."
   },
