@@ -37,11 +37,14 @@
     <button
       type="button"
       class="catbee-action-btn action-start"
+      [attr.aria-busy]="isPulling()"
       [disabled]="isPulling() || reference().trim().length === 0"
       (click)="startPull()"
     >
-      <span class="mat-icon-filled" aria-hidden="true">download</span>
-      {{ isPulling() ? 'Pulling...' : 'Pull' }}
+      <span class="button-icon" aria-hidden="true">
+        <span class="mat-icon-filled" [class.spin]="isPulling()">{{ isPulling() ? 'sync' : 'download' }}</span>
+      </span>
+      <span class="button-label">{{ isPulling() ? 'Pulling Image...' : 'Pull Image' }}</span>
     </button>
   </ng-container>
 </catbee-container-studio-dialog>

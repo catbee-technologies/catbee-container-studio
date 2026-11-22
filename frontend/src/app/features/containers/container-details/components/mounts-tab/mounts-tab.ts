@@ -141,16 +141,20 @@ export class MountsTabComponent {
       this.inspectData()?.Name?.replace(/^\//, '') ||
       'this container';
 
+    return `Force recreate container "${name}" with updated mounts?`;
+  });
+
+  readonly confirmNote = computed(() => {
     const isCompose = Boolean(
       this.container()?.Labels?.['com.docker.compose.service'] ??
       this.inspectData()?.Config?.Labels?.['com.docker.compose.service']
     );
 
     if (isCompose) {
-      return `Force recreate compose container "${name}" with updated mounts? \n This will stop, remove, and recreate the container using Docker Engine with your updated volume mappings. \n\nNote: Running "docker compose up" from CLI in the future will reset volume definitions to the compose file.`;
+      return 'This will stop, remove, and recreate the container using Docker Engine with your updated volume mappings. Running "docker compose up" from CLI in the future will reset volume definitions to the compose file.';
     }
 
-    return `Force recreate container "${name}" with updated mounts? \n This will stop, remove, and recreate the container using the same configuration with your updated volume mappings.`;
+    return 'This will stop, remove, and recreate the container using the same configuration with your updated volume mappings.';
   });
 
   startEditing(): void {

@@ -290,7 +290,9 @@
 <catbee-container-studio-confirm-dialog
   [open]="pendingDeleteVolumeNames().length > 0"
   [title]="pendingDeleteVolumeNames().length > 1 ? 'Delete Volumes' : 'Delete Volume'"
-  [message]="'Delete ' + pendingDeleteLabel() + '? \n All data in these volumes will be permanently deleted.'"
+  [message]="pendingDeleteMessage()"
+  note="All data stored in these volumes will be permanently deleted."
+  noteType="danger"
   confirmLabel="Delete"
   [dangerous]="true"
   (confirm)="confirmDelete()"
@@ -300,7 +302,9 @@
 <catbee-container-studio-confirm-dialog
   [open]="confirmPruneOpen()"
   title="Prune Unused Volumes"
-  [message]="'Delete all volumes not used by any container? \n All data in those volumes will be permanently deleted.'"
+  message="Delete all volumes not used by any container?"
+  note="All data in those volumes will be permanently erased. This cannot be undone."
+  noteType="danger"
   confirmLabel="Prune"
   [dangerous]="true"
   (confirm)="confirmPrune()"
@@ -384,7 +388,9 @@
 <catbee-container-studio-confirm-dialog
   [open]="showConfirmCloseCreate()"
   title="Cancel Volume Creation?"
-  message="Close this dialog and discard the volume configuration?"
+  message="Close dialog and discard volume configuration?"
+  note="Any unsaved volume settings will be lost."
+  noteType="warning"
   confirmLabel="Discard & Close"
   cancelLabel="Keep Editing"
   [dangerous]="true"

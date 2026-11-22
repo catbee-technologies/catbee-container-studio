@@ -257,12 +257,27 @@ export class SettingsPageComponent implements OnInit {
   readonly pendingContextSwitchMessage = computed(() => {
     const ctx = this.pendingContextSwitch();
     if (!ctx) return '';
-    return `Switching active Docker context to "${ctx}" will reconnect CatBee Container Studio and target all container operations to that endpoint.${this.contextModeChangeNote(ctx)} Are you sure you want to switch?`;
+    return `Are you sure you want to switch the active Docker context to "${ctx}"?`;
+  });
+  readonly pendingContextSwitchNote = computed(() => {
+    const ctx = this.pendingContextSwitch();
+    if (!ctx) return null;
+    const modeChange = this.contextModeChangeNote(ctx).trim();
+    if (modeChange) {
+      return `CatBee will reconnect and target all container operations to that endpoint. ${modeChange}`;
+    }
+    return `CatBee will reconnect and target all container operations to "${ctx}".`;
   });
   readonly activateCatBeeContextMessage = computed(
-    () =>
-      `Activating catbee-desktop will set CatBee's built-in engine as the active Docker context for your host Docker CLI and reconnect CatBee Studio to it.${this.contextModeChangeNote(CATBEE_CONTEXT_NAME)} Do you want to proceed?`
+    () => `Are you sure you want to activate the CatBee Desktop context?`
   );
+  readonly activateCatBeeContextNote = computed(() => {
+    const modeChange = this.contextModeChangeNote(CATBEE_CONTEXT_NAME).trim();
+    if (modeChange) {
+      return `This will set CatBee's built-in engine as the active Docker context for your host Docker CLI and reconnect CatBee Studio to it. ${modeChange}`;
+    }
+    return `This will set CatBee's built-in engine as the active Docker context for your host Docker CLI and reconnect CatBee Studio to it.`;
+  });
 
   // Docker CLI Context management
   readonly dockerContext = signal<DockerContextDetails | null>(null);

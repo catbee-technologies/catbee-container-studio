@@ -153,8 +153,11 @@ export class ContainerDetailsPage implements OnDestroy {
   private isNavigatingAfterRecreate = false;
 
   readonly deleteMessage = computed(() => {
-    return `Delete ${this.name()} permanently? \n This action cannot be undone.`;
+    return `Are you sure you want to delete container "${this.name()}"?`;
   });
+  readonly deleteNote = computed(
+    () => 'All container data not stored in persistent volumes will be lost. This action cannot be undone.'
+  );
 
   readonly recreateMessage = computed(() => {
     const isCompose = Boolean(
@@ -162,9 +165,19 @@ export class ContainerDetailsPage implements OnDestroy {
       this.inspectData()?.Config?.Labels?.['com.docker.compose.service']
     );
     if (isCompose) {
-      return `Force recreate compose service container "${this.name()}"? \n This will rebuild and recreate the container instance using Docker Compose.`;
+      return `Force recreate compose service container "${this.name()}"?`;
     }
-    return `Force recreate container "${this.name()}"? \n This will stop, remove, and recreate the container using the same configuration.`;
+    return `Force recreate container "${this.name()}"?`;
+  });
+  readonly recreateNote = computed(() => {
+    const isCompose = Boolean(
+      this.container()?.Labels?.['com.docker.compose.service'] ??
+      this.inspectData()?.Config?.Labels?.['com.docker.compose.service']
+    );
+    if (isCompose) {
+      return 'This will rebuild and recreate the container instance using Docker Compose.';
+    }
+    return 'This will stop, remove, and recreate the container using the same configuration.';
   });
 
   readonly imageRouteRef = computed(() => {

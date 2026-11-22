@@ -350,7 +350,9 @@
 <catbee-container-studio-confirm-dialog
   [open]="pendingDeleteNetworkIds().length > 0"
   [title]="pendingDeleteNetworkIds().length > 1 ? 'Delete Networks' : 'Delete Network'"
-  [message]="'Delete ' + pendingDeleteLabel() + '?\nConnected containers must be disconnected first.'"
+  [message]="pendingDeleteMessage()"
+  note="Connected containers must be disconnected first."
+  noteType="danger"
   confirmLabel="Delete"
   [dangerous]="true"
   (confirm)="confirmDelete()"
@@ -359,7 +361,9 @@
 <catbee-container-studio-confirm-dialog
   [open]="confirmPruneOpen()"
   title="Prune Unused Networks"
-  message="Delete all unused networks?\nThis cannot be undone."
+  message="Delete all unused networks?"
+  note="This action is permanent and cannot be undone."
+  noteType="danger"
   confirmLabel="Prune"
   [dangerous]="true"
   (confirm)="confirmPrune()"
@@ -425,7 +429,9 @@
 <catbee-container-studio-confirm-dialog
   [open]="showConfirmCloseCreate()"
   title="Cancel Network Creation?"
-  message="Close this dialog and discard the network configuration?"
+  message="Close dialog and discard network configuration?"
+  note="Any unsaved network settings will be lost."
+  noteType="warning"
   confirmLabel="Discard & Close"
   cancelLabel="Keep Editing"
   [dangerous]="true"

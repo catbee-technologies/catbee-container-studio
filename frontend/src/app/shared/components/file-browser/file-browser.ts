@@ -156,8 +156,8 @@ export class FileBrowserComponent {
       return '';
     }
     return entry.type === 'directory'
-      ? `Delete "${entry.name}" and everything inside it? This cannot be undone.`
-      : `Delete "${entry.name}" from the container? This cannot be undone.`;
+      ? `Are you sure you want to delete folder "${entry.name}" and all its contents?`
+      : `Are you sure you want to delete file "${entry.name}" from the container?`;
   });
   readonly paneColumns = computed(() => {
     const directoryPercent = this.directoryPanePercent();

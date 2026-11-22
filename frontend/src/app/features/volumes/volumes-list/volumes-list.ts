@@ -227,6 +227,13 @@ export class VolumesPage {
     return `${names.length} volumes`;
   });
 
+  readonly pendingDeleteMessage = computed(() => {
+    const names = this.pendingDeleteVolumeNames();
+    if (names.length === 0) return '';
+    if (names.length === 1) return `Are you sure you want to delete volume "${names[0]}"?`;
+    return `Are you sure you want to delete ${names.length} selected volumes?`;
+  });
+
   readonly columnOptions: ColumnOption<VolumeColumn>[] = [
     { key: 'driver', label: 'Driver' },
     { key: 'size', label: 'Size' },

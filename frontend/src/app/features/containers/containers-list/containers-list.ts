@@ -1000,36 +1000,49 @@ export class ContainersPage {
   pendingContainerDeleteMessage(): string {
     const pending = this.pendingDeleteContainer();
     if (!pending) {
-      return 'Delete this container permanently? \n This action cannot be undone.';
+      return 'Are you sure you want to permanently delete this container?';
     }
 
-    return `Delete ${formatDockerNames(pending.Names)} permanently? \n This action cannot be undone.`;
+    return `Are you sure you want to delete container "${formatDockerNames(pending.Names)}"?`;
   }
 
   pendingSelectionDeleteMessage(): string {
-    return `Delete ${this.selectedContainers().length} selected containers permanently? \n This action cannot be undone.`;
+    return `Are you sure you want to delete ${this.selectedContainers().length} selected containers?`;
   }
 
   pendingGroupDeleteMessage(): string {
     const group = this.pendingDeleteGroup();
     if (!group) {
-      return 'Delete all containers in this group permanently? \n This action cannot be undone.';
+      return 'Are you sure you want to delete all containers in this group?';
     }
-    return `Delete all ${group.containers.length} containers in group "${group.name}" permanently? \n This action cannot be undone.`;
+    return `Are you sure you want to delete all ${group.containers.length} containers in group "${group.name}"?`;
   }
 
   pendingContainerRecreateMessage(): string {
     const pending = this.pendingRecreateContainer();
     if (!pending) {
-      return 'Force recreate this container? \n This will stop, remove, and recreate the container instance.';
+      return 'Force recreate this container?';
     }
 
     const name = formatDockerNames(pending.Names);
     const isCompose = Boolean(pending.Labels?.['com.docker.compose.service']);
     if (isCompose) {
-      return `Force recreate compose service container "${name}"? \n This will rebuild and recreate the container instance using Docker Compose.`;
+      return `Force recreate compose service container "${name}"?`;
     }
-    return `Force recreate container "${name}"? \n This will stop, remove, and recreate the container with the same configuration.`;
+    return `Force recreate container "${name}"?`;
+  }
+
+  pendingContainerRecreateNote(): string {
+    const pending = this.pendingRecreateContainer();
+    if (!pending) {
+      return 'This will stop, remove, and recreate the container instance.';
+    }
+
+    const isCompose = Boolean(pending.Labels?.['com.docker.compose.service']);
+    if (isCompose) {
+      return 'This will rebuild and recreate the container instance using Docker Compose.';
+    }
+    return 'This will stop, remove, and recreate the container with the same configuration.';
   }
 
   pendingGroupRecreateMessage(): string {
@@ -1038,13 +1051,24 @@ export class ContainersPage {
       return 'Force recreate all containers in this group?';
     }
     if (group.id === 'standalone') {
-      return `Force recreate all ${group.containers.length} standalone containers? \n This will stop, remove, and recreate each container instance.`;
+      return `Force recreate all ${group.containers.length} standalone containers?`;
     }
-    return `Force recreate all ${group.containers.length} containers in compose group "${group.name}"? \n This will stop, remove, and recreate all containers in this group using Docker Compose.`;
+    return `Force recreate all ${group.containers.length} containers in compose group "${group.name}"?`;
+  }
+
+  pendingGroupRecreateNote(): string {
+    const group = this.pendingRecreateGroup();
+    if (!group) {
+      return 'This will stop, remove, and recreate each container.';
+    }
+    if (group.id === 'standalone') {
+      return 'This will stop, remove, and recreate each container instance.';
+    }
+    return 'This will stop, remove, and recreate all containers in this group using Docker Compose.';
   }
 
   pendingSelectionRecreateMessage(): string {
-    return `Force recreate all ${this.selectedContainers().length} selected containers? \n This will stop, remove, and recreate each container instance.`;
+    return `Force recreate all ${this.selectedContainers().length} selected containers?`;
   }
 
   isGroupActionActive(group: ContainerGroup): boolean {
