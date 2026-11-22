@@ -36,24 +36,15 @@ function createViewSubmenu(getMainWindow: () => BrowserWindow | null): Electron.
   const getWindow = () => getTargetWindow(getMainWindow);
 
   return [
-    {
-      role: 'reload',
-      label: 'Reload'
-    },
-    {
-      role: 'forceReload',
-      label: 'Force Reload'
-    },
     ...(isDev
       ? [
           {
             role: 'toggleDevTools' as const,
             label: 'Developer Tools'
-          }
+          },
+          { type: 'separator' as const }
         ]
       : []),
-    { type: 'separator' },
-
     {
       label: 'Actual Size',
       accelerator: 'CmdOrCtrl+0',
