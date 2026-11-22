@@ -1,6 +1,6 @@
 {
   "name": "catbee-container-studio",
-  "version": "0.6.0",
+  "version": "1.0.0-alpha.3",
   "homepage": "https://catbee.in/catbee-container-studio",
   "scripts": {
     "ng": "ng",
