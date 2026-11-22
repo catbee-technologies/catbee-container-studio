@@ -34,6 +34,14 @@ export function createMainWindow(): BrowserWindow {
 
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
+  window.webContents.on('before-input-event', (event, input) => {
+    const isReloadKey = input.key === 'F5' || input.key.toLowerCase() === 'r';
+    const isModifierPressed = input.control || input.meta;
+    if (input.type === 'keyDown' && (input.key === 'F5' || (isModifierPressed && isReloadKey))) {
+      event.preventDefault();
+    }
+  });
+
   window.once('ready-to-show', () => {
     window.show();
   });
