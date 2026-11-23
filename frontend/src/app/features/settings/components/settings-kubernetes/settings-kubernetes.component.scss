@@ -1,0 +1,459 @@
+@use '../../settings-common.scss' as *;
+
+.k8s-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-full);
+  line-height: 1.2;
+  white-space: nowrap;
+
+  .status-icon {
+    font-size: 0.85rem;
+    color: inherit;
+  }
+
+  &.status-running {
+    background: var(--builder-status-running-bg);
+    border: 1px solid var(--builder-status-running-border);
+    color: var(--builder-status-running-text);
+  }
+
+  &.status-error {
+    background: var(--builder-status-error-bg);
+    border: 1px solid var(--builder-status-error-border);
+    color: var(--builder-status-error-text);
+  }
+
+  &.status-inactive,
+  &.status-stopped {
+    background: var(--builder-status-inactive-bg);
+    border: 1px solid var(--builder-status-inactive-border);
+    color: var(--builder-status-inactive-text);
+
+    .status-icon {
+      font-size: 0.75rem;
+    }
+  }
+
+  &.status-busy {
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    color: var(--color-primary-text, #0284c7);
+
+    .status-icon {
+      animation: spin 1.2s linear infinite;
+      will-change: transform;
+      transform: translateZ(0);
+
+      @media (prefers-reduced-motion: reduce) {
+        animation: none;
+      }
+    }
+  }
+}
+
+.k8s-engine-callout {
+  margin-bottom: 0.5rem;
+
+  .callout-actions {
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+}
+
+.k8s-runtime-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.k8s-runtime-card {
+  @include settings-card($padding: 1rem 1.25rem, $gap: 1rem);
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+
+  .runtime-card-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .runtime-icon-box {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--radius-sm);
+    background: var(--bg-hover);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink-200);
+    flex-shrink: 0;
+
+    .mat-icon-filled {
+      font-size: 1.5rem;
+    }
+  }
+
+  .runtime-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .runtime-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .runtime-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--ink-100);
+  }
+
+  .runtime-subinfo {
+    font-size: 0.82rem;
+    color: var(--ink-300);
+  }
+
+  .runtime-card-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+  }
+}
+
+.k8s-cluster-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.k8s-cluster-card {
+  @include settings-card($padding: 1rem 1.25rem, $gap: 1rem);
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  transition:
+    opacity 0.2s ease,
+    border-color 0.2s ease;
+
+  &.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}
+
+.cluster-card-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.cluster-icon-box {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-accent, #38bdf8);
+  flex-shrink: 0;
+
+  .k8s-svg-icon {
+    width: 1.65rem;
+    height: 1.65rem;
+  }
+}
+
+.cluster-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cluster-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cluster-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink-100);
+}
+
+.cluster-subinfo {
+  font-size: 0.82rem;
+  color: var(--ink-300);
+}
+
+.cluster-card-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.started-text {
+  font-size: 0.82rem;
+  color: var(--ink-300);
+  white-space: nowrap;
+}
+
+/* Progress bar & stage output for K8s runtime & cluster */
+.k8s-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-hover-subtle);
+  width: 100%;
+  box-sizing: border-box;
+
+  &.cluster-progress {
+    border-color: rgba(56, 189, 248, 0.25);
+    background: rgba(56, 189, 248, 0.04);
+  }
+
+  .k8s-progress-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.85rem;
+
+    .progress-title-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+
+      .spin {
+        font-size: 1rem;
+        line-height: 1rem;
+        color: var(--color-primary-base, #38bdf8);
+        animation: spin 1s linear infinite;
+      }
+    }
+  }
+
+  .k8s-progress-title {
+    font-weight: 600;
+    color: var(--ink-100);
+  }
+
+  .k8s-progress-percent {
+    font-family: var(--mono-font);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-primary-base, #38bdf8);
+  }
+
+  .k8s-progress-track {
+    width: 100%;
+    height: 6px;
+    border: none;
+    border-radius: var(--radius-full);
+    background: var(--border-color-light);
+    overflow: hidden;
+
+    &::-webkit-progress-bar {
+      background: var(--border-color-light);
+      border-radius: var(--radius-full);
+    }
+
+    &::-webkit-progress-value {
+      background: var(--color-primary-base, #38bdf8);
+      border-radius: var(--radius-full);
+      transition: width 0.3s ease;
+    }
+  }
+
+  .k8s-progress-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .k8s-progress-stage {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--ink-100);
+  }
+
+  .k8s-progress-detail {
+    font-size: 0.76rem;
+    color: var(--ink-300);
+    font-family: var(--mono-font);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.k8s-error-banner-wrapper {
+  margin-top: 0.75rem;
+  width: 100%;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.k8s-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  transition: opacity 0.2s ease;
+
+  &.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .section-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .section-subtext {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--ink-300);
+  }
+}
+
+.k8s-config-card {
+  @include settings-card($padding: 1.25rem, $gap: 1.5rem);
+
+  .pending-recreation-banner {
+    .callout-actions {
+      margin-top: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+  }
+}
+
+.config-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.config-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  .config-item-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .config-item-label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--ink-100);
+  }
+
+  .config-item-hint {
+    font-size: 0.8rem;
+    color: var(--ink-300);
+    line-height: 1.4;
+  }
+}
+
+.nodes-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.node-count-badge {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--color-primary-text, #38bdf8);
+  background: var(--bg-hover);
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color-light);
+}
+
+.dropdown-wrapper {
+  margin-top: 0.25rem;
+  max-width: 20rem;
+  width: 100%;
+}
+
+.nodes-slider-wrapper {
+  margin-top: 0.5rem;
+  max-width: 26rem;
+}
+
+.system-containers-group {
+  margin-top: 0.25rem;
+  transition: opacity 0.2s ease;
+
+  &.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .checkbox-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color-accent);
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease;
+
+    &:hover {
+      background: var(--bg-hover);
+    }
+
+    .checkbox-row-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      cursor: pointer;
+
+      .checkbox-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--ink-100);
+      }
+
+      .field-hint {
+        font-size: 0.8rem;
+        color: var(--ink-300);
+      }
+    }
+  }
+}

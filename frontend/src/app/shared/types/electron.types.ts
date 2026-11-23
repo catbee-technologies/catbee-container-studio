@@ -147,6 +147,7 @@ export interface DockerContextDetails {
   contexts: DockerContextItem[];
   catbeeContextExists: boolean;
   isCatBeeActive: boolean;
+  catbeeContextName?: string;
   defaultEndpoint: string;
 }
 
@@ -196,6 +197,36 @@ export interface ResourceSettingsConfig {
   rosetta: boolean;
 }
 
+export interface KubernetesSettingsConfig {
+  enabled: boolean;
+  provisioner: 'kind' | 'kubeadm';
+  version: string;
+  nodeCount: number;
+  showSystemContainers: boolean;
+}
+
+export interface K8sOperationProgress {
+  operation: 'install' | 'start' | 'stop' | 'reset' | 'uninstall';
+  stage: string;
+  progress?: number;
+  detail?: string;
+}
+
+export interface K8sClusterInfo {
+  status: 'stopped' | 'starting' | 'running' | 'stopping' | 'error';
+  name: string;
+  provisioner: 'kind' | 'kubeadm';
+  version: string;
+  nodeCount: number;
+  isKindInstalled: boolean;
+  runtimeVersion?: string;
+  operation?: K8sOperationProgress | null;
+  startedAt?: number;
+  error?: string;
+  apiEndpoint?: string;
+  kubeconfigPath?: string;
+}
+
 export interface EngineSettings {
   engineMode: 'auto' | 'embedded' | 'external';
   exposeTcp: boolean;
@@ -208,6 +239,7 @@ export interface EngineSettings {
   containersProxy?: ContainersProxyConfig;
   network?: NetworkSettingsConfig;
   resources?: ResourceSettingsConfig;
+  kubernetes?: KubernetesSettingsConfig;
   endpoint?: string;
 }
 
@@ -349,6 +381,18 @@ export interface ElectronBridge {
       onStatus: (callback: (status: AutoUpdaterStatus) => void) => () => void;
       isMicrosoftStore: () => IpcPromise<boolean>;
       getReleaseNotes: (version?: string) => IpcPromise<ReleaseNotesInfo | null>;
+    };
+    k8s?: {
+      getStatus: () => IpcPromise<K8sClusterInfo>;
+      getProgress: () => IpcPromise<K8sOperationProgress | null>;
+      startCluster: () => IpcPromise<{ success: boolean }>;
+      stopCluster: () => IpcPromise<{ success: boolean }>;
+      resetCluster: () => IpcPromise<{ success: boolean }>;
+      cancelOperation: () => IpcPromise<{ success: boolean }>;
+      getVersions: () => IpcPromise<string[]>;
+      installRuntime: () => IpcPromise<{ success: boolean }>;
+      uninstallRuntime: () => IpcPromise<{ success: boolean }>;
+      onProgress: (callback: (progress: K8sOperationProgress | null) => void) => () => void;
     };
   };
   docker: {

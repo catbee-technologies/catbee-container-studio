@@ -207,7 +207,17 @@ export function isKubernetesManagedContainer(container: {
     'io.kubernetes.container.name' in labels ||
     'io.kubernetes.pod.name' in labels ||
     'io.kubernetes.pod.namespace' in labels ||
-    Object.keys(labels).some(key => key.startsWith('io.kubernetes.')) ||
-    names.some(name => name.startsWith('/k8s_') || name.startsWith('k8s_'))
+    'io.x-k8s.kind.cluster' in labels ||
+    'io.x-k8s.kind.role' in labels ||
+    Object.keys(labels).some(key => key.startsWith('io.kubernetes.') || key.startsWith('io.x-k8s.')) ||
+    names.some(
+      name =>
+        name.startsWith('/k8s_') ||
+        name.startsWith('k8s_') ||
+        name.startsWith('/kind-') ||
+        name.startsWith('kind-') ||
+        name.includes('-control-plane') ||
+        name.includes('-worker')
+    )
   );
 }

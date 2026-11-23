@@ -8,6 +8,7 @@ import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { type TabItem } from '@components/tabs/tabs';
 import { SearchInputComponent } from '@components/search-input/search-input';
 import { type DiscreteSliderLabel } from '@components/discrete-slider/discrete-slider';
+import { type DropdownOption } from '@components/dropdown/dropdown';
 import { ElectronApiService } from '@core/electron-api.service';
 import { PendingNavigation } from '@utils/pending-navigation.utils';
 import { DockerApiService } from '@core/docker-api.service';
@@ -24,6 +25,9 @@ import type {
   EngineOperationProgress,
   EngineCapabilities,
   EngineSettings,
+  K8sClusterInfo,
+  K8sOperationProgress,
+  KubernetesSettingsConfig,
   NetworkSettingsConfig,
   ResourceSettingsConfig
 } from '@shared/types';
@@ -33,11 +37,16 @@ import { SETTINGS_PAGE_CONTEXT } from '@features/settings/services/settings-page
 import { SettingsGeneralComponent } from '@features/settings/components/settings-general/settings-general.component';
 import { SettingsResourcesComponent } from '@features/settings/components/settings-resources/settings-resources.component';
 import { SettingsDockerEngineComponent } from '@features/settings/components/settings-docker-engine/settings-docker-engine.component';
+import { SettingsKubernetesComponent } from '@features/settings/components/settings-kubernetes/settings-kubernetes.component';
 import { SettingsUpdatesComponent } from '@features/settings/components/settings-updates/settings-updates.component';
 import { SettingsAboutComponent } from '@features/settings/components/settings-about/settings-about.component';
+import { K8sIconComponent } from '@shared/components/k8s-icon/k8s-icon.component';
+import { formatDockerRelativeTime } from '@utils/docker-display.utils';
+import { UI_STORAGE_KEYS } from '@utils/storage.utils';
+import { LocalStorageService } from '@ng-catbee/storage';
 
 export interface SettingsCategory {
-  readonly id: 'general' | 'resources' | 'engine' | 'updates' | 'about';
+  readonly id: 'general' | 'resources' | 'engine' | 'kubernetes' | 'updates' | 'about';
   readonly label: string;
   readonly icon: string;
 }
@@ -69,8 +78,6 @@ interface VmResourceSlider {
   minLabel: string;
   maxLabel: string;
 }
-
-const CATBEE_CONTEXT_NAME = 'catbee-desktop';
 
 export type ResourceSubTab = 'advanced' | 'file-sharing' | 'proxies' | 'network' | 'wsl';
 export type SettingsTheme = 'light' | 'dark' | 'system';
@@ -115,6 +122,11 @@ function resolveInitialTheme(themeService: ThemeService): SettingsTheme {
     return 'system';
   }
   return themeService.currentTheme() === AppTheme.LIGHT ? 'light' : 'dark';
+}
+
+function normalizeK8sVersion(v?: string | null): string {
+  if (!v) return '';
+  return v.trim().replace(/^v/, '');
 }
 
 function computeSettingSearchScore(item: SettingSearchItem, query: string, tokens: readonly string[]): number {
@@ -174,8 +186,10 @@ function computeSettingSearchScore(item: SettingSearchItem, query: string, token
     SettingsGeneralComponent,
     SettingsResourcesComponent,
     SettingsDockerEngineComponent,
+    SettingsKubernetesComponent,
     SettingsUpdatesComponent,
-    SettingsAboutComponent
+    SettingsAboutComponent,
+    K8sIconComponent
   ],
   templateUrl: './settings-page.html',
   styleUrl: './settings-page.scss'
@@ -188,11 +202,13 @@ export class SettingsPageComponent implements OnInit {
   private readonly electronApi = inject(ElectronApiService);
   private readonly dockerApi = inject(DockerApiService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly localStorage = inject(LocalStorageService);
 
   readonly categories: readonly SettingsCategory[] = [
     { id: 'general', label: 'General', icon: 'tune' },
     { id: 'resources', label: 'Resources', icon: 'memory' },
     { id: 'engine', label: 'Docker Engine', icon: 'developer_board' },
+    { id: 'kubernetes', label: 'Kubernetes', icon: 'hub' },
     { id: 'updates', label: 'Software updates', icon: 'system_update' },
     { id: 'about', label: 'About', icon: 'info' }
   ];
@@ -271,17 +287,18 @@ export class SettingsPageComponent implements OnInit {
   readonly activateCatBeeContextMessage = computed(
     () => `Are you sure you want to activate the CatBee Desktop context?`
   );
+  // Docker CLI Context management
+  readonly dockerContext = signal<DockerContextDetails | null>(null);
+  readonly isContextSwitching = signal(false);
+  readonly catbeeContextName = computed(() => this.dockerContext()?.catbeeContextName ?? '');
+
   readonly activateCatBeeContextNote = computed(() => {
-    const modeChange = this.contextModeChangeNote(CATBEE_CONTEXT_NAME).trim();
+    const modeChange = this.contextModeChangeNote(this.catbeeContextName()).trim();
     if (modeChange) {
       return `This will set CatBee's built-in engine as the active Docker context for your host Docker CLI and reconnect CatBee Studio to it. ${modeChange}`;
     }
     return `This will set CatBee's built-in engine as the active Docker context for your host Docker CLI and reconnect CatBee Studio to it.`;
   });
-
-  // Docker CLI Context management
-  readonly dockerContext = signal<DockerContextDetails | null>(null);
-  readonly isContextSwitching = signal(false);
   readonly contextErrorMessage = signal<string | null>(null);
 
   // Builders & BuildKit state
@@ -422,8 +439,485 @@ export class SettingsPageComponent implements OnInit {
     desktopProxy: { ...this.settings.desktopProxy() },
     containersProxy: { ...this.settings.containersProxy() },
     networkSettings: { ...this.settings.network() },
-    wslAdditionalDistros: [...this.settings.wslAdditionalDistros()]
+    wslAdditionalDistros: [...this.settings.wslAdditionalDistros()],
+    kubernetes: { ...this.settings.kubernetes() } as KubernetesSettingsConfig
   });
+
+  // Kubernetes state
+  readonly k8sEnabled = signal<boolean>(this.settings.kubernetes().enabled);
+  readonly k8sProvisioner = signal<'kind' | 'kubeadm'>(this.settings.kubernetes().provisioner);
+  readonly k8sVersion = signal<string>(this.settings.kubernetes().version);
+  readonly k8sNodeCount = signal<number>(this.settings.kubernetes().nodeCount);
+  readonly k8sShowSystemContainers = signal<boolean>(this.settings.kubernetes().showSystemContainers);
+
+  readonly k8sClusterInfo = signal<K8sClusterInfo | null>(null);
+  readonly k8sOperation = signal<K8sOperationProgress | null>(null);
+  readonly isInstallingK8sRuntime = signal<boolean>(false);
+  readonly isUninstallingK8sRuntime = signal<boolean>(false);
+  readonly isStartingK8sCluster = signal<boolean>(false);
+  readonly isStoppingK8sCluster = signal<boolean>(false);
+  readonly isResettingK8sCluster = signal<boolean>(false);
+  readonly pendingResetK8sCluster = signal<boolean>(false);
+  readonly pendingUninstallK8sRuntime = signal<boolean>(false);
+  readonly pendingCancelK8sOperation = signal<boolean>(false);
+  readonly isCancellingK8sOperation = signal<boolean>(false);
+
+  // Local Kubernetes errors (scoped to the Kubernetes tab, keeping the global settings error banner clean)
+  readonly k8sClusterActionError = signal<string | null>(null);
+  readonly k8sDismissedClusterError = signal<string | null>(null);
+  readonly k8sRuntimeActionError = signal<string | null>(null);
+  readonly k8sDismissedRuntimeError = signal<string | null>(null);
+
+  readonly k8sClusterErrorMessage = computed<string | null>(() => {
+    const actionErr = this.k8sClusterActionError();
+    if (actionErr) return actionErr;
+    const infoErr = this.k8sClusterInfo()?.error;
+    if (infoErr && infoErr !== this.k8sDismissedClusterError()) {
+      return infoErr;
+    }
+    return null;
+  });
+
+  readonly k8sRuntimeErrorMessage = computed<string | null>(() => {
+    const actionErr = this.k8sRuntimeActionError();
+    if (actionErr && actionErr !== this.k8sDismissedRuntimeError()) {
+      return actionErr;
+    }
+    return null;
+  });
+
+  readonly k8sErrorMessage = computed<string | null>(() => {
+    return this.k8sClusterErrorMessage() ?? this.k8sRuntimeErrorMessage();
+  });
+
+  dismissK8sClusterError(): void {
+    const currentErr = this.k8sClusterErrorMessage();
+    if (currentErr) {
+      this.k8sDismissedClusterError.set(currentErr);
+    }
+    this.k8sClusterActionError.set(null);
+    const current = this.k8sClusterInfo();
+    if (current?.error) {
+      this.k8sClusterInfo.set({ ...current, error: undefined });
+    }
+  }
+
+  dismissK8sRuntimeError(): void {
+    const currentErr = this.k8sRuntimeErrorMessage();
+    if (currentErr) {
+      this.k8sDismissedRuntimeError.set(currentErr);
+    }
+    this.k8sRuntimeActionError.set(null);
+  }
+
+  dismissK8sError(): void {
+    this.dismissK8sClusterError();
+    this.dismissK8sRuntimeError();
+  }
+
+  readonly isKindInstalled = computed(() => this.k8sClusterInfo()?.isKindInstalled ?? false);
+
+  readonly k8sActualVersion = computed(() => {
+    return this.k8sClusterInfo()?.version || this.k8sVersion();
+  });
+
+  readonly k8sActualNodeCount = computed(() => {
+    return this.k8sClusterInfo()?.nodeCount ?? this.k8sNodeCount();
+  });
+
+  private isK8sFormDirty(): boolean {
+    const init = this.initialState().kubernetes;
+    if (!init) return false;
+    const versionChanged = normalizeK8sVersion(init.version) !== normalizeK8sVersion(this.k8sVersion());
+    const nodeCountChanged = init.nodeCount !== this.k8sNodeCount();
+    return versionChanged || nodeCountChanged;
+  }
+
+  readonly isK8sRecreationPending = computed(() => {
+    const info = this.k8sClusterInfo();
+    if (!info || info.status !== 'running') return false;
+    const versionChanged =
+      !!info.version && normalizeK8sVersion(info.version) !== normalizeK8sVersion(this.k8sVersion());
+    const nodeCountChanged = info.nodeCount !== undefined && info.nodeCount !== this.k8sNodeCount();
+    return versionChanged || nodeCountChanged;
+  });
+
+  /**
+   * Container Engine availability for Kubernetes:
+   * 1. If built-in engine is not installed (and not in external mode): false.
+   * 2. If engine is not running: false.
+   */
+  readonly isK8sEngineAvailable = computed(() => {
+    if (this.isEngineNotInstalled()) return false;
+    if (!this.isEngineRunning()) return false;
+    return true;
+  });
+
+  readonly k8sUnavailableReason = computed<'engine-not-installed' | 'engine-stopped' | null>(() => {
+    if (this.isEngineNotInstalled()) return 'engine-not-installed';
+    if (!this.isEngineRunning()) return 'engine-stopped';
+    return null;
+  });
+
+  readonly k8sVersionOptions = signal<DropdownOption<string>[]>(
+    this.k8sVersion()
+      ? [
+          {
+            value: this.k8sVersion(),
+            label: this.k8sVersion().replace(/^v/, '')
+          }
+        ]
+      : []
+  );
+
+  readonly k8sNodeLabels: DiscreteSliderLabel[] = [
+    { value: 1, label: '1' },
+    { value: 2, label: '2' },
+    { value: 3, label: '3' },
+    { value: 4, label: '4' },
+    { value: 5, label: '5' },
+    { value: 6, label: '6' },
+    { value: 7, label: '7' },
+    { value: 8, label: '8' }
+  ];
+
+  readonly k8sStatus = computed<K8sClusterInfo['status']>(() => {
+    const op = this.k8sOperation();
+    if (op) {
+      if (op.operation === 'stop') return 'stopping';
+      if (op.operation === 'start' || op.operation === 'reset' || op.operation === 'install') return 'starting';
+    }
+    if (this.isStoppingK8sCluster()) return 'stopping';
+    if (this.isStartingK8sCluster() || this.isResettingK8sCluster()) return 'starting';
+    return this.k8sClusterInfo()?.status ?? 'stopped';
+  });
+  readonly isK8sRunning = computed(() => this.k8sStatus() === 'running' && !this.isK8sBusy());
+  readonly isK8sBusy = computed(() => {
+    const s = this.k8sStatus();
+    return (
+      s === 'starting' ||
+      s === 'stopping' ||
+      this.k8sOperation() !== null ||
+      this.isStartingK8sCluster() ||
+      this.isStoppingK8sCluster() ||
+      this.isResettingK8sCluster() ||
+      this.isInstallingK8sRuntime() ||
+      this.isUninstallingK8sRuntime() ||
+      this.isCancellingK8sOperation()
+    );
+  });
+  readonly k8sStatusLabel = computed(() => {
+    const op = this.k8sOperation();
+    if (op) {
+      if (op.operation === 'stop') return 'Stopping';
+      if (op.operation === 'start' || op.operation === 'reset' || op.operation === 'install') return 'Starting';
+    }
+    if (this.isStoppingK8sCluster()) return 'Stopping';
+    if (this.isStartingK8sCluster() || this.isResettingK8sCluster()) return 'Starting';
+    const status = this.k8sStatus();
+    switch (status) {
+      case 'running':
+        return 'Running';
+      case 'starting':
+        return 'Starting';
+      case 'stopping':
+        return 'Stopping';
+      case 'error':
+        return 'Error';
+      default:
+        return 'Stopped';
+    }
+  });
+  readonly k8sClusterName = computed(() => this.k8sClusterInfo()?.name ?? '—');
+  readonly k8sRuntimeVersion = computed(() => this.k8sClusterInfo()?.runtimeVersion ?? '');
+  readonly k8sStartedRelative = computed(() => {
+    if (!this.isK8sRunning()) return null;
+    const startedAt = this.k8sClusterInfo()?.startedAt;
+    if (!startedAt) return null;
+    return `Started ${formatDockerRelativeTime(new Date(startedAt))}`;
+  });
+
+  readonly draftKubernetesSettings = computed<KubernetesSettingsConfig>(() => ({
+    enabled: this.k8sEnabled(),
+    provisioner: this.k8sProvisioner(),
+    version: this.k8sVersion(),
+    nodeCount: this.k8sNodeCount(),
+    showSystemContainers: this.k8sShowSystemContainers()
+  }));
+
+  readonly isK8sConfigDisabled = computed(() => {
+    return (
+      !this.k8sEnabled() ||
+      !this.isK8sEngineAvailable() ||
+      !this.isKindInstalled() ||
+      this.isK8sBusy() ||
+      this.isEngineBusy()
+    );
+  });
+
+  toggleK8sShowSystemContainers(): void {
+    this.k8sShowSystemContainers.update(v => !v);
+  }
+
+  requestResetK8sCluster(): void {
+    this.pendingResetK8sCluster.set(true);
+  }
+
+  cancelResetK8sCluster(): void {
+    this.pendingResetK8sCluster.set(false);
+  }
+
+  requestCancelK8sOperation(): void {
+    this.pendingCancelK8sOperation.set(true);
+  }
+
+  cancelCancelK8sOperation(): void {
+    this.pendingCancelK8sOperation.set(false);
+  }
+
+  async confirmCancelK8sOperation(): Promise<void> {
+    this.pendingCancelK8sOperation.set(false);
+    this.dismissK8sClusterError();
+    this.isCancellingK8sOperation.set(true);
+    try {
+      const res = await this.electronApi.cancelK8sOperation();
+      if (res.success) {
+        this.flashSuccess('Kubernetes operation cancelled.', 4000);
+        await this.refreshK8sStatus();
+      } else {
+        this.reportK8sClusterError('Failed to cancel Kubernetes operation.');
+      }
+    } catch (err) {
+      this.reportK8sClusterError('Failed to cancel Kubernetes operation', err);
+    } finally {
+      this.isCancellingK8sOperation.set(false);
+    }
+  }
+
+  async confirmResetK8sCluster(): Promise<void> {
+    this.pendingResetK8sCluster.set(false);
+    this.dismissK8sClusterError();
+    this.isResettingK8sCluster.set(true);
+    try {
+      const res = await this.electronApi.resetK8sCluster();
+      if (res.success) {
+        this.flashSuccess('Kubernetes cluster reset successfully.', 4000);
+      } else {
+        this.reportK8sClusterError('Failed to reset Kubernetes cluster.');
+      }
+    } catch (err) {
+      this.reportK8sClusterError('Failed to reset Kubernetes cluster', err);
+    } finally {
+      this.isResettingK8sCluster.set(false);
+      await this.refreshK8sStatus();
+    }
+  }
+
+  requestUninstallK8sRuntime(): void {
+    this.pendingUninstallK8sRuntime.set(true);
+  }
+
+  cancelUninstallK8sRuntime(): void {
+    this.pendingUninstallK8sRuntime.set(false);
+  }
+
+  async confirmUninstallK8sRuntime(): Promise<void> {
+    this.pendingUninstallK8sRuntime.set(false);
+    await this.uninstallK8sRuntime();
+  }
+
+  async installK8sRuntime(): Promise<void> {
+    if (this.isInstallingK8sRuntime() || this.k8sOperation() !== null) return;
+    this.dismissK8sRuntimeError();
+    this.isInstallingK8sRuntime.set(true);
+    try {
+      const res = await this.electronApi.installK8sRuntime();
+      if (res.success) {
+        this.flashSuccess('Kubernetes kind runtime installed successfully.', 4000);
+      } else {
+        this.reportK8sRuntimeError('Failed to install Kubernetes kind runtime.');
+      }
+    } catch (err) {
+      this.reportK8sRuntimeError('Failed to install Kubernetes kind runtime', err);
+    } finally {
+      this.isInstallingK8sRuntime.set(false);
+      await this.refreshK8sStatus();
+    }
+  }
+
+  async uninstallK8sRuntime(): Promise<void> {
+    if (this.isUninstallingK8sRuntime() || this.k8sOperation() !== null) return;
+    this.dismissK8sRuntimeError();
+    this.isUninstallingK8sRuntime.set(true);
+    try {
+      const res = await this.electronApi.uninstallK8sRuntime();
+      if (res.success) {
+        this.flashSuccess('Kubernetes kind runtime uninstalled.', 4000);
+      } else {
+        this.reportK8sRuntimeError('Failed to uninstall Kubernetes kind runtime.');
+      }
+    } catch (err) {
+      this.reportK8sRuntimeError('Failed to uninstall Kubernetes kind runtime', err);
+    } finally {
+      this.isUninstallingK8sRuntime.set(false);
+      await this.refreshK8sStatus();
+    }
+  }
+
+  async startK8sCluster(): Promise<void> {
+    if (this.isStartingK8sCluster() || this.k8sOperation() !== null) return;
+    this.dismissK8sClusterError();
+    this.isStartingK8sCluster.set(true);
+    try {
+      if (this.isK8sFormDirty()) {
+        const payload = this.buildSettingsPayload();
+        payload.kubernetes = {
+          ...payload.kubernetes,
+          enabled: this.k8sEnabled(),
+          provisioner: this.k8sProvisioner(),
+          version: this.k8sVersion(),
+          nodeCount: this.k8sNodeCount(),
+          showSystemContainers: this.k8sShowSystemContainers()
+        };
+        const saved = await this.electronApi.saveEngineSettings(payload);
+        if (saved) {
+          this.saveSettingsToStorage(saved);
+          this.commitInitialState();
+        }
+      }
+      const res = await this.electronApi.startK8sCluster();
+      if (res.success) {
+        this.flashSuccess('Kubernetes cluster started.', 4000);
+      } else {
+        this.reportK8sClusterError('Failed to start Kubernetes cluster.');
+      }
+    } catch (err) {
+      this.reportK8sClusterError('Failed to start Kubernetes cluster', err);
+    } finally {
+      this.isStartingK8sCluster.set(false);
+      await this.refreshK8sStatus();
+    }
+  }
+
+  async stopK8sCluster(): Promise<void> {
+    if (this.isStoppingK8sCluster() || this.k8sOperation() !== null) return;
+    this.dismissK8sClusterError();
+    this.isStoppingK8sCluster.set(true);
+    try {
+      const res = await this.electronApi.stopK8sCluster();
+      if (res.success) {
+        this.flashSuccess('Kubernetes cluster stopped.', 4000);
+      } else {
+        this.reportK8sClusterError('Failed to stop Kubernetes cluster.');
+      }
+    } catch (err) {
+      this.reportK8sClusterError('Failed to stop Kubernetes cluster', err);
+    } finally {
+      this.isStoppingK8sCluster.set(false);
+      await this.refreshK8sStatus();
+    }
+  }
+
+  async applyAndRecreateK8sCluster(): Promise<void> {
+    if (this.isK8sBusy() || this.isEngineBusy()) return;
+    this.dismissK8sClusterError();
+    this.isResettingK8sCluster.set(true);
+    try {
+      const payload = this.buildSettingsPayload();
+      payload.kubernetes = {
+        ...payload.kubernetes,
+        enabled: this.k8sEnabled(),
+        provisioner: this.k8sProvisioner(),
+        version: this.k8sVersion(),
+        nodeCount: this.k8sNodeCount(),
+        showSystemContainers: this.k8sShowSystemContainers()
+      };
+      const saved = await this.electronApi.saveEngineSettings(payload);
+      if (saved) {
+        this.saveSettingsToStorage(saved);
+        this.commitInitialState();
+      }
+      this.flashSuccess('Recreating Kubernetes cluster with new configuration...', 4000);
+      const res = await this.electronApi.resetK8sCluster();
+      if (res.success) {
+        this.flashSuccess('Kubernetes cluster recreated successfully.', 4000);
+      } else {
+        this.reportK8sClusterError('Failed to recreate Kubernetes cluster.');
+      }
+      await this.refreshK8sStatus();
+    } catch (err) {
+      this.reportK8sClusterError('Failed to recreate Kubernetes cluster', err);
+    } finally {
+      this.isResettingK8sCluster.set(false);
+    }
+  }
+
+  async refreshK8sStatus(): Promise<void> {
+    try {
+      const info = await this.electronApi.getK8sStatus();
+      if (info) {
+        this.k8sClusterInfo.set(info);
+        if (info.operation !== undefined) {
+          this.k8sOperation.set(info.operation);
+        }
+        if (info.operation?.operation === 'install') {
+          this.isInstallingK8sRuntime.set(true);
+        } else if (!info.operation) {
+          this.isInstallingK8sRuntime.set(false);
+        }
+
+        // If the cluster is running/active and the user hasn't made unapplied K8s changes,
+        // synchronize the form controls and initial state with the actual cluster
+        if (info.status === 'running' && !this.isK8sFormDirty()) {
+          if (info.version && normalizeK8sVersion(this.k8sVersion()) !== normalizeK8sVersion(info.version)) {
+            const normalized = info.version.startsWith('v') ? info.version : `v${info.version}`;
+            this.k8sVersion.set(normalized);
+            this.initialState.update(s => ({
+              ...s,
+              kubernetes: { ...s.kubernetes, version: normalized }
+            }));
+          }
+          if (info.nodeCount !== undefined && info.nodeCount !== this.k8sNodeCount()) {
+            this.k8sNodeCount.set(info.nodeCount);
+            this.initialState.update(s => ({
+              ...s,
+              kubernetes: { ...s.kubernetes, nodeCount: info.nodeCount }
+            }));
+          }
+        }
+      }
+    } catch {
+      // Ignore if not supported
+    }
+    void this.loadK8sVersions();
+  }
+
+  async loadK8sVersions(): Promise<void> {
+    try {
+      const versions = await this.electronApi.getK8sVersions();
+      if (versions && versions.length > 0) {
+        const options: DropdownOption<string>[] = versions.map(v => ({
+          value: v.startsWith('v') ? v : `v${v}`,
+          label: v.replace(/^v/, '')
+        }));
+
+        const current = this.k8sVersion();
+        if (current) {
+          const currentNormalized = current.startsWith('v') ? current : `v${current}`;
+          if (!options.some(o => o.value === currentNormalized)) {
+            options.unshift({
+              value: currentNormalized,
+              label: current.replace(/^v/, '')
+            });
+          }
+        }
+
+        this.k8sVersionOptions.set(options);
+      }
+    } catch {
+      // Ignored
+    }
+  }
 
   // Modal state for restart confirmation
   readonly showRestartModal = signal(false);
@@ -628,8 +1122,8 @@ export class SettingsPageComponent implements OnInit {
   readonly isEngineIdle = computed(() => this.isEngineRunning() && this.engineStatus()?.runtime?.source !== 'embedded');
   readonly isCatBeeContextActive = computed(() => {
     const dc = this.dockerContext();
-    if (dc?.currentContext) {
-      return dc.currentContext === CATBEE_CONTEXT_NAME || dc.isCatBeeActive;
+    if (dc) {
+      return dc.isCatBeeActive;
     }
     return this.engineStatus()?.runtime?.source === 'embedded';
   });
@@ -721,7 +1215,8 @@ export class SettingsPageComponent implements OnInit {
 
   /** Switching the CLI context also switches CatBee's engine, so the backend saves the matching engine mode. */
   private contextModeChangeNote(contextName: string): string {
-    const target: EngineMode = contextName === CATBEE_CONTEXT_NAME ? 'embedded' : 'external';
+    const isCatBee = Boolean(contextName && contextName === this.catbeeContextName());
+    const target: EngineMode = isCatBee ? 'embedded' : 'external';
     const applied = this.initialState().engineMode;
     if (target === applied && this.engineMode() === applied) return '';
     return ` The engine mode under "Choose how to run Docker containers" changes to "${this.engineModeLabel(target)}".`;
@@ -981,34 +1476,34 @@ export class SettingsPageComponent implements OnInit {
     containersProxy: this.containersProxy(),
     network: this.networkSettings(),
     resources: this.resources(),
-    wslAdditionalDistros: this.wslAdditionalDistros()
+    wslAdditionalDistros: this.wslAdditionalDistros(),
+    kubernetes: this.draftKubernetesSettings()
   }));
 
-  private readonly daemonPreviewEffect = effect(onCleanup => {
-    const draft = this.draftEngineSettings();
-    const timer = setTimeout(() => {
-      this.electronApi
-        .getEngineDaemonConfig(draft)
-        .then(config => this.daemonConfigPreview.set(JSON.stringify(config ?? {}, null, 2)))
-        .catch(() => this.daemonConfigPreview.set('{}'));
-    }, 250);
-    onCleanup(() => clearTimeout(timer));
-  });
-
-  private updateCheckStartedAt = 0;
-  private pendingStatusTimeout: ReturnType<typeof setTimeout> | null = null;
-  private readonly minCheckDurationMs = 500;
-
-  private readonly requestedCategoryEffect = effect(
-    () => {
+  constructor() {
+    effect(() => {
       const target = this.settings.requestedCategory();
       if (target && this.categories.some(c => c.id === target)) {
         this.selectCategory(target as SettingsCategory['id']);
         this.settings.requestedCategory.set(null);
       }
-    },
-    { allowSignalWrites: true }
-  );
+    });
+
+    effect(onCleanup => {
+      const draft = this.draftEngineSettings();
+      const timer = setTimeout(() => {
+        this.electronApi
+          .getEngineDaemonConfig(draft)
+          .then(config => this.daemonConfigPreview.set(JSON.stringify(config ?? {}, null, 2)))
+          .catch(() => this.daemonConfigPreview.set('{}'));
+      }, 250);
+      onCleanup(() => clearTimeout(timer));
+    });
+  }
+
+  private updateCheckStartedAt = 0;
+  private pendingStatusTimeout: ReturnType<typeof setTimeout> | null = null;
+  private readonly minCheckDurationMs = 500;
 
   readonly resourceTabItems = computed<TabItem[]>(() => {
     const tabs: TabItem[] = [{ id: 'advanced', label: 'Advanced' }];
@@ -1048,7 +1543,8 @@ export class SettingsPageComponent implements OnInit {
       JSON.stringify(this.desktopProxy()) !== JSON.stringify(init.desktopProxy) ||
       JSON.stringify(this.containersProxy()) !== JSON.stringify(init.containersProxy) ||
       JSON.stringify(this.networkSettings()) !== JSON.stringify(init.networkSettings) ||
-      JSON.stringify(this.wslAdditionalDistros()) !== JSON.stringify(init.wslAdditionalDistros)
+      JSON.stringify(this.wslAdditionalDistros()) !== JSON.stringify(init.wslAdditionalDistros) ||
+      JSON.stringify(this.draftKubernetesSettings()) !== JSON.stringify(init.kubernetes)
     );
   });
 
@@ -1083,12 +1579,18 @@ export class SettingsPageComponent implements OnInit {
     const tab = this.route.snapshot.queryParamMap.get('tab');
     if (tab && this.categories.some(c => c.id === tab)) {
       this.activeCategory.set(tab as SettingsCategory['id']);
+      if (tab === 'kubernetes') {
+        void this.refreshK8sStatus();
+      }
     }
 
     this.route.queryParamMap.subscribe(params => {
       const t = params.get('tab');
       if (t && this.categories.some(c => c.id === t)) {
         this.activeCategory.set(t as SettingsCategory['id']);
+        if (t === 'kubernetes') {
+          void this.refreshK8sStatus();
+        }
         if (t === 'updates' && this.updaterStatus().status === 'idle') {
           void this.checkForUpdates();
         }
@@ -1099,6 +1601,7 @@ export class SettingsPageComponent implements OnInit {
     void this.loadEngineStatus();
     void this.loadDockerContext();
     void this.loadWslDistros();
+    void this.refreshK8sStatus();
     void this.loadPlatformInfo().then(() => this.loadCurrentReleaseNotes());
 
     // The engine switches the CLI to catbee-desktop in the background once it is running, so refresh both.
@@ -1110,6 +1613,15 @@ export class SettingsPageComponent implements OnInit {
       this.engineOperation.set(progress);
       if (!progress) {
         void this.loadEngineStatus();
+      }
+    });
+    const unsubscribeK8sProgress = this.electronApi.onK8sProgress(progress => {
+      this.k8sOperation.set(progress);
+      if (progress?.operation === 'install') {
+        this.isInstallingK8sRuntime.set(true);
+      } else if (!progress) {
+        this.isInstallingK8sRuntime.set(false);
+        void this.refreshK8sStatus();
       }
     });
     const applyStatus = (status: AutoUpdaterStatus) => {
@@ -1160,6 +1672,7 @@ export class SettingsPageComponent implements OnInit {
       }
       unsubscribe?.();
       unsubscribeProgress();
+      unsubscribeK8sProgress();
       unsubscribeUpdater();
     });
   }
@@ -1179,6 +1692,20 @@ export class SettingsPageComponent implements OnInit {
       this.wslAdditionalDistros.set([...this.settings.wslAdditionalDistros()]);
       this.applyResourcesToForm(this.settings.resources());
       this.startAtLogin.set(this.settings.startAtLogin());
+      this.k8sEnabled.set(this.settings.kubernetes().enabled);
+      this.k8sProvisioner.set(this.settings.kubernetes().provisioner);
+      const activeCluster = this.k8sClusterInfo();
+      const initialVer =
+        activeCluster?.status === 'running' && activeCluster.version
+          ? activeCluster.version
+          : this.settings.kubernetes().version;
+      const initialNodes =
+        activeCluster?.status === 'running' && activeCluster.nodeCount !== undefined
+          ? activeCluster.nodeCount
+          : this.settings.kubernetes().nodeCount;
+      this.k8sVersion.set(initialVer);
+      this.k8sNodeCount.set(initialNodes);
+      this.k8sShowSystemContainers.set(this.settings.kubernetes().showSystemContainers);
       this.commitInitialState();
     } catch {
       // Ignored
@@ -1295,7 +1822,7 @@ export class SettingsPageComponent implements OnInit {
 
   requestSwitchDockerContext(contextName: string): void {
     const builder = this.builderInfo()?.builders.find(b => b.name === contextName);
-    if (builder?.status === 'error' && contextName !== 'catbee-desktop') {
+    if (builder?.status === 'error' && contextName !== this.catbeeContextName()) {
       return;
     }
     this.pendingContextSwitch.set(contextName);
@@ -1355,7 +1882,7 @@ export class SettingsPageComponent implements OnInit {
       const updated = await this.electronApi.setupCatBeeContext(true);
       if (updated) {
         this.dockerContext.set(updated);
-        this.expandedBuilderNames.set(new Set(['catbee-desktop']));
+        this.expandedBuilderNames.set(new Set([updated.currentContext ?? this.catbeeContextName()]));
         await this.settings.syncFromBackend();
         this.adoptSavedEngineMode();
         await this.loadEngineStatus();
@@ -1492,6 +2019,9 @@ export class SettingsPageComponent implements OnInit {
     });
     if (id === 'engine') {
       void this.loadDockerContext();
+    }
+    if (id === 'kubernetes') {
+      void this.refreshK8sStatus();
     }
     if (id === 'updates' && this.updaterStatus().status !== 'checking') {
       void this.checkForUpdates();
@@ -1869,6 +2399,11 @@ export class SettingsPageComponent implements OnInit {
     this.settings.setNetwork(saved?.network ?? this.networkSettings());
     this.settings.setWslAdditionalDistros(this.wslAdditionalDistros());
     this.settings.setResources(saved?.resources ?? this.resources());
+    this.settings.setKubernetes(saved?.kubernetes ?? this.draftKubernetesSettings());
+    this.localStorage.set(
+      UI_STORAGE_KEYS.CONTAINERS_SHOW_K8S,
+      String(saved?.kubernetes?.showSystemContainers ?? this.k8sShowSystemContainers())
+    );
   }
 
   private applyResourcesToForm(resources?: ResourceSettingsConfig): void {
@@ -1894,7 +2429,8 @@ export class SettingsPageComponent implements OnInit {
       desktopProxy: { ...this.desktopProxy() },
       containersProxy: { ...this.containersProxy() },
       networkSettings: { ...this.networkSettings() },
-      wslAdditionalDistros: [...this.wslAdditionalDistros()]
+      wslAdditionalDistros: [...this.wslAdditionalDistros()],
+      kubernetes: { ...this.draftKubernetesSettings() }
     });
   }
 
@@ -1903,10 +2439,28 @@ export class SettingsPageComponent implements OnInit {
     setTimeout(() => this.applySuccessMessage.set(null), durationMs);
   }
 
-  private reportSettingsError(prefix: string, err: unknown): void {
-    console.error(`${prefix}:`, err);
-    const msg = err instanceof Error ? err.message : String(err);
-    this.settingsErrorMessage.set(`${prefix}: ${msg}`);
+  private reportSettingsError(prefix: string, err?: unknown): void {
+    if (err) {
+      console.error(`${prefix}:`, err);
+    }
+    const msg = err ? (err instanceof Error ? err.message : String(err)) : null;
+    this.settingsErrorMessage.set(msg ? `${prefix}: ${msg}` : prefix);
+  }
+
+  private reportK8sClusterError(prefix: string, err?: unknown): void {
+    if (err) {
+      console.error(`${prefix}:`, err);
+    }
+    const msg = err ? (err instanceof Error ? err.message : String(err)) : null;
+    this.k8sClusterActionError.set(msg ? `${prefix}: ${msg}` : prefix);
+  }
+
+  private reportK8sRuntimeError(prefix: string, err?: unknown): void {
+    if (err) {
+      console.error(`${prefix}:`, err);
+    }
+    const msg = err ? (err instanceof Error ? err.message : String(err)) : null;
+    this.k8sRuntimeActionError.set(msg ? `${prefix}: ${msg}` : prefix);
   }
 
   async confirmRestartNow(): Promise<void> {
@@ -2013,6 +2567,11 @@ export class SettingsPageComponent implements OnInit {
     this.networkSettings.set({ ...init.networkSettings });
     this.wslAdditionalDistros.set([...init.wslAdditionalDistros]);
     this.selectTheme(init.theme);
+    this.k8sEnabled.set(init.kubernetes.enabled);
+    this.k8sProvisioner.set(init.kubernetes.provisioner);
+    this.k8sVersion.set(init.kubernetes.version);
+    this.k8sNodeCount.set(init.kubernetes.nodeCount);
+    this.k8sShowSystemContainers.set(init.kubernetes.showSystemContainers);
     this.newSharePath.set('');
     this.sharePathError.set(null);
   }

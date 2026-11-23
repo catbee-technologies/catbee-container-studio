@@ -8,7 +8,9 @@ import {
   DockerInitializationStatus,
   EmbeddedEngineStatus,
   EngineOperationProgress,
-  EngineSettings
+  EngineSettings,
+  K8sClusterInfo,
+  K8sOperationProgress
 } from '@shared/types';
 
 @Injectable({ providedIn: 'root' })
@@ -256,5 +258,54 @@ export class ElectronApiService extends ElectronBaseService {
   async getReleaseNotes(version?: string): Promise<ReleaseNotesInfo | null> {
     const response = await this.bridge.app?.updater?.getReleaseNotes(version);
     return this.unwrapResult<ReleaseNotesInfo | null>(response);
+  }
+
+  async getK8sStatus(): Promise<K8sClusterInfo | undefined> {
+    const response = await this.bridge.app?.k8s?.getStatus?.();
+    return this.unwrapResult<K8sClusterInfo | undefined>(response);
+  }
+
+  async getK8sProgress(): Promise<K8sOperationProgress | null> {
+    const response = await this.bridge.app?.k8s?.getProgress?.();
+    return this.unwrapResult<K8sOperationProgress | null>(response) ?? null;
+  }
+
+  async startK8sCluster(): Promise<{ success: boolean }> {
+    const response = await this.bridge.app?.k8s?.startCluster?.();
+    return this.unwrapResult<{ success: boolean }>(response) ?? { success: false };
+  }
+
+  async stopK8sCluster(): Promise<{ success: boolean }> {
+    const response = await this.bridge.app?.k8s?.stopCluster?.();
+    return this.unwrapResult<{ success: boolean }>(response) ?? { success: false };
+  }
+
+  async resetK8sCluster(): Promise<{ success: boolean }> {
+    const response = await this.bridge.app?.k8s?.resetCluster?.();
+    return this.unwrapResult<{ success: boolean }>(response) ?? { success: false };
+  }
+
+  async cancelK8sOperation(): Promise<{ success: boolean }> {
+    const response = await this.bridge.app?.k8s?.cancelOperation?.();
+    return this.unwrapResult<{ success: boolean }>(response) ?? { success: false };
+  }
+
+  async getK8sVersions(): Promise<string[]> {
+    const response = await this.bridge.app?.k8s?.getVersions?.();
+    return this.unwrapResult<string[]>(response) ?? [];
+  }
+
+  async installK8sRuntime(): Promise<{ success: boolean }> {
+    const response = await this.bridge.app?.k8s?.installRuntime?.();
+    return this.unwrapResult<{ success: boolean }>(response) ?? { success: false };
+  }
+
+  async uninstallK8sRuntime(): Promise<{ success: boolean }> {
+    const response = await this.bridge.app?.k8s?.uninstallRuntime?.();
+    return this.unwrapResult<{ success: boolean }>(response) ?? { success: false };
+  }
+
+  onK8sProgress(callback: (progress: K8sOperationProgress | null) => void): () => void {
+    return this.bridge.app?.k8s?.onProgress?.(callback) ?? (() => undefined);
   }
 }
