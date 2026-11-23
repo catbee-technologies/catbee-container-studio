@@ -152,6 +152,14 @@ export class EngineManager {
     return this.exclusive(() => this.stopUnlocked());
   }
 
+  stopForShutdown(): Promise<void> {
+    return this.exclusive(async () => {
+      if (this.currentState === 'running' || this.currentState === 'error') {
+        await this.stopUnlocked();
+      }
+    });
+  }
+
   restart(onStatus?: (status: string) => void): Promise<DockerConnection> {
     return this.exclusive(async () => {
       await this.stopUnlocked();

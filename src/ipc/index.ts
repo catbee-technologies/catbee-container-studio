@@ -7,6 +7,7 @@ import { registerPlatformHandlers } from './app/platform.ipc';
 import { registerDialogHandlers } from './app/dialog.ipc';
 import { registerEngineHandlers } from './app/engine.ipc';
 import { registerK8sHandlers } from './app/k8s.ipc';
+import type { PrepareForUpdateInstall } from '../main/app/updater';
 
 import { registerDockerSystemHandlers } from './docker/system.ipc';
 import { registerDockerContainerHandlers } from './docker/containers.ipc';
@@ -16,14 +17,14 @@ import { registerDockerNetworkHandlers } from './docker/networks.ipc';
 import { registerDockerStreamHandlers } from './docker/streams.ipc';
 import { registerDockerExecSessionHandlers } from './docker/exec-session.ipc';
 
-export function registerIpcHandlers(): void {
+export function registerIpcHandlers(prepareForUpdateInstall: PrepareForUpdateInstall): void {
   // App
   registerExternalHandlers();
   registerWindowHandlers();
   registerMenuHandlers();
   registerInitializationHandlers();
   registerEngineHandlers();
-  registerUpdaterHandlers();
+  registerUpdaterHandlers(prepareForUpdateInstall);
   registerPlatformHandlers();
   registerDialogHandlers();
   registerK8sHandlers();

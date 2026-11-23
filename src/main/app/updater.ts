@@ -1,6 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import { autoUpdater } from 'electron-updater';
-import { isDev } from './constants';
+import { isDev, isMacOS } from './constants';
 import { logger } from '../logger';
 import { IPC_CHANNELS } from '../../ipc/channels';
 
@@ -33,6 +33,11 @@ export type AutoUpdaterStatus =
     };
 
 let mainWindow: BrowserWindow | null = null;
+let updateDownloaded = false;
+let installingUpdate = false;
+let recoverFromInstallFailure: (() => void) | null = null;
+
+export type PrepareForUpdateInstall = () => Promise<() => void>;
 
 export interface ReleaseNotesInfo {
   version: string;
@@ -234,13 +239,16 @@ export function initializeAutoUpdater(window: BrowserWindow): void {
   });
 
   autoUpdater.on('update-downloaded', info => {
+    updateDownloaded = true;
     logger.info(`[AutoUpdater] Update downloaded: ${info.version}`);
     sendStatus({ status: 'downloaded', version: info.version });
   });
 
   autoUpdater.on('error', error => {
+    const installFailed = recoverFromInstallFailure !== null;
+    recoverFromInstallFailure?.();
     logger.error({ err: error }, '[AutoUpdater] Error');
-    sendStatus({ status: 'error', message: getErrorMessage(error) });
+    sendStatus({ status: 'error', message: installFailed ? 'Could not install the update.' : getErrorMessage(error) });
   });
 }
 
@@ -252,6 +260,7 @@ export function isMicrosoftStoreInstallation(): boolean {
 }
 
 export async function checkForUpdates(): Promise<void> {
+  if (installingUpdate) return;
   if (isDev) {
     logger.debug('[AutoUpdater] Skipping update check in development.');
     return;
@@ -298,7 +307,7 @@ export async function checkForUpdates(): Promise<void> {
 }
 
 export async function downloadUpdate(): Promise<void> {
-  if (isDev || isMicrosoftStoreInstallation()) {
+  if (isDev || isMicrosoftStoreInstallation() || installingUpdate) {
     return;
   }
 
@@ -310,12 +319,39 @@ export async function downloadUpdate(): Promise<void> {
   }
 }
 
-export function restartAndInstallUpdate(): void {
-  if (isDev || isMicrosoftStoreInstallation()) {
+export function skipAutoInstallOnQuit(): void {
+  autoUpdater.autoInstallEvent = 'manual';
+}
+
+export async function restartAndInstallUpdate(prepare: PrepareForUpdateInstall): Promise<void> {
+  if (isDev || isMacOS || isMicrosoftStoreInstallation() || !updateDownloaded || installingUpdate) {
     return;
   }
+  installingUpdate = true;
+
+  let restoreShutdownState: () => void;
+  try {
+    restoreShutdownState = await prepare();
+  } catch (err) {
+    installingUpdate = false;
+    logger.warn({ err }, '[AutoUpdater] Background shutdown did not finish before update installation.');
+    sendStatus({ status: 'error', message: 'CatBee could not finish shutting down. Try installing the update again.' });
+    return;
+  }
+
+  recoverFromInstallFailure = () => {
+    restoreShutdownState();
+    recoverFromInstallFailure = null;
+    installingUpdate = false;
+  };
   logger.info('[AutoUpdater] Restarting and installing update...');
-  autoUpdater.quitAndInstall();
+  try {
+    autoUpdater.quitAndInstall();
+  } catch (err) {
+    recoverFromInstallFailure?.();
+    logger.error({ err }, '[AutoUpdater] Could not start the update installer.');
+    sendStatus({ status: 'error', message: 'Could not start the update installer.' });
+  }
 }
 
 function sendStatus(status: AutoUpdaterStatus): void {

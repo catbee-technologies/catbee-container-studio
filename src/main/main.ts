@@ -5,7 +5,7 @@ import { createMainWindow } from './window';
 import { buildApplicationMenu } from './app/menu';
 import { logger } from './logger';
 import { isDev, isMacOS } from './app/constants';
-import { initializeAutoUpdater } from './app/updater';
+import { initializeAutoUpdater, skipAutoInstallOnQuit } from './app/updater';
 import { IPC_CHANNELS } from '../ipc/channels';
 import { dockerManager } from './docker/services/docker.manager';
 import { engineManager } from './docker/embedded/engine.manager';
@@ -14,11 +14,17 @@ import { stopAllStreamSessions } from '../ipc/docker/streams.ipc';
 app.commandLine.appendSwitch('force-color-profile', 'srgb');
 
 const SHUTDOWN_TIMEOUT_MS = 30_000;
+const isHeadlessTeardown = process.argv.includes('--uninstall') || process.argv.includes('--factory-reset');
 
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
-  app.quit();
+  if (isHeadlessTeardown) {
+    logger.error('Close the running CatBee application before requesting headless teardown.');
+    app.exit(1);
+  } else {
+    app.quit();
+  }
 } else {
   logger.info(`Application starting in ${isDev ? 'development' : 'production'} mode`);
   let mainWindow: BrowserWindow | null = null;
@@ -67,6 +73,51 @@ if (!gotTheLock) {
   let quitConfirmed = false;
   let isConfirmingQuit = false;
   let shutdownState: 'idle' | 'running' | 'done' = 'idle';
+  let backgroundShutdown: Promise<void> | null = null;
+
+  function stopBackgroundServices(): Promise<void> {
+    if (backgroundShutdown) return backgroundShutdown;
+
+    logger.info('Shutting down background services before quit');
+    try {
+      stopAllStreamSessions();
+    } catch (err) {
+      logger.warn({ err }, 'Error stopping stream sessions on quit');
+    }
+    backgroundShutdown = dockerManager.shutdown().finally(() => {
+      backgroundShutdown = null;
+    });
+    return backgroundShutdown;
+  }
+
+  async function waitForBackgroundShutdown(): Promise<void> {
+    let timer: NodeJS.Timeout | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error('Background shutdown timed out.')), SHUTDOWN_TIMEOUT_MS);
+    });
+    try {
+      await Promise.race([stopBackgroundServices(), deadline]);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function prepareForUpdateInstall(): Promise<() => void> {
+    if (shutdownState !== 'idle' || isConfirmingQuit) {
+      throw new Error('CatBee is already closing.');
+    }
+    shutdownState = 'running';
+    try {
+      await waitForBackgroundShutdown();
+      shutdownState = 'done';
+    } catch (err) {
+      shutdownState = 'idle';
+      throw err;
+    }
+    return () => {
+      shutdownState = 'idle';
+    };
+  }
 
   async function requestQuitConfirmation(parentWindow?: BrowserWindow | null): Promise<boolean> {
     const target = parentWindow && !parentWindow.isDestroyed() ? parentWindow : mainWindow;
@@ -129,26 +180,20 @@ if (!gotTheLock) {
     }
 
     shutdownState = 'running';
-    logger.info('Shutting down background services before quit');
 
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send(IPC_CHANNELS.App.Quitting);
     }
 
-    try {
-      stopAllStreamSessions();
-    } catch (err) {
-      logger.warn({ err }, 'Error stopping stream sessions on quit');
-    }
-
-    const timeout = new Promise<void>(resolve => setTimeout(resolve, SHUTDOWN_TIMEOUT_MS));
-    void Promise.race([
-      dockerManager.shutdown().catch(err => logger.warn({ err }, 'Error stopping built-in engine on quit')),
-      timeout
-    ]).finally(() => {
-      shutdownState = 'done';
-      app.quit();
-    });
+    void waitForBackgroundShutdown()
+      .catch(err => {
+        logger.warn({ err }, 'Error stopping built-in engine on quit');
+        skipAutoInstallOnQuit();
+      })
+      .finally(() => {
+        shutdownState = 'done';
+        app.quit();
+      });
   });
 
   app.on('second-instance', () => {
@@ -174,9 +219,21 @@ if (!gotTheLock) {
     .then(async () => {
       logger.info('Application is ready');
 
+      if (isHeadlessTeardown) {
+        logger.info('Detected --uninstall or --factory-reset command line flag; executing headless teardown...');
+        await dockerManager.factoryResetTeardown((progress, stage) => {
+          logger.info(`[Teardown] ${progress}% - ${stage}`);
+        });
+        logger.info('Headless teardown finished cleanly; exiting.');
+        quitConfirmed = true;
+        shutdownState = 'done';
+        app.quit();
+        return;
+      }
+
       buildApplicationMenu({ getMainWindow: () => mainWindow, showOrCreateMainWindow });
       registerAppProtocol();
-      registerIpcHandlers();
+      registerIpcHandlers(prepareForUpdateInstall);
       openMainWindow();
 
       if (mainWindow) {
@@ -261,6 +318,7 @@ if (!gotTheLock) {
     })
     .catch((error: unknown) => {
       logger.fatal({ err: error }, 'Failed to initialize application');
-      app.quit();
+      if (isHeadlessTeardown) app.exit(1);
+      else app.quit();
     });
 }

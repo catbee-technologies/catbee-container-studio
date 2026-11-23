@@ -437,9 +437,7 @@ export class DockerManager {
     } catch (err) {
       logger.debug('[DockerManager] Error shutting down k8sManager on quit:', err);
     }
-    if (['running', 'starting', 'error', 'installing'].includes(engineManager.state)) {
-      await engineManager.stop();
-    }
+    await engineManager.stopForShutdown();
   }
 
   async pauseEngine(): Promise<{ pausedCount: number; isPaused: boolean }> {

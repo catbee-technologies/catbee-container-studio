@@ -5,11 +5,12 @@ import {
   downloadUpdate,
   getReleaseNotes,
   isMicrosoftStoreInstallation,
-  restartAndInstallUpdate
+  restartAndInstallUpdate,
+  type PrepareForUpdateInstall
 } from '../../main/app/updater';
 import { ok } from '../contracts';
 
-export function registerUpdaterHandlers(): void {
+export function registerUpdaterHandlers(prepareForUpdateInstall: PrepareForUpdateInstall): void {
   ipcMain.removeHandler(IPC_CHANNELS.App.Updater.CheckForUpdates);
   ipcMain.handle(IPC_CHANNELS.App.Updater.CheckForUpdates, async () => {
     await checkForUpdates();
@@ -21,8 +22,8 @@ export function registerUpdaterHandlers(): void {
   });
 
   ipcMain.removeHandler(IPC_CHANNELS.App.Updater.RestartAndInstallUpdate);
-  ipcMain.handle(IPC_CHANNELS.App.Updater.RestartAndInstallUpdate, () => {
-    restartAndInstallUpdate();
+  ipcMain.handle(IPC_CHANNELS.App.Updater.RestartAndInstallUpdate, async () => {
+    await restartAndInstallUpdate(prepareForUpdateInstall);
   });
 
   ipcMain.handle(IPC_CHANNELS.App.Updater.IsMicrosoftStore, () => {
