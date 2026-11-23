@@ -6,6 +6,7 @@ import { registerUpdaterHandlers } from './app/updater.ipc';
 import { registerPlatformHandlers } from './app/platform.ipc';
 import { registerDialogHandlers } from './app/dialog.ipc';
 import { registerEngineHandlers } from './app/engine.ipc';
+import { registerK8sHandlers } from './app/k8s.ipc';
 
 import { registerDockerSystemHandlers } from './docker/system.ipc';
 import { registerDockerContainerHandlers } from './docker/containers.ipc';
@@ -25,6 +26,7 @@ export function registerIpcHandlers(): void {
   registerUpdaterHandlers();
   registerPlatformHandlers();
   registerDialogHandlers();
+  registerK8sHandlers();
 
   // Docker
   registerDockerSystemHandlers();

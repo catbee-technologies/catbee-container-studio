@@ -189,6 +189,27 @@ if (!gotTheLock) {
         }
       });
 
+      void (async () => {
+        try {
+          const { k8sManager } = await import('./k8s/k8s-manager.js');
+          k8sManager.onProgress(progress => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send(IPC_CHANNELS.App.K8s.Progress, progress);
+            }
+          });
+          if (mainWindow) {
+            mainWindow.webContents.on('did-finish-load', () => {
+              const current = k8sManager.getCurrentProgress();
+              if (current && mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send(IPC_CHANNELS.App.K8s.Progress, current);
+              }
+            });
+          }
+        } catch (err) {
+          logger.debug('[Main] Could not register k8sManager progress listener:', err);
+        }
+      })();
+
       void dockerManager
         .initialize(
           status => {
@@ -196,6 +217,20 @@ if (!gotTheLock) {
               return;
             }
             mainWindow.webContents.send(IPC_CHANNELS.App.Initialization.Docker.Status, status);
+            if (status.state === 'ready') {
+              void (async () => {
+                try {
+                  const { getEngineSettings } = await import('./docker/embedded/engine-settings.js');
+                  const settings = await getEngineSettings();
+                  if (settings.kubernetes?.enabled) {
+                    const { k8sManager } = await import('./k8s/k8s-manager.js');
+                    await k8sManager.startCluster(settings.kubernetes);
+                  }
+                } catch (err) {
+                  logger.warn({ err }, '[Main] Auto-start Kubernetes cluster encountered an issue.');
+                }
+              })();
+            }
           },
           () => {
             if (!mainWindow || mainWindow.isDestroyed()) {
