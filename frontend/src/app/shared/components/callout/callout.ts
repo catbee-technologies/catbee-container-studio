@@ -8,7 +8,10 @@ export type CalloutType = 'info' | 'warning' | 'error' | 'success' | 'subtle';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './callout.html',
-  styleUrl: './callout.scss'
+  styleUrl: './callout.scss',
+  host: {
+    '[attr.title]': 'null'
+  }
 })
 export class CalloutComponent {
   readonly type = input<CalloutType>('info');

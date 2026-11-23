@@ -75,7 +75,10 @@ import { Component, input } from '@angular/core';
       font-size: 1rem;
       line-height: inherit;
     }
-  `
+  `,
+  host: {
+    '[attr.title]': 'null'
+  }
 })
 export class EditHeadingComponent {
   readonly title = input.required<string>();

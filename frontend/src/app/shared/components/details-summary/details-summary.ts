@@ -12,7 +12,10 @@ export interface DetailsSummaryItem {
   selector: 'catbee-container-studio-details-summary',
   imports: [CopyButtonComponent, CatbeeTooltip],
   templateUrl: './details-summary.html',
-  styleUrl: './details-summary.scss'
+  styleUrl: './details-summary.scss',
+  host: {
+    '[attr.title]': 'null'
+  }
 })
 export class DetailsSummaryComponent {
   readonly title = input.required<string>();

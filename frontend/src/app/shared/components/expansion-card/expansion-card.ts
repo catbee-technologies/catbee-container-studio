@@ -3,7 +3,10 @@ import { Component, input, output } from '@angular/core';
 @Component({
   selector: 'catbee-container-studio-expansion-card',
   templateUrl: './expansion-card.html',
-  styleUrl: './expansion-card.scss'
+  styleUrl: './expansion-card.scss',
+  host: {
+    '[attr.title]': 'null'
+  }
 })
 export class ExpansionCardComponent {
   readonly expanded = input<boolean>(false);
