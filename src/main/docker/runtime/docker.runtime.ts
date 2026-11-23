@@ -1,9 +1,11 @@
 import { access } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
+import os from 'node:os';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import { logger } from '../../logger';
 import { DockerRuntimeInfo } from '../types/runtime.types';
+import { getEngineBinDir } from '../embedded/engine-paths';
 
 const execFileAsync = promisify(execFile);
 
@@ -66,6 +68,18 @@ export async function getDockerCliPath(): Promise<string | null> {
   if (cachedDockerCliPath) {
     return cachedDockerCliPath;
   }
+
+  // 1. Check CatBee's own embedded host Docker CLI first
+  const embeddedCli = path.join(getEngineBinDir(), process.platform === 'win32' ? 'docker.exe' : 'docker');
+  try {
+    await access(embeddedCli);
+    logger.debug(`[DockerRuntime] Using CatBee built-in Docker CLI at: ${embeddedCli}`);
+    cachedDockerCliPath = embeddedCli;
+    return embeddedCli;
+  } catch {
+    // Continue with candidate lookups
+  }
+
   const candidates: string[] = [];
 
   // eslint-disable-next-line n/no-process-env
@@ -85,16 +99,20 @@ export async function getDockerCliPath(): Promise<string | null> {
       candidates.push('/usr/local/bin/docker', '/usr/bin/docker');
       break;
 
-    case 'win32':
+    case 'win32': {
       try {
         const { stdout } = await execFileAsync('where', ['docker'], {
           encoding: 'utf8',
           windowsHide: true
         });
-        const dockerPath = stdout
+        const paths = stdout
           .split(/\r?\n/)
           .map(line => line.trim())
-          .find(Boolean);
+          .filter(Boolean);
+        // Prefer official Docker Desktop CLI over third-party distributions (like Rancher Desktop)
+        const dockerPath =
+          paths.find(p => p.toLowerCase().includes('dockerdesktop') || p.toLowerCase().includes('docker\\docker')) ??
+          paths[0];
         if (dockerPath) {
           logger.debug(`[DockerRuntime] Docker CLI found at: ${dockerPath}`);
           cachedDockerCliPath = dockerPath;
@@ -103,7 +121,16 @@ export async function getDockerCliPath(): Promise<string | null> {
       } catch {
         // Continue with fallback paths.
       }
+      // eslint-disable-next-line n/no-process-env
+      const localAppData = process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local');
+      // eslint-disable-next-line n/no-process-env
+      const programFiles = process.env.ProgramFiles ?? 'C:\\Program Files';
+      candidates.push(
+        path.join(localAppData, 'Programs', 'DockerDesktop', 'resources', 'bin', 'docker.exe'),
+        path.join(programFiles, 'Docker', 'Docker', 'resources', 'bin', 'docker.exe')
+      );
       break;
+    }
   }
 
   for (const candidate of candidates) {

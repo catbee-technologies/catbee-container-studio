@@ -38,6 +38,7 @@
   "dependencies": {
     "dockerode": "^5.0.1",
     "electron-updater": "^7.0.0-alpha.13",
+    "js-yaml": "^5.5.0",
     "pino": "^10.4.0",
     "pino-roll": "^4.0.0",
     "tar-stream": "^3.2.2"
@@ -45,6 +46,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/dockerode": "^4.0.2",
+    "@types/js-yaml": "^4.0.9",
     "7zip-bin": "^5.2.0",
     "electron": "^45.3.4",
     "electron-builder": "^27.0.0-alpha.14",

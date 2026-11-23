@@ -1,5 +1,5 @@
 import { createWriteStream } from 'node:fs';
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { spawn, type SpawnOptions } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -7,9 +7,10 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as WebReadableStream } from 'node:stream/web';
 import { logger } from '../../logger';
+import { DOCKER_CLI_RELEASE_VERSION } from '../../../constants.docker';
 import type { DockerConnection } from '../types/connection.types';
 import type { EngineManifest } from './types/manifest.types';
-import { getEngineManifestPath } from './engine-paths';
+import { getEngineBinDir, getEngineDownloadsDir, getEngineManifestPath } from './engine-paths';
 
 export interface RunResult {
   stdout: string;
@@ -22,6 +23,7 @@ export interface RunOptions {
   timeoutMs?: number;
   encoding?: BufferEncoding;
   onOutput?: (line: string) => void;
+  signal?: AbortSignal;
 }
 
 /**
@@ -73,17 +75,57 @@ export function runCommand(command: string, args: string[], options: RunOptions 
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
     let timer: NodeJS.Timeout | null = null;
+    let settled = false;
+
+    const doReject = (err: Error): void => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      reject(err);
+    };
+
+    const doResolve = (res: RunResult): void => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      resolve(res);
+    };
 
     if (options.timeoutMs) {
       timer = setTimeout(() => {
         child.kill();
-        reject(new Error(`Command timed out after ${options.timeoutMs}ms: ${command} ${args.join(' ')}`));
+        doReject(new Error(`Command timed out after ${options.timeoutMs}ms: ${command} ${args.join(' ')}`));
       }, options.timeoutMs);
+    }
+
+    if (options.signal) {
+      if (options.signal.aborted) {
+        child.kill();
+        doReject(new Error('Command aborted'));
+        return;
+      }
+      options.signal.addEventListener(
+        'abort',
+        () => {
+          try {
+            if (process.platform === 'win32' && child.pid) {
+              spawn('taskkill', ['/pid', String(child.pid), '/f', '/t'], { windowsHide: true });
+            } else {
+              child.kill('SIGTERM');
+            }
+          } catch {
+            child.kill();
+          }
+          doReject(new Error('Command aborted'));
+        },
+        { once: true }
+      );
     }
 
     const emitLines = (chunk: Buffer): void => {
       if (!options.onOutput) return;
-      for (const line of chunk.toString(encoding).replaceAll('\0', '').split(/\r?\n/)) {
+      const text = chunk.toString(encoding).replaceAll('\0', '');
+      for (const line of text.split(/[\r\n]+/)) {
         if (line.trim()) options.onOutput(line.trim());
       }
     };
@@ -97,19 +139,28 @@ export function runCommand(command: string, args: string[], options: RunOptions 
       emitLines(chunk);
     });
     child.on('error', err => {
-      if (timer) clearTimeout(timer);
-      reject(err);
+      doReject(err);
     });
     child.on('close', code => {
-      if (timer) clearTimeout(timer);
       const stdout = Buffer.concat(stdoutChunks).toString(encoding).replaceAll('\0', '');
       const stderr = Buffer.concat(stderrChunks).toString(encoding).replaceAll('\0', '');
       if (code === 0) {
-        resolve({ stdout, stderr });
+        doResolve({ stdout, stderr });
         return;
       }
-      const detail = (stderr || stdout).trim().split(/\r?\n/).slice(-5).join('\n');
-      reject(new Error(`${path.basename(command)} ${args[0] ?? ''} failed (exit ${code}): ${detail}`));
+      const lines = (stderr || stdout)
+        .trim()
+        .split(/\r?\n/)
+        .map(l => l.trim())
+        .filter(Boolean);
+      const errorIndex = lines.findIndex(l => /^error:\s/i.test(l));
+      let detail: string;
+      if (errorIndex >= 0) {
+        detail = lines.slice(errorIndex, errorIndex + 5).join('\n');
+      } else {
+        detail = lines.slice(-5).join('\n');
+      }
+      doReject(new Error(`${path.basename(command)} ${args[0] ?? ''} failed (exit ${code}): ${detail}`));
     });
 
     if (options.input !== undefined) {
@@ -357,3 +408,69 @@ export function hostArch(): 'x64' | 'arm64' {
 }
 
 export const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+/** Resolves the download URL and archive filename for the official standalone host Docker CLI. */
+export function getDockerCliDownloadInfo(version = DOCKER_CLI_RELEASE_VERSION): { url: string; archiveName: string } {
+  switch (process.platform) {
+    case 'win32': {
+      const archiveName = `docker-cli_${version}.zip`;
+      return {
+        url: `https://download.docker.com/win/static/stable/x86_64/${archiveName}`,
+        archiveName
+      };
+    }
+    case 'darwin': {
+      const arch = process.arch === 'arm64' ? 'aarch64' : 'x86_64';
+      const archiveName = `docker-cli_${version}.tgz`;
+      return {
+        url: `https://download.docker.com/mac/static/stable/${arch}/${archiveName}`,
+        archiveName
+      };
+    }
+    default: {
+      const arch = process.arch === 'arm64' ? 'aarch64' : 'x86_64';
+      const archiveName = `docker-${version}.tgz`;
+      return {
+        url: `https://download.docker.com/linux/static/stable/${arch}/${archiveName}`,
+        archiveName
+      };
+    }
+  }
+}
+
+/**
+ * Ensures the official standalone Docker CLI binary is installed in CatBee's engine bin directory.
+ * Returns the absolute path to the binary.
+ */
+export async function ensureHostDockerCli(onProgress?: (progress: number, stage: string) => void): Promise<string> {
+  const binDir = getEngineBinDir();
+  const binaryName = process.platform === 'win32' ? 'docker.exe' : 'docker';
+  const target = path.join(binDir, binaryName);
+
+  if (await pathExists(target)) {
+    return target;
+  }
+
+  const { url, archiveName } = getDockerCliDownloadInfo();
+  const downloadsDir = getEngineDownloadsDir();
+  const archivePath = path.join(downloadsDir, archiveName);
+
+  if (!(await pathExists(archivePath))) {
+    onProgress?.(10, `Downloading Docker CLI (${DOCKER_CLI_RELEASE_VERSION})...`);
+    await downloadFile(url, archivePath, (fraction, received, total) => {
+      onProgress?.(
+        10 + Math.round(fraction * 70),
+        describeDownload(`Docker CLI ${DOCKER_CLI_RELEASE_VERSION}`, received, total)
+      );
+    });
+  }
+
+  onProgress?.(85, 'Extracting Docker CLI...');
+  await extractArchive(archivePath, binDir, 1);
+  if (process.platform !== 'win32') {
+    await chmod(target, 0o755);
+  }
+  onProgress?.(100, 'Docker CLI ready.');
+  logger.info(`[EngineUtils] Successfully prepared host Docker CLI at: ${target}`);
+  return target;
+}

@@ -50,10 +50,12 @@ export interface DockerContextDetails {
   contexts: DockerContextItem[];
   catbeeContextExists: boolean;
   isCatBeeActive: boolean;
+  catbeeContextName: string;
   defaultEndpoint: string;
 }
 
-export const CATBEE_CONTEXT_NAME = 'catbee-desktop';
+import { CATBEE_CONTEXT_NAME } from '../../../constants.docker';
+export { CATBEE_CONTEXT_NAME };
 
 const OVERRIDE_VARIABLES = ['DOCKER_HOST', 'DOCKER_CONTEXT'] as const;
 const SHELL_PROFILES = [
@@ -138,6 +140,7 @@ export async function getDockerContextInfo(): Promise<DockerContextDetails> {
       contexts: [],
       catbeeContextExists: false,
       isCatBeeActive: false,
+      catbeeContextName: CATBEE_CONTEXT_NAME,
       defaultEndpoint
     };
   }
@@ -193,6 +196,7 @@ export async function getDockerContextInfo(): Promise<DockerContextDetails> {
       contexts,
       catbeeContextExists,
       isCatBeeActive,
+      catbeeContextName: CATBEE_CONTEXT_NAME,
       defaultEndpoint
     };
   } catch (err) {
@@ -204,6 +208,7 @@ export async function getDockerContextInfo(): Promise<DockerContextDetails> {
       contexts: [],
       catbeeContextExists: false,
       isCatBeeActive: false,
+      catbeeContextName: CATBEE_CONTEXT_NAME,
       defaultEndpoint
     };
   }

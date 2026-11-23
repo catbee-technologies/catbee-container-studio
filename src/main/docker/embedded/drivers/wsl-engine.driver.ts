@@ -20,6 +20,7 @@ import { DockerRequestRewriter } from '../windows-path-rewriter';
 import {
   CATBEE_WINDOWS_PIPE_PATH,
   CATBEE_WSL_DISTRO,
+  CATBEE_WSL_DOCKER_TCP_PORT,
   getEngineDownloadsDir,
   getEngineLogsDir,
   getEngineManifestPath,
@@ -28,6 +29,7 @@ import {
 import {
   describeDownload,
   downloadFile,
+  ensureHostDockerCli,
   getDockerServerVersion,
   hostArch,
   pathExists,
@@ -43,8 +45,7 @@ import {
 } from '../engine-utils';
 
 /** dockerd listens on loopback inside WSL; WSL's localhost forwarding makes it reachable from Windows. */
-const DOCKER_TCP_PORT = 23750;
-const TCP_CONNECTION: DockerConnection = { type: 'tcp', host: '127.0.0.1', port: DOCKER_TCP_PORT };
+const TCP_CONNECTION: DockerConnection = { type: 'tcp', host: '127.0.0.1', port: CATBEE_WSL_DOCKER_TCP_PORT };
 const DAEMON_CONFIG_PATH = '/etc/docker/daemon.json';
 const DAEMON_LOG_PATH = '/var/log/docker/dockerd.log';
 const START_SCRIPT_PATH = '/usr/local/bin/catbee-dockerd';
@@ -58,6 +59,25 @@ const START_SCRIPT = `#!/bin/sh
 # Launched by CatBee Container Studio; keeps the WSL session (and therefore the distro) alive.
 mount --make-rshared / 2>/dev/null || true
 mkdir -p /var/log/docker /var/run
+
+# Setup cgroups for Docker and nested systemd containers (Kubernetes/kind)
+if [ -x /etc/init.d/cgroups ]; then
+  /etc/init.d/cgroups start 2>/dev/null || true
+fi
+if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
+  mkdir -p /sys/fs/cgroup/init
+  for p in $(cat /sys/fs/cgroup/cgroup.procs 2>/dev/null); do
+    [ "$p" != "0" ] && echo "$p" > /sys/fs/cgroup/init/cgroup.procs 2>/dev/null || true
+  done
+  for controller in $(cat /sys/fs/cgroup/cgroup.controllers 2>/dev/null); do
+    echo "+$controller" > /sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || true
+  done
+fi
+if [ -d /sys/fs/cgroup ] && [ ! -d /sys/fs/cgroup/systemd ] && [ ! -f /sys/fs/cgroup/cgroup.controllers ]; then
+  mkdir -p /sys/fs/cgroup/systemd
+  mount -t cgroup -o none,name=systemd cgroup /sys/fs/cgroup/systemd 2>/dev/null || true
+fi
+
 if [ -f /var/run/docker.pid ] && kill -0 "$(cat /var/run/docker.pid)" 2>/dev/null; then
   echo "dockerd already running, keeping WSL session alive" >&2
   PID="$(cat /var/run/docker.pid)"
@@ -243,6 +263,13 @@ export class WslEngineDriver implements PlatformEngineDriver {
     // Stop the distro so the next start picks up wsl.conf.
     await this.wsl(['--terminate', CATBEE_WSL_DISTRO]).catch(() => undefined);
 
+    onProgress(90, 'Ensuring standalone host Docker CLI...');
+    await ensureHostDockerCli((fraction, stage) => {
+      onProgress(90 + Math.round(fraction * 0.08), stage);
+    }).catch(err => {
+      logger.warn({ err }, '[WslEngineDriver] Could not download host Docker CLI, continuing with system fallback.');
+    });
+
     const manifest: EngineManifest = {
       schemaVersion: 2,
       backend: 'wsl2',
@@ -262,7 +289,7 @@ export class WslEngineDriver implements PlatformEngineDriver {
 
   async buildDaemonConfig(settings: EngineSettings): Promise<Record<string, unknown>> {
     return buildDaemonConfig(settings, {
-      hosts: ['unix:///var/run/docker.sock', `tcp://127.0.0.1:${DOCKER_TCP_PORT}`],
+      hosts: ['unix:///var/run/docker.sock', `tcp://127.0.0.1:${CATBEE_WSL_DOCKER_TCP_PORT}`],
       daemonProxy: resolveDaemonProxy(settings, await detectSystemProxy())
     });
   }
@@ -281,19 +308,30 @@ export class WslEngineDriver implements PlatformEngineDriver {
     const currentStartScript = await this.sh(`cat ${START_SCRIPT_PATH} 2>/dev/null || true`)
       .then(r => r.stdout)
       .catch(() => '');
-    if (currentStartScript.trim() !== START_SCRIPT.trim()) {
+    const scriptChanged = currentStartScript.trim() !== START_SCRIPT.trim();
+    if (scriptChanged) {
       await this.writeFileInDistro(START_SCRIPT_PATH, START_SCRIPT);
       await this.sh(`chmod +x ${START_SCRIPT_PATH}`);
     }
 
+    // Always ensure cgroup controllers are enabled in the live distro
+    await this.sh(
+      `if [ -f /sys/fs/cgroup/cgroup.controllers ]; then mkdir -p /sys/fs/cgroup/init; for p in $(cat /sys/fs/cgroup/cgroup.procs 2>/dev/null); do [ "$p" != "0" ] && echo "$p" > /sys/fs/cgroup/init/cgroup.procs 2>/dev/null || true; done; for c in $(cat /sys/fs/cgroup/cgroup.controllers 2>/dev/null); do echo "+$c" > /sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || true; done; fi`
+    ).catch(() => {});
+
+    // Ensure standalone host Docker CLI is available in CatBee bin directory
+    void ensureHostDockerCli().catch(err => {
+      logger.debug('[WslEngineDriver] Background host Docker CLI check failed:', err);
+    });
+
     const alreadyRunning = await pingDockerEndpoint(TCP_CONNECTION);
-    if (alreadyRunning && configChanged) {
+    if (alreadyRunning && (configChanged || scriptChanged)) {
       onStatus?.('Restarting Docker Engine to apply new settings...');
       await this.stopDaemon();
     }
 
     const hasActiveKeeper = this.daemonProcess !== null && this.daemonProcess.exitCode === null;
-    if (!alreadyRunning || configChanged || !hasActiveKeeper) {
+    if (!alreadyRunning || configChanged || scriptChanged || !hasActiveKeeper) {
       onStatus?.('Starting Docker Engine in WSL 2...');
       this.spawnDaemon();
     }
@@ -318,7 +356,7 @@ export class WslEngineDriver implements PlatformEngineDriver {
       engineVersion: (await getDockerServerVersion(TCP_CONNECTION)) ?? (await readEngineManifest())?.engineVersion,
       endpoint: pipeReady
         ? { type: 'npipe', address: CATBEE_WINDOWS_PIPE_PATH }
-        : { type: 'tcp', address: '127.0.0.1', port: DOCKER_TCP_PORT }
+        : { type: 'tcp', address: '127.0.0.1', port: CATBEE_WSL_DOCKER_TCP_PORT }
     });
     return connection;
   }
@@ -373,7 +411,7 @@ export class WslEngineDriver implements PlatformEngineDriver {
     }
     // All WSL 2 distros share one network namespace, so loopback reaches the CatBee daemon.
     const script = enabled
-      ? `mkdir -p /etc/profile.d && echo 'export DOCKER_HOST=tcp://127.0.0.1:${DOCKER_TCP_PORT}' > ${INTEGRATION_PROFILE}`
+      ? `mkdir -p /etc/profile.d && echo 'export DOCKER_HOST=tcp://127.0.0.1:${CATBEE_WSL_DOCKER_TCP_PORT}' > ${INTEGRATION_PROFILE}`
       : `rm -f ${INTEGRATION_PROFILE}`;
     try {
       await this.wsl(['-d', distroName, '-u', 'root', '--', 'sh', '-c', script]);

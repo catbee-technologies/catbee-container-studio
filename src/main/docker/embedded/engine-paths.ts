@@ -64,9 +64,11 @@ export function getLinuxRuntimeDir(): string {
   return path.join(homeDir(), '.catbee', 'run');
 }
 
-export const CATBEE_WINDOWS_PIPE_NAME = 'catbee-desktop';
-export const CATBEE_WINDOWS_PIPE_PATH = `//./pipe/${CATBEE_WINDOWS_PIPE_NAME}`;
-export const CATBEE_LIMA_INSTANCE = 'catbee';
-export const CATBEE_WSL_DISTRO = 'catbee-container-engine';
-/** Port the daemon is exposed on when "Expose daemon on TCP" is enabled (Docker Desktop parity). */
-export const CATBEE_EXPOSED_TCP_PORT = 2375;
+export {
+  CATBEE_WINDOWS_PIPE_NAME,
+  CATBEE_WINDOWS_PIPE_PATH,
+  CATBEE_LIMA_INSTANCE,
+  CATBEE_WSL_DISTRO,
+  CATBEE_EXPOSED_TCP_PORT,
+  CATBEE_WSL_DOCKER_TCP_PORT
+} from '../../../constants.docker';
