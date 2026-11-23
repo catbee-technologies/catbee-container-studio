@@ -1,0 +1,10 @@
+<button
+  type="button"
+  class="hint-btn"
+  [attr.aria-label]="ariaLabel()"
+  [catbeeTooltip]="text()"
+  [catbeeTooltipPosition]="position()"
+  (click)="$event.stopPropagation()"
+>
+  <span class="mat-icon-filled hint-icon" aria-hidden="true">{{ icon() }}</span>
+</button>

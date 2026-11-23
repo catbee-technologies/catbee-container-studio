@@ -144,6 +144,13 @@ export class SettingsService {
     )
   );
 
+  readonly containerQuickSwitcherEnabled = signal<boolean>(
+    this.localStorage.getBooleanWithDefault(
+      UI_STORAGE_KEYS.SETTINGS_CONTAINER_QUICK_SWITCHER_ENABLED,
+      UI_STORAGE_DEFAULTS.SETTINGS_CONTAINER_QUICK_SWITCHER_ENABLED
+    )
+  );
+
   readonly fileSharingPaths = signal<string[]>([]);
 
   readonly desktopProxy = signal<DesktopProxyConfig>({
@@ -199,6 +206,11 @@ export class SettingsService {
   setExposeTcp(value: boolean): void {
     this.exposeTcp.set(value);
     this.localStorage.set(UI_STORAGE_KEYS.SETTINGS_EXPOSE_TCP, String(value));
+  }
+
+  setContainerQuickSwitcherEnabled(value: boolean): void {
+    this.containerQuickSwitcherEnabled.set(value);
+    this.localStorage.set(UI_STORAGE_KEYS.SETTINGS_CONTAINER_QUICK_SWITCHER_ENABLED, String(value));
   }
 
   setResourceSaverEnabled(value: boolean): void {

@@ -329,6 +329,7 @@ export class SettingsPageComponent implements OnInit {
     resourceSaverEnabled: this.settings.resourceSaverEnabled(),
     resourceSaverTimeout: this.settings.resourceSaverTimeout(),
     wslIntegrationEnabled: this.settings.wslIntegrationEnabled(),
+    containerQuickSwitcherEnabled: this.settings.containerQuickSwitcherEnabled(),
     selectedTheme: resolveInitialTheme(this.themeService)
   });
 
@@ -349,6 +350,7 @@ export class SettingsPageComponent implements OnInit {
   readonly resourceSaverEnabled = this.settingsForm.resourceSaverEnabled().value;
   readonly resourceSaverTimeout = this.settingsForm.resourceSaverTimeout().value;
   readonly wslIntegrationEnabled = this.settingsForm.wslIntegrationEnabled().value;
+  readonly containerQuickSwitcherEnabled = this.settingsForm.containerQuickSwitcherEnabled().value;
   readonly selectedTheme = this.settingsForm.selectedTheme().value;
 
   /**
@@ -446,6 +448,7 @@ export class SettingsPageComponent implements OnInit {
     resourceSaverEnabled: this.settings.resourceSaverEnabled(),
     resourceSaverTimeout: this.settings.resourceSaverTimeout(),
     wslIntegrationEnabled: this.settings.wslIntegrationEnabled(),
+    containerQuickSwitcherEnabled: this.settings.containerQuickSwitcherEnabled(),
     resources: { ...this.settings.resources() } as ResourceSettingsConfig,
     theme: resolveInitialTheme(this.themeService),
     fileSharingPaths: [...this.settings.fileSharingPaths()],
@@ -1597,6 +1600,7 @@ export class SettingsPageComponent implements OnInit {
       this.resourceSaverEnabled() !== init.resourceSaverEnabled ||
       this.resourceSaverTimeout() !== init.resourceSaverTimeout ||
       this.wslIntegrationEnabled() !== init.wslIntegrationEnabled ||
+      this.containerQuickSwitcherEnabled() !== init.containerQuickSwitcherEnabled ||
       JSON.stringify(this.resources()) !== JSON.stringify(init.resources) ||
       this.selectedTheme() !== init.theme ||
       JSON.stringify(this.fileSharingPaths()) !== JSON.stringify(init.fileSharingPaths) ||
@@ -2541,6 +2545,7 @@ export class SettingsPageComponent implements OnInit {
         await this.settings.setStartAtLogin(this.startAtLogin());
         this.startAtLogin.set(this.settings.startAtLogin());
       }
+      this.settings.setContainerQuickSwitcherEnabled(this.containerQuickSwitcherEnabled());
       if (saved) {
         // The backend clamps/normalises values; reflect what was actually stored.
         this.applyResourcesToForm(saved.resources);
@@ -2589,6 +2594,7 @@ export class SettingsPageComponent implements OnInit {
       resourceSaverEnabled: this.resourceSaverEnabled(),
       resourceSaverTimeout: this.resourceSaverTimeout(),
       wslIntegrationEnabled: this.wslIntegrationEnabled(),
+      containerQuickSwitcherEnabled: this.containerQuickSwitcherEnabled(),
       resources: { ...this.resources() },
       theme: this.selectedTheme(),
       fileSharingPaths: [...this.fileSharingPaths()],
@@ -2750,6 +2756,7 @@ export class SettingsPageComponent implements OnInit {
     this.resourceSaverEnabled.set(init.resourceSaverEnabled);
     this.resourceSaverTimeout.set(init.resourceSaverTimeout);
     this.wslIntegrationEnabled.set(init.wslIntegrationEnabled);
+    this.containerQuickSwitcherEnabled.set(init.containerQuickSwitcherEnabled);
     this.applyResourcesToForm(init.resources);
     this.fileSharingPaths.set([...init.fileSharingPaths]);
     this.desktopProxy.set({ ...init.desktopProxy });

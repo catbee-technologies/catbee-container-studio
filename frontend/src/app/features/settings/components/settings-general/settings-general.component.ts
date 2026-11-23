@@ -4,12 +4,13 @@ import { FormField } from '@angular/forms/signals';
 import { SwitchInputComponent } from '@components/switch-input/switch-input';
 import { RadioInputComponent } from '@components/radio-input/radio-input';
 import { CalloutComponent } from '@components/callout/callout';
+import { HintTooltipComponent } from '@components/hint-tooltip/hint-tooltip';
 import { SETTINGS_PAGE_CONTEXT } from '@features/settings/services/settings-page.context';
 
 @Component({
   selector: 'catbee-settings-general',
   standalone: true,
-  imports: [CommonModule, FormField, SwitchInputComponent, RadioInputComponent, CalloutComponent],
+  imports: [CommonModule, FormField, SwitchInputComponent, RadioInputComponent, CalloutComponent, HintTooltipComponent],
   templateUrl: './settings-general.component.html',
   styleUrl: './settings-general.component.scss'
 })

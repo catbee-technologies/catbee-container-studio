@@ -73,6 +73,14 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingSearchItem[] = [
     icon: 'tune'
   }),
   generalItem({
+    id: 'container-quick-switcher',
+    title: 'Container quick switcher sidebar',
+    description: 'Enable quick switcher sidebar in container details view',
+    keywords: ['sidebar', 'quick switcher', 'container details', 'containers list', 'navigation'],
+    targetId: 'setting-container-quick-switcher',
+    icon: 'view_sidebar'
+  }),
+  generalItem({
     id: 'theme-selection',
     title: 'Theme selection',
     description: 'Choose theme for CatBee Studio (Light, Dark, or Sync with system)',

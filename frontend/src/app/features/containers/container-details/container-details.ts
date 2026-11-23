@@ -30,7 +30,7 @@ import { TabsComponent, TabItem } from '@components/tabs/tabs';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { LocalStorageService, SessionStorageService } from '@ng-catbee/storage';
-import { UI_STORAGE_KEYS } from '@utils/storage.utils';
+import { UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { DetailsSummaryComponent } from '@components/details-summary/details-summary';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
@@ -114,6 +114,7 @@ export class ContainerDetailsPage implements OnDestroy {
 
   readonly allContainers = signal<DockerContainerInfo[]>([]);
   readonly isSidebarCollapsed = signal<boolean>(false);
+  readonly isQuickSwitcherEnabled = signal<boolean>(true);
   readonly containerStorageKey = UI_STORAGE_KEYS.CONTAINER_DETAILS_SIDEBAR_COLLAPSED;
 
   readonly sidebarItems = computed<ResourceSidebarItem[]>(() => {
@@ -249,6 +250,12 @@ export class ContainerDetailsPage implements OnDestroy {
   constructor() {
     this.isSidebarCollapsed.set(
       this.localStorage.getBooleanWithDefault(UI_STORAGE_KEYS.CONTAINER_DETAILS_SIDEBAR_COLLAPSED, false)
+    );
+    this.isQuickSwitcherEnabled.set(
+      this.localStorage.getBooleanWithDefault(
+        UI_STORAGE_KEYS.SETTINGS_CONTAINER_QUICK_SWITCHER_ENABLED,
+        UI_STORAGE_DEFAULTS.SETTINGS_CONTAINER_QUICK_SWITCHER_ENABLED
+      )
     );
 
     const routeSub = combineLatest([this.route.paramMap, this.route.data]).subscribe(([params, data]) => {

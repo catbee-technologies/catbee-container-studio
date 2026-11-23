@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { SearchInputComponent } from '@components/search-input/search-input';
+import { HintTooltipComponent } from '@components/hint-tooltip/hint-tooltip';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { LocalStorageService } from '@ng-catbee/storage';
 
@@ -36,9 +37,12 @@ export interface ResourceSidebarBadge {
 
 @Component({
   selector: 'catbee-container-studio-resource-sidebar',
-  imports: [CommonModule, SearchInputComponent, CatbeeTooltip],
+  imports: [CommonModule, SearchInputComponent, HintTooltipComponent, CatbeeTooltip],
   templateUrl: './resource-sidebar.html',
-  styleUrl: './resource-sidebar.scss'
+  styleUrl: './resource-sidebar.scss',
+  host: {
+    '[attr.title]': 'null'
+  }
 })
 export class ResourceSidebarComponent {
   private readonly router = inject(Router);

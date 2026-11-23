@@ -14,6 +14,30 @@
       </div>
     </div>
 
+    <div id="setting-container-quick-switcher" class="form-group">
+      <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+      <div class="checkbox-row switch-row" (click)="page.toggleSwitchRow($event, page.containerQuickSwitcherEnabled)">
+        <catbee-container-studio-switch-input
+          [formField]="page.settingsForm.containerQuickSwitcherEnabled"
+          inputId="field-container-quick-switcher"
+        />
+        <label class="switch-row-text" for="field-container-quick-switcher">
+          <span class="checkbox-label label-with-hint">
+            Enable quick switcher sidebar for containers
+            <catbee-container-studio-hint-tooltip
+              text="Shows a collapsible sidebar inside container details to quickly search and switch between containers without going back to the container list. You can disable this anytime."
+              ariaLabel="Quick switcher information"
+              position="top"
+            />
+          </span>
+          <span class="field-hint">
+            Adds a sidebar in the container details page with search and status indicators to quickly navigate between
+            containers.
+          </span>
+        </label>
+      </div>
+    </div>
+
     <div id="setting-theme-selection" class="form-group theme-selection-group">
       <div class="theme-selection-header">
         <h3 class="group-title">Theme selection</h3>

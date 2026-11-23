@@ -9,6 +9,11 @@
         <div class="title-row">
           <div class="title-with-badge">
             <span class="sidebar-title">{{ title() }}</span>
+            <catbee-container-studio-hint-tooltip
+              text="Quick switcher can be toggled on or off in Settings > General"
+              [ariaLabel]="title() + ' sidebar settings info'"
+              position="top"
+            />
             @for (badge of badges(); track badge.label) {
               <span
                 class="badge small total"

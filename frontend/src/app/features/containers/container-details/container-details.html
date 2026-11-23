@@ -1,14 +1,16 @@
 <div class="container-details-layout">
-  <catbee-container-studio-resource-sidebar
-    title="Containers"
-    [items]="sidebarItems()"
-    [activeId]="containerId()"
-    routePrefix="/containers"
-    searchPlaceholder="Search containers..."
-    [storageKey]="containerStorageKey"
-    [badges]="sidebarBadges()"
-    [(isCollapsed)]="isSidebarCollapsed"
-  />
+  @if (isQuickSwitcherEnabled()) {
+    <catbee-container-studio-resource-sidebar
+      title="Containers"
+      [items]="sidebarItems()"
+      [activeId]="containerId()"
+      routePrefix="/containers"
+      searchPlaceholder="Search containers..."
+      [storageKey]="containerStorageKey"
+      [badges]="sidebarBadges()"
+      [(isCollapsed)]="isSidebarCollapsed"
+    />
+  }
 
   <main class="catbee-details-container" aria-label="Container details">
     <catbee-container-studio-details-summary

@@ -7,6 +7,12 @@
   min-height: 0;
 }
 
+.label-with-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .theme-selection-group {
   display: flex;
   flex-direction: column;
