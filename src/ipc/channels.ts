@@ -58,7 +58,9 @@ export const IPC_CHANNELS = {
       ApplySettings: 'app:engine:apply-settings',
       ResetSettings: 'app:engine:reset-settings',
       GetDaemonConfig: 'app:engine:get-daemon-config',
-      GetBuilderInfo: 'app:engine:get-builder-info'
+      GetBuilderInfo: 'app:engine:get-builder-info',
+      FactoryResetTeardown: 'app:engine:factory-reset-teardown',
+      PurgeData: 'app:engine:purge-data'
     },
     Updater: {
       CheckForUpdates: 'app:updater:check-for-updates',

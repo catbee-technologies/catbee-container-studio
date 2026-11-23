@@ -58,28 +58,5 @@
         </button>
       </span>
     </div>
-
-    <!-- Maintenance & Reset Card -->
-    <div id="setting-about-maintenance" class="maintenance-card">
-      <div class="maintenance-header">
-        <h3 class="group-title">Maintenance & Reset</h3>
-        <p class="field-hint">
-          Restore application settings and container engine preferences back to factory defaults.
-        </p>
-      </div>
-      <div class="maintenance-actions">
-        <button
-          type="button"
-          class="catbee-action-btn danger"
-          [disabled]="page.isActionLoading()"
-          (click)="page.requestRestoreDefaults()"
-        >
-          <span class="button-icon" aria-hidden="true">
-            <span class="mat-icon-filled">restart_alt</span>
-          </span>
-          <span>Restore Default Settings</span>
-        </button>
-      </div>
-    </div>
   </div>
 </section>

@@ -1,0 +1,176 @@
+<ng-template #buttonLoader let-action>
+  <ng-catbee-loader
+    class="button-loader"
+    [name]="'settings-' + action"
+    [forceShow]="true"
+    [fullscreen]="false"
+    size="small"
+    backgroundColor="transparent"
+    aria-hidden="true"
+  />
+</ng-template>
+
+<section class="settings-section">
+  <header class="settings-section-header">
+    <h2>Troubleshoot</h2>
+    <p class="section-desc">Diagnostics, data cleanup, and recovery tools for CatBee Container Studio.</p>
+  </header>
+
+  <div class="settings-section-body">
+    <!-- Restart Engine Card -->
+    <div id="setting-troubleshoot-restart" class="form-group settings-card troubleshoot-card">
+      <div class="troubleshoot-card-header">
+        <div class="troubleshoot-icon-box">
+          <span class="mat-icon-filled" aria-hidden="true">refresh</span>
+        </div>
+        <div class="troubleshoot-info">
+          <h3 class="group-title">Restart Docker Engine</h3>
+          <p class="field-hint">
+            Cleanly restarts the container runtime daemon without losing any existing images, volumes, or settings.
+          </p>
+        </div>
+        <div class="troubleshoot-action-col">
+          <button
+            type="button"
+            class="catbee-action-btn troubleshoot-btn"
+            [attr.aria-busy]="page.activeAction() === 'restart'"
+            [disabled]="
+              page.isActionLoading() ||
+              page.isEngineBusy() ||
+              page.isK8sBusy() ||
+              !page.isEngineInstalled() ||
+              !page.isEngineRunning()
+            "
+            (click)="page.restartEngine()"
+          >
+            <span class="button-icon" aria-hidden="true">
+              <span class="mat-icon-filled" [class.spin]="page.activeAction() === 'restart'">refresh</span>
+            </span>
+            <span class="button-label">{{
+              page.activeAction() === 'restart' ? 'Restarting Engine...' : 'Restart Engine'
+            }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clean / Purge Data Card -->
+    <div id="setting-troubleshoot-purge" class="form-group settings-card troubleshoot-card">
+      <div class="troubleshoot-card-header">
+        <div class="troubleshoot-icon-box">
+          <span class="mat-icon-filled" aria-hidden="true">cleaning_services</span>
+        </div>
+        <div class="troubleshoot-info">
+          <h3 class="group-title">Clean / Purge Data</h3>
+          <p class="field-hint">
+            Reclaims disk space by removing all stopped containers, dangling images, unused volumes, and BuildKit
+            caches.
+          </p>
+        </div>
+        <div class="troubleshoot-action-col">
+          <button
+            type="button"
+            class="catbee-action-btn troubleshoot-btn"
+            [attr.aria-busy]="page.isPurgingData()"
+            [disabled]="
+              page.isActionLoading() ||
+              page.isEngineBusy() ||
+              page.isK8sBusy() ||
+              page.isPurgingData() ||
+              !page.isEngineRunning()
+            "
+            (click)="page.requestPurgeData()"
+          >
+            <span class="button-icon" aria-hidden="true">
+              <span class="mat-icon-filled">delete_sweep</span>
+              @if (page.isPurgingData()) {
+                <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'purge' }" />
+              }
+            </span>
+            <span class="button-label">Purge Data</span>
+          </button>
+        </div>
+      </div>
+      @if (page.purgeDataSuccessMessage(); as msg) {
+        <catbee-container-studio-callout
+          type="success"
+          [closable]="true"
+          (closed)="page.purgeDataSuccessMessage.set(null)"
+        >
+          <p>{{ msg }}</p>
+        </catbee-container-studio-callout>
+      }
+    </div>
+
+    <!-- Reset to Factory Defaults Card -->
+    <div id="setting-troubleshoot-defaults" class="form-group settings-card troubleshoot-card">
+      <div class="troubleshoot-card-header">
+        <div class="troubleshoot-icon-box">
+          <span class="mat-icon-filled" aria-hidden="true">restore</span>
+        </div>
+        <div class="troubleshoot-info">
+          <h3 class="group-title">Reset to Factory Defaults</h3>
+          <p class="field-hint">
+            Restores all CatBee configuration, resource limits, and Docker daemon settings to default values. Your
+            containers and images are preserved.
+          </p>
+        </div>
+        <div class="troubleshoot-action-col">
+          <button
+            type="button"
+            class="catbee-action-btn troubleshoot-btn"
+            [attr.aria-busy]="page.isRestoringDefaults()"
+            [disabled]="page.isActionLoading() || page.isEngineBusy() || page.isK8sBusy() || page.isRestoringDefaults()"
+            (click)="page.requestRestoreDefaults()"
+          >
+            <span class="button-icon" aria-hidden="true">
+              <span class="mat-icon-filled" [class.spin]="page.isRestoringDefaults()">restart_alt</span>
+            </span>
+            <span class="button-label">{{
+              page.isRestoringDefaults() ? 'Resetting Defaults...' : 'Reset Defaults'
+            }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Factory Reset & Teardown (Uninstall CatBee) Card -->
+    <div id="setting-troubleshoot-teardown" class="form-group settings-card troubleshoot-card teardown-card">
+      <div class="troubleshoot-card-header">
+        <div class="troubleshoot-icon-box danger">
+          <span class="mat-icon-filled" aria-hidden="true">delete_forever</span>
+        </div>
+        <div class="troubleshoot-info">
+          <div class="teardown-title-row">
+            <h3 class="group-title danger-text">Factory Reset & Teardown</h3>
+            <span class="danger-badge">Destructive</span>
+          </div>
+          <p class="field-hint">
+            Completely stops and removes all Kubernetes clusters, Docker virtual machines (Lima / WSL), container disks,
+            CLI contexts, system PATH entries, and CatBee directories. Recommended before removing the application or
+            moving it to Trash.
+          </p>
+        </div>
+        <div class="troubleshoot-action-col">
+          <button
+            type="button"
+            class="catbee-action-btn danger troubleshoot-btn"
+            [attr.aria-busy]="page.isTeardownInProgress()"
+            [disabled]="
+              page.isActionLoading() || page.isEngineBusy() || page.isK8sBusy() || page.isTeardownInProgress()
+            "
+            (click)="page.requestFactoryResetTeardown()"
+          >
+            <span class="button-icon" aria-hidden="true">
+              <span class="mat-icon-filled">delete_forever</span>
+              @if (page.isTeardownInProgress()) {
+                <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'teardown' }" />
+              }
+            </span>
+            <span class="button-label">Uninstall & Teardown</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

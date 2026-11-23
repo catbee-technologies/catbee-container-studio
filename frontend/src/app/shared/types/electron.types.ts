@@ -370,6 +370,13 @@ export interface ElectronBridge {
       getWslDistros: () => IpcPromise<string[]>;
       applyWslDistroIntegration: (distroName: string, enabled: boolean) => IpcPromise<boolean>;
       uninstall?: () => IpcPromise<{ success: boolean }>;
+      purgeData?: () => IpcPromise<{
+        containersPruned: number;
+        imagesPruned: number;
+        volumesPruned: number;
+        spaceReclaimed: number;
+      }>;
+      factoryResetTeardown?: () => IpcPromise<{ success: boolean }>;
       onProgress?: (callback: (progress: EngineOperationProgress | null) => void) => () => void;
       applySettings?: () => IpcPromise<{ applied: boolean }>;
       getDaemonConfig?: (settings?: Partial<EngineSettings>) => IpcPromise<Record<string, unknown>>;

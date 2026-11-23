@@ -66,7 +66,9 @@ const IPC_CHANNELS = {
       ApplySettings: 'app:engine:apply-settings',
       ResetSettings: 'app:engine:reset-settings',
       GetDaemonConfig: 'app:engine:get-daemon-config',
-      GetBuilderInfo: 'app:engine:get-builder-info'
+      GetBuilderInfo: 'app:engine:get-builder-info',
+      FactoryResetTeardown: 'app:engine:factory-reset-teardown',
+      PurgeData: 'app:engine:purge-data'
     },
     Updater: {
       CheckForUpdates: 'app:updater:check-for-updates',
@@ -288,7 +290,9 @@ const electronBridge = {
       },
       applySettings: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.ApplySettings),
       getDaemonConfig: (settings?: unknown) => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetDaemonConfig, settings),
-      getBuilderInfo: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetBuilderInfo)
+      getBuilderInfo: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetBuilderInfo),
+      purgeData: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.PurgeData),
+      factoryResetTeardown: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.FactoryResetTeardown)
     },
     updater: {
       checkForUpdates: () => ipcRenderer.invoke(IPC_CHANNELS.App.Updater.CheckForUpdates),

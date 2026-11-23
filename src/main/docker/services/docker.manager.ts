@@ -1,3 +1,5 @@
+import { rm } from 'node:fs/promises';
+import path from 'node:path';
 import type Docker from 'dockerode';
 import type { DockerInitializationStatus, EngineStatusOperation, SelectedDockerRuntime } from '../types/runtime.types';
 import { createDockerClient } from '../docker.client';
@@ -9,7 +11,7 @@ import { DockerSystemService } from './docker.system.service';
 import { DockerVolumeService } from './docker.volume.service';
 import { DockerRuntimeManager } from '../runtime/docker.runtime-manager';
 import { engineManager } from '../embedded/engine.manager';
-import { getEngineSettings, saveEngineSettings } from '../embedded/engine-settings';
+import { getEngineSettings, resetEngineSettings, saveEngineSettings } from '../embedded/engine-settings';
 import {
   activateCatBeeEngineContext,
   CATBEE_CONTEXT_NAME,
@@ -21,7 +23,8 @@ import {
   useDockerContext,
   type DockerContextDetails
 } from '../context/docker-context.manager';
-import { connectionToUri } from '../embedded/engine-utils';
+import { connectionToUri, ensureHostDockerCli, removeShellPath } from '../embedded/engine-utils';
+import { getEngineRootDir, homeDir } from '../embedded/engine-paths';
 import { proxyToEnv, resolveContainersProxy } from '../embedded/daemon-config';
 import { detectSystemProxy } from '../embedded/system-proxy';
 import type { DockerConnection } from '../types/connection.types';
@@ -70,6 +73,11 @@ export class DockerManager {
     if (onStatus) {
       this.statusListener = onStatus;
     }
+
+    // Ensure ~/.catbee/bin exists, is in user shell PATH, and hosts the standalone Docker CLI
+    void ensureHostDockerCli().catch(err => {
+      logger.debug('[DockerManager] Could not ensure host Docker CLI in background:', err);
+    });
 
     this.emitStatus({
       state: 'checking',
@@ -149,6 +157,11 @@ export class DockerManager {
 
   async startEmbeddedEngine(): Promise<void> {
     logger.info('[DockerManager] Explicitly starting embedded engine.');
+    if (!(await engineManager.isInstalled())) {
+      logger.info('[DockerManager] Embedded engine is not installed. Installing automatically.');
+      await this.installEmbeddedEngine();
+      return;
+    }
     await this.initialize(this.statusListener, undefined, 'embedded');
   }
 
@@ -195,6 +208,14 @@ export class DockerManager {
     logger.info(`[DockerManager] Restarting engine with mode: ${effectiveMode}`);
     this.pausedContainerIds = [];
     this.isPaused = false;
+
+    if (effectiveMode === 'embedded' && !(await engineManager.isInstalled())) {
+      logger.info(
+        '[DockerManager] Restart requested with embedded mode, but engine is not installed. Installing automatically.'
+      );
+      await this.installEmbeddedEngine();
+      return;
+    }
 
     await this.withOperation('restart', async () => {
       // Only touch the built-in engine when it is running; an external engine is never stopped by CatBee.
@@ -278,7 +299,133 @@ export class DockerManager {
     }
     if (wasActive) {
       await this.initialize(this.statusListener).catch(() => undefined);
+    } else if (!this.selectedRuntime) {
+      this.emitStatus({
+        state: 'engine-not-installed',
+        message: 'Container engine is not installed.',
+        hint: 'The built-in engine was uninstalled.',
+        prerequisitesOk: true
+      });
     }
+  }
+
+  /**
+   * Purges unused containers, dangling/unused images, build cache, and volumes.
+   */
+  async purgeData(): Promise<{
+    containersPruned: number;
+    imagesPruned: number;
+    volumesPruned: number;
+    spaceReclaimed: number;
+  }> {
+    logger.info('[DockerManager] Purging Docker data (containers, images, volumes, build cache)...');
+    let containersPruned = 0;
+    let imagesPruned = 0;
+    let volumesPruned = 0;
+    let spaceReclaimed = 0;
+
+    if (this.client) {
+      try {
+        const containersRes = await this.client.pruneContainers();
+        containersPruned = containersRes.ContainersDeleted?.length ?? 0;
+        spaceReclaimed += containersRes.SpaceReclaimed ?? 0;
+      } catch (err) {
+        logger.warn({ err }, '[DockerManager] Failed to prune containers during purgeData.');
+      }
+      try {
+        const imagesRes = await this.client.pruneImages({ dangling: false });
+        imagesPruned = imagesRes.ImagesDeleted?.length ?? 0;
+        spaceReclaimed += imagesRes.SpaceReclaimed ?? 0;
+      } catch (err) {
+        logger.warn({ err }, '[DockerManager] Failed to prune images during purgeData.');
+      }
+      try {
+        const volumesRes = await this.client.pruneVolumes();
+        volumesPruned = volumesRes.VolumesDeleted?.length ?? 0;
+        spaceReclaimed += volumesRes.SpaceReclaimed ?? 0;
+      } catch (err) {
+        logger.warn({ err }, '[DockerManager] Failed to prune volumes during purgeData.');
+      }
+      try {
+        const systemRes = await this.client.pruneBuilder();
+        spaceReclaimed += systemRes.SpaceReclaimed ?? 0;
+      } catch (err) {
+        logger.debug({ err }, '[DockerManager] Failed to prune build cache during purgeData.');
+      }
+    }
+    return { containersPruned, imagesPruned, volumesPruned, spaceReclaimed };
+  }
+
+  /**
+   * Complete factory reset and teardown:
+   * 1. Stops and deletes Kubernetes cluster companion and Kind cluster
+   * 2. Uninstalls the embedded engine (Lima VM / WSL distro / Rootless kit)
+   * 3. Resets Docker CLI context (removes catbee-desktop and falls back to default)
+   * 4. Cleans Kubernetes context from kubeconfig
+   * 5. Removes CatBee from system PATH (.zshrc, .bashrc, Windows User PATH)
+   * 6. Deletes ~/.catbee folder, engine caches, and settings
+   */
+  async factoryResetTeardown(onProgress?: (progress: number, stage: string) => void): Promise<void> {
+    logger.info('[DockerManager] Starting complete factory reset & teardown.');
+    resourceSaverManager.stop();
+
+    // 1. Kubernetes teardown
+    onProgress?.(10, 'Stopping and deleting Kubernetes cluster...');
+    try {
+      const { k8sManager } = await import('../../k8s/k8s-manager.js');
+      await k8sManager.stopCluster().catch(() => {});
+      await k8sManager.cleanKubeconfig().catch(() => {});
+    } catch (err) {
+      logger.debug({ err }, '[DockerManager] K8s cleanup during teardown.');
+    }
+    this.selectedRuntime = null;
+
+    // 2. Embedded engine uninstall
+    onProgress?.(30, 'Uninstalling container engine and virtual disks...');
+    await engineManager
+      .uninstall((progress, stage) => {
+        onProgress?.(30 + Math.round((progress * 35) / 100), stage);
+      })
+      .catch(err => {
+        logger.warn({ err }, '[DockerManager] Engine uninstall during teardown.');
+      });
+
+    // 3. Docker context removal
+    onProgress?.(70, 'Resetting Docker CLI contexts...');
+    await removeCatBeeContext().catch(err => {
+      logger.debug({ err }, '[DockerManager] Docker context cleanup during teardown.');
+    });
+
+    // 4. Shell PATH removal
+    onProgress?.(80, 'Removing CatBee from system PATH...');
+    await removeShellPath().catch(err => {
+      logger.debug({ err }, '[DockerManager] Shell PATH cleanup during teardown.');
+    });
+
+    // 5. Delete ~/.catbee folder entirely
+    onProgress?.(90, 'Removing application data and leftover directories...');
+    const catbeeUserDir = path.join(homeDir(), '.catbee');
+    await rm(catbeeUserDir, { recursive: true, force: true }).catch(() => {});
+
+    // Delete engine root directory
+    const engineRootDir = getEngineRootDir();
+    await rm(engineRootDir, { recursive: true, force: true }).catch(() => {});
+
+    // Delete config directory (~/.config/catbee)
+    const configDir = path.join(homeDir(), '.config', 'catbee');
+    await rm(configDir, { recursive: true, force: true }).catch(() => {});
+
+    // 6. Reset saved settings to default
+    await resetEngineSettings().catch(() => {});
+
+    onProgress?.(100, 'Teardown complete.');
+    this.emitStatus({
+      state: 'engine-not-installed',
+      message: 'Container engine is not installed.',
+      hint: 'The built-in engine was completely removed.',
+      prerequisitesOk: true
+    });
+    logger.info('[DockerManager] Complete factory reset & teardown finished.');
   }
 
   /** Stops the built-in engine when the app quits (external engines are left running). */
@@ -290,7 +437,7 @@ export class DockerManager {
     } catch (err) {
       logger.debug('[DockerManager] Error shutting down k8sManager on quit:', err);
     }
-    if (['running', 'starting', 'error'].includes(engineManager.state)) {
+    if (['running', 'starting', 'error', 'installing'].includes(engineManager.state)) {
       await engineManager.stop();
     }
   }

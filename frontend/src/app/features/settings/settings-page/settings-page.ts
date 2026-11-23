@@ -38,6 +38,7 @@ import { SettingsGeneralComponent } from '@features/settings/components/settings
 import { SettingsResourcesComponent } from '@features/settings/components/settings-resources/settings-resources.component';
 import { SettingsDockerEngineComponent } from '@features/settings/components/settings-docker-engine/settings-docker-engine.component';
 import { SettingsKubernetesComponent } from '@features/settings/components/settings-kubernetes/settings-kubernetes.component';
+import { SettingsTroubleshootComponent } from '@features/settings/components/settings-troubleshoot/settings-troubleshoot.component';
 import { SettingsUpdatesComponent } from '@features/settings/components/settings-updates/settings-updates.component';
 import { SettingsAboutComponent } from '@features/settings/components/settings-about/settings-about.component';
 import { K8sIconComponent } from '@shared/components/k8s-icon/k8s-icon.component';
@@ -46,7 +47,7 @@ import { UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { LocalStorageService } from '@ng-catbee/storage';
 
 export interface SettingsCategory {
-  readonly id: 'general' | 'resources' | 'engine' | 'kubernetes' | 'updates' | 'about';
+  readonly id: 'general' | 'resources' | 'engine' | 'kubernetes' | 'troubleshoot' | 'updates' | 'about';
   readonly label: string;
   readonly icon: string;
 }
@@ -187,6 +188,7 @@ function computeSettingSearchScore(item: SettingSearchItem, query: string, token
     SettingsResourcesComponent,
     SettingsDockerEngineComponent,
     SettingsKubernetesComponent,
+    SettingsTroubleshootComponent,
     SettingsUpdatesComponent,
     SettingsAboutComponent,
     K8sIconComponent
@@ -209,6 +211,7 @@ export class SettingsPageComponent implements OnInit {
     { id: 'resources', label: 'Resources', icon: 'memory' },
     { id: 'engine', label: 'Docker Engine', icon: 'developer_board' },
     { id: 'kubernetes', label: 'Kubernetes', icon: 'hub' },
+    { id: 'troubleshoot', label: 'Troubleshoot', icon: 'healing' },
     { id: 'updates', label: 'Software updates', icon: 'system_update' },
     { id: 'about', label: 'About', icon: 'info' }
   ];
@@ -267,6 +270,16 @@ export class SettingsPageComponent implements OnInit {
   readonly pendingActivateCatBeeContext = signal(false);
   readonly pendingDiscardChanges = signal(false);
   readonly pendingPruneBuildCache = signal(false);
+  readonly pendingPurgeData = signal(false);
+  readonly isPurgingData = signal(false);
+  readonly isRestoringDefaults = signal(false);
+  readonly purgeDataSuccessMessage = signal<string | null>(null);
+  readonly pendingFactoryResetTeardown = signal(false);
+  readonly showTeardownModal = signal(false);
+  readonly isTeardownInProgress = signal(false);
+  readonly teardownSuccess = signal(false);
+  readonly teardownStageMessage = signal('Preparing teardown...');
+  readonly teardownProgressPercent = signal(0);
   readonly pendingLeave = signal(false);
   private readonly pendingNavigation = new PendingNavigation();
 
@@ -535,7 +548,7 @@ export class SettingsPageComponent implements OnInit {
 
   readonly isK8sRecreationPending = computed(() => {
     const info = this.k8sClusterInfo();
-    if (!info || info.status !== 'running') return false;
+    if (info?.status !== 'running') return false;
     const versionChanged =
       !!info.version && normalizeK8sVersion(info.version) !== normalizeK8sVersion(this.k8sVersion());
     const nodeCountChanged = info.nodeCount !== undefined && info.nodeCount !== this.k8sNodeCount();
@@ -553,10 +566,23 @@ export class SettingsPageComponent implements OnInit {
     return true;
   });
 
-  readonly k8sUnavailableReason = computed<'engine-not-installed' | 'engine-stopped' | null>(() => {
+  readonly isEngineInstalling = computed(
+    () =>
+      this.engineState() === 'installing' ||
+      this.activeAction() === 'install' ||
+      this.engineOperation()?.operation === 'install'
+  );
+
+  readonly isEngineStarting = computed(() => this.engineState() === 'starting' || this.activeAction() === 'start');
+
+  readonly k8sUnavailableReason = computed<
+    'engine-installing' | 'engine-starting' | 'engine-not-installed' | 'engine-stopped' | null
+  >(() => {
+    if (this.isEngineRunning()) return null;
+    if (this.isEngineInstalling()) return 'engine-installing';
+    if (this.isEngineStarting()) return 'engine-starting';
     if (this.isEngineNotInstalled()) return 'engine-not-installed';
-    if (!this.isEngineRunning()) return 'engine-stopped';
-    return null;
+    return 'engine-stopped';
   });
 
   readonly k8sVersionOptions = signal<DropdownOption<string>[]>(
@@ -592,6 +618,9 @@ export class SettingsPageComponent implements OnInit {
     return this.k8sClusterInfo()?.status ?? 'stopped';
   });
   readonly isK8sRunning = computed(() => this.k8sStatus() === 'running' && !this.isK8sBusy());
+  readonly isK8sStopping = computed(
+    () => this.k8sStatus() === 'stopping' || this.isStoppingK8sCluster() || this.k8sOperation()?.operation === 'stop'
+  );
   readonly isK8sBusy = computed(() => {
     const s = this.k8sStatus();
     return (
@@ -610,10 +639,12 @@ export class SettingsPageComponent implements OnInit {
     const op = this.k8sOperation();
     if (op) {
       if (op.operation === 'stop') return 'Stopping';
-      if (op.operation === 'start' || op.operation === 'reset' || op.operation === 'install') return 'Starting';
+      if (op.operation === 'reset') return 'Resetting';
+      if (op.operation === 'start' || op.operation === 'install') return 'Starting';
     }
     if (this.isStoppingK8sCluster()) return 'Stopping';
-    if (this.isStartingK8sCluster() || this.isResettingK8sCluster()) return 'Starting';
+    if (this.isResettingK8sCluster()) return 'Resetting';
+    if (this.isStartingK8sCluster()) return 'Starting';
     const status = this.k8sStatus();
     switch (status) {
       case 'running':
@@ -852,6 +883,26 @@ export class SettingsPageComponent implements OnInit {
     }
   }
 
+  private syncK8sClusterState(info: NonNullable<K8sClusterInfo>): void {
+    if (info.status !== 'running' || this.isK8sFormDirty()) return;
+
+    if (info.version && normalizeK8sVersion(this.k8sVersion()) !== normalizeK8sVersion(info.version)) {
+      const normalized = info.version.startsWith('v') ? info.version : `v${info.version}`;
+      this.k8sVersion.set(normalized);
+      this.initialState.update(s => ({
+        ...s,
+        kubernetes: { ...s.kubernetes, version: normalized }
+      }));
+    }
+    if (info.nodeCount !== undefined && info.nodeCount !== this.k8sNodeCount()) {
+      this.k8sNodeCount.set(info.nodeCount);
+      this.initialState.update(s => ({
+        ...s,
+        kubernetes: { ...s.kubernetes, nodeCount: info.nodeCount }
+      }));
+    }
+  }
+
   async refreshK8sStatus(): Promise<void> {
     try {
       const info = await this.electronApi.getK8sStatus();
@@ -866,25 +917,7 @@ export class SettingsPageComponent implements OnInit {
           this.isInstallingK8sRuntime.set(false);
         }
 
-        // If the cluster is running/active and the user hasn't made unapplied K8s changes,
-        // synchronize the form controls and initial state with the actual cluster
-        if (info.status === 'running' && !this.isK8sFormDirty()) {
-          if (info.version && normalizeK8sVersion(this.k8sVersion()) !== normalizeK8sVersion(info.version)) {
-            const normalized = info.version.startsWith('v') ? info.version : `v${info.version}`;
-            this.k8sVersion.set(normalized);
-            this.initialState.update(s => ({
-              ...s,
-              kubernetes: { ...s.kubernetes, version: normalized }
-            }));
-          }
-          if (info.nodeCount !== undefined && info.nodeCount !== this.k8sNodeCount()) {
-            this.k8sNodeCount.set(info.nodeCount);
-            this.initialState.update(s => ({
-              ...s,
-              kubernetes: { ...s.kubernetes, nodeCount: info.nodeCount }
-            }));
-          }
-        }
+        this.syncK8sClusterState(info);
       }
     } catch {
       // Ignore if not supported
@@ -968,7 +1001,7 @@ export class SettingsPageComponent implements OnInit {
    * while ignoring clicks directly on the switch component or labels to prevent double-toggling.
    */
   toggleSwitchRow(
-    event: MouseEvent,
+    event: MouseEvent | KeyboardEvent | Event,
     targetSignal: { update: (fn: (v: boolean) => boolean) => void },
     disabled = false
   ): void {
@@ -1113,9 +1146,26 @@ export class SettingsPageComponent implements OnInit {
   readonly engineInfo = computed(() => this.engineStatus()?.info ?? null);
   readonly capabilities = computed<EngineCapabilities | null>(() => this.engineInfo()?.capabilities ?? null);
   readonly dataLocation = computed(() => this.engineInfo()?.dataLocation ?? '');
-  readonly engineState = computed(() => this.engineStatus()?.state ?? 'not-installed');
-  readonly isEngineBusy = computed(() =>
-    ['installing', 'starting', 'stopping', 'uninstalling'].includes(this.engineState())
+  readonly engineState = computed(() => {
+    const op = this.engineOperation();
+    if (op) {
+      if (op.operation === 'install') return 'installing';
+      if (op.operation === 'uninstall') return 'uninstalling';
+    }
+    if (this.activeAction() === 'install' || this.activeAction() === 'reinstall') return 'installing';
+    if (this.activeAction() === 'start') return 'starting';
+    if (this.activeAction() === 'stop') return 'stopping';
+    if (this.activeAction() === 'uninstall') return 'uninstalling';
+    return this.engineStatus()?.state ?? 'not-installed';
+  });
+  readonly isEngineBusy = computed(
+    () =>
+      ['installing', 'starting', 'stopping', 'uninstalling'].includes(this.engineState()) ||
+      this.engineOperation() !== null ||
+      this.activeAction() === 'install' ||
+      this.activeAction() === 'uninstall' ||
+      this.activeAction() === 'restart' ||
+      this.activeAction() === 'reinstall'
   );
   readonly isEngineRunning = computed(() => this.engineState() === 'running');
   /** The built-in engine is running, but CatBee is connected to a different (external) engine. */
@@ -1128,6 +1178,7 @@ export class SettingsPageComponent implements OnInit {
     return this.engineStatus()?.runtime?.source === 'embedded';
   });
   readonly canUseCatBeeEngine = computed(() => {
+    if (!this.isEngineInstalled()) return false;
     if (this.isCatBeeContextActive()) return false;
     if (this.isActionLoading()) return false;
     if (this.isEngineBusy()) return false;
@@ -1142,10 +1193,17 @@ export class SettingsPageComponent implements OnInit {
   );
   /** True when the built-in engine is not installed yet and not in external-only mode */
   readonly isEngineNotInstalled = computed(() => !this.isEngineInstalled() && !this.isExternalMode());
-  readonly isStarting = computed(() => this.activeAction() === 'start' || this.activeAction() === 'install');
-  readonly startButtonLabel = computed(() =>
-    this.activeAction() === 'install' || (!this.isStarting() && !this.isEngineInstalled()) ? 'Install & Start' : 'Start'
+  readonly isStarting = computed(
+    () =>
+      this.activeAction() === 'start' ||
+      this.activeAction() === 'install' ||
+      this.engineOperation()?.operation === 'install'
   );
+  readonly startButtonLabel = computed(() => {
+    if (this.isEngineInstalling()) return 'Installing Engine...';
+    if (this.isEngineStarting()) return 'Starting Engine...';
+    return !this.isEngineInstalled() ? 'Install & Start' : 'Start';
+  });
   readonly engineStateLabel = computed(() => {
     const labels: Record<string, string> = {
       'not-installed': 'Not installed',
@@ -1161,6 +1219,7 @@ export class SettingsPageComponent implements OnInit {
     return labels[this.engineState()] ?? this.engineState();
   });
   readonly engineVersion = computed(() => this.engineStatus()?.manifest?.engineVersion ?? null);
+  readonly dockerCliVersion = computed(() => this.engineStatus()?.cliVersion ?? null);
   readonly showVmResources = computed(() => this.capabilities()?.managesVmResources ?? false);
   readonly supportsResourceSaver = computed(() => this.capabilities()?.resourceSaver ?? false);
   readonly supportsRosetta = computed(() => this.capabilities()?.resources.rosetta ?? false);
@@ -1249,6 +1308,7 @@ export class SettingsPageComponent implements OnInit {
   readonly endpointLabel = computed(() => {
     const status = this.engineStatus();
     if (status?.endpoint) return status.endpoint;
+    if (this.isEngineInstalling()) return 'Configuring during install...';
     return this.isEngineInstalled() ? 'Available when running' : 'Not installed';
   });
 
@@ -1568,11 +1628,27 @@ export class SettingsPageComponent implements OnInit {
     () => this.engineModeChanged() || (this.isEngineRunning() && this.engineConfigChanged())
   );
 
-  readonly restartDialogMessage = computed(() =>
-    this.engineModeChanged()
-      ? 'You changed how CatBee runs Docker containers. CatBee needs to reconnect to the container engine for this to take effect.'
-      : 'Some of the changed settings (proxies, network, resources or file sharing) are applied by reconfiguring the running built-in engine. Running containers may be restarted.'
+  readonly isEngineModeSwitchToUninstalled = computed(
+    () => this.engineModeChanged() && this.engineMode() === 'embedded' && !this.isEngineInstalled()
   );
+
+  readonly restartDialogTitle = computed(() =>
+    this.isEngineModeSwitchToUninstalled() ? 'Set Up Built-in Engine?' : 'Restart Docker Engine?'
+  );
+
+  readonly restartDialogConfirmLabel = computed(() =>
+    this.isEngineModeSwitchToUninstalled() ? 'Install & Start' : 'Restart Now'
+  );
+
+  readonly restartDialogMessage = computed(() => {
+    if (this.engineModeChanged()) {
+      if (this.isEngineModeSwitchToUninstalled()) {
+        return 'You switched to CatBee Built-in engine, which is not yet installed. CatBee will set up and start the built-in engine now.';
+      }
+      return 'You changed how CatBee runs Docker containers. CatBee needs to reconnect to the container engine for this to take effect.';
+    }
+    return 'Some of the changed settings (proxies, network, resources or file sharing) are applied by reconfiguring the running built-in engine. Running containers may be restarted.';
+  });
 
   ngOnInit(): void {
     this.destroyRef.onDestroy(() => this.pendingNavigation.resolve(false));
@@ -1613,6 +1689,7 @@ export class SettingsPageComponent implements OnInit {
       this.engineOperation.set(progress);
       if (!progress) {
         void this.loadEngineStatus();
+        void this.loadDockerContext();
       }
     });
     const unsubscribeK8sProgress = this.electronApi.onK8sProgress(progress => {
@@ -2198,6 +2275,7 @@ export class SettingsPageComponent implements OnInit {
 
   async confirmRestoreDefaults(): Promise<void> {
     this.pendingRestoreDefaults.set(false);
+    this.isRestoringDefaults.set(true);
     this.isSavingSettings.set(true);
     const wasRunning = this.isEngineRunning();
     try {
@@ -2214,7 +2292,95 @@ export class SettingsPageComponent implements OnInit {
       this.settingsErrorMessage.set(`Failed to restore default settings: ${msg}`);
     } finally {
       this.isSavingSettings.set(false);
+      this.isRestoringDefaults.set(false);
     }
+  }
+
+  requestPurgeData(): void {
+    this.pendingPurgeData.set(true);
+  }
+
+  cancelPurgeData(): void {
+    this.pendingPurgeData.set(false);
+  }
+
+  async confirmPurgeData(): Promise<void> {
+    this.pendingPurgeData.set(false);
+    this.isPurgingData.set(true);
+    this.purgeDataSuccessMessage.set(null);
+    try {
+      const res = await this.electronApi.purgeData();
+      const count = (res?.containersPruned ?? 0) + (res?.imagesPruned ?? 0) + (res?.volumesPruned ?? 0);
+      const mb = res?.spaceReclaimed ? (res.spaceReclaimed / (1024 * 1024)).toFixed(1) : '0';
+      this.purgeDataSuccessMessage.set(`Purge complete: ${count} items deleted, ~${mb} MB disk space reclaimed.`);
+      setTimeout(() => this.purgeDataSuccessMessage.set(null), 6000);
+    } catch (err) {
+      console.error('Failed to purge data:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      this.engineErrorMessage.set(`Failed to purge data: ${msg}`);
+    } finally {
+      this.isPurgingData.set(false);
+    }
+  }
+
+  requestFactoryResetTeardown(): void {
+    this.teardownProgressPercent.set(0);
+    this.teardownStageMessage.set('Preparing teardown...');
+    this.pendingFactoryResetTeardown.set(true);
+  }
+
+  cancelFactoryResetTeardown(): void {
+    this.pendingFactoryResetTeardown.set(false);
+  }
+
+  async confirmFactoryResetTeardown(): Promise<void> {
+    this.pendingFactoryResetTeardown.set(false);
+    this.teardownProgressPercent.set(0);
+    this.teardownStageMessage.set('Starting complete teardown...');
+    this.teardownSuccess.set(false);
+    this.isTeardownInProgress.set(true);
+    this.showTeardownModal.set(true);
+
+    const unsubscribe = this.electronApi.onEngineOperationProgress(progress => {
+      if (progress?.operation === 'uninstall') {
+        this.teardownProgressPercent.set(progress.progress);
+        this.teardownStageMessage.set(progress.stage);
+      }
+    });
+
+    try {
+      await this.electronApi.factoryResetTeardown();
+      this.teardownProgressPercent.set(100);
+      this.teardownStageMessage.set('Teardown complete.');
+      this.teardownSuccess.set(true);
+      this.engineOperation.set(null);
+    } catch (err) {
+      console.error('Failed to perform teardown:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      this.engineErrorMessage.set(`Teardown failed: ${msg}`);
+      this.isTeardownInProgress.set(false);
+      this.showTeardownModal.set(false);
+      this.engineOperation.set(null);
+    } finally {
+      unsubscribe();
+    }
+  }
+
+  async quitAppAfterTeardown(): Promise<void> {
+    await this.electronApi.quitApp();
+  }
+
+  closeTeardownDialog(): void {
+    this.showTeardownModal.set(false);
+  }
+
+  onTeardownDialogClosed(): void {
+    this.isTeardownInProgress.set(false);
+    this.teardownSuccess.set(false);
+    this.teardownProgressPercent.set(0);
+    this.teardownStageMessage.set('Preparing teardown...');
+    void this.loadEngineStatus();
+    void this.loadDockerContext();
   }
 
   async openEngineDirectory(): Promise<void> {
@@ -2439,11 +2605,25 @@ export class SettingsPageComponent implements OnInit {
     setTimeout(() => this.applySuccessMessage.set(null), durationMs);
   }
 
+  private formatErrorMessage(err?: unknown): string | null {
+    if (!err) return null;
+    if (err instanceof Error) {
+      return err.message;
+    }
+    if (typeof err === 'string') {
+      return err;
+    }
+    if (typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
+      return (err as { message: string }).message;
+    }
+    return '';
+  }
+
   private reportSettingsError(prefix: string, err?: unknown): void {
     if (err) {
       console.error(`${prefix}:`, err);
     }
-    const msg = err ? (err instanceof Error ? err.message : String(err)) : null;
+    const msg = this.formatErrorMessage(err);
     this.settingsErrorMessage.set(msg ? `${prefix}: ${msg}` : prefix);
   }
 
@@ -2451,7 +2631,7 @@ export class SettingsPageComponent implements OnInit {
     if (err) {
       console.error(`${prefix}:`, err);
     }
-    const msg = err ? (err instanceof Error ? err.message : String(err)) : null;
+    const msg = this.formatErrorMessage(err);
     this.k8sClusterActionError.set(msg ? `${prefix}: ${msg}` : prefix);
   }
 
@@ -2459,7 +2639,7 @@ export class SettingsPageComponent implements OnInit {
     if (err) {
       console.error(`${prefix}:`, err);
     }
-    const msg = err ? (err instanceof Error ? err.message : String(err)) : null;
+    const msg = this.formatErrorMessage(err);
     this.k8sRuntimeActionError.set(msg ? `${prefix}: ${msg}` : prefix);
   }
 
@@ -2467,12 +2647,22 @@ export class SettingsPageComponent implements OnInit {
     if (this.isActionLoading()) return;
     this.isRestarting.set(true);
     const modeChanged = this.engineModeChanged();
+    const isSwitchToUninstalled = this.isEngineModeSwitchToUninstalled();
     try {
       await this.persistSettings();
     } catch (err) {
       this.reportSettingsError('Failed to save settings', err);
       this.showRestartModal.set(false);
       this.isRestarting.set(false);
+      return;
+    }
+
+    if (isSwitchToUninstalled) {
+      this.showRestartModal.set(false);
+      this.isRestarting.set(false);
+      this.selectCategory('engine');
+      this.flashSuccess('Settings saved. Installing CatBee Built-in Container Engine...', 4000);
+      void this.startEngine();
       return;
     }
 

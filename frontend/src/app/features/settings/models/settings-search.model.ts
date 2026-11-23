@@ -3,7 +3,7 @@ export interface SettingSearchItem {
   readonly title: string;
   readonly description: string;
   readonly keywords: readonly string[];
-  readonly category: 'general' | 'resources' | 'engine' | 'kubernetes' | 'updates' | 'about';
+  readonly category: 'general' | 'resources' | 'engine' | 'kubernetes' | 'troubleshoot' | 'updates' | 'about';
   readonly categoryLabel: string;
   readonly subTab?: 'advanced' | 'file-sharing' | 'proxies' | 'network' | 'wsl';
   readonly subTabLabel?: string;
@@ -48,6 +48,12 @@ const updateItem = (draft: SettingItemDraft): SettingSearchItem => ({
   ...draft,
   category: 'updates',
   categoryLabel: 'Software updates'
+});
+
+const troubleshootItem = (draft: SettingItemDraft): SettingSearchItem => ({
+  ...draft,
+  category: 'troubleshoot',
+  categoryLabel: 'Troubleshoot'
 });
 
 const aboutItem = (draft: SettingItemDraft): SettingSearchItem => ({
@@ -453,20 +459,48 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingSearchItem[] = [
     targetId: 'setting-about',
     icon: 'info'
   }),
-  aboutItem({
-    id: 'about-maintenance-reset',
-    title: 'Restore Default Settings',
-    description: 'Restore container engine configuration, resource allocations, and preferences back to defaults',
+
+  // TROUBLESHOOT
+  troubleshootItem({
+    id: 'troubleshoot-restart',
+    title: 'Restart Docker Engine',
+    description: 'Cleanly restart the container runtime daemon without losing images or containers',
+    keywords: ['restart', 'reboot', 'engine restart', 'docker restart', 'daemon', 'reload'],
+    targetId: 'setting-troubleshoot-restart',
+    icon: 'refresh'
+  }),
+  troubleshootItem({
+    id: 'troubleshoot-purge',
+    title: 'Clean / Purge Data',
+    description: 'Reclaim disk space by purging stopped containers, dangling images, unused volumes, and build cache',
+    keywords: ['purge', 'clean', 'prune', 'disk space', 'free disk', 'delete images', 'delete volumes', 'clear cache'],
+    targetId: 'setting-troubleshoot-purge',
+    icon: 'cleaning_services'
+  }),
+  troubleshootItem({
+    id: 'troubleshoot-defaults',
+    title: 'Reset to Factory Defaults',
+    description: 'Restore all CatBee settings and engine configuration back to defaults',
+    keywords: ['factory defaults', 'reset defaults', 'default settings', 'restore settings', 'initial state'],
+    targetId: 'setting-troubleshoot-defaults',
+    icon: 'restore'
+  }),
+  troubleshootItem({
+    id: 'troubleshoot-teardown',
+    title: 'Factory Reset & Teardown (Uninstall CatBee)',
+    description:
+      'Completely stop and remove Kubernetes clusters, Docker VMs, container disks, contexts, and CatBee directories',
     keywords: [
-      'restore defaults',
-      'reset settings',
+      'uninstall',
+      'teardown',
       'factory reset',
-      'default settings',
-      'reset to default',
-      'maintenance',
-      'restore'
+      'remove app',
+      'delete everything',
+      'clean uninstall',
+      'trash',
+      'uninstallation'
     ],
-    targetId: 'setting-about-maintenance',
-    icon: 'restart_alt'
+    targetId: 'setting-troubleshoot-teardown',
+    icon: 'delete_forever'
   })
 ];

@@ -132,6 +132,24 @@ export class ElectronApiService extends ElectronBaseService {
     this.unwrapResult(response);
   }
 
+  async purgeData(): Promise<
+    | {
+        containersPruned: number;
+        imagesPruned: number;
+        volumesPruned: number;
+        spaceReclaimed: number;
+      }
+    | undefined
+  > {
+    const response = await this.bridge.app?.engine?.purgeData?.();
+    return this.unwrapResult(response);
+  }
+
+  async factoryResetTeardown(): Promise<void> {
+    const response = await this.bridge.app?.engine?.factoryResetTeardown?.();
+    this.unwrapResult(response);
+  }
+
   async applyEngineSettings(): Promise<{ applied: boolean }> {
     const response = await this.bridge.app?.engine?.applySettings?.();
     return this.unwrapResult(response) ?? { applied: false };

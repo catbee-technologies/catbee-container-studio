@@ -149,6 +149,11 @@
         <catbee-settings-kubernetes />
       }
 
+      <!-- TROUBLESHOOT TAB -->
+      @if (activeCategory() === 'troubleshoot') {
+        <catbee-settings-troubleshoot />
+      }
+
       <!-- SOFTWARE UPDATES TAB -->
       @if (activeCategory() === 'updates') {
         <catbee-settings-updates />
@@ -189,10 +194,12 @@
           [disabled]="!hasChanges() || isActionLoading() || hasValidationErrors()"
           (click)="applySettings()"
         >
-          <span class="button-label">Apply</span>
           @if (isApplying()) {
-            <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'apply' }" />
+            <span class="button-icon" aria-hidden="true">
+              <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'apply' }" />
+            </span>
           }
+          <span class="button-label">{{ isApplying() ? 'Applying...' : 'Apply' }}</span>
         </button>
       </div>
     </footer>
@@ -201,7 +208,7 @@
     <catbee-container-studio-dialog
       [open]="showRestartModal()"
       [closable]="!isApplying()"
-      title="Restart Docker Engine?"
+      [title]="restartDialogTitle()"
       [style]="{ width: '32rem' }"
       (closeDialog)="cancelRestartModal()"
     >
@@ -209,7 +216,11 @@
         <div class="restart-dialog-content">
           <p>{{ restartDialogMessage() }}</p>
           <p class="field-hint">
-            Apply the changes to the container engine now, or save them for the next engine start?
+            {{
+              isEngineModeSwitchToUninstalled()
+                ? 'CatBee will install the built-in engine and start it for you.'
+                : 'Apply the changes to the container engine now, or save them for the next engine start?'
+            }}
           </p>
         </div>
       </ng-container>
@@ -230,13 +241,17 @@
           [disabled]="isActionLoading()"
           (click)="confirmRestartLater()"
         >
-          <span class="button-label">Restart Later</span>
           @if (isSavingSettings() && !isRestarting()) {
-            <ng-container
-              [ngTemplateOutlet]="buttonLoader"
-              [ngTemplateOutletContext]="{ $implicit: 'restart-later' }"
-            />
+            <span class="button-icon" aria-hidden="true">
+              <ng-container
+                [ngTemplateOutlet]="buttonLoader"
+                [ngTemplateOutletContext]="{ $implicit: 'restart-later' }"
+              />
+            </span>
           }
+          <span class="button-label">{{
+            isEngineModeSwitchToUninstalled() ? 'Save & Setup Later' : 'Restart Later'
+          }}</span>
         </button>
         <button
           type="button"
@@ -245,10 +260,10 @@
           [disabled]="isActionLoading()"
           (click)="confirmRestartNow()"
         >
-          <span class="button-label">Restart Now</span>
-          @if (isRestarting()) {
-            <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'restart-now' }" />
-          }
+          <span class="button-icon" aria-hidden="true">
+            <span class="mat-icon-filled" [class.spin]="isRestarting()">refresh</span>
+          </span>
+          <span class="button-label">{{ restartDialogConfirmLabel() }}</span>
         </button>
       </ng-container>
     </catbee-container-studio-dialog>
@@ -418,5 +433,86 @@
       (cancelAction)="cancelLeave()"
       (confirm)="confirmLeave()"
     />
+
+    <!-- Purge Data Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingPurgeData()"
+      title="Clean & Purge Data"
+      message="Are you sure you want to purge unused Docker data? This will remove all stopped containers, dangling images, unused volumes, and BuildKit caches."
+      note="Active containers and in-use images or volumes will not be affected."
+      noteType="warning"
+      confirmLabel="Purge Data"
+      cancelLabel="Cancel"
+      [dangerous]="true"
+      (cancelAction)="cancelPurgeData()"
+      (confirm)="confirmPurgeData()"
+    />
+
+    <!-- Factory Reset & Teardown Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingFactoryResetTeardown()"
+      title="Factory Reset & Teardown"
+      message="Are you sure you want to completely tear down CatBee Container Studio?"
+      note="This permanently deletes all container images, volumes, Kubernetes clusters, and VM disks (Lima / WSL), resets Docker contexts, cleans system PATH, and removes ~/.catbee. CatBee will quit when completed."
+      noteType="danger"
+      confirmLabel="Delete Everything & Teardown"
+      cancelLabel="Cancel"
+      [dangerous]="true"
+      (cancelAction)="cancelFactoryResetTeardown()"
+      (confirm)="confirmFactoryResetTeardown()"
+    />
+
+    <!-- Teardown Progress / Completion Modal -->
+    <catbee-container-studio-dialog
+      [open]="showTeardownModal()"
+      [title]="teardownSuccess() ? 'Teardown Complete' : 'Performing Teardown...'"
+      [closable]="teardownSuccess()"
+      [style]="{ width: '520px', maxWidth: '90vw' }"
+      (closeDialog)="closeTeardownDialog()"
+      (closed)="onTeardownDialogClosed()"
+    >
+      <div catbeeDialogBody class="teardown-modal-content">
+        @if (!teardownSuccess()) {
+          <div class="teardown-progress-box">
+            <span class="mat-icon-filled spin" aria-hidden="true">sync</span>
+            <div class="teardown-stage-info">
+              <span class="teardown-stage-text">{{ teardownStageMessage() }}</span>
+              <div class="progress-bar-track">
+                <div class="progress-bar-fill" [style.width.%]="teardownProgressPercent()"></div>
+              </div>
+            </div>
+          </div>
+        } @else {
+          <div class="teardown-success-box">
+            <span class="mat-icon-filled success-icon" aria-hidden="true">check_circle</span>
+            <h3 class="teardown-success-title">CatBee has been cleanly removed</h3>
+            <p class="teardown-success-desc">
+              All virtual machine disks, container layers, Docker CLI contexts, and system PATH entries have been
+              deleted.
+            </p>
+            <div class="teardown-success-note">
+              <span class="mat-icon-filled" aria-hidden="true">info</span>
+              @if (isMacOS()) {
+                <span>You can now safely quit CatBee and drag the application to the Trash.</span>
+              } @else {
+                <span>Your system has been completely restored to a clean state.</span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <div catbeeDialogFooter class="teardown-modal-footer">
+        @if (teardownSuccess()) {
+          <button type="button" class="catbee-action-btn secondary" (click)="closeTeardownDialog()">
+            <span>Close</span>
+          </button>
+          <button type="button" class="catbee-action-btn primary" (click)="quitAppAfterTeardown()">
+            <span class="mat-icon-filled" aria-hidden="true">power_settings_new</span>
+            <span>Quit Application</span>
+          </button>
+        }
+      </div>
+    </catbee-container-studio-dialog>
   </main>
 </div>

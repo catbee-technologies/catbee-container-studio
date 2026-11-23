@@ -453,6 +453,111 @@
   }
 }
 
+/* TEARDOWN MODAL CONTENT */
+.teardown-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0.75rem 0;
+
+  .teardown-progress-box {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+
+    .spin {
+      font-size: 32px;
+      color: var(--color-danger, #ef4444);
+      animation: spin 1s linear infinite;
+    }
+
+    .teardown-stage-info {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+
+      .teardown-stage-text {
+        font-size: 0.95rem;
+        font-weight: 500;
+        color: var(--ink-100);
+      }
+
+      .progress-bar-track {
+        width: 100%;
+        height: 8px;
+        background: rgba(239, 68, 68, 0.15);
+        border-radius: var(--radius-full, 9999px);
+        overflow: hidden;
+
+        .progress-bar-fill {
+          height: 100%;
+          background: var(--color-danger, #ef4444);
+          border-radius: var(--radius-full, 9999px);
+          transition: width 0.3s ease;
+        }
+      }
+    }
+  }
+
+  .teardown-success-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.75rem;
+    padding: 1rem 0;
+
+    .success-icon {
+      font-size: 52px;
+      color: var(--color-success, #22c55e);
+    }
+
+    .teardown-success-title {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--ink-100);
+    }
+
+    .teardown-success-desc {
+      margin: 0;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--ink-300);
+      max-width: 30rem;
+    }
+
+    .teardown-success-note {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius-sm, 6px);
+      background: var(--bg-surface-elevated, rgba(128, 128, 128, 0.08));
+      border: 1px solid var(--border-color-light, rgba(255, 255, 255, 0.06));
+      color: var(--ink-200);
+      font-size: 0.85rem;
+      text-align: left;
+
+      .mat-icon-filled {
+        font-size: 18px;
+        color: var(--primary-100, #3b82f6);
+        flex-shrink: 0;
+      }
+    }
+  }
+}
+
+.teardown-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  width: 100%;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .settings-search-dropdown,
   .setting-highlight-pulse,

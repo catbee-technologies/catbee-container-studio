@@ -303,4 +303,52 @@ export function registerEngineHandlers(): void {
       return fail(error);
     }
   });
+
+  ipcMain.removeHandler(IPC_CHANNELS.App.Engine.PurgeData);
+  ipcMain.handle(
+    IPC_CHANNELS.App.Engine.PurgeData,
+    async (): Promise<
+      IpcResult<{
+        containersPruned: number;
+        imagesPruned: number;
+        volumesPruned: number;
+        spaceReclaimed: number;
+      }>
+    > => {
+      logger.info('[IPC] Received request to purge Docker data.');
+      try {
+        const result = await dockerManager.purgeData();
+        return ok(result);
+      } catch (error) {
+        return fail(error);
+      }
+    }
+  );
+
+  ipcMain.removeHandler(IPC_CHANNELS.App.Engine.FactoryResetTeardown);
+  ipcMain.handle(IPC_CHANNELS.App.Engine.FactoryResetTeardown, async event => {
+    logger.info('[IPC] Received request for complete Factory Reset & Teardown.');
+    const webContents = event.sender;
+    try {
+      stopAllStreamSessions();
+      await dockerManager.factoryResetTeardown((progress, stage) => {
+        if (!webContents.isDestroyed()) {
+          webContents.send(IPC_CHANNELS.App.Engine.Progress, {
+            operation: 'uninstall',
+            progress,
+            stage
+          });
+        }
+      });
+      if (!webContents.isDestroyed()) {
+        webContents.send(IPC_CHANNELS.App.Engine.Progress, null);
+      }
+      return ok({ success: true });
+    } catch (error) {
+      if (!webContents.isDestroyed()) {
+        webContents.send(IPC_CHANNELS.App.Engine.Progress, null);
+      }
+      return fail(error);
+    }
+  });
 }
