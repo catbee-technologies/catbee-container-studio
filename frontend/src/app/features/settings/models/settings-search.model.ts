@@ -3,7 +3,7 @@ export interface SettingSearchItem {
   readonly title: string;
   readonly description: string;
   readonly keywords: readonly string[];
-  readonly category: 'general' | 'resources' | 'engine' | 'updates' | 'about';
+  readonly category: 'general' | 'resources' | 'engine' | 'kubernetes' | 'updates' | 'about';
   readonly categoryLabel: string;
   readonly subTab?: 'advanced' | 'file-sharing' | 'proxies' | 'network' | 'wsl';
   readonly subTabLabel?: string;
@@ -36,6 +36,12 @@ const engineItem = (draft: SettingItemDraft): SettingSearchItem => ({
   ...draft,
   category: 'engine',
   categoryLabel: 'Docker Engine'
+});
+
+const kubernetesItem = (draft: SettingItemDraft): SettingSearchItem => ({
+  ...draft,
+  category: 'kubernetes',
+  categoryLabel: 'Kubernetes'
 });
 
 const updateItem = (draft: SettingItemDraft): SettingSearchItem => ({
@@ -355,6 +361,57 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingSearchItem[] = [
     ],
     targetId: 'setting-engine-daemon-config',
     icon: 'code'
+  }),
+
+  // KUBERNETES
+  kubernetesItem({
+    id: 'k8s-enable',
+    title: 'Enable Kubernetes',
+    description: 'Start a Kubernetes single or multi-node cluster when starting CatBee Studio',
+    keywords: [
+      'kubernetes',
+      'k8s',
+      'cluster',
+      'enable kubernetes',
+      'orchestration',
+      'control plane',
+      'worker nodes',
+      'kind'
+    ],
+    targetId: 'setting-enable-k8s',
+    icon: 'hub'
+  }),
+  kubernetesItem({
+    id: 'k8s-cluster-settings',
+    title: 'Kubernetes Cluster & Configuration',
+    description: 'Configure Kubernetes release image and node topology for local cluster',
+    keywords: [
+      'kind',
+      'kubernetes cluster',
+      'k8s version',
+      'nodes',
+      'node count',
+      'workers',
+      'reset cluster',
+      'topology'
+    ],
+    targetId: 'setting-k8s-cluster',
+    icon: 'dns'
+  }),
+  kubernetesItem({
+    id: 'k8s-system-containers',
+    title: 'Show system containers (advanced)',
+    description: 'Display internal Kubernetes and kind node containers in the Containers list',
+    keywords: [
+      'system containers',
+      'internal containers',
+      'k8s containers',
+      'kind nodes',
+      'advanced containers',
+      'kube-system'
+    ],
+    targetId: 'setting-k8s-system-containers',
+    icon: 'visibility'
   }),
 
   // SOFTWARE UPDATES

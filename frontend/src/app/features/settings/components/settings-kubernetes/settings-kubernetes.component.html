@@ -1,0 +1,499 @@
+<section class="settings-section">
+  <header class="settings-section-header">
+    <h2>Kubernetes</h2>
+    <p class="section-desc">Run a lightweight local Kubernetes cluster directly in CatBee Studio powered by kind.</p>
+  </header>
+
+  <div class="settings-section-body">
+    <!-- Engine Requirement Callout -->
+    @if (page.k8sUnavailableReason() === 'engine-installing') {
+      <div class="k8s-engine-callout">
+        <catbee-container-studio-callout type="info" title="Container Engine is Installing">
+          <p>
+            The built-in container engine is currently installing. Kubernetes features will be enabled automatically
+            once installation finishes.
+          </p>
+          <div class="callout-actions">
+            <button type="button" class="catbee-action-btn secondary sm" disabled [attr.aria-busy]="true">
+              <span class="button-icon" aria-hidden="true">
+                <span class="mat-icon-filled spin">sync</span>
+              </span>
+              <span>Installing Engine...</span>
+            </button>
+          </div>
+        </catbee-container-studio-callout>
+      </div>
+    } @else if (page.k8sUnavailableReason() === 'engine-starting') {
+      <div class="k8s-engine-callout">
+        <catbee-container-studio-callout type="info" title="Container Engine is Starting">
+          <p>The container engine is currently starting up. Kubernetes cluster management will be available shortly.</p>
+          <div class="callout-actions">
+            <button type="button" class="catbee-action-btn secondary sm" disabled [attr.aria-busy]="true">
+              <span class="button-icon" aria-hidden="true">
+                <span class="mat-icon-filled spin">refresh</span>
+              </span>
+              <span>Starting Engine...</span>
+            </button>
+          </div>
+        </catbee-container-studio-callout>
+      </div>
+    } @else if (page.k8sUnavailableReason() === 'engine-not-installed') {
+      <div class="k8s-engine-callout">
+        <catbee-container-studio-callout type="warning" title="Container Engine Not Installed">
+          <p>
+            Kubernetes runs inside containers using kind and requires a container engine. Please install the CatBee
+            built-in engine to enable Kubernetes.
+          </p>
+          <div class="callout-actions">
+            <button type="button" class="catbee-action-btn primary sm" (click)="page.selectCategory('engine')">
+              <span class="mat-icon-filled" aria-hidden="true">build</span>
+              Install Docker Engine
+            </button>
+          </div>
+        </catbee-container-studio-callout>
+      </div>
+    } @else if (page.k8sUnavailableReason() === 'engine-stopped') {
+      <div class="k8s-engine-callout">
+        <catbee-container-studio-callout type="warning" title="Container Engine is Stopped">
+          <p>
+            The container engine is currently stopped. Start the container engine to run and manage Kubernetes clusters.
+          </p>
+          <div class="callout-actions">
+            <button
+              type="button"
+              class="catbee-action-btn primary sm"
+              [disabled]="page.isStarting() || page.isEngineBusy()"
+              (click)="page.startEngine()"
+            >
+              <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+              Start Container Engine
+            </button>
+          </div>
+        </catbee-container-studio-callout>
+      </div>
+    }
+
+    <!-- Kubernetes Runtime (kind) Section -->
+    <div id="setting-k8s-runtime" class="k8s-runtime-section">
+      <div class="k8s-runtime-card">
+        <div class="runtime-card-left">
+          <div class="runtime-icon-box" aria-hidden="true">
+            <span class="mat-icon-filled">terminal</span>
+          </div>
+          <div class="runtime-info">
+            <div class="runtime-title-row">
+              <span class="runtime-title">Kubernetes Runtime (kind)</span>
+              <span
+                class="k8s-status-badge"
+                [class.status-running]="
+                  page.isKindInstalled() && !page.isInstallingK8sRuntime() && !page.isUninstallingK8sRuntime()
+                "
+                [class.status-busy]="page.isInstallingK8sRuntime() || page.isUninstallingK8sRuntime()"
+                [class.status-inactive]="
+                  !page.isKindInstalled() && !page.isInstallingK8sRuntime() && !page.isUninstallingK8sRuntime()
+                "
+              >
+                <span class="mat-icon-filled status-icon" aria-hidden="true">
+                  {{
+                    page.isInstallingK8sRuntime() || page.isUninstallingK8sRuntime()
+                      ? 'sync'
+                      : page.isKindInstalled()
+                        ? 'check'
+                        : 'close'
+                  }}
+                </span>
+                <span>
+                  {{
+                    page.isInstallingK8sRuntime()
+                      ? 'Installing'
+                      : page.isUninstallingK8sRuntime()
+                        ? 'Uninstalling'
+                        : page.isKindInstalled()
+                          ? 'Installed'
+                          : 'Not installed'
+                  }}
+                </span>
+              </span>
+            </div>
+            <span class="runtime-subinfo">
+              CLI tool that creates and runs local Kubernetes clusters inside Docker containers.
+            </span>
+          </div>
+        </div>
+
+        <div class="runtime-card-right">
+          @if (!page.isKindInstalled()) {
+            <button
+              type="button"
+              class="catbee-action-btn primary sm"
+              [disabled]="page.isEngineBusy() || page.isK8sBusy() || !page.isK8sEngineAvailable()"
+              (click)="page.installK8sRuntime()"
+            >
+              <span class="button-icon" aria-hidden="true">
+                <span class="mat-icon-filled" [class.spin]="page.isInstallingK8sRuntime()">{{
+                  page.isInstallingK8sRuntime() ? 'sync' : 'download'
+                }}</span>
+              </span>
+              <span>{{ page.isInstallingK8sRuntime() ? 'Installing kind...' : 'Install kind runtime' }}</span>
+            </button>
+          } @else {
+            <button
+              type="button"
+              class="catbee-action-btn plain-btn danger sm"
+              [disabled]="page.isEngineBusy() || page.isK8sBusy() || !page.isK8sEngineAvailable()"
+              (click)="page.requestUninstallK8sRuntime()"
+            >
+              <span class="button-icon" aria-hidden="true">
+                <span class="mat-icon-filled" [class.spin]="page.isUninstallingK8sRuntime()">{{
+                  page.isUninstallingK8sRuntime() ? 'sync' : 'delete'
+                }}</span>
+              </span>
+              <span>{{ page.isUninstallingK8sRuntime() ? 'Uninstalling...' : 'Uninstall runtime' }}</span>
+            </button>
+          }
+        </div>
+      </div>
+
+      @if (page.k8sOperation(); as op) {
+        @if (op.operation === 'install') {
+          <output class="k8s-progress" aria-live="polite">
+            <div class="k8s-progress-header">
+              <span class="k8s-progress-title">Installing kind runtime</span>
+              @if (op.progress !== undefined) {
+                <span class="k8s-progress-percent">{{ op.progress }}%</span>
+              }
+            </div>
+            <progress
+              class="k8s-progress-track"
+              max="100"
+              [value]="op.progress ?? 0"
+              aria-label="Kind runtime installation progress"
+            ></progress>
+            <div class="k8s-progress-meta">
+              <span class="k8s-progress-stage">{{ op.stage }}</span>
+              @if (op.detail) {
+                <span class="k8s-progress-detail">{{ op.detail }}</span>
+              }
+            </div>
+          </output>
+        }
+      }
+
+      @if (page.k8sRuntimeErrorMessage(); as err) {
+        <div class="k8s-error-banner-wrapper">
+          <catbee-container-studio-error-banner
+            [errorMessage]="err"
+            (closeErr)="page.dismissK8sRuntimeError()"
+            size="small"
+          />
+        </div>
+      }
+    </div>
+
+    <!-- Enable Kubernetes Toggle -->
+    <div
+      id="setting-enable-k8s"
+      class="form-group"
+      [class.is-disabled]="!page.isK8sEngineAvailable() || !page.isKindInstalled() || page.isK8sBusy()"
+    >
+      <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+      <div
+        class="checkbox-row switch-row"
+        [class.is-disabled]="!page.isK8sEngineAvailable() || !page.isKindInstalled() || page.isK8sBusy()"
+        (click)="
+          page.isK8sEngineAvailable() &&
+            page.isKindInstalled() &&
+            !page.isK8sBusy() &&
+            page.toggleSwitchRow($event, page.k8sEnabled)
+        "
+      >
+        <catbee-container-studio-switch-input
+          [checked]="page.k8sEnabled()"
+          [disabled]="!page.isK8sEngineAvailable() || !page.isKindInstalled() || page.isK8sBusy()"
+          inputId="field-enable-k8s"
+          (checkedChange)="page.k8sEnabled.set($event)"
+        />
+        <label class="switch-row-text" for="field-enable-k8s">
+          <span class="checkbox-label">Enable Kubernetes</span>
+          <span class="field-hint">
+            @if (page.isK8sBusy()) {
+              Kubernetes cluster is currently performing an operation.
+            } @else if (!page.isK8sEngineAvailable()) {
+              Container engine must be running to enable Kubernetes.
+            } @else if (!page.isKindInstalled()) {
+              Install the kind runtime above to enable Kubernetes.
+            } @else {
+              Start a local Kubernetes cluster automatically when CatBee Container Studio runs.
+            }
+          </span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Cluster Status Card -->
+    <div class="k8s-cluster-section">
+      <h3 class="group-title">Cluster Status</h3>
+      <div
+        class="k8s-cluster-card"
+        [class.is-disabled]="!page.k8sEnabled() || !page.isK8sEngineAvailable() || !page.isKindInstalled()"
+      >
+        <div class="cluster-card-left">
+          <div class="cluster-icon-box" aria-hidden="true">
+            <catbee-k8s-icon [size]="20" />
+          </div>
+          <div class="cluster-info">
+            <div class="cluster-name-row">
+              <span class="cluster-name">{{ page.k8sClusterName() }}</span>
+              <span class="badge-subtle">kind</span>
+            </div>
+            <span class="cluster-subinfo">
+              {{ page.k8sActualNodeCount() }} {{ page.k8sActualNodeCount() === 1 ? 'node' : 'nodes' }} &bull;
+              {{ page.k8sActualVersion() }}
+            </span>
+          </div>
+        </div>
+
+        <div class="cluster-card-right">
+          <span
+            class="k8s-status-badge"
+            [class.status-running]="page.isK8sRunning() && !page.isK8sBusy()"
+            [class.status-error]="page.k8sStatus() === 'error'"
+            [class.status-busy]="page.isK8sBusy()"
+            [class.status-inactive]="!page.isK8sRunning() && page.k8sStatus() !== 'error' && !page.isK8sBusy()"
+          >
+            <span class="mat-icon-filled status-icon" aria-hidden="true">
+              {{
+                page.isK8sBusy()
+                  ? 'sync'
+                  : page.isK8sRunning()
+                    ? 'play_arrow'
+                    : page.k8sStatus() === 'error'
+                      ? 'error'
+                      : 'stop'
+              }}
+            </span>
+            <span>{{ page.k8sStatusLabel() }}</span>
+          </span>
+          @if (page.k8sStartedRelative()) {
+            <span class="started-text">{{ page.k8sStartedRelative() }}</span>
+          }
+
+          @if (
+            (page.k8sStatus() === 'starting' || page.isStartingK8sCluster() || page.isResettingK8sCluster()) &&
+            page.k8sOperation()?.operation !== 'stop'
+          ) {
+            <button
+              type="button"
+              class="catbee-action-btn danger sm"
+              [disabled]="page.isCancellingK8sOperation()"
+              (click)="page.requestCancelK8sOperation()"
+            >
+              <span class="mat-icon-filled" aria-hidden="true">close</span>
+              Cancel
+            </button>
+          } @else if (page.isK8sRunning()) {
+            <button
+              type="button"
+              class="catbee-action-btn secondary sm"
+              [disabled]="page.isK8sBusy()"
+              (click)="page.stopK8sCluster()"
+            >
+              <span class="mat-icon-filled" aria-hidden="true">stop</span>
+              Stop cluster
+            </button>
+          } @else if (!page.isK8sStopping()) {
+            <button
+              type="button"
+              class="catbee-action-btn primary sm"
+              [disabled]="
+                !page.k8sEnabled() || !page.isK8sEngineAvailable() || !page.isKindInstalled() || page.isK8sBusy()
+              "
+              (click)="page.startK8sCluster()"
+            >
+              <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+              Start cluster
+            </button>
+          }
+
+          @if (!page.isK8sBusy()) {
+            <button
+              type="button"
+              class="catbee-action-btn danger sm"
+              [disabled]="!page.k8sEnabled() || !page.isK8sEngineAvailable() || !page.isKindInstalled()"
+              (click)="page.requestResetK8sCluster()"
+            >
+              <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
+              Reset cluster
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Live Cluster Operation Progress (Start / Reset / Stop) -->
+      @if (page.k8sOperation(); as op) {
+        @if (op.operation !== 'install') {
+          <output class="k8s-progress cluster-progress" aria-live="polite">
+            <div class="k8s-progress-header">
+              <div class="progress-title-row">
+                <span class="mat-icon-filled spin" aria-hidden="true">progress_activity</span>
+                <span class="k8s-progress-title">
+                  {{
+                    op.operation === 'start'
+                      ? 'Starting Kubernetes cluster...'
+                      : op.operation === 'reset'
+                        ? 'Resetting Kubernetes cluster...'
+                        : 'Stopping Kubernetes cluster...'
+                  }}
+                </span>
+              </div>
+              @if (op.progress !== undefined) {
+                <span class="k8s-progress-percent">{{ op.progress }}%</span>
+              }
+            </div>
+            <progress
+              class="k8s-progress-track"
+              max="100"
+              [value]="op.progress ?? 0"
+              aria-label="Cluster operation progress"
+            ></progress>
+            <div class="k8s-progress-meta">
+              <span class="k8s-progress-stage">{{ op.stage }}</span>
+              @if (op.detail) {
+                <span class="k8s-progress-detail">{{ op.detail }}</span>
+              }
+            </div>
+          </output>
+        }
+      }
+
+      @if (page.k8sClusterErrorMessage(); as err) {
+        <div class="k8s-error-banner-wrapper">
+          <catbee-container-studio-error-banner
+            [errorMessage]="err"
+            (closeErr)="page.dismissK8sClusterError()"
+            size="small"
+          />
+        </div>
+      }
+    </div>
+
+    <!-- Cluster Configuration -->
+    <div id="setting-k8s-cluster" class="k8s-settings-section" [class.is-disabled]="page.isK8sConfigDisabled()">
+      <div class="section-title-group">
+        <h3 class="group-title">Cluster Configuration</h3>
+        <p class="section-subtext">Configure Kubernetes release image and cluster topology for local development.</p>
+      </div>
+
+      <div class="k8s-config-card">
+        <catbee-container-studio-callout type="warning" title="Cluster reset notice">
+          <p>
+            Changing the Kubernetes version or node count will recreate the cluster. All workloads, pods, and local
+            cluster volumes will be reset.
+          </p>
+        </catbee-container-studio-callout>
+
+        @if (page.isK8sRecreationPending()) {
+          <div class="pending-recreation-banner">
+            <catbee-container-studio-callout type="warning" title="Pending Cluster Changes">
+              <p>
+                Cluster configuration has changed (version or node count). Recreating the cluster is required to apply
+                these changes.
+              </p>
+              <div class="callout-actions">
+                <button
+                  type="button"
+                  class="catbee-action-btn primary sm"
+                  [disabled]="page.isEngineBusy() || page.isK8sBusy() || page.isK8sConfigDisabled()"
+                  (click)="page.applyAndRecreateK8sCluster()"
+                >
+                  <span class="mat-icon-filled" aria-hidden="true">check</span>
+                  Apply & Recreate Cluster
+                </button>
+              </div>
+            </catbee-container-studio-callout>
+          </div>
+        }
+
+        <div class="config-grid">
+          <!-- Kubernetes Version -->
+          <div class="config-item version-item">
+            <div class="config-item-header">
+              <span class="config-item-label" id="k8s-version-label">Kubernetes Version</span>
+              <span class="config-item-hint">Select the Kubernetes release image to provision.</span>
+            </div>
+            <div class="dropdown-wrapper">
+              <catbee-container-studio-dropdown
+                [options]="page.k8sVersionOptions()"
+                [value]="page.k8sVersion()"
+                [disabled]="page.isK8sConfigDisabled()"
+                ariaLabelledBy="k8s-version-label"
+                width="15rem"
+                (valueChange)="page.k8sVersion.set($event)"
+              />
+            </div>
+          </div>
+
+          <!-- Cluster Nodes -->
+          <div class="config-item nodes-item">
+            <div class="config-item-header">
+              <div class="nodes-title-row">
+                <span class="config-item-label" id="k8s-nodes-label">Cluster Nodes</span>
+                <span class="node-count-badge">
+                  {{ page.k8sNodeCount() }}
+                  {{
+                    page.k8sNodeCount() === 1
+                      ? 'Node (Control plane)'
+                      : 'Nodes (1 Control plane + ' +
+                        (page.k8sNodeCount() - 1) +
+                        ' Worker' +
+                        (page.k8sNodeCount() === 2 ? '' : 's') +
+                        ')'
+                  }}
+                </span>
+              </div>
+              <span class="config-item-hint"
+                >Allocate worker nodes to simulate multi-node orchestration topologies.</span
+              >
+            </div>
+            <div class="nodes-slider-wrapper">
+              <catbee-container-studio-discrete-slider
+                [min]="1"
+                [max]="8"
+                [step]="1"
+                [value]="page.k8sNodeCount()"
+                [totalTicks]="8"
+                [labels]="page.k8sNodeLabels"
+                [disabled]="page.isK8sConfigDisabled()"
+                ariaLabel="Kubernetes node count"
+                (valueChange)="page.k8sNodeCount.set($event)"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advanced: Show system containers -->
+    <div
+      id="setting-k8s-system-containers"
+      class="form-group system-containers-group"
+      [class.is-disabled]="page.isK8sConfigDisabled()"
+    >
+      <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+      <div class="checkbox-row" (click)="!page.isK8sConfigDisabled() && page.toggleK8sShowSystemContainers()">
+        <catbee-container-studio-table-checkbox
+          [checked]="page.k8sShowSystemContainers()"
+          inputId="field-show-system-containers"
+          ariaLabel="Show system containers (advanced)"
+          (checkedChange)="page.k8sShowSystemContainers.set($event)"
+        />
+        <label class="checkbox-row-text" for="field-show-system-containers">
+          <span class="checkbox-label">Show system containers (advanced)</span>
+          <span class="field-hint"
+            >Display internal Kubernetes infrastructure and kind control-plane containers in the Containers list.</span
+          >
+        </label>
+      </div>
+    </div>
+  </div>
+</section>

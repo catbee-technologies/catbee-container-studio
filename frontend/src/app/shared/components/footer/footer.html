@@ -9,7 +9,6 @@
       alignment="start"
       [style]="{ width: '18rem', padding: '0.45rem', maxHeight: 'none' }"
       (dismissed)="closeMenu()"
-      \
       placement="top"
     >
       <div menuTrigger class="engine-status-bar-control">
@@ -148,6 +147,21 @@
         </button>
       </div>
     </catbee-container-studio-menu>
+
+    @if (isK8sEnabled()) {
+      <div class="footer-divider" aria-hidden="true"></div>
+      <button
+        type="button"
+        class="k8s-status-btn {{ k8sStatus() }}"
+        (click)="openSettings('kubernetes')"
+        [catbeeTooltip]="k8sTooltip()"
+        catbeeTooltipPosition="top"
+        aria-label="Kubernetes status"
+      >
+        <catbee-k8s-icon [size]="15" />
+        <span class="status-text">{{ k8sStatusLabel() }}</span>
+      </button>
+    }
   </div>
 
   <div class="catbee-footer-right">

@@ -6,14 +6,37 @@ import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { ElectronApiService } from '@core/electron-api.service';
 import { SettingsService } from '@features/settings/services/settings.service';
 import { environment } from '@environments/environment';
-import { DockerInitializationStatus, EngineOperationProgress, UpdateDownloadProgress } from '@shared/types';
+import {
+  DockerInitializationStatus,
+  EngineOperationProgress,
+  K8sClusterInfo,
+  K8sOperationProgress,
+  UpdateDownloadProgress
+} from '@shared/types';
 import { formatDockerBytes } from '@utils/docker-display.utils';
+import { K8sIconComponent } from '@shared/components/k8s-icon/k8s-icon.component';
+
+function formatK8sOperationLabel(op: K8sOperationProgress): string {
+  const pct = op.progress !== undefined ? ` (${op.progress}%)` : '';
+  switch (op.operation) {
+    case 'install':
+      return `Installing kind${pct}...`;
+    case 'uninstall':
+      return 'Uninstalling kind...';
+    case 'stop':
+      return 'Kubernetes stopping...';
+    case 'reset':
+      return `Kubernetes resetting${pct}...`;
+    default:
+      return op.progress !== undefined ? `Kubernetes (${op.progress}%)...` : 'Kubernetes starting...';
+  }
+}
 
 @Component({
   selector: 'catbee-container-studio-footer',
   templateUrl: './footer.html',
   styleUrl: './footer.scss',
-  imports: [MenuComponent, CatbeeTooltip, CommonModule]
+  imports: [MenuComponent, CatbeeTooltip, CommonModule, K8sIconComponent]
 })
 export class FooterComponent implements OnInit {
   private readonly electronApi = inject(ElectronApiService);
@@ -107,18 +130,90 @@ export class FooterComponent implements OnInit {
   readonly isMac = signal(false);
   readonly platformModifier = computed(() => (this.isMac() ? '⌘' : 'Ctrl'));
 
+  // Kubernetes state
+  readonly k8sClusterInfo = signal<K8sClusterInfo | null>(null);
+  readonly k8sOperation = signal<K8sOperationProgress | null>(null);
+  readonly isK8sEnabled = computed(() => this.settings.kubernetes().enabled);
+
+  readonly k8sStatus = computed(() => {
+    if (!this.dockerConnected()) return 'stopped';
+    const op = this.k8sOperation();
+    if (op) {
+      if (op.operation === 'stop' || op.operation === 'uninstall') return 'stopping';
+      return 'starting';
+    }
+    return this.k8sClusterInfo()?.status ?? 'stopped';
+  });
+
+  readonly k8sStatusLabel = computed(() => {
+    const op = this.k8sOperation();
+    if (op) {
+      return formatK8sOperationLabel(op);
+    }
+    const statusLabels: Record<string, string> = {
+      running: 'Kubernetes running',
+      starting: 'Kubernetes starting...',
+      stopping: 'Kubernetes stopping...',
+      error: 'Kubernetes error',
+      stopped: 'Kubernetes stopped'
+    };
+    return statusLabels[this.k8sStatus()] ?? 'Kubernetes stopped';
+  });
+
+  readonly k8sTooltip = computed(() => {
+    const op = this.k8sOperation();
+    if (op) {
+      return `${op.stage}${op.detail ? ' — ' + op.detail : ''} - Click to open settings`;
+    }
+    const status = this.k8sStatus();
+    const version = this.k8sClusterInfo()?.version || this.settings.kubernetes().version;
+    const nodes = this.k8sClusterInfo()?.nodeCount || this.settings.kubernetes().nodeCount;
+    switch (status) {
+      case 'running':
+        return `Kubernetes cluster is running (${version}, ${nodes} ${nodes === 1 ? 'node' : 'nodes'}) - Click to open settings`;
+      case 'starting':
+        return 'Kubernetes cluster is starting... - Click to open settings';
+      case 'stopping':
+        return 'Kubernetes cluster is stopping... - Click to open settings';
+      case 'error':
+        return 'Kubernetes cluster error - Click to view in settings';
+      case 'stopped':
+      default:
+        return 'Kubernetes cluster is stopped - Click to configure in settings';
+    }
+  });
+
   constructor() {
     effect(() => {
-      if (this.dockerInitStatus()?.state === 'ready') {
+      if (this.dockerInitStatus()?.state === 'ready' || this.dockerConnected()) {
         void this.refreshEngineStatus();
+        if (this.isK8sEnabled()) {
+          void this.refreshK8sStatus();
+        }
+      }
+    });
+
+    effect(() => {
+      const enabled = this.isK8sEnabled();
+      if (enabled && this.dockerConnected()) {
+        void this.refreshK8sStatus();
       }
     });
   }
 
   async ngOnInit(): Promise<void> {
     const unsubscribeProgress = this.electronApi.onEngineOperationProgress(progress => {
-      this.receivedOperationProgress = true;
+      this.receivedOperationProgress = progress !== null;
       this.engineOperation.set(progress);
+      if (!progress) {
+        void this.refreshEngineStatus();
+      }
+    });
+    const unsubscribeK8sProgress = this.electronApi.onK8sProgress(progress => {
+      this.k8sOperation.set(progress);
+      if (!progress && this.isK8sEnabled() && this.dockerConnected()) {
+        void this.refreshK8sStatus();
+      }
     });
     const unsubscribeQuitting = this.electronApi.onQuitting(() => {
       this.isExiting.set(true);
@@ -147,13 +242,25 @@ export class FooterComponent implements OnInit {
           break;
       }
     });
+
+    const k8sInterval = setInterval(() => {
+      if (this.isK8sEnabled() && this.dockerConnected()) {
+        void this.refreshK8sStatus();
+      }
+    }, 4000);
+
     this.destroyRef.onDestroy(() => {
+      clearInterval(k8sInterval);
       unsubscribeProgress();
+      unsubscribeK8sProgress();
       unsubscribeQuitting();
       unsubscribeUpdater();
     });
     // Picks up an install/uninstall that was already running when the window loaded.
     void this.refreshEngineStatus();
+    if (this.isK8sEnabled()) {
+      void this.refreshK8sStatus();
+    }
     void this.electronApi.checkForUpdates();
 
     const microsoftStore = await this.electronApi.isMicrosoftStoreInstallation();
@@ -189,12 +296,26 @@ export class FooterComponent implements OnInit {
     this.isMenuOpen.set(false);
   }
 
+  async refreshK8sStatus(): Promise<void> {
+    try {
+      const info = await this.electronApi.getK8sStatus();
+      if (info) {
+        this.k8sClusterInfo.set(info);
+        if (info.operation !== undefined) {
+          this.k8sOperation.set(info.operation);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   private async refreshEngineStatus(): Promise<void> {
     try {
       const status = await this.electronApi.getEmbeddedEngineStatus();
       this.connectedRuntimeSource.set(status?.runtime?.source ?? null);
-      if (!this.receivedOperationProgress && status?.operation) {
-        this.engineOperation.set(status.operation);
+      if (!this.receivedOperationProgress) {
+        this.engineOperation.set(status?.operation ?? null);
       }
     } catch {
       // ignore

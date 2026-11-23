@@ -6,6 +6,7 @@ import type {
   DesktopProxyConfig,
   ContainersProxyConfig,
   EngineSettings,
+  KubernetesSettingsConfig,
   NetworkSettingsConfig,
   ResourceSettingsConfig
 } from '@shared/types';
@@ -31,6 +32,9 @@ export class SettingsService {
       if (backendSettings) {
         this.syncGeneralSettings(backendSettings);
         this.syncAdvancedSettings(backendSettings);
+        if (backendSettings.kubernetes) {
+          this.kubernetes.set(backendSettings.kubernetes);
+        }
       }
     } catch {
       // Running in environment where electron API is not ready
@@ -172,6 +176,14 @@ export class SettingsService {
     rosetta: false
   });
 
+  readonly kubernetes = signal<KubernetesSettingsConfig>({
+    enabled: false,
+    provisioner: 'kind',
+    version: 'v1.37.0',
+    nodeCount: 1,
+    showSystemContainers: false
+  });
+
   setEngineMode(mode: EngineMode): void {
     this.engineMode.set(mode);
     this.localStorage.set(UI_STORAGE_KEYS.SETTINGS_ENGINE_MODE, mode);
@@ -226,5 +238,9 @@ export class SettingsService {
 
   setResources(config: ResourceSettingsConfig): void {
     this.resources.set(config);
+  }
+
+  setKubernetes(config: KubernetesSettingsConfig): void {
+    this.kubernetes.set(config);
   }
 }

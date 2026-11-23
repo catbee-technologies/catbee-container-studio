@@ -91,7 +91,11 @@
             [class.is-active]="activeCategory() === cat.id"
             (click)="selectCategory(cat.id)"
           >
-            <span class="mat-icon-filled" aria-hidden="true">{{ cat.icon }}</span>
+            @if (cat.id === 'kubernetes') {
+              <catbee-k8s-icon [size]="18" />
+            } @else {
+              <span class="mat-icon-filled" aria-hidden="true">{{ cat.icon }}</span>
+            }
             <span class="category-btn-label">{{ cat.label }}</span>
             @if (categoryMatchCounts()[cat.id]; as count) {
               <span
@@ -138,6 +142,11 @@
       <!-- DOCKER ENGINE TAB -->
       @if (activeCategory() === 'engine') {
         <catbee-settings-docker-engine />
+      }
+
+      <!-- KUBERNETES TAB -->
+      @if (activeCategory() === 'kubernetes') {
+        <catbee-settings-kubernetes />
       }
 
       <!-- SOFTWARE UPDATES TAB -->
@@ -352,6 +361,48 @@
       [dangerous]="true"
       (cancelAction)="cancelRestoreDefaults()"
       (confirm)="confirmRestoreDefaults()"
+    />
+
+    <!-- Reset Kubernetes Cluster Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingResetK8sCluster()"
+      title="Reset Kubernetes Cluster"
+      message="Are you sure you want to reset the 'catbee-desktop' cluster? All Kubernetes workloads, namespaces, and cluster state will be permanently deleted."
+      note="Your containers, images, and volumes are safe and will not be deleted."
+      noteType="success"
+      confirmLabel="Reset Cluster"
+      cancelLabel="Cancel"
+      [dangerous]="true"
+      (cancelAction)="cancelResetK8sCluster()"
+      (confirm)="confirmResetK8sCluster()"
+    />
+
+    <!-- Uninstall Kubernetes Runtime (kind) Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingUninstallK8sRuntime()"
+      title="Uninstall Kubernetes Runtime"
+      message="Are you sure you want to uninstall the Kubernetes kind runtime? Any active clusters, nodes, and kubectl contexts will be deleted."
+      note="Your containers, images, and volumes are safe and will not be deleted."
+      noteType="success"
+      confirmLabel="Uninstall Runtime"
+      cancelLabel="Cancel"
+      [dangerous]="true"
+      (cancelAction)="cancelUninstallK8sRuntime()"
+      (confirm)="confirmUninstallK8sRuntime()"
+    />
+
+    <!-- Cancel Kubernetes Operation Confirmation Dialog -->
+    <catbee-container-studio-confirm-dialog
+      [open]="pendingCancelK8sOperation()"
+      title="Cancel Kubernetes Operation"
+      message="Are you sure you want to cancel the current Kubernetes cluster operation? The operation will be stopped and partially created cluster resources will be cleaned up."
+      note="Your containers, images, and volumes are safe and will not be deleted."
+      noteType="success"
+      confirmLabel="Cancel Operation"
+      cancelLabel="Continue Waiting"
+      [dangerous]="true"
+      (cancelAction)="cancelCancelK8sOperation()"
+      (confirm)="confirmCancelK8sOperation()"
     />
 
     <!-- Leave With Unsaved Changes Dialog -->

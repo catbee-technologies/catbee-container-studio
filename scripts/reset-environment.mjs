@@ -4,6 +4,9 @@ import path from 'node:path';
 import os from 'node:os';
 import { execSync } from 'node:child_process';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+const jsyaml = require('js-yaml');
 
 const platform = process.platform;
 const isDryRun = process.argv.includes('--dry-run');
@@ -71,6 +74,43 @@ function removeFile(filePath) {
   }
 }
 
+function cleanKubeconfig() {
+  const kubeconfigPath =
+    process.env.KUBECONFIG?.split(path.delimiter)[0] || path.join(os.homedir(), '.kube', 'config');
+  if (!fs.existsSync(kubeconfigPath)) return;
+  if (isDryRun) {
+    console.log(`   [DRY-RUN] Would clean CatBee Kubernetes contexts from: ${kubeconfigPath}`);
+    return;
+  }
+  try {
+    const raw = fs.readFileSync(kubeconfigPath, 'utf8');
+    const doc = jsyaml.load(raw);
+    if (!doc || !Array.isArray(doc.contexts)) return;
+
+    const targets = new Set(['catbee-desktop', 'kind-catbee-desktop']);
+    const beforeCount = doc.contexts.length;
+    doc.contexts = doc.contexts.filter(c => !targets.has(c.name));
+    if (Array.isArray(doc.clusters)) {
+      doc.clusters = doc.clusters.filter(cl => !targets.has(cl.name));
+    }
+    if (Array.isArray(doc.users)) {
+      doc.users = doc.users.filter(u => !targets.has(u.name));
+    }
+    if (targets.has(doc['current-context'])) {
+      doc['current-context'] = doc.contexts[0]?.name || '';
+    }
+
+    if (doc.contexts.length !== beforeCount) {
+      fs.writeFileSync(kubeconfigPath, jsyaml.dump(doc, { lineWidth: -1 }), 'utf8');
+      console.log(`   ✓ Cleaned CatBee Kubernetes contexts from ${kubeconfigPath}`);
+    } else {
+      console.log('   (No CatBee Kubernetes contexts found in kubeconfig)');
+    }
+  } catch (err) {
+    console.warn(`   ⚠️  Failed to clean kubeconfig: ${err.message}`);
+  }
+}
+
 function resetWindows() {
   const home = os.homedir();
   const localAppData = process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local');
@@ -126,6 +166,11 @@ function resetWindows() {
   run(
     String.raw`reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "catbee-container-studio" /f 2>nul`
   );
+
+  console.log('8. Cleaning CatBee Kubernetes cluster configuration, contexts & cache...');
+  cleanKubeconfig();
+  removeDir(path.join(os.tmpdir(), 'catbee-k8s'));
+  removeDir(path.join(os.tmpdir(), 'catbee-k8s-docker'));
 }
 
 function resetMacOS() {
@@ -170,6 +215,11 @@ function resetMacOS() {
   run(
     `osascript -e 'tell application "System Events" to delete login item "CatBee Container Studio"' 2>/dev/null || true`
   );
+
+  console.log('7. Cleaning CatBee Kubernetes cluster configuration, contexts & cache...');
+  cleanKubeconfig();
+  removeDir(path.join(os.tmpdir(), 'catbee-k8s'));
+  removeDir(path.join(os.tmpdir(), 'catbee-k8s-docker'));
 }
 
 function resetLinux() {
@@ -201,6 +251,11 @@ function resetLinux() {
 
   console.log('5. Removing autostart entry if present...');
   removeFile(path.join(xdgConfig, 'autostart/catbee-container-studio.desktop'));
+
+  console.log('6. Cleaning CatBee Kubernetes cluster configuration, contexts & cache...');
+  cleanKubeconfig();
+  removeDir(path.join(os.tmpdir(), 'catbee-k8s'));
+  removeDir(path.join(os.tmpdir(), 'catbee-k8s-docker'));
 }
 
 async function delayCountdown(seconds = 5) {
