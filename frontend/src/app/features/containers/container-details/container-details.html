@@ -1,215 +1,228 @@
-<main class="catbee-details-container" aria-label="Container details">
-  <catbee-container-studio-details-summary
-    [title]="name()"
-    resourceType="Container"
-    backLabel="Back to containers"
-    [identifier]="container()?.Id ?? ''"
-    (back)="backToContainers()"
-  >
-    @if (container(); as current) {
-      <button
-        summarySubtitle
-        type="button"
-        class="link-btn title-image-link"
-        (click)="openImageDetails(imageRouteRef())"
-      >
-        <span
-          class="image-name"
-          [catbeeTooltip]="current.Image"
-          catbeeTooltipPosition="top"
-          [catbeeTooltipOnlyOnOverflow]="true"
+<div class="container-details-layout">
+  <catbee-container-studio-resource-sidebar
+    title="Containers"
+    [items]="sidebarItems()"
+    [activeId]="containerId()"
+    routePrefix="/containers"
+    searchPlaceholder="Search containers..."
+    [storageKey]="containerStorageKey"
+    [badges]="sidebarBadges()"
+    [(isCollapsed)]="isSidebarCollapsed"
+  />
+
+  <main class="catbee-details-container" aria-label="Container details">
+    <catbee-container-studio-details-summary
+      [title]="name()"
+      resourceType="Container"
+      backLabel="Back to containers"
+      [identifier]="container()?.Id ?? ''"
+      (back)="backToContainers()"
+    >
+      @if (container(); as current) {
+        <button
+          summarySubtitle
+          type="button"
+          class="link-btn title-image-link"
+          (click)="openImageDetails(imageRouteRef())"
         >
-          {{ current.Image }}
-        </span>
-        <span class="mat-icon-filled" aria-hidden="true">arrow_outward</span>
-      </button>
+          <span
+            class="image-name"
+            [catbeeTooltip]="current.Image"
+            catbeeTooltipPosition="top"
+            [catbeeTooltipOnlyOnOverflow]="true"
+          >
+            {{ current.Image }}
+          </span>
+          <span class="mat-icon-filled" aria-hidden="true">arrow_outward</span>
+        </button>
+      }
+      @if (container(); as current) {
+        <catbee-container-studio-container-overview-card
+          summaryContent
+          [container]="current"
+          [inspectData]="inspectData()"
+          [imageRef]="imageRouteRef()"
+          [stats]="stats()"
+          [showAllPorts]="showAllPorts()"
+          (showAllPortsChange)="setShowAllPorts($event)"
+          (restartPolicyChange)="updateRestartPolicy($event)"
+          (editPorts)="openEditPortsDialog()"
+        />
+      }
+
+      <div summaryActions class="header-actions">
+        @if (container()?.State === 'running' || container()?.State === 'paused') {
+          <button
+            type="button"
+            class="catbee-action-btn icon-only lg action-stop"
+            (click)="stop()"
+            [disabled]="isDeleting() || isRecreating()"
+            aria-label="Stop"
+            [catbeeTooltip]="'Stop'"
+            [catbeeTooltipPosition]="'top'"
+            [catbeeTooltipDelay]="tooltipDelay"
+          >
+            <span class="mat-icon-filled" aria-hidden="true">stop</span>
+          </button>
+        } @else {
+          <button
+            type="button"
+            class="catbee-action-btn icon-only lg action-start"
+            (click)="start()"
+            [disabled]="isDeleting() || isRecreating()"
+            aria-label="Start"
+            [catbeeTooltip]="'Start'"
+            [catbeeTooltipPosition]="'top'"
+            [catbeeTooltipDelay]="tooltipDelay"
+          >
+            <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
+          </button>
+        }
+        @if (container()?.State === 'paused') {
+          <button
+            type="button"
+            class="catbee-action-btn icon-only lg action-unpause"
+            (click)="unpause()"
+            [disabled]="isDeleting() || isRecreating()"
+            aria-label="Unpause"
+            [catbeeTooltip]="'Unpause'"
+            [catbeeTooltipPosition]="'top'"
+            [catbeeTooltipDelay]="tooltipDelay"
+          >
+            <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
+          </button>
+        } @else {
+          <button
+            type="button"
+            class="catbee-action-btn icon-only lg action-pause"
+            (click)="pause()"
+            [disabled]="isDeleting() || isRecreating() || container()?.State !== 'running'"
+            aria-label="Pause"
+            [catbeeTooltip]="'Pause'"
+            [catbeeTooltipPosition]="'top'"
+            [catbeeTooltipDelay]="tooltipDelay"
+          >
+            <span class="mat-icon-filled" aria-hidden="true">pause</span>
+          </button>
+        }
+        <button
+          type="button"
+          class="catbee-action-btn icon-only lg action-restart"
+          (click)="restart()"
+          [disabled]="isDeleting() || isRecreating()"
+          aria-label="Restart"
+          [catbeeTooltip]="'Restart'"
+          [catbeeTooltipPosition]="'top'"
+          [catbeeTooltipDelay]="tooltipDelay"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
+        </button>
+        <button
+          type="button"
+          class="catbee-action-btn icon-only lg action-recreate"
+          (click)="requestRecreate()"
+          [disabled]="isDeleting() || isRecreating()"
+          [attr.aria-label]="isRecreating() ? 'Recreating...' : 'Force Recreate'"
+          [attr.aria-busy]="isRecreating()"
+          [catbeeTooltip]="isRecreating() ? 'Recreating...' : 'Force Recreate'"
+          [catbeeTooltipPosition]="'top'"
+          [catbeeTooltipDelay]="tooltipDelay"
+        >
+          <span class="mat-icon-filled" [class.spin]="isRecreating()" aria-hidden="true">refresh</span>
+        </button>
+        <button
+          type="button"
+          class="catbee-action-btn danger icon-only lg action-delete"
+          (click)="requestDelete()"
+          [disabled]="isDeleting() || isRecreating()"
+          aria-label="Delete"
+          [catbeeTooltip]="'Delete'"
+          [catbeeTooltipPosition]="'left'"
+          [catbeeTooltipDelay]="tooltipDelay"
+        >
+          <span class="mat-icon-filled" aria-hidden="true">delete</span>
+        </button>
+      </div>
+    </catbee-container-studio-details-summary>
+
+    @if (!showEditPortsDialog() && error(); as err) {
+      <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" />
     }
-    @if (container(); as current) {
-      <catbee-container-studio-container-overview-card
-        summaryContent
-        [container]="current"
-        [inspectData]="inspectData()"
-        [imageRef]="imageRouteRef()"
-        [stats]="stats()"
-        [showAllPorts]="showAllPorts()"
-        (showAllPortsChange)="setShowAllPorts($event)"
-        (restartPolicyChange)="updateRestartPolicy($event)"
-        (editPorts)="openEditPortsDialog()"
-      />
+
+    @if (container(); as currentContainer) {
+      <section class="tabs" aria-label="Container tabs">
+        <catbee-container-studio-tabs
+          [tabs]="tabs"
+          [activeTab]="activeTab()"
+          ariaLabel="Container details tabs"
+          (activeTabChange)="setActiveTab($event)"
+        />
+
+        <!-- Logs tab: always mounted to keep the logs stream alive -->
+        <catbee-container-studio-container-logs-tab
+          [containerId]="containerId()"
+          [active]="activeTab() === 'logs'"
+          [style.display]="activeTab() === 'logs' ? 'grid' : 'none'"
+          [style.padding]="'1px'"
+          (unavailable)="onShellUnavailable()"
+          (streamError)="error.set($event)"
+        />
+
+        <!-- Stats tab: always mounted to keep stream + chart history alive -->
+        <catbee-container-studio-container-stats-tab
+          [containerId]="containerId()"
+          class="tab-panel stats-tab-panel"
+          [class.hidden]="activeTab() !== 'stats'"
+          (statsUpdate)="onStatsUpdate($event)"
+          (unavailable)="onShellUnavailable()"
+          (streamError)="error.set($event)"
+        />
+
+        <!-- Shell tab: always mounted to keep the shell session alive -->
+        <catbee-container-studio-container-shell-tab
+          [containerId]="containerId()"
+          class="shell-tab-panel"
+          [class.hidden]="activeTab() !== 'shell'"
+          [active]="activeTab() === 'shell'"
+          (unavailable)="onShellUnavailable()"
+          (shellError)="error.set($event)"
+        />
+
+        @if (activeTab() !== 'logs' && activeTab() !== 'stats' && activeTab() !== 'shell') {
+          <section #tabScrollArea class="catbee-container-list-layout {{ activeTab() }}-section" role="tabpanel">
+            @if (activeTab() === 'inspect') {
+              <catbee-container-studio-container-inspect-tab [inspectData]="inspectData()" />
+            }
+            @if (activeTab() === 'env') {
+              <catbee-container-studio-container-env-tab
+                [inspectData]="inspectData()"
+                [container]="container()"
+                [isRecreating]="isRecreating()"
+                (recreate)="recreateContainerWithEnv($event)"
+              />
+            }
+            @if (activeTab() === 'mounts') {
+              <catbee-container-studio-container-mounts-tab
+                [inspectData]="inspectData()"
+                [container]="container()"
+                [isRecreating]="isRecreating()"
+                (recreate)="recreateContainerWithMounts($event)"
+                (openContainerPath)="openContainerPath($event)"
+              />
+            }
+            @if (activeTab() === 'files') {
+              <catbee-container-studio-container-files-tab [containerId]="containerId()" />
+            }
+          </section>
+        }
+      </section>
+    } @else if (isLoading()) {
+      <catbee-container-studio-empty-state [icon]="'hourglass_empty'" [message]="'Loading container details...'" />
+    } @else {
+      <catbee-container-studio-empty-state [icon]="'error_outline'" [message]="'Container not found.'" />
     }
-
-    <div summaryActions class="header-actions">
-      @if (container()?.State === 'running' || container()?.State === 'paused') {
-        <button
-          type="button"
-          class="catbee-action-btn icon-only lg action-stop"
-          (click)="stop()"
-          [disabled]="isDeleting() || isRecreating()"
-          aria-label="Stop"
-          [catbeeTooltip]="'Stop'"
-          [catbeeTooltipPosition]="'top'"
-          [catbeeTooltipDelay]="tooltipDelay"
-        >
-          <span class="mat-icon-filled" aria-hidden="true">stop</span>
-        </button>
-      } @else {
-        <button
-          type="button"
-          class="catbee-action-btn icon-only lg action-start"
-          (click)="start()"
-          [disabled]="isDeleting() || isRecreating()"
-          aria-label="Start"
-          [catbeeTooltip]="'Start'"
-          [catbeeTooltipPosition]="'top'"
-          [catbeeTooltipDelay]="tooltipDelay"
-        >
-          <span class="mat-icon-filled" aria-hidden="true">play_arrow</span>
-        </button>
-      }
-      @if (container()?.State === 'paused') {
-        <button
-          type="button"
-          class="catbee-action-btn icon-only lg action-unpause"
-          (click)="unpause()"
-          [disabled]="isDeleting() || isRecreating()"
-          aria-label="Unpause"
-          [catbeeTooltip]="'Unpause'"
-          [catbeeTooltipPosition]="'top'"
-          [catbeeTooltipDelay]="tooltipDelay"
-        >
-          <span class="mat-icon-filled" aria-hidden="true">play_circle</span>
-        </button>
-      } @else {
-        <button
-          type="button"
-          class="catbee-action-btn icon-only lg action-pause"
-          (click)="pause()"
-          [disabled]="isDeleting() || isRecreating() || container()?.State !== 'running'"
-          aria-label="Pause"
-          [catbeeTooltip]="'Pause'"
-          [catbeeTooltipPosition]="'top'"
-          [catbeeTooltipDelay]="tooltipDelay"
-        >
-          <span class="mat-icon-filled" aria-hidden="true">pause</span>
-        </button>
-      }
-      <button
-        type="button"
-        class="catbee-action-btn icon-only lg action-restart"
-        (click)="restart()"
-        [disabled]="isDeleting() || isRecreating()"
-        aria-label="Restart"
-        [catbeeTooltip]="'Restart'"
-        [catbeeTooltipPosition]="'top'"
-        [catbeeTooltipDelay]="tooltipDelay"
-      >
-        <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
-      </button>
-      <button
-        type="button"
-        class="catbee-action-btn icon-only lg action-recreate"
-        (click)="requestRecreate()"
-        [disabled]="isDeleting() || isRecreating()"
-        [attr.aria-label]="isRecreating() ? 'Recreating...' : 'Force Recreate'"
-        [attr.aria-busy]="isRecreating()"
-        [catbeeTooltip]="isRecreating() ? 'Recreating...' : 'Force Recreate'"
-        [catbeeTooltipPosition]="'top'"
-        [catbeeTooltipDelay]="tooltipDelay"
-      >
-        <span class="mat-icon-filled" [class.spin]="isRecreating()" aria-hidden="true">refresh</span>
-      </button>
-      <button
-        type="button"
-        class="catbee-action-btn danger icon-only lg action-delete"
-        (click)="requestDelete()"
-        [disabled]="isDeleting() || isRecreating()"
-        aria-label="Delete"
-        [catbeeTooltip]="'Delete'"
-        [catbeeTooltipPosition]="'left'"
-        [catbeeTooltipDelay]="tooltipDelay"
-      >
-        <span class="mat-icon-filled" aria-hidden="true">delete</span>
-      </button>
-    </div>
-  </catbee-container-studio-details-summary>
-
-  @if (!showEditPortsDialog() && error(); as err) {
-    <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="error.set(null)" />
-  }
-
-  @if (container(); as currentContainer) {
-    <section class="tabs" aria-label="Container tabs">
-      <catbee-container-studio-tabs
-        [tabs]="tabs"
-        [activeTab]="activeTab()"
-        ariaLabel="Container details tabs"
-        (activeTabChange)="setActiveTab($event)"
-      />
-
-      <!-- Logs tab: always mounted to keep the logs stream alive -->
-      <catbee-container-studio-container-logs-tab
-        [containerId]="containerId()"
-        [active]="activeTab() === 'logs'"
-        [style.display]="activeTab() === 'logs' ? 'grid' : 'none'"
-        [style.padding]="'1px'"
-        (unavailable)="onShellUnavailable()"
-        (streamError)="error.set($event)"
-      />
-
-      <!-- Stats tab: always mounted to keep stream + chart history alive -->
-      <catbee-container-studio-container-stats-tab
-        [containerId]="containerId()"
-        class="tab-panel stats-tab-panel"
-        [class.hidden]="activeTab() !== 'stats'"
-        (statsUpdate)="onStatsUpdate($event)"
-        (unavailable)="onShellUnavailable()"
-        (streamError)="error.set($event)"
-      />
-
-      <!-- Shell tab: always mounted to keep the shell session alive -->
-      <catbee-container-studio-container-shell-tab
-        [containerId]="containerId()"
-        class="shell-tab-panel"
-        [class.hidden]="activeTab() !== 'shell'"
-        [active]="activeTab() === 'shell'"
-        (unavailable)="onShellUnavailable()"
-        (shellError)="error.set($event)"
-      />
-
-      @if (activeTab() !== 'logs' && activeTab() !== 'stats' && activeTab() !== 'shell') {
-        <section #tabScrollArea class="catbee-container-list-layout {{ activeTab() }}-section" role="tabpanel">
-          @if (activeTab() === 'inspect') {
-            <catbee-container-studio-container-inspect-tab [inspectData]="inspectData()" />
-          }
-          @if (activeTab() === 'env') {
-            <catbee-container-studio-container-env-tab
-              [inspectData]="inspectData()"
-              [container]="container()"
-              [isRecreating]="isRecreating()"
-              (recreate)="recreateContainerWithEnv($event)"
-            />
-          }
-          @if (activeTab() === 'mounts') {
-            <catbee-container-studio-container-mounts-tab
-              [inspectData]="inspectData()"
-              [container]="container()"
-              [isRecreating]="isRecreating()"
-              (recreate)="recreateContainerWithMounts($event)"
-              (openContainerPath)="openContainerPath($event)"
-            />
-          }
-          @if (activeTab() === 'files') {
-            <catbee-container-studio-container-files-tab [containerId]="containerId()" />
-          }
-        </section>
-      }
-    </section>
-  } @else if (isLoading()) {
-    <catbee-container-studio-empty-state [icon]="'hourglass_empty'" [message]="'Loading container details...'" />
-  } @else {
-    <catbee-container-studio-empty-state [icon]="'error_outline'" [message]="'Container not found.'" />
-  }
-</main>
+  </main>
+</div>
 
 <catbee-container-studio-confirm-dialog
   [open]="showConfirmLeave()"

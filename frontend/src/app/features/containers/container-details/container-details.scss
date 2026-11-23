@@ -1,6 +1,29 @@
 :host {
   display: block;
   height: 100%;
+  overflow: hidden;
+}
+
+.container-details-layout {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+
+  catbee-container-studio-resource-sidebar {
+    height: 100%;
+    z-index: 10;
+  }
+
+  .catbee-details-container {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
 }
 
 .title-image-link {

@@ -21,10 +21,15 @@ import { InspectTabComponent } from './components/inspect-tab/inspect-tab';
 import { LogsTabComponent } from './components/logs-tab/logs-tab';
 import { ShellTabComponent } from './components/shell-tab/shell-tab';
 import { FilesTabComponent } from './components/files-tab/files-tab';
+import {
+  ResourceSidebarBadge,
+  ResourceSidebarComponent,
+  ResourceSidebarItem
+} from '@components/resource-sidebar/resource-sidebar';
 import { TabsComponent, TabItem } from '@components/tabs/tabs';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
 import { ErrorBannerComponent } from '@components/error-banner/error-banner';
-import { SessionStorageService } from '@ng-catbee/storage';
+import { LocalStorageService, SessionStorageService } from '@ng-catbee/storage';
 import { UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { DetailsSummaryComponent } from '@components/details-summary/details-summary';
 import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
@@ -56,6 +61,7 @@ enum ContainerTab {
     LogsTabComponent,
     ShellTabComponent,
     FilesTabComponent,
+    ResourceSidebarComponent,
     TabsComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
@@ -79,6 +85,7 @@ export class ContainerDetailsPage implements OnDestroy {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly sessionStorage = inject(SessionStorageService);
+  private readonly localStorage = inject(LocalStorageService);
 
   private readonly tabScrollArea = viewChild<ElementRef<HTMLElement>>('tabScrollArea');
   private readonly logsTab = viewChild(LogsTabComponent);
@@ -104,6 +111,45 @@ export class ContainerDetailsPage implements OnDestroy {
 
   readonly containerId = signal<string>('');
   readonly activeTab = signal<ContainerTab>(ContainerTab.Logs);
+
+  readonly allContainers = signal<DockerContainerInfo[]>([]);
+  readonly isSidebarCollapsed = signal<boolean>(false);
+  readonly containerStorageKey = UI_STORAGE_KEYS.CONTAINER_DETAILS_SIDEBAR_COLLAPSED;
+
+  readonly sidebarItems = computed<ResourceSidebarItem[]>(() => {
+    return this.allContainers()
+      .map(item => {
+        const name = this.formatNames(item.Names);
+        let statusType: 'running' | 'paused' | 'not-running' = 'not-running';
+        if (item.State === 'running') {
+          statusType = 'running';
+        } else if (item.State === 'paused') {
+          statusType = 'paused';
+        }
+
+        return {
+          id: item.Id,
+          name,
+          subtext: item.Image,
+          statusType,
+          statusLabel: item.State
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  readonly sidebarBadges = computed<ResourceSidebarBadge[]>(() => {
+    const list = this.allContainers();
+    const running = list.filter(c => c.State === 'running').length;
+    const total = list.length;
+    return [
+      {
+        label: `${running}/${total}`,
+        tooltip: `${running} running of ${total} total`,
+        indicatorColor: 'var(--color-success-base)'
+      }
+    ];
+  });
 
   readonly container = signal<DockerContainerInfo | null>(null);
   readonly inspectData = signal<DockerContainerInspectInfo | null>(null);
@@ -201,6 +247,10 @@ export class ContainerDetailsPage implements OnDestroy {
   private eventsRefreshDebounce: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
+    this.isSidebarCollapsed.set(
+      this.localStorage.getBooleanWithDefault(UI_STORAGE_KEYS.CONTAINER_DETAILS_SIDEBAR_COLLAPSED, false)
+    );
+
     const routeSub = combineLatest([this.route.paramMap, this.route.data]).subscribe(([params, data]) => {
       const id = params.get('id') ?? '';
       if (!id) {
@@ -266,14 +316,8 @@ export class ContainerDetailsPage implements OnDestroy {
       return;
     }
 
-    const actor = data['Actor'] as Record<string, unknown> | undefined;
-    const eventContainerId = String(data['id'] ?? actor?.['ID'] ?? '');
-    if (eventContainerId !== this.containerId()) {
-      return;
-    }
-
     const action = String(data['Action'] ?? '');
-    const triggers = ['start', 'stop', 'die', 'pause', 'unpause', 'restart', 'kill'];
+    const triggers = ['start', 'stop', 'die', 'pause', 'unpause', 'restart', 'kill', 'destroy', 'create'];
     if (!triggers.includes(action)) {
       return;
     }
@@ -295,13 +339,14 @@ export class ContainerDetailsPage implements OnDestroy {
 
     try {
       const containers = await this.dockerApi.listContainers();
-      const found = containers.find(item => item.Id === id) ?? null;
+      if (this.isDisposed || id !== this.containerId()) return;
+      this.allContainers.set(containers);
 
+      const found = containers.find(item => item.Id === id) ?? null;
       if (!found) {
         this.redirectToContainers();
         return;
       }
-
       this.container.set(found);
     } catch (error) {
       if (this.isContainerUnavailableError(error)) {
@@ -678,6 +723,9 @@ export class ContainerDetailsPage implements OnDestroy {
 
     try {
       if (isValidPreloaded && preloaded !== null) {
+        if (preloaded.containers?.length) {
+          this.allContainers.set(preloaded.containers);
+        }
         if (preloaded.error) {
           if (this.isContainerUnavailableMessage(preloaded.error)) {
             this.redirectToContainers();
@@ -696,6 +744,7 @@ export class ContainerDetailsPage implements OnDestroy {
         }
       } else {
         const containers = await this.dockerApi.listContainers();
+        this.allContainers.set(containers);
         const found = containers.find(item => item.Id === containerId) ?? null;
         this.container.set(found);
 

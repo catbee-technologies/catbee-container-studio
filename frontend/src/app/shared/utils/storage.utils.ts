@@ -93,6 +93,7 @@ export const UI_STORAGE_KEYS = {
 
   // Session storage keys
   CONTAINERS_SEARCH_QUERY: `${DOCKER_UI_STORAGE_PREFIX}containers.search-query`,
+  CONTAINER_DETAILS_SIDEBAR_COLLAPSED: `${DOCKER_UI_STORAGE_PREFIX}container-details.sidebar-collapsed`,
   CONTAINERS_SELECTED_TAB_PREFIX: `${DOCKER_UI_STORAGE_PREFIX}containers.selected-tab.`,
   CONTAINERS_FILES_PATH_PREFIX: `${DOCKER_UI_STORAGE_PREFIX}containers.files-path.`,
   CONTAINERS_COLLAPSED_GROUPS: `${DOCKER_UI_STORAGE_PREFIX}containers.collapsed-groups`,

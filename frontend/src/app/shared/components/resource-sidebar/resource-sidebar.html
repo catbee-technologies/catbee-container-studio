@@ -1,0 +1,110 @@
+<aside
+  class="resource-sidebar"
+  [class.is-collapsed]="isCollapsed()"
+  [attr.aria-label]="title() + ' quick switcher sidebar'"
+>
+  <div class="sidebar-header">
+    <div class="header-main">
+      @if (!isCollapsed()) {
+        <div class="title-row">
+          <div class="title-with-badge">
+            <span class="sidebar-title">{{ title() }}</span>
+            @for (badge of badges(); track badge.label) {
+              <span
+                class="badge small total"
+                [catbeeTooltip]="badge.tooltip ?? badge.label"
+                catbeeTooltipPosition="top"
+              >
+                @if (badge.indicatorColor) {
+                  <span class="status-indicator-dot" [style.background-color]="badge.indicatorColor"></span>
+                }
+                {{ badge.label }}
+              </span>
+            }
+          </div>
+        </div>
+      }
+      <button
+        type="button"
+        class="collapse-toggle-btn"
+        (click)="toggleCollapsed()"
+        [attr.aria-label]="
+          isCollapsed()
+            ? 'Expand ' + title().toLowerCase() + ' sidebar'
+            : 'Collapse ' + title().toLowerCase() + ' sidebar'
+        "
+        [catbeeTooltip]="isCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+        catbeeTooltipPosition="right"
+      >
+        <span class="mat-icon-filled" aria-hidden="true">
+          {{ isCollapsed() ? 'right_panel_open' : 'left_panel_close' }}
+        </span>
+      </button>
+    </div>
+
+    @if (!isCollapsed()) {
+      <div class="search-wrapper">
+        <catbee-container-studio-search-input
+          [value]="searchQuery()"
+          [placeholder]="searchPlaceholder()"
+          [ariaLabel]="'Search ' + title().toLowerCase()"
+          width="100%"
+          (valueChange)="onSearchChange($event)"
+        />
+      </div>
+    }
+  </div>
+
+  <div #scrollContainer class="resource-list-scroll">
+    <ul class="resource-list-items" [attr.aria-label]="title() + ' list'">
+      @for (item of filteredItems(); track item.id) {
+        <li class="resource-list-item-wrapper">
+          <button
+            type="button"
+            class="resource-item"
+            [attr.data-resource-id]="item.id"
+            [class.is-active]="item.id === activeId()"
+            (click)="selectItem(item.id)"
+            [attr.aria-current]="item.id === activeId() ? 'true' : null"
+            [catbeeTooltip]="
+              isCollapsed() ? (item.tooltip ?? item.name + (item.statusLabel ? ' (' + item.statusLabel + ')' : '')) : ''
+            "
+            catbeeTooltipPosition="right"
+            [catbeeTooltipDisabled]="!isCollapsed()"
+          >
+            @if (item.statusType) {
+              <div class="status-dot-container" [class]="item.statusType">
+                <span class="status-dot" [attr.aria-label]="item.statusLabel ?? item.statusType"></span>
+              </div>
+            }
+
+            @if (!isCollapsed()) {
+              <div class="resource-meta">
+                <span
+                  class="resource-name"
+                  [catbeeTooltip]="item.name"
+                  catbeeTooltipPosition="right"
+                  catbeeTooltipOnlyOnOverflow
+                >
+                  {{ item.name }}
+                </span>
+                @if (item.subtext) {
+                  <span class="resource-subtext">
+                    {{ item.subtext }}
+                  </span>
+                }
+              </div>
+            }
+          </button>
+        </li>
+      } @empty {
+        @if (!isCollapsed()) {
+          <li class="empty-results">
+            <span class="mat-icon-filled" aria-hidden="true">search_off</span>
+            <span>No {{ title().toLowerCase() }} found</span>
+          </li>
+        }
+      }
+    </ul>
+  </div>
+</aside>

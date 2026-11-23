@@ -5,6 +5,7 @@ import { DockerContainerInfo, DockerContainerInspectInfo } from '@shared/types/d
 
 export interface ContainerDetailsPrefetch {
   container: DockerContainerInfo | null;
+  containers: DockerContainerInfo[];
   inspectData: DockerContainerInspectInfo | null;
   error: string | null;
 }
@@ -14,6 +15,7 @@ export const containerDetailsResolver: ResolveFn<ContainerDetailsPrefetch> = asy
   if (!containerId) {
     return {
       container: null,
+      containers: [],
       inspectData: null,
       error: 'Container id is required.'
     };
@@ -31,6 +33,7 @@ export const containerDetailsResolver: ResolveFn<ContainerDetailsPrefetch> = asy
     if (!container) {
       return {
         container: null,
+        containers,
         inspectData: null,
         error: 'Container not found. It may have been removed.'
       };
@@ -38,12 +41,14 @@ export const containerDetailsResolver: ResolveFn<ContainerDetailsPrefetch> = asy
 
     return {
       container,
+      containers,
       inspectData,
       error: null
     };
   } catch (error) {
     return {
       container: null,
+      containers: [],
       inspectData: null,
       error: error instanceof Error ? error.message : 'Failed to preload container details.'
     };
