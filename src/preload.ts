@@ -75,6 +75,18 @@ const IPC_CHANNELS = {
       Status: 'app:updater:status',
       IsMicrosoftStore: 'app:updater:is-microsoft-store',
       GetReleaseNotes: 'app:updater:get-release-notes'
+    },
+    K8s: {
+      GetStatus: 'app:k8s:get-status',
+      GetProgress: 'app:k8s:get-progress',
+      StartCluster: 'app:k8s:start-cluster',
+      StopCluster: 'app:k8s:stop-cluster',
+      ResetCluster: 'app:k8s:reset-cluster',
+      CancelOperation: 'app:k8s:cancel-operation',
+      GetVersions: 'app:k8s:get-versions',
+      InstallRuntime: 'app:k8s:install-runtime',
+      UninstallRuntime: 'app:k8s:uninstall-runtime',
+      Progress: 'app:k8s:progress'
     }
   },
   Docker: {
@@ -293,6 +305,26 @@ const electronBridge = {
       },
       isMicrosoftStore: () => ipcRenderer.invoke(IPC_CHANNELS.App.Updater.IsMicrosoftStore),
       getReleaseNotes: (version?: string) => ipcRenderer.invoke(IPC_CHANNELS.App.Updater.GetReleaseNotes, version)
+    },
+    k8s: {
+      getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.GetStatus),
+      getProgress: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.GetProgress),
+      startCluster: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.StartCluster),
+      stopCluster: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.StopCluster),
+      resetCluster: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.ResetCluster),
+      cancelOperation: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.CancelOperation),
+      getVersions: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.GetVersions),
+      installRuntime: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.InstallRuntime),
+      uninstallRuntime: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.UninstallRuntime),
+      onProgress: (callback: (progress: unknown) => void) => {
+        const listener = (_event: Electron.IpcRendererEvent, progress: unknown): void => {
+          callback(progress);
+        };
+        ipcRenderer.on(IPC_CHANNELS.App.K8s.Progress, listener);
+        return () => {
+          ipcRenderer.removeListener(IPC_CHANNELS.App.K8s.Progress, listener);
+        };
+      }
     }
   },
   docker: {

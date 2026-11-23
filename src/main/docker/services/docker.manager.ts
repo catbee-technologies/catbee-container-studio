@@ -263,6 +263,12 @@ export class DockerManager {
       this.selectedRuntime = null;
     }
     await engineManager.uninstall(onProgress);
+    try {
+      const { k8sManager } = await import('../../k8s/k8s-manager.js');
+      await k8sManager.onEngineUninstall();
+    } catch {
+      // Ignore if K8s module is not loaded
+    }
     await removeCatBeeContext().catch(err => {
       logger.debug({ err }, '[DockerManager] Could not remove the catbee-desktop context.');
     });
@@ -278,6 +284,12 @@ export class DockerManager {
   /** Stops the built-in engine when the app quits (external engines are left running). */
   async shutdown(): Promise<void> {
     resourceSaverManager.stop();
+    try {
+      const { k8sManager } = await import('../../k8s/k8s-manager.js');
+      await k8sManager.onAppQuit();
+    } catch (err) {
+      logger.debug('[DockerManager] Error shutting down k8sManager on quit:', err);
+    }
     if (['running', 'starting', 'error'].includes(engineManager.state)) {
       await engineManager.stop();
     }

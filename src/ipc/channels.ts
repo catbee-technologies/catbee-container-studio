@@ -67,6 +67,18 @@ export const IPC_CHANNELS = {
       Status: 'app:updater:status',
       IsMicrosoftStore: 'app:updater:is-microsoft-store',
       GetReleaseNotes: 'app:updater:get-release-notes'
+    },
+    K8s: {
+      GetStatus: 'app:k8s:get-status',
+      GetProgress: 'app:k8s:get-progress',
+      StartCluster: 'app:k8s:start-cluster',
+      StopCluster: 'app:k8s:stop-cluster',
+      ResetCluster: 'app:k8s:reset-cluster',
+      CancelOperation: 'app:k8s:cancel-operation',
+      GetVersions: 'app:k8s:get-versions',
+      InstallRuntime: 'app:k8s:install-runtime',
+      UninstallRuntime: 'app:k8s:uninstall-runtime',
+      Progress: 'app:k8s:progress'
     }
   },
   Docker: {

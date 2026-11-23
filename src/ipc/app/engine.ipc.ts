@@ -18,6 +18,7 @@ import {
   saveEngineSettings,
   type EngineSettings
 } from '../../main/docker/embedded/engine-settings';
+import { k8sManager } from '../../main/k8s/k8s-manager';
 import { stopAllStreamSessions } from '../docker/streams.ipc';
 import { logger } from '../../main/logger';
 import { getDockerCliVersion } from '../../main/docker/runtime/docker.runtime';
@@ -199,7 +200,21 @@ export function registerEngineHandlers(): void {
     IPC_CHANNELS.App.Engine.SaveSettings,
     async (_event, settings: Partial<EngineSettings>): Promise<IpcResult<EngineSettings>> => {
       try {
+        const previous = await getEngineSettings();
         const updated = await saveEngineSettings(settings);
+
+        if (settings.kubernetes) {
+          if (settings.kubernetes.enabled && !previous.kubernetes.enabled) {
+            void k8sManager.startCluster(settings.kubernetes).catch(err => {
+              logger.error({ err }, '[IPC] Auto-start Kubernetes cluster failed.');
+            });
+          } else if (!settings.kubernetes.enabled && previous.kubernetes.enabled) {
+            void k8sManager.stopCluster().catch(err => {
+              logger.error({ err }, '[IPC] Auto-stop Kubernetes cluster failed.');
+            });
+          }
+        }
+
         return ok(updated);
       } catch (error) {
         return fail(error);

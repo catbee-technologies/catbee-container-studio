@@ -533,9 +533,9 @@ export class DockerContainerService extends DockerBaseService {
     return { containerId: id, output: '' };
   }
 
-  async removeContainer(containerId: string, force = false): Promise<DockerActionResult> {
+  async removeContainer(containerId: string, force = false, removeVolumes = false): Promise<DockerActionResult> {
     const id = this.normalizeId(containerId, 'Container id');
-    await this.client.getContainer(id).remove({ force });
+    await this.client.getContainer(id).remove({ force, v: removeVolumes });
     return { containerId: id, output: '' };
   }
 
