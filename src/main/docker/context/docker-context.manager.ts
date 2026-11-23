@@ -15,6 +15,7 @@ import {
 import {
   CATBEE_LIMA_INSTANCE,
   CATBEE_WINDOWS_PIPE_PATH,
+  SHELL_PROFILE_TARGETS,
   getLimaHomeDir,
   getLinuxRuntimeDir
 } from '../embedded/engine-paths';
@@ -23,8 +24,11 @@ import { resolveContainersProxy, type ResolvedProxy } from '../embedded/daemon-c
 import { getEngineSettings } from '../embedded/engine-settings';
 import { detectSystemProxy } from '../embedded/system-proxy';
 import { engineManager } from '../embedded/engine.manager';
+import { CATBEE_CONTEXT_NAME } from '../../../constants.docker';
 
 const execFileAsync = promisify(execFile);
+
+export { CATBEE_CONTEXT_NAME };
 
 export interface DockerContextItem {
   name: string;
@@ -50,21 +54,12 @@ export interface DockerContextDetails {
   contexts: DockerContextItem[];
   catbeeContextExists: boolean;
   isCatBeeActive: boolean;
+  catbeeContextName: string;
   defaultEndpoint: string;
 }
 
-export const CATBEE_CONTEXT_NAME = 'catbee-desktop';
-
 const OVERRIDE_VARIABLES = ['DOCKER_HOST', 'DOCKER_CONTEXT'] as const;
-const SHELL_PROFILES = [
-  '.zshenv',
-  '.zprofile',
-  '.zshrc',
-  '.bash_profile',
-  '.bashrc',
-  '.profile',
-  '.config/fish/config.fish'
-];
+const SHELL_PROFILES: readonly string[] = ['.zshenv', ...SHELL_PROFILE_TARGETS, '.config/fish/config.fish'];
 
 /** Finds an exported DOCKER_HOST/DOCKER_CONTEXT in the app environment or the user's shell profiles. */
 async function detectContextOverride(): Promise<DockerContextOverride | null> {
@@ -138,6 +133,7 @@ export async function getDockerContextInfo(): Promise<DockerContextDetails> {
       contexts: [],
       catbeeContextExists: false,
       isCatBeeActive: false,
+      catbeeContextName: CATBEE_CONTEXT_NAME,
       defaultEndpoint
     };
   }
@@ -193,6 +189,7 @@ export async function getDockerContextInfo(): Promise<DockerContextDetails> {
       contexts,
       catbeeContextExists,
       isCatBeeActive,
+      catbeeContextName: CATBEE_CONTEXT_NAME,
       defaultEndpoint
     };
   } catch (err) {
@@ -204,6 +201,7 @@ export async function getDockerContextInfo(): Promise<DockerContextDetails> {
       contexts: [],
       catbeeContextExists: false,
       isCatBeeActive: false,
+      catbeeContextName: CATBEE_CONTEXT_NAME,
       defaultEndpoint
     };
   }
@@ -533,6 +531,24 @@ async function resolveContextStatus(
   }
 }
 
+function sumBuildCacheUsage(buildCache?: Array<{ Size?: number; Shared?: boolean }>): {
+  usedBytes: number;
+  sharedBytes: number;
+} {
+  let usedBytes = 0;
+  let sharedBytes = 0;
+  if (Array.isArray(buildCache)) {
+    for (const item of buildCache) {
+      const sz = item.Size ?? 0;
+      usedBytes += sz;
+      if (item.Shared) {
+        sharedBytes += sz;
+      }
+    }
+  }
+  return { usedBytes, sharedBytes };
+}
+
 /** Queries build cache from docker df and combines with context & daemon builder info. */
 export async function getDockerBuilderInfo(): Promise<DockerBuilderInfo> {
   const contextInfo = await getDockerContextInfo();
@@ -547,15 +563,9 @@ export async function getDockerBuilderInfo(): Promise<DockerBuilderInfo> {
       const df = (await dockerManager.system.diskUsage()) as {
         BuildCache?: Array<{ Size?: number; Shared?: boolean }>;
       };
-      if (Array.isArray(df?.BuildCache)) {
-        for (const item of df.BuildCache) {
-          const sz = item.Size ?? 0;
-          usedBytes += sz;
-          if (item.Shared) {
-            sharedBytes += sz;
-          }
-        }
-      }
+      const cacheUsage = sumBuildCacheUsage(df?.BuildCache);
+      usedBytes = cacheUsage.usedBytes;
+      sharedBytes = cacheUsage.sharedBytes;
     }
   } catch (err) {
     logger.debug({ err }, '[DockerContextManager] Could not read BuildCache via docker df.');

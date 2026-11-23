@@ -20,6 +20,7 @@ import {
 } from '../../main/docker/embedded/engine-settings';
 import { stopAllStreamSessions } from '../docker/streams.ipc';
 import { logger } from '../../main/logger';
+import { getDockerCliVersion } from '../../main/docker/runtime/docker.runtime';
 
 export function registerEngineHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.App.Engine.Install);
@@ -110,6 +111,7 @@ export function registerEngineHandlers(): void {
       const manifest = await engineManager.getManifest();
       const state = await engineManager.refreshStatus();
       const snapshot = engineManager.getSnapshot();
+      const cliVersion = await getDockerCliVersion();
       return ok({
         isInstalled,
         state,
@@ -119,7 +121,8 @@ export function registerEngineHandlers(): void {
         exposedTcpEndpoint: snapshot.exposedTcpEndpoint,
         lastError: snapshot.lastError,
         operation: snapshot.operation,
-        info: snapshot.info
+        info: snapshot.info,
+        cliVersion
       });
     } catch (error) {
       return fail(error);

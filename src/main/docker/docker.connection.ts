@@ -5,10 +5,9 @@ import { promisify } from 'node:util';
 import { logger } from '../logger';
 import { getDockerCliPath } from './runtime/docker.runtime';
 import type { DockerConnection, DockerContextInspect, ResolvedDockerConnection } from './types/connection.types';
+import { CATBEE_CONTEXT_NAME } from '../../constants.docker';
 
 const execFileAsync = promisify(execFile);
-
-const CATBEE_CONTEXT = 'catbee-desktop';
 
 /**
  * Environment for Docker CLI calls. DOCKER_HOST/DOCKER_CONTEXT are dropped so the CLI reports and switches the
@@ -131,7 +130,7 @@ export async function resolveCurrentDockerContext(): Promise<DockerConnection | 
       return null;
     }
     const contextName = await getCurrentDockerContextName(dockerPath);
-    if (!contextName || contextName === CATBEE_CONTEXT) {
+    if (!contextName || contextName === CATBEE_CONTEXT_NAME) {
       return null;
     }
 
@@ -221,7 +220,7 @@ export async function resolveReachableDockerContext(): Promise<{
         continue;
       }
       const { Name: name, DockerEndpoint: endpoint } = context;
-      if (!name || name === CATBEE_CONTEXT || !endpoint || !/^(unix|npipe|tcp):\/\//.test(endpoint)) {
+      if (!name || name === CATBEE_CONTEXT_NAME || !endpoint || !/^(unix|npipe|tcp):\/\//.test(endpoint)) {
         continue;
       }
       const connection = parseDockerHost(endpoint);

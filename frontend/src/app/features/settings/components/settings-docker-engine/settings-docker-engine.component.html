@@ -108,6 +108,10 @@
           <span class="detail-value">{{ page.engineVersion() ?? '—' }}</span>
         </div>
         <div class="detail-cell">
+          <span class="detail-label">Docker CLI</span>
+          <span class="detail-value">{{ page.dockerCliVersion() ?? '—' }}</span>
+        </div>
+        <div class="detail-cell">
           <span class="detail-label">Architecture</span>
           <span class="detail-value">{{ page.platformInfo()?.arch ?? '—' }}</span>
         </div>

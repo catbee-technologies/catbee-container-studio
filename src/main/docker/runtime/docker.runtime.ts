@@ -4,6 +4,7 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 import { logger } from '../../logger';
 import { DockerRuntimeInfo } from '../types/runtime.types';
+import { getEngineBinDir, homeDir } from '../embedded/engine-paths';
 
 const execFileAsync = promisify(execFile);
 
@@ -61,49 +62,115 @@ async function startRancherDesktop(rdctlPath: string): Promise<void> {
   logger.info('[DockerRuntime] Rancher Desktop start command completed.');
 }
 
+async function findWindowsDockerCli(): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('where', ['docker'], {
+      encoding: 'utf8',
+      windowsHide: true
+    });
+    const paths = stdout
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(Boolean);
+    // Prefer CatBee bundled or official Docker Desktop CLI over third-party distributions
+    return (
+      paths.find(
+        p =>
+          p.toLowerCase().includes(String.raw`.catbee\bin`) ||
+          p.toLowerCase().includes('dockerdesktop') ||
+          p.toLowerCase().includes(String.raw`docker\docker`)
+      ) ??
+      paths[0] ??
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
 let cachedDockerCliPath: string | null = null;
+let cachedDockerCliVersion: string | null = null;
+
+export async function getDockerCliVersion(): Promise<string> {
+  if (cachedDockerCliVersion) {
+    return cachedDockerCliVersion;
+  }
+  try {
+    const cliPath = await getDockerCliPath();
+    if (cliPath) {
+      const { stdout } = await execFileAsync(cliPath, ['--version'], { windowsHide: true });
+      const match = /Docker version (\d+\.\d+(?:\.\d+)?)/i.exec(stdout);
+      if (match?.[1]) {
+        cachedDockerCliVersion = match[1];
+        return cachedDockerCliVersion;
+      }
+    }
+  } catch {
+    // fallback
+  }
+  const { DOCKER_CLI_RELEASE_VERSION } = await import('../../../constants.docker.js');
+  return DOCKER_CLI_RELEASE_VERSION;
+}
+
 export async function getDockerCliPath(): Promise<string | null> {
   if (cachedDockerCliPath) {
     return cachedDockerCliPath;
   }
-  const candidates: string[] = [];
 
-  // eslint-disable-next-line n/no-process-env
-  const home = process.env.HOME;
+  // 1. Check CatBee's own embedded host Docker CLI first
+  const embeddedCli = path.join(getEngineBinDir(), process.platform === 'win32' ? 'docker.exe' : 'docker');
+  try {
+    await access(embeddedCli);
+    logger.debug(`[DockerRuntime] Using CatBee built-in Docker CLI at: ${embeddedCli}`);
+    cachedDockerCliPath = embeddedCli;
+    return embeddedCli;
+  } catch {
+    // Continue with candidate lookups
+  }
+
+  const candidates: string[] = [];
+  const home = homeDir();
 
   switch (process.platform) {
     case 'darwin':
       candidates.push(
+        path.join(home, '.catbee', 'bin', 'docker'),
+        path.join(home, '.local', 'bin', 'docker'),
         '/opt/homebrew/bin/docker',
         '/usr/local/bin/docker',
-        path.join(home ?? '', '.docker', 'bin', 'docker'),
-        path.join(home ?? '', '.rd', 'bin', 'docker')
+        path.join(home, '.docker', 'bin', 'docker'),
+        path.join(home, '.rd', 'bin', 'docker')
       );
       break;
 
     case 'linux':
-      candidates.push('/usr/local/bin/docker', '/usr/bin/docker');
+      candidates.push(
+        path.join(home, '.catbee', 'bin', 'docker'),
+        path.join(home, '.local', 'bin', 'docker'),
+        '/usr/local/bin/docker',
+        '/usr/bin/docker',
+        path.join(home, '.docker', 'bin', 'docker')
+      );
       break;
 
-    case 'win32':
-      try {
-        const { stdout } = await execFileAsync('where', ['docker'], {
-          encoding: 'utf8',
-          windowsHide: true
-        });
-        const dockerPath = stdout
-          .split(/\r?\n/)
-          .map(line => line.trim())
-          .find(Boolean);
-        if (dockerPath) {
-          logger.debug(`[DockerRuntime] Docker CLI found at: ${dockerPath}`);
-          cachedDockerCliPath = dockerPath;
-          return dockerPath;
-        }
-      } catch {
-        // Continue with fallback paths.
+    case 'win32': {
+      const dockerPath = await findWindowsDockerCli();
+      if (dockerPath) {
+        logger.debug(`[DockerRuntime] Docker CLI found at: ${dockerPath}`);
+        cachedDockerCliPath = dockerPath;
+        return dockerPath;
       }
+      // eslint-disable-next-line n/no-process-env
+      const localAppData = process.env.LOCALAPPDATA ?? path.join(home, 'AppData', 'Local');
+      // eslint-disable-next-line n/no-process-env
+      const programFiles = process.env.ProgramFiles ?? String.raw`C:\Program Files`;
+      candidates.push(
+        path.join(home, '.catbee', 'bin', 'docker.exe'),
+        path.join(localAppData, 'Programs', 'DockerDesktop', 'resources', 'bin', 'docker.exe'),
+        path.join(programFiles, 'Docker', 'Docker', 'resources', 'bin', 'docker.exe')
+      );
       break;
+    }
   }
 
   for (const candidate of candidates) {

@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { logger } from '../../logger';
 import { getEngineSettingsFilePath } from './engine-paths';
+import { DEFAULT_K8S_VERSION } from '../../../constants.docker';
 
 export interface DesktopProxyConfig {
   mode: 'system' | 'none' | 'manual';
@@ -22,6 +23,14 @@ export interface NetworkSettingsConfig {
   dockerSubnet: string;
   portBindingBehavior: 'open' | 'localhost';
   defaultNetworkingMode: 'ipv4' | 'dualstack';
+}
+
+export interface KubernetesSettingsConfig {
+  enabled: boolean;
+  provisioner: 'kind' | 'kubeadm';
+  version: string;
+  nodeCount: number;
+  showSystemContainers: boolean;
 }
 
 /** VM resource allocation. Only honoured by VM-based backends (macOS / Lima). */
@@ -46,6 +55,7 @@ export interface EngineSettings {
   containersProxy: ContainersProxyConfig;
   network: NetworkSettingsConfig;
   resources: ResourceSettingsConfig;
+  kubernetes: KubernetesSettingsConfig;
   endpoint?: string;
 }
 
@@ -87,7 +97,14 @@ export const DEFAULT_ENGINE_SETTINGS: EngineSettings = {
     portBindingBehavior: 'open',
     defaultNetworkingMode: 'ipv4'
   },
-  resources: defaultResources()
+  resources: defaultResources(),
+  kubernetes: {
+    enabled: false,
+    provisioner: 'kind',
+    version: DEFAULT_K8S_VERSION,
+    nodeCount: 1,
+    showSystemContainers: false
+  }
 };
 
 const IPV4_CIDR = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\/(\d{1,2})$/;
@@ -136,7 +153,11 @@ export function mergeEngineSettings(base: EngineSettings, patch: Partial<EngineS
     desktopProxy: { ...base.desktopProxy, ...patch.desktopProxy },
     containersProxy: { ...base.containersProxy, ...patch.containersProxy },
     network: pickNetwork({ ...base.network, ...patch.network }),
-    resources: { ...base.resources, ...patch.resources }
+    resources: { ...base.resources, ...patch.resources },
+    kubernetes: {
+      ...base.kubernetes,
+      ...patch.kubernetes
+    }
   };
 
   if (!['auto', 'embedded', 'external'].includes(merged.engineMode)) {
@@ -148,6 +169,17 @@ export function mergeEngineSettings(base: EngineSettings, patch: Partial<EngineS
   merged.wslIntegrationEnabled = Boolean(merged.wslIntegrationEnabled);
   merged.wslAdditionalDistros = uniqueStrings(merged.wslAdditionalDistros);
   merged.fileSharingPaths = uniqueStrings(merged.fileSharingPaths);
+
+  merged.kubernetes = {
+    enabled: Boolean(merged.kubernetes?.enabled),
+    provisioner: 'kind',
+    version:
+      typeof merged.kubernetes?.version === 'string' && merged.kubernetes.version.trim()
+        ? merged.kubernetes.version.trim()
+        : DEFAULT_ENGINE_SETTINGS.kubernetes.version,
+    nodeCount: Math.round(clamp(merged.kubernetes?.nodeCount, 1, 8, DEFAULT_ENGINE_SETTINGS.kubernetes.nodeCount)),
+    showSystemContainers: Boolean(merged.kubernetes?.showSystemContainers)
+  };
 
   if (!isValidIpv4Cidr(merged.network.dockerSubnet ?? '')) {
     merged.network.dockerSubnet = DEFAULT_ENGINE_SETTINGS.network.dockerSubnet;

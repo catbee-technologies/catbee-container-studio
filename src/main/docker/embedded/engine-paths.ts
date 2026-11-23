@@ -3,7 +3,10 @@ import path from 'node:path';
 
 /* eslint-disable n/no-process-env */
 
-function homeDir(): string {
+export function homeDir(): string {
+  if (process.platform === 'win32') {
+    return process.env.USERPROFILE ?? os.homedir();
+  }
   return process.env.SNAP_REAL_HOME ?? process.env.HOME ?? os.homedir();
 }
 
@@ -36,7 +39,7 @@ export function getEngineManifestPath(): string {
 }
 
 export function getEngineBinDir(): string {
-  return path.join(getEngineRootDir(), 'bin');
+  return path.join(homeDir(), '.catbee', 'bin');
 }
 
 export function getEngineDownloadsDir(): string {
@@ -64,9 +67,23 @@ export function getLinuxRuntimeDir(): string {
   return path.join(homeDir(), '.catbee', 'run');
 }
 
-export const CATBEE_WINDOWS_PIPE_NAME = 'catbee-desktop';
-export const CATBEE_WINDOWS_PIPE_PATH = `//./pipe/${CATBEE_WINDOWS_PIPE_NAME}`;
-export const CATBEE_LIMA_INSTANCE = 'catbee';
-export const CATBEE_WSL_DISTRO = 'catbee-container-engine';
-/** Port the daemon is exposed on when "Expose daemon on TCP" is enabled (Docker Desktop parity). */
-export const CATBEE_EXPOSED_TCP_PORT = 2375;
+/**
+ * Common Unix and shell startup profile filenames searched when configuring $PATH
+ * across macOS, Linux, and Windows (Git Bash / MSYS).
+ */
+export const SHELL_PROFILE_TARGETS: readonly string[] = [
+  '.bashrc',
+  '.profile',
+  '.bash_profile',
+  '.zshrc',
+  '.zprofile'
+] as const;
+
+export {
+  CATBEE_WINDOWS_PIPE_NAME,
+  CATBEE_WINDOWS_PIPE_PATH,
+  CATBEE_LIMA_INSTANCE,
+  CATBEE_WSL_DISTRO,
+  CATBEE_EXPOSED_TCP_PORT,
+  CATBEE_WSL_DOCKER_TCP_PORT
+} from '../../../constants.docker';

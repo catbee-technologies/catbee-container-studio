@@ -288,6 +288,8 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingSearchItem[] = [
     keywords: [
       'built-in engine',
       'embedded engine',
+      'docker cli',
+      'cli version',
       'start engine',
       'stop engine',
       'restart engine',

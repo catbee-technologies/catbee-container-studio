@@ -20,6 +20,7 @@ import { CATBEE_LIMA_INSTANCE, getEngineDownloadsDir, getEngineRootDir, getLimaH
 import {
   describeDownload,
   downloadFile,
+  ensureHostDockerCli,
   extractArchive,
   getDockerServerVersion,
   hostArch,
@@ -227,6 +228,13 @@ export class LimaEngineDriver implements PlatformEngineDriver {
     await waitForDockerEndpoint(this.socket, 120_000);
     await this.applyGuestConfiguration(settings);
 
+    onProgress(95, 'Ensuring standalone host Docker CLI...');
+    await ensureHostDockerCli((fraction, stage) => {
+      onProgress(95 + Math.round(fraction * 0.04), stage);
+    }).catch(err => {
+      logger.warn({ err }, '[LimaEngineDriver] Could not download host Docker CLI, continuing with system fallback.');
+    });
+
     const version = (await getDockerServerVersion(this.socket)) ?? 'unknown';
     const finalManifest = { ...manifest, engineVersion: version, state: 'running' as const };
     await writeEngineManifest(finalManifest);
@@ -272,6 +280,11 @@ export class LimaEngineDriver implements PlatformEngineDriver {
     onStatus?.('Waiting for Docker Engine...');
     await waitForDockerEndpoint(this.socket, 120_000);
     await this.applyGuestConfiguration(settings, onStatus);
+
+    // Ensure standalone host Docker CLI is available in CatBee bin directory
+    void ensureHostDockerCli().catch(err => {
+      logger.debug('[LimaEngineDriver] Background host Docker CLI check failed:', err);
+    });
 
     await updateEngineManifest({
       state: 'running',

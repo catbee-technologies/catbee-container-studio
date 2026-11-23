@@ -1,5 +1,5 @@
 import { createWriteStream } from 'node:fs';
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { appendFile, chmod, copyFile, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { spawn, type SpawnOptions } from 'node:child_process';
 import http from 'node:http';
 import path from 'node:path';
@@ -7,9 +7,16 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as WebReadableStream } from 'node:stream/web';
 import { logger } from '../../logger';
+import { DOCKER_CLI_RELEASE_VERSION } from '../../../constants.docker';
 import type { DockerConnection } from '../types/connection.types';
 import type { EngineManifest } from './types/manifest.types';
-import { getEngineManifestPath } from './engine-paths';
+import {
+  getEngineBinDir,
+  getEngineDownloadsDir,
+  getEngineManifestPath,
+  homeDir,
+  SHELL_PROFILE_TARGETS
+} from './engine-paths';
 
 export interface RunResult {
   stdout: string;
@@ -22,6 +29,7 @@ export interface RunOptions {
   timeoutMs?: number;
   encoding?: BufferEncoding;
   onOutput?: (line: string) => void;
+  signal?: AbortSignal;
 }
 
 /**
@@ -73,17 +81,60 @@ export function runCommand(command: string, args: string[], options: RunOptions 
     const stdoutChunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
     let timer: NodeJS.Timeout | null = null;
+    let settled = false;
+
+    const doReject = (err: Error): void => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      reject(err);
+    };
+
+    const doResolve = (res: RunResult): void => {
+      if (settled) return;
+      settled = true;
+      if (timer) clearTimeout(timer);
+      resolve(res);
+    };
 
     if (options.timeoutMs) {
       timer = setTimeout(() => {
         child.kill();
-        reject(new Error(`Command timed out after ${options.timeoutMs}ms: ${command} ${args.join(' ')}`));
+        doReject(new Error(`Command timed out after ${options.timeoutMs}ms: ${command} ${args.join(' ')}`));
       }, options.timeoutMs);
+    }
+
+    if (options.signal) {
+      if (options.signal.aborted) {
+        child.kill();
+        doReject(new Error('Command aborted'));
+        return;
+      }
+      options.signal.addEventListener(
+        'abort',
+        () => {
+          try {
+            if (process.platform === 'win32' && child.pid) {
+              // eslint-disable-next-line n/no-process-env
+              const systemRoot = process.env.SystemRoot ?? process.env.SYSTEMROOT ?? String.raw`C:\Windows`;
+              const taskkillBin = path.join(systemRoot, 'System32', 'taskkill.exe');
+              spawn(taskkillBin, ['/pid', String(child.pid), '/f', '/t'], { windowsHide: true });
+            } else {
+              child.kill('SIGTERM');
+            }
+          } catch {
+            child.kill();
+          }
+          doReject(new Error('Command aborted'));
+        },
+        { once: true }
+      );
     }
 
     const emitLines = (chunk: Buffer): void => {
       if (!options.onOutput) return;
-      for (const line of chunk.toString(encoding).replaceAll('\0', '').split(/\r?\n/)) {
+      const text = chunk.toString(encoding).replaceAll('\0', '');
+      for (const line of text.split(/[\r\n]+/)) {
         if (line.trim()) options.onOutput(line.trim());
       }
     };
@@ -97,19 +148,28 @@ export function runCommand(command: string, args: string[], options: RunOptions 
       emitLines(chunk);
     });
     child.on('error', err => {
-      if (timer) clearTimeout(timer);
-      reject(err);
+      doReject(err);
     });
     child.on('close', code => {
-      if (timer) clearTimeout(timer);
       const stdout = Buffer.concat(stdoutChunks).toString(encoding).replaceAll('\0', '');
       const stderr = Buffer.concat(stderrChunks).toString(encoding).replaceAll('\0', '');
       if (code === 0) {
-        resolve({ stdout, stderr });
+        doResolve({ stdout, stderr });
         return;
       }
-      const detail = (stderr || stdout).trim().split(/\r?\n/).slice(-5).join('\n');
-      reject(new Error(`${path.basename(command)} ${args[0] ?? ''} failed (exit ${code}): ${detail}`));
+      const lines = (stderr || stdout)
+        .trim()
+        .split(/\r?\n/)
+        .map(l => l.trim())
+        .filter(Boolean);
+      const errorIndex = lines.findIndex(l => /^error:\s/i.test(l));
+      let detail: string;
+      if (errorIndex >= 0) {
+        detail = lines.slice(errorIndex, errorIndex + 5).join('\n');
+      } else {
+        detail = lines.slice(-5).join('\n');
+      }
+      doReject(new Error(`${path.basename(command)} ${args[0] ?? ''} failed (exit ${code}): ${detail}`));
     });
 
     if (options.input !== undefined) {
@@ -357,3 +417,292 @@ export function hostArch(): 'x64' | 'arm64' {
 }
 
 export const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+/** Resolves the download URL and archive filename for the official standalone host Docker CLI. */
+export function getDockerCliDownloadInfo(version = DOCKER_CLI_RELEASE_VERSION): { url: string; archiveName: string } {
+  switch (process.platform) {
+    case 'win32': {
+      const archiveName = `docker-${version}.zip`;
+      return {
+        url: `https://download.docker.com/win/static/stable/x86_64/${archiveName}`,
+        archiveName
+      };
+    }
+    case 'darwin': {
+      const arch = process.arch === 'arm64' ? 'aarch64' : 'x86_64';
+      const archiveName = `docker-${version}.tgz`;
+      return {
+        url: `https://download.docker.com/mac/static/stable/${arch}/${archiveName}`,
+        archiveName
+      };
+    }
+    default: {
+      const arch = process.arch === 'arm64' ? 'aarch64' : 'x86_64';
+      const archiveName = `docker-${version}.tgz`;
+      return {
+        url: `https://download.docker.com/linux/static/stable/${arch}/${archiveName}`,
+        archiveName
+      };
+    }
+  }
+}
+
+/**
+ * Configures the Windows User PATH environment variable to include CatBee's bin directory (~/.catbee/bin),
+ * matching tools like Rancher Desktop and Docker Desktop without requiring administrator privileges.
+ */
+async function ensureWindowsUserPath(binDir: string): Promise<void> {
+  const safeDir = binDir.replaceAll('"', '""');
+  const script = `
+    $target = "${safeDir}";
+    $current = [Environment]::GetEnvironmentVariable("Path", "User");
+    if ($current -notlike "*$target*") {
+      $new = if ($current) { "$target;$current" } else { $target };
+      [Environment]::SetEnvironmentVariable("Path", $new, "User");
+    }
+  `
+    .trim()
+    .replace(/\s+/g, ' ');
+  await runCommand('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
+    timeoutMs: 10_000
+  }).catch(err => {
+    logger.debug('[EngineUtils] Could not update Windows user PATH:', err);
+  });
+}
+
+/**
+ * Configures PowerShell user profiles on Windows to prepend ~/.catbee/bin to $env:PATH.
+ */
+async function ensureWindowsPowerShellProfile(binDir: string): Promise<void> {
+  const safeDir = binDir.replaceAll('"', '""');
+  const script = `
+    $target = "${safeDir}";
+    $profileDirs = @(
+      (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)) "PowerShell"),
+      (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)) "WindowsPowerShell")
+    );
+    foreach ($dir in $profileDirs) {
+      if (!(Test-Path $dir)) {
+        try { New-Item -ItemType Directory -Path $dir -Force | Out-Null } catch {}
+      }
+      $p = Join-Path $dir "profile.ps1";
+      try {
+        $content = if (Test-Path $p) { Get-Content $p -Raw -ErrorAction SilentlyContinue } else { "" };
+        if ($content -notlike "*$target*") {
+          $line = [Environment]::NewLine + '# Added by CatBee Container Studio' + [Environment]::NewLine + 'if ($env:PATH -notlike "*' + $target + '*") { $env:PATH = "' + $target + ';$env:PATH" }' + [Environment]::NewLine;
+          Add-Content -Path $p -Value $line -Force -ErrorAction SilentlyContinue;
+        }
+      } catch {}
+    }
+  `
+    .trim()
+    .replace(/\s+/g, ' ');
+  await runCommand('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
+    timeoutMs: 10_000
+  }).catch(err => {
+    logger.debug('[EngineUtils] Could not update PowerShell profiles:', err);
+  });
+}
+
+/**
+ * Removes CatBee's bin directory from PowerShell user profiles on Windows.
+ */
+async function removeWindowsPowerShellProfile(binDir: string): Promise<void> {
+  const safeDir = binDir.replaceAll('"', '""');
+  const script = `
+    $target = "${safeDir}";
+    $profileDirs = @(
+      (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)) "PowerShell"),
+      (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)) "WindowsPowerShell")
+    );
+    foreach ($dir in $profileDirs) {
+      $p = Join-Path $dir "profile.ps1";
+      if (Test-Path $p) {
+        try {
+          $lines = (Get-Content $p -ErrorAction SilentlyContinue) | Where-Object {
+            $_ -notlike "*Added by CatBee Container Studio*" -and $_ -notlike "*$target*"
+          };
+          Set-Content -Path $p -Value $lines -Force -ErrorAction SilentlyContinue;
+        } catch {}
+      }
+    }
+  `
+    .trim()
+    .replace(/\s+/g, ' ');
+  await runCommand('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
+    timeoutMs: 10_000
+  }).catch(err => {
+    logger.debug('[EngineUtils] Could not clean PowerShell profiles:', err);
+  });
+}
+
+/**
+ * Configures the user's shell profiles (.zshrc, .bashrc, PowerShell profiles)
+ * and User PATH on Windows to include CatBee's bin directory (~/.catbee/bin) in $PATH.
+ */
+export async function ensureShellPath(): Promise<void> {
+  const binDir = getEngineBinDir();
+  if (process.platform === 'win32') {
+    await ensureWindowsUserPath(binDir);
+    await ensureWindowsPowerShellProfile(binDir);
+  }
+
+  const exportLine = `export PATH="${binDir}:$PATH"`;
+  const comment = '# Added by CatBee Container Studio';
+
+  const home = homeDir();
+  let modifiedAny = false;
+
+  for (const file of SHELL_PROFILE_TARGETS) {
+    const filePath = path.join(home, file);
+    try {
+      if (await pathExists(filePath)) {
+        const content = await readFile(filePath, 'utf8');
+        if (!content.includes('.catbee/bin')) {
+          const addition = `\n${comment}\n${exportLine}\n`;
+          await appendFile(filePath, addition, 'utf8');
+          modifiedAny = true;
+          logger.info(`[EngineUtils] Added CatBee bin dir to ${filePath}`);
+        } else {
+          modifiedAny = true;
+        }
+      }
+    } catch (err) {
+      logger.debug(`[EngineUtils] Could not update shell profile ${file}:`, err);
+    }
+  }
+
+  if (process.platform !== 'win32' && !modifiedAny) {
+    const defaultProfile = process.platform === 'darwin' ? '.zshrc' : '.bashrc';
+    const profilePath = path.join(home, defaultProfile);
+    try {
+      await writeFile(profilePath, `${comment}\n${exportLine}\n`, 'utf8');
+      logger.info(`[EngineUtils] Created ${profilePath} with CatBee PATH`);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+/**
+ * Removes CatBee's bin directory (~/.catbee/bin) from the Windows User PATH environment variable.
+ */
+async function removeWindowsUserPath(binDir: string): Promise<void> {
+  const safeDir = binDir.replaceAll('"', '""');
+  const script = `
+    $target = "${safeDir}";
+    $current = [Environment]::GetEnvironmentVariable("Path", "User");
+    if ($current -like "*$target*") {
+      $parts = ($current -split ';') | Where-Object { $_ -ne $target -and $_ -ne "" };
+      [Environment]::SetEnvironmentVariable("Path", ($parts -join ';'), "User");
+    }
+  `
+    .trim()
+    .replace(/\s+/g, ' ');
+  await runCommand('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
+    timeoutMs: 10_000
+  }).catch(err => {
+    logger.debug('[EngineUtils] Could not remove from Windows user PATH:', err);
+  });
+}
+
+/**
+ * Removes CatBee's bin directory (~/.catbee/bin) from shell profiles (.zshrc, .bashrc, PowerShell profiles)
+ * or User PATH on Windows during uninstallation and teardown.
+ */
+export async function removeShellPath(): Promise<void> {
+  const binDir = getEngineBinDir();
+  if (process.platform === 'win32') {
+    await removeWindowsUserPath(binDir);
+    await removeWindowsPowerShellProfile(binDir);
+  }
+
+  const home = homeDir();
+
+  for (const file of SHELL_PROFILE_TARGETS) {
+    const filePath = path.join(home, file);
+    try {
+      if (await pathExists(filePath)) {
+        const content = await readFile(filePath, 'utf8');
+        if (content.includes('.catbee/bin') || content.includes('# Added by CatBee Container Studio')) {
+          const cleaned = content
+            .split('\n')
+            .filter(line => !line.includes('# Added by CatBee Container Studio') && !line.includes('.catbee/bin'))
+            .join('\n');
+          await writeFile(filePath, cleaned, 'utf8');
+          logger.info(`[EngineUtils] Removed CatBee bin dir from ${filePath}`);
+        }
+      }
+    } catch (err) {
+      logger.debug(`[EngineUtils] Could not clean shell profile ${file}:`, err);
+    }
+  }
+}
+
+/**
+ * Reads the version from a Docker CLI executable by invoking `--version`.
+ * Returns the parsed semantic version (e.g. "29.10.0") or null if failed.
+ */
+export async function getCliVersion(cliPath: string): Promise<string | null> {
+  try {
+    const { stdout } = await runCommand(cliPath, ['--version'], { timeoutMs: 3_000 });
+    const match = /Docker version (\d+\.\d+(?:\.\d+)?)/i.exec(stdout);
+    return match?.[1] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Ensures CatBee's own standalone official Docker CLI binary is installed in
+ * the engine bin directory (~/.catbee/bin) matching DOCKER_CLI_RELEASE_VERSION.
+ * Returns the absolute path to the binary.
+ */
+export async function ensureHostDockerCli(onProgress?: (progress: number, stage: string) => void): Promise<string> {
+  const binDir = getEngineBinDir();
+  const binaryName = process.platform === 'win32' ? 'docker.exe' : 'docker';
+  const target = path.join(binDir, binaryName);
+
+  await mkdir(binDir, { recursive: true }).catch(() => {});
+  await ensureShellPath().catch(() => {});
+
+  if (await pathExists(target)) {
+    const currentVersion = await getCliVersion(target);
+    if (currentVersion === DOCKER_CLI_RELEASE_VERSION) {
+      return target;
+    }
+    logger.info(
+      `[EngineUtils] Current CatBee Docker CLI is ${currentVersion ?? 'unknown'} (target: ${DOCKER_CLI_RELEASE_VERSION}). Updating...`
+    );
+  }
+
+  const { url, archiveName } = getDockerCliDownloadInfo();
+  const downloadsDir = getEngineDownloadsDir();
+  const archivePath = path.join(downloadsDir, archiveName);
+
+  if (!(await pathExists(archivePath))) {
+    onProgress?.(10, `Downloading Docker CLI (${DOCKER_CLI_RELEASE_VERSION})...`);
+    await downloadFile(url, archivePath, (fraction, received, total) => {
+      onProgress?.(
+        10 + Math.round(fraction * 70),
+        describeDownload(`Docker CLI ${DOCKER_CLI_RELEASE_VERSION}`, received, total)
+      );
+    });
+  }
+
+  onProgress?.(85, 'Extracting Docker CLI...');
+  await extractArchive(archivePath, binDir, 1);
+  if (!(await pathExists(target))) {
+    const nestedBinary = path.join(binDir, 'docker', binaryName);
+    if (await pathExists(nestedBinary)) {
+      await copyFile(nestedBinary, target).catch(() => {});
+    }
+  }
+
+  if (process.platform !== 'win32' && (await pathExists(target))) {
+    await chmod(target, 0o755);
+  }
+  onProgress?.(100, 'Docker CLI ready.');
+  logger.info(`[EngineUtils] Successfully prepared host Docker CLI at: ${target}`);
+  return target;
+}

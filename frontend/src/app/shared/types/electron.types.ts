@@ -267,6 +267,7 @@ export interface EmbeddedEngineStatus {
   lastError: string | null;
   operation?: EngineOperationProgress | null;
   info: EngineInfo;
+  cliVersion?: string | null;
 }
 
 export interface ElectronBridge {
