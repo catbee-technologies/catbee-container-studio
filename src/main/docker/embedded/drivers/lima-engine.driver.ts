@@ -669,11 +669,11 @@ while IFS= read -r line || [ -n "$line" ]; do
   [ -z "$line" ] && continue
   b64="\${line%%:*}"
   rel="\${line#*:}"
-  dest="\$staging/\$rel"
-  mkdir -p "\$(dirname "\$dest")"
-  chmod 700 "\$(dirname "\$dest")"
-  echo "\$b64" | base64 -d > "\$dest"
-  chmod 600 "\$dest"
+  dest="$staging/$rel"
+  mkdir -p "$(dirname "$dest")"
+  chmod 700 "$(dirname "$dest")"
+  echo "$b64" | base64 -d > "$dest"
+  chmod 600 "$dest"
 done < "$staging/.payload"
 rm -f "$staging/.payload"
 
@@ -719,13 +719,26 @@ echo "UPDATED"
 
         await writeFile(tmpCertPath, pem, 'utf8');
         try {
-          await runCommand('/usr/bin/security', ['verify-cert', `-c${tmpCertPath}`, '-L', '-l', '-Roffline']);
+          const { stdout: chain } = await runCommand('/usr/bin/security', [
+            'verify-cert',
+            `-c${tmpCertPath}`,
+            '-p',
+            'ssl',
+            '-L',
+            '-l',
+            '-Roffline',
+            '-P'
+          ]);
+          const chainCerts = chain.match(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g);
+          // macOS must terminate the TLS trust chain at this certificate before we install it as a guest anchor.
+          if (chainCerts?.length === 1 && new crypto.X509Certificate(chainCerts[0]).toString().trim() === pem) {
+            trustedCaPems.add(pem);
+          }
         } catch {
           continue;
         }
-        trustedCaPems.add(pem);
       }
-      return [...trustedCaPems].sort();
+      return [...trustedCaPems].sort((a, b) => a.localeCompare(b, 'en'));
     } finally {
       await rm(tmpDir, { recursive: true, force: true }).catch(() => undefined);
     }
