@@ -194,7 +194,6 @@ export class SettingsService {
   setEngineMode(mode: EngineMode): void {
     this.engineMode.set(mode);
     this.localStorage.set(UI_STORAGE_KEYS.SETTINGS_ENGINE_MODE, mode);
-    void this.electronApi.saveEngineSettings({ engineMode: mode }).catch(() => undefined);
   }
 
   async setStartAtLogin(value: boolean): Promise<void> {

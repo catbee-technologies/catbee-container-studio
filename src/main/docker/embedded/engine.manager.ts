@@ -59,6 +59,7 @@ export class EngineManager {
   private lastConnection: DockerConnection | null = null;
   private lastError: string | null = null;
   private queue: Promise<unknown> = Promise.resolve();
+  private lifecycleVersion = 0;
   private readonly tcpRelay = new EndpointRelay('expose-tcp');
   private currentOperation: EngineOperationProgress | null = null;
   private readonly operationListeners = new Set<EngineOperationListener>();
@@ -103,8 +104,9 @@ export class EngineManager {
   }
 
   async isInstalled(): Promise<boolean> {
+    const version = this.lifecycleVersion;
     const installed = await this.driver.isInstalled();
-    if (!installed && !BUSY_STATES.has(this.currentState)) {
+    if (!installed && version === this.lifecycleVersion && !BUSY_STATES.has(this.currentState)) {
       this.currentState = 'not-installed';
     }
     return installed;
@@ -154,7 +156,12 @@ export class EngineManager {
 
   stopForShutdown(): Promise<void> {
     return this.exclusive(async () => {
-      if (this.currentState === 'running' || this.currentState === 'error') {
+      if (
+        this.currentState === 'running' ||
+        this.currentState === 'error' ||
+        (await this.driver.getStatus()) === 'running'
+      ) {
+        this.currentState = 'running';
         await this.stopUnlocked();
       }
     });
@@ -210,7 +217,9 @@ export class EngineManager {
     if (BUSY_STATES.has(this.currentState)) {
       return this.currentState;
     }
+    const version = this.lifecycleVersion;
     const driverStatus = await this.driver.getStatus();
+    if (version !== this.lifecycleVersion) return this.currentState;
     if (driverStatus === 'stopped' && this.currentState === 'error') {
       return this.currentState;
     }
@@ -373,7 +382,11 @@ export class EngineManager {
 
   /** Serializes lifecycle operations so concurrent start/stop/install calls cannot interleave. */
   private exclusive<T>(operation: () => Promise<T>): Promise<T> {
-    const run = this.queue.then(operation, operation);
+    const perform = (): Promise<T> => {
+      this.lifecycleVersion++;
+      return operation();
+    };
+    const run = this.queue.then(perform, perform);
     this.queue = run.catch(() => undefined);
     return run;
   }

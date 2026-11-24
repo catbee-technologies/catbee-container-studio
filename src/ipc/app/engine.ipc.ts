@@ -203,16 +203,10 @@ export function registerEngineHandlers(): void {
         const previous = await getEngineSettings();
         const updated = await saveEngineSettings(settings);
 
-        if (settings.kubernetes) {
-          if (settings.kubernetes.enabled && !previous.kubernetes.enabled) {
-            void k8sManager.startCluster(settings.kubernetes).catch(err => {
-              logger.error({ err }, '[IPC] Auto-start Kubernetes cluster failed.');
-            });
-          } else if (!settings.kubernetes.enabled && previous.kubernetes.enabled) {
-            void k8sManager.stopCluster().catch(err => {
-              logger.error({ err }, '[IPC] Auto-stop Kubernetes cluster failed.');
-            });
-          }
+        if (updated.kubernetes.enabled !== previous.kubernetes.enabled) {
+          void k8sManager.applyEnabledSetting().catch(err => {
+            logger.error({ err }, '[IPC] Failed to apply the Kubernetes enabled setting.');
+          });
         }
 
         return ok(updated);

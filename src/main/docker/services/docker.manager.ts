@@ -23,7 +23,12 @@ import {
   useDockerContext,
   type DockerContextDetails
 } from '../context/docker-context.manager';
-import { connectionToUri, ensureHostDockerCli, removeShellPath } from '../embedded/engine-utils';
+import {
+  connectionToUri,
+  ensureHostDockerCli,
+  removeShellPath,
+  waitForHostDockerCliInstall
+} from '../embedded/engine-utils';
 import { getEngineRootDir, homeDir } from '../embedded/engine-paths';
 import { proxyToEnv, resolveContainersProxy } from '../embedded/daemon-config';
 import { detectSystemProxy } from '../embedded/system-proxy';
@@ -38,8 +43,20 @@ export class DockerManager {
   private currentOperation: EngineStatusOperation | null = null;
   private statusListener?: (status: DockerInitializationStatus) => void;
   private selectedRuntime: SelectedDockerRuntime | null = null;
-  private pausedContainerIds: string[] = [];
-  private isPaused = false;
+  private readonly pausedContainersByEndpoint = new Map<string, string[]>();
+  private lifecycleQueue: Promise<unknown> = Promise.resolve();
+
+  private get pausedContainerIds(): string[] {
+    return this.selectedRuntime
+      ? (this.pausedContainersByEndpoint.get(connectionToUri(this.selectedRuntime.connection)) ?? [])
+      : [];
+  }
+
+  private set pausedContainerIds(ids: string[]) {
+    if (this.selectedRuntime) {
+      this.pausedContainersByEndpoint.set(connectionToUri(this.selectedRuntime.connection), ids);
+    }
+  }
 
   private readonly runtimeManager = new DockerRuntimeManager();
 
@@ -55,17 +72,25 @@ export class DockerManager {
   }
 
   get isEnginePaused(): boolean {
-    return this.isPaused;
+    return this.pausedContainerIds.length > 0;
   }
 
   getEnginePauseStatus(): { isPaused: boolean; pausedCount: number } {
     return {
-      isPaused: this.isPaused,
+      isPaused: this.isEnginePaused,
       pausedCount: this.pausedContainerIds.length
     };
   }
 
-  async initialize(
+  initialize(
+    onStatus?: (status: DockerInitializationStatus) => void,
+    onRuntimeStarted?: () => void,
+    forceMode?: 'auto' | 'embedded' | 'external'
+  ): Promise<void> {
+    return this.withLifecycle(() => this.initializeRuntime(onStatus, onRuntimeStarted, forceMode));
+  }
+
+  private async initializeRuntime(
     onStatus?: (status: DockerInitializationStatus) => void,
     onRuntimeStarted?: () => void,
     forceMode?: 'auto' | 'embedded' | 'external'
@@ -117,7 +142,11 @@ export class DockerManager {
     }
   }
 
-  async installEmbeddedEngine(onProgress?: (progress: number, stage: string) => void): Promise<void> {
+  installEmbeddedEngine(onProgress?: (progress: number, stage: string) => void): Promise<void> {
+    return this.withLifecycle(() => this.installEmbeddedEngineUnlocked(onProgress));
+  }
+
+  private async installEmbeddedEngineUnlocked(onProgress?: (progress: number, stage: string) => void): Promise<void> {
     logger.info('[DockerManager] Installing embedded container engine.');
     this.emitStatus({
       state: 'installing-engine',
@@ -143,7 +172,7 @@ export class DockerManager {
       await saveEngineSettings({ engineMode: 'embedded' });
 
       logger.info('[DockerManager] Re-initializing DockerManager with embedded engine...');
-      await this.initialize(this.statusListener, undefined, 'embedded');
+      await this.initializeRuntime(this.statusListener, undefined, 'embedded');
     } catch (error) {
       logger.error({ err: error }, '[DockerManager] Failed to install embedded engine.');
       this.emitStatus({
@@ -155,21 +184,29 @@ export class DockerManager {
     }
   }
 
-  async startEmbeddedEngine(): Promise<void> {
+  startEmbeddedEngine(): Promise<void> {
+    return this.withLifecycle(() => this.startEmbeddedEngineUnlocked());
+  }
+
+  private async startEmbeddedEngineUnlocked(): Promise<void> {
     logger.info('[DockerManager] Explicitly starting embedded engine.');
     if (!(await engineManager.isInstalled())) {
       logger.info('[DockerManager] Embedded engine is not installed. Installing automatically.');
-      await this.installEmbeddedEngine();
+      await this.installEmbeddedEngineUnlocked();
       return;
     }
-    await this.initialize(this.statusListener, undefined, 'embedded');
+    await this.initializeRuntime(this.statusListener, undefined, 'embedded');
   }
 
   get isUsingEmbeddedEngine(): boolean {
     return this.selectedRuntime?.source === 'embedded';
   }
 
-  async stopEmbeddedEngine(): Promise<void> {
+  stopEmbeddedEngine(): Promise<void> {
+    return this.withLifecycle(() => this.stopEmbeddedEngineUnlocked());
+  }
+
+  private async stopEmbeddedEngineUnlocked(): Promise<void> {
     logger.info('[DockerManager] Stopping embedded engine.');
     const wasActive = this.isUsingEmbeddedEngine;
     if (!wasActive) {
@@ -194,6 +231,7 @@ export class DockerManager {
         });
         throw error;
       }
+      this.pausedContainerIds = [];
       this.selectedRuntime = null;
       this.emitStatus({
         state: 'error',
@@ -203,17 +241,18 @@ export class DockerManager {
     });
   }
 
-  async restartEmbeddedEngine(mode?: 'auto' | 'embedded' | 'external'): Promise<void> {
+  restartEmbeddedEngine(mode?: 'auto' | 'embedded' | 'external'): Promise<void> {
+    return this.withLifecycle(() => this.restartEmbeddedEngineUnlocked(mode));
+  }
+
+  private async restartEmbeddedEngineUnlocked(mode?: 'auto' | 'embedded' | 'external'): Promise<void> {
     const effectiveMode = mode ?? (await getEngineSettings()).engineMode;
     logger.info(`[DockerManager] Restarting engine with mode: ${effectiveMode}`);
-    this.pausedContainerIds = [];
-    this.isPaused = false;
-
     if (effectiveMode === 'embedded' && !(await engineManager.isInstalled())) {
       logger.info(
         '[DockerManager] Restart requested with embedded mode, but engine is not installed. Installing automatically.'
       );
-      await this.installEmbeddedEngine();
+      await this.installEmbeddedEngineUnlocked();
       return;
     }
 
@@ -228,20 +267,19 @@ export class DockerManager {
           message: 'Restarting Docker Engine...',
           hint: 'Stopping the engine before starting it again.'
         });
-        await engineManager.stop().catch(err => {
-          logger.warn({ err }, '[DockerManager] Built-in engine did not stop cleanly; continuing.');
-        });
+        await engineManager.stop();
+        if (this.isUsingEmbeddedEngine) this.pausedContainerIds = [];
       }
-      await this.initialize(this.statusListener, undefined, effectiveMode);
+      await this.initializeRuntime(this.statusListener, undefined, effectiveMode);
     });
   }
 
   /** Applies saved settings to the running built-in engine (drivers only restart what changed). */
-  async applyEngineSettings(): Promise<{ applied: boolean }> {
-    if (!this.isUsingEmbeddedEngine || engineManager.state !== 'running') {
-      return { applied: false };
-    }
-    return await this.withOperation('apply-settings', () => this.applyEngineSettingsUnlocked());
+  applyEngineSettings(): Promise<{ applied: boolean }> {
+    return this.withLifecycle(async () => {
+      if (!this.isUsingEmbeddedEngine || engineManager.state !== 'running') return { applied: false };
+      return this.withOperation('apply-settings', () => this.applyEngineSettingsUnlocked());
+    });
   }
 
   private async applyEngineSettingsUnlocked(): Promise<{ applied: boolean }> {
@@ -276,19 +314,23 @@ export class DockerManager {
     }
   }
 
-  async uninstallEmbeddedEngine(onProgress?: (progress: number, stage: string) => void): Promise<void> {
+  uninstallEmbeddedEngine(onProgress?: (progress: number, stage: string) => void): Promise<void> {
+    return this.withLifecycle(() => this.uninstallEmbeddedEngineUnlocked(onProgress));
+  }
+
+  private async uninstallEmbeddedEngineUnlocked(onProgress?: (progress: number, stage: string) => void): Promise<void> {
     logger.info('[DockerManager] Uninstalling built-in engine.');
     const wasActive = this.isUsingEmbeddedEngine;
     if (wasActive) {
       resourceSaverManager.stop();
-      this.selectedRuntime = null;
     }
+    await waitForHostDockerCliInstall();
     await engineManager.uninstall(onProgress);
-    try {
+    if (wasActive) {
+      this.pausedContainerIds = [];
+      this.selectedRuntime = null;
       const { k8sManager } = await import('../../k8s/k8s-manager.js');
       await k8sManager.onEngineUninstall();
-    } catch {
-      // Ignore if K8s module is not loaded
     }
     await removeCatBeeContext().catch(err => {
       logger.debug({ err }, '[DockerManager] Could not remove the catbee-desktop context.');
@@ -298,7 +340,7 @@ export class DockerManager {
       await saveEngineSettings({ engineMode: 'auto' });
     }
     if (wasActive) {
-      await this.initialize(this.statusListener).catch(() => undefined);
+      await this.initializeRuntime(this.statusListener).catch(() => undefined);
     } else if (!this.selectedRuntime) {
       this.emitStatus({
         state: 'engine-not-installed',
@@ -429,7 +471,11 @@ export class DockerManager {
   }
 
   /** Stops the built-in engine when the app quits (external engines are left running). */
-  async shutdown(): Promise<void> {
+  shutdown(): Promise<void> {
+    return this.withLifecycle(() => this.shutdownUnlocked(), false);
+  }
+
+  private async shutdownUnlocked(): Promise<void> {
     resourceSaverManager.stop();
     try {
       const { k8sManager } = await import('../../k8s/k8s-manager.js');
@@ -438,67 +484,68 @@ export class DockerManager {
       logger.debug('[DockerManager] Error shutting down k8sManager on quit:', err);
     }
     await engineManager.stopForShutdown();
+    this.selectedRuntime = null;
   }
 
-  async pauseEngine(): Promise<{ pausedCount: number; isPaused: boolean }> {
+  pauseEngine(): Promise<{ pausedCount: number; isPaused: boolean }> {
+    return this.withLifecycle(() => this.pauseEngineUnlocked(), false);
+  }
+
+  private async pauseEngineUnlocked(): Promise<{ pausedCount: number; isPaused: boolean }> {
     logger.info('[DockerManager] Pausing Docker Engine / containers.');
+    if (!this.selectedRuntime) throw new Error('A Docker engine must be connected before pausing containers.');
+    if (this.isEnginePaused) return this.getEnginePauseStatus();
     this.pausedContainerIds = [];
-    if (this.client) {
-      try {
-        const containers = await this.client.listContainers({ all: false });
-        const running = containers.filter(c => c.State === 'running' || !c.State);
-        const results = await Promise.allSettled(
-          running.map(async c => {
-            await this.client!.getContainer(c.Id).pause();
-            return c.Id;
-          })
-        );
-        for (const res of results) {
-          if (res.status === 'fulfilled') {
-            this.pausedContainerIds.push(res.value);
-          } else {
-            logger.warn({ err: res.reason }, '[DockerManager] Failed to pause container during engine pause');
-          }
-        }
-      } catch (err) {
-        logger.warn({ err }, '[DockerManager] Failed to list containers during engine pause');
-      }
+    const containers = await this.client.listContainers({ all: false });
+    const running = containers.filter(c => c.State === 'running' || !c.State);
+    const results = await Promise.allSettled(
+      running.map(async c => {
+        await this.client.getContainer(c.Id).pause();
+        return c.Id;
+      })
+    );
+    const errors: unknown[] = [];
+    for (const result of results) {
+      if (result.status === 'fulfilled') this.pausedContainerIds.push(result.value);
+      else errors.push(result.reason);
     }
-    this.isPaused = true;
+    if (errors.length) {
+      logger.warn({ errors }, '[DockerManager] Some containers could not be paused.');
+      throw new AggregateError(errors, `Could not pause ${errors.length} container(s).`);
+    }
     void resourceSaverManager.reclaimMemory();
-    return { pausedCount: this.pausedContainerIds.length, isPaused: true };
+    return this.getEnginePauseStatus();
   }
 
-  async resumeEngine(): Promise<{ resumedCount: number; isPaused: boolean }> {
+  resumeEngine(): Promise<{ resumedCount: number; isPaused: boolean }> {
+    return this.withLifecycle(() => this.resumeEngineUnlocked(), false);
+  }
+
+  private async resumeEngineUnlocked(): Promise<{ resumedCount: number; isPaused: boolean }> {
     logger.info('[DockerManager] Resuming Docker Engine / containers.');
-    let count = 0;
-    if (this.client) {
-      try {
-        const targetIds = await this.resolveContainersToResume();
-        const results = await Promise.allSettled(targetIds.map(id => this.client!.getContainer(id).unpause()));
-        count = results.filter(r => r.status === 'fulfilled').length;
-      } catch (err) {
-        logger.warn({ err }, '[DockerManager] Failed to list or unpause containers during engine resume');
-      }
+    if (!this.selectedRuntime) throw new Error('A Docker engine must be connected before resuming containers.');
+    const owned = new Set(this.pausedContainerIds);
+    const containers = await this.client.listContainers({ all: true });
+    const targetIds = containers.filter(c => owned.has(c.Id) && c.State === 'paused').map(c => c.Id);
+    const results = await Promise.allSettled(targetIds.map(id => this.client.getContainer(id).unpause()));
+    this.pausedContainerIds = targetIds.filter((_id, index) => results[index].status === 'rejected');
+    const errors = results.filter(result => result.status === 'rejected').map(result => result.reason);
+    if (errors.length) {
+      logger.warn({ errors }, '[DockerManager] Some containers could not be resumed.');
+      throw new AggregateError(errors, `Could not resume ${errors.length} container(s). Retry Resume to try again.`);
     }
-    this.pausedContainerIds = [];
-    this.isPaused = false;
-    return { resumedCount: count, isPaused: false };
+    return { resumedCount: results.length, isPaused: false };
   }
 
-  private async resolveContainersToResume(): Promise<string[]> {
-    if (this.pausedContainerIds.length > 0) {
-      return this.pausedContainerIds;
-    }
-    const allContainers = await this.client!.listContainers({ all: true });
-    return allContainers.filter(c => c.State === 'paused').map(c => c.Id);
+  switchContext(contextName: string): Promise<DockerContextDetails> {
+    return this.withLifecycle(() => this.switchContextUnlocked(contextName));
   }
 
   async switchContext(contextName: string): Promise<DockerContextDetails> {
     logger.info(`[DockerManager] Switching Docker context to: ${contextName}`);
 
     const isCatBee = contextName === CATBEE_CONTEXT_NAME;
-    let targetConnection: DockerConnection | null = null;
+    let targetConnection: DockerConnection | null;
 
     if (isCatBee) {
       if (!(await engineManager.isInstalled())) {
@@ -611,6 +658,45 @@ export class DockerManager {
     } finally {
       this.currentOperation = null;
     }
+  }
+
+  private withLifecycle<T>(run: () => Promise<T>, reconcileKubernetes = true): Promise<T> {
+    const operation = async (): Promise<T> => {
+      const { k8sManager } = await import('../../k8s/k8s-manager.js');
+      const resume = await k8sManager.suspendOperations();
+      const previousStatus = this.latestStatus;
+      try {
+        return await run();
+      } catch (error) {
+        if (this.latestStatus && !['ready', 'error', 'engine-not-installed'].includes(this.latestStatus.state)) {
+          this.emitStatus({
+            state: 'error',
+            message: 'Container engine operation failed.',
+            hint: error instanceof Error ? error.message : String(error)
+          });
+        }
+        throw error;
+      } finally {
+        resume();
+        if (
+          reconcileKubernetes &&
+          this.selectedRuntime &&
+          this.latestStatus !== previousStatus &&
+          this.latestStatus?.state === 'ready'
+        ) {
+          void k8sManager.applyEnabledSetting().catch(error => {
+            logger.warn({ err: error }, '[DockerManager] Could not reconcile Kubernetes with the active engine.');
+          });
+        }
+      }
+    };
+    return this.queueLifecycleOperation(operation);
+  }
+
+  private queueLifecycleOperation<T>(operation: () => Promise<T>): Promise<T> {
+    const result = this.lifecycleQueue.then(operation);
+    this.lifecycleQueue = result.catch(() => undefined);
+    return result;
   }
 
   private emitStatus(rawStatus: DockerInitializationStatus): void {

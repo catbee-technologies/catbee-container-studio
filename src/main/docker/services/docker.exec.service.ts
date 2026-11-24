@@ -1,24 +1,6 @@
-import { finished } from 'node:stream/promises';
 import { DockerBaseService } from './docker.base.service';
 
 export class DockerExecService extends DockerBaseService {
-  async getCommandExitCode(containerId: string, command: string[], signal: AbortSignal): Promise<number | null> {
-    const id = this.normalizeId(containerId, 'Container id');
-    const exec = await this.client.getContainer(id).exec({
-      AttachStdout: true,
-      AttachStderr: true,
-      Cmd: command,
-      abortSignal: signal
-    });
-    const stream = await exec.start({ abortSignal: signal });
-    try {
-      await finished(stream.resume(), { signal, cleanup: true, writable: false });
-      return (await exec.inspect({ abortSignal: signal })).ExitCode;
-    } finally {
-      stream.destroy();
-    }
-  }
-
   async createExecSession(
     containerId: string,
     command: string[],

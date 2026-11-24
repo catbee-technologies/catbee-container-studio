@@ -558,16 +558,10 @@ export class SettingsPageComponent implements OnInit {
     return versionChanged || nodeCountChanged;
   });
 
-  /**
-   * Container Engine availability for Kubernetes:
-   * 1. If built-in engine is not installed (and not in external mode): false.
-   * 2. If engine is not running: false.
-   */
-  readonly isK8sEngineAvailable = computed(() => {
-    if (this.isEngineNotInstalled()) return false;
-    if (!this.isEngineRunning()) return false;
-    return true;
-  });
+  readonly isActiveEngineAvailable = computed(
+    () => this.engineStatus()?.runtime?.source === 'external' || (this.isEngineInstalled() && this.isEngineRunning())
+  );
+  readonly isK8sEngineAvailable = this.isActiveEngineAvailable;
 
   readonly isEngineInstalling = computed(
     () =>
@@ -581,7 +575,7 @@ export class SettingsPageComponent implements OnInit {
   readonly k8sUnavailableReason = computed<
     'engine-installing' | 'engine-starting' | 'engine-not-installed' | 'engine-stopped' | null
   >(() => {
-    if (this.isEngineRunning()) return null;
+    if (this.isK8sEngineAvailable()) return null;
     if (this.isEngineInstalling()) return 'engine-installing';
     if (this.isEngineStarting()) return 'engine-starting';
     if (this.isEngineNotInstalled()) return 'engine-not-installed';
@@ -736,7 +730,7 @@ export class SettingsPageComponent implements OnInit {
       const res = await this.electronApi.resetK8sCluster();
       if (res.success) {
         this.flashSuccess('Kubernetes cluster reset successfully.', 4000);
-      } else {
+      } else if (!res.cancelled) {
         this.reportK8sClusterError('Failed to reset Kubernetes cluster.');
       }
     } catch (err) {
@@ -822,7 +816,7 @@ export class SettingsPageComponent implements OnInit {
       const res = await this.electronApi.startK8sCluster();
       if (res.success) {
         this.flashSuccess('Kubernetes cluster started.', 4000);
-      } else {
+      } else if (!res.cancelled) {
         this.reportK8sClusterError('Failed to start Kubernetes cluster.');
       }
     } catch (err) {
@@ -875,7 +869,7 @@ export class SettingsPageComponent implements OnInit {
       const res = await this.electronApi.resetK8sCluster();
       if (res.success) {
         this.flashSuccess('Kubernetes cluster recreated successfully.', 4000);
-      } else {
+      } else if (!res.cancelled) {
         this.reportK8sClusterError('Failed to recreate Kubernetes cluster.');
       }
       await this.refreshK8sStatus();
@@ -2244,8 +2238,7 @@ export class SettingsPageComponent implements OnInit {
     try {
       await this.electronApi.uninstallEmbeddedEngine();
       await this.settings.syncFromBackend();
-      this.engineMode.set(this.settings.engineMode());
-      this.commitInitialState();
+      this.adoptSavedEngineMode();
       await this.loadEngineStatus();
       await this.loadDockerContext();
       this.applySuccessMessage.set('Built-in engine removed.');

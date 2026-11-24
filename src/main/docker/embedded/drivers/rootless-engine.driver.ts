@@ -242,6 +242,8 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
       })
     );
 
+    onProgress(85, 'Stopping the existing rootless engine before replacing binaries...');
+    await this.stop();
     onProgress(88, 'Installing Docker Engine binaries...');
     await mkdir(this.binDir, { recursive: true });
     await Promise.all(

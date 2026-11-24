@@ -212,6 +212,11 @@ export interface K8sOperationProgress {
   detail?: string;
 }
 
+export interface K8sStartResult {
+  success: boolean;
+  cancelled?: true;
+}
+
 export interface K8sClusterInfo {
   status: 'stopped' | 'starting' | 'running' | 'stopping' | 'error';
   name: string;
@@ -393,9 +398,9 @@ export interface ElectronBridge {
     k8s?: {
       getStatus: () => IpcPromise<K8sClusterInfo>;
       getProgress: () => IpcPromise<K8sOperationProgress | null>;
-      startCluster: () => IpcPromise<{ success: boolean }>;
+      startCluster: () => IpcPromise<K8sStartResult>;
       stopCluster: () => IpcPromise<{ success: boolean }>;
-      resetCluster: () => IpcPromise<{ success: boolean }>;
+      resetCluster: () => IpcPromise<K8sStartResult>;
       cancelOperation: () => IpcPromise<{ success: boolean }>;
       getVersions: () => IpcPromise<string[]>;
       installRuntime: () => IpcPromise<{ success: boolean }>;

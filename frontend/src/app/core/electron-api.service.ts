@@ -10,7 +10,8 @@ import {
   EngineOperationProgress,
   EngineSettings,
   K8sClusterInfo,
-  K8sOperationProgress
+  K8sOperationProgress,
+  K8sStartResult
 } from '@shared/types';
 
 @Injectable({ providedIn: 'root' })
@@ -288,9 +289,9 @@ export class ElectronApiService extends ElectronBaseService {
     return this.unwrapResult<K8sOperationProgress | null>(response) ?? null;
   }
 
-  async startK8sCluster(): Promise<{ success: boolean }> {
+  async startK8sCluster(): Promise<K8sStartResult> {
     const response = await this.bridge.app?.k8s?.startCluster?.();
-    return this.unwrapResult<{ success: boolean }>(response) ?? { success: false };
+    return this.unwrapResult<K8sStartResult>(response) ?? { success: false };
   }
 
   async stopK8sCluster(): Promise<{ success: boolean }> {
@@ -298,9 +299,9 @@ export class ElectronApiService extends ElectronBaseService {
     return this.unwrapResult<{ success: boolean }>(response) ?? { success: false };
   }
 
-  async resetK8sCluster(): Promise<{ success: boolean }> {
+  async resetK8sCluster(): Promise<K8sStartResult> {
     const response = await this.bridge.app?.k8s?.resetCluster?.();
-    return this.unwrapResult<{ success: boolean }>(response) ?? { success: false };
+    return this.unwrapResult<K8sStartResult>(response) ?? { success: false };
   }
 
   async cancelK8sOperation(): Promise<{ success: boolean }> {

@@ -1,7 +1,8 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import os from 'node:os';
+import { get as httpsGet } from 'node:https';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import type Docker from 'dockerode';
 import jsyaml from 'js-yaml';
 import { logger } from '../logger';
@@ -9,10 +10,10 @@ import { getEngineBinDir, homeDir } from '../docker/embedded/engine-paths';
 import {
   describeDownload,
   downloadFile,
+  fetchEngineResource,
   ensureHostDockerCli,
   pathExists,
   runCommand,
-  sleep,
   type RunResult
 } from '../docker/embedded/engine-utils';
 import { getEngineSettings, type KubernetesSettingsConfig } from '../docker/embedded/engine-settings';
@@ -66,9 +67,24 @@ done
 wait "$pid"
 `;
 
-type ClusterEngine = Pick<typeof dockerManager, 'containers' | 'exec' | 'images' | 'networks'> & {
+type ClusterEngine = Pick<typeof dockerManager, 'containers' | 'images' | 'networks'> & {
   runtime: SelectedDockerRuntime;
 };
+
+interface KubeconfigDoc {
+  contexts?: { name: string; context: { cluster: string; user: string; [key: string]: unknown } }[];
+  clusters?: { name: string; cluster: Record<string, unknown> }[];
+  users?: { name: string; user: Record<string, unknown> }[];
+  'current-context'?: string;
+  [key: string]: unknown;
+}
+
+interface ApiTarget {
+  server: URL;
+  ca: Buffer;
+  cert: Buffer;
+  key: Buffer;
+}
 
 function isClusterNode(container: Docker.ContainerInfo): boolean {
   return (
@@ -106,10 +122,20 @@ export interface K8sClusterInfo {
   kubeconfigPath?: string;
 }
 
+export interface K8sStartResult {
+  success: boolean;
+  cancelled?: true;
+}
+
 class K8sManager {
   private isStarting = false;
   private isStopping = false;
   private isResetting = false;
+  private suspensions = 0;
+  private operationsResumed: PromiseWithResolvers<void> | null = null;
+  private pendingOperation: Promise<void> | null = null;
+  private apiReadinessController: AbortController | null = null;
+  private settingsQueue = Promise.resolve();
   private activeCreation: {
     controller: AbortController;
     completion: Promise<boolean>;
@@ -153,12 +179,12 @@ class K8sManager {
 
     const semverRegex = /^v?(\d+)\.(\d+)\.(\d+)(-[a-zA-Z0-9.]+)?$/;
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
-      const res = await fetch('https://registry.hub.docker.com/v2/repositories/kindest/node/tags?page_size=100', {
-        signal: controller.signal
-      });
-      clearTimeout(timeout);
+      const res = await fetchEngineResource(
+        'https://registry.hub.docker.com/v2/repositories/kindest/node/tags?page_size=100',
+        {
+          signal: AbortSignal.timeout(5000)
+        }
+      );
 
       if (res.ok) {
         const data = (await res.json()) as { results?: { name: string }[] };
@@ -198,8 +224,8 @@ class K8sManager {
   }
 
   private getClusterEngine(): ClusterEngine | null {
-    const { currentRuntime: runtime, containers, exec, images, networks } = dockerManager;
-    return runtime ? { runtime, containers, exec, images, networks } : null;
+    const { currentRuntime: runtime, containers, images, networks } = dockerManager;
+    return runtime ? { runtime, containers, images, networks } : null;
   }
 
   private isWslEngine(runtime = dockerManager.currentRuntime): boolean {
@@ -220,6 +246,7 @@ class K8sManager {
 
   async isKindInstalled(runtime = dockerManager.currentRuntime): Promise<boolean> {
     if (this.isWslEngine(runtime)) {
+      if (this.suspensions) return false;
       try {
         await runCommand('wsl.exe', ['-d', CATBEE_WSL_DISTRO, '-u', 'root', 'test', '-x', '/usr/local/bin/kind'], {
           timeoutMs: 5000
@@ -280,7 +307,9 @@ class K8sManager {
           'root',
           'sh',
           '-c',
-          `cp '${wslSource}' /usr/local/bin/kind && chmod +x /usr/local/bin/kind`
+          'cp "$1" /usr/local/bin/kind && chmod +x /usr/local/bin/kind',
+          '_',
+          wslSource
         ],
         { timeoutMs: 30_000 }
       );
@@ -339,6 +368,8 @@ class K8sManager {
   }
 
   async installKind(runtime = dockerManager.currentRuntime): Promise<string> {
+    if (this.suspensions || this.isStopping)
+      throw new Error('Wait for the engine operation to finish before installing kind.');
     const wsl = this.isWslEngine(runtime);
     const existing = this.kindInstalls.get(wsl);
     if (existing) return existing;
@@ -408,7 +439,14 @@ class K8sManager {
           'root',
           '--',
           'env',
-          'DOCKER_CONTEXT=',
+          '-u',
+          'DOCKER_CONTEXT',
+          '-u',
+          'DOCKER_TLS',
+          '-u',
+          'DOCKER_TLS_VERIFY',
+          '-u',
+          'DOCKER_CERT_PATH',
           'DOCKER_HOST=unix:///var/run/docker.sock',
           'KIND_EXPERIMENTAL_PROVIDER=docker',
           ...command
@@ -426,25 +464,20 @@ class K8sManager {
     // eslint-disable-next-line n/no-process-env
     const env: NodeJS.ProcessEnv = { ...process.env };
     // Drop DOCKER_CONTEXT so Docker CLI does not direct commands to a third-party context (e.g. Rancher Desktop)
-    delete env.DOCKER_CONTEXT;
+    for (const key of Object.keys(env)) {
+      if (['DOCKER_CONTEXT', 'DOCKER_TLS', 'DOCKER_TLS_VERIFY', 'DOCKER_CERT_PATH'].includes(key.toUpperCase())) {
+        delete env[key];
+      }
+    }
     env.DOCKER_HOST = connectionToUri(runtime.connection);
     env.KIND_EXPERIMENTAL_PROVIDER = 'docker';
 
     // Isolate Docker CLI from ~/.docker/config.json plugin hooks (such as "debug": {"hooks": "exec"}
     // or credential helper prompts) that break non-interactive docker exec streams in Kind.
-    const configDir = path.join(os.tmpdir(), 'catbee-k8s-docker');
-    try {
-      if (!existsSync(configDir)) {
-        mkdirSync(configDir, { recursive: true });
-      }
-      const configPath = path.join(configDir, 'config.json');
-      if (!existsSync(configPath)) {
-        writeFileSync(configPath, '{}', 'utf8');
-      }
-      env.DOCKER_CONFIG = configDir;
-    } catch {
-      // ignore
-    }
+    const configDir = path.join(homeDir(), '.catbee', 'k8s', 'docker-config');
+    await mkdir(configDir, { recursive: true, mode: 0o700 });
+    await writeFile(path.join(configDir, 'config.json'), '{}', { encoding: 'utf8', mode: 0o600 });
+    env.DOCKER_CONFIG = configDir;
 
     // Prepend CatBee's own engine bin dir and host Docker CLI directories to PATH
     const binDir = getEngineBinDir();
@@ -560,14 +593,26 @@ class K8sManager {
       if (controlPlane.State !== 'running') {
         return { ...clusterInfo, status: 'stopped' };
       }
-      if (!(await this.isApiReady(engine.exec, controlPlane.Id))) {
-        return { ...clusterInfo, status: 'error', error: 'The Kubernetes API server is not ready.' };
+      if (clusterContainers.some(container => container.State !== 'running')) {
+        return { ...clusterInfo, status: 'error', error: 'One or more Kubernetes node containers are not running.' };
+      }
+      const raw = await readFile(this.getKubeconfigPath(), 'utf8').catch(() => {
+        throw new Error('Could not read the CatBee kubeconfig.');
+      });
+      const target = this.getApiTarget(jsyaml.load(raw) as KubeconfigDoc | null);
+      const port = Number(target.server.port || 443);
+      if (!controlPlane.Ports?.some(binding => binding.PrivatePort === 6443 && binding.PublicPort === port)) {
+        return { ...clusterInfo, status: 'error', error: 'The CatBee kubeconfig does not match this Docker engine.' };
+      }
+      if (!(await this.isApiReady(target))) {
+        return { ...clusterInfo, status: 'error', error: 'The CatBee Kubernetes API is not reachable or ready.' };
       }
 
       return {
         ...clusterInfo,
         status: 'running',
         startedAt: controlPlane.Created ? controlPlane.Created * 1000 : undefined,
+        apiEndpoint: target.server.origin,
         kubeconfigPath: this.getKubeconfigPath()
       };
     } catch (error) {
@@ -586,29 +631,63 @@ class K8sManager {
     }
   }
 
-  private async isApiReady(exec: ClusterEngine['exec'], containerId: string): Promise<boolean> {
-    // Kind ships kubectl and the control-plane kubeconfig inside the node.
-    const exitCode = await exec
-      .getCommandExitCode(
-        containerId,
-        ['kubectl', '--kubeconfig=/etc/kubernetes/admin.conf', '--request-timeout=3s', 'get', '--raw=/readyz'],
-        AbortSignal.timeout(5_000)
-      )
-      .catch(() => null);
-    return exitCode === 0;
+  private getApiTarget(doc: KubeconfigDoc | null): ApiTarget {
+    const context =
+      doc?.contexts?.find(c => c.name === CATBEE_K8S_CLUSTER_NAME) ??
+      doc?.contexts?.find(c => c.name === `kind-${CATBEE_K8S_CLUSTER_NAME}`);
+    const cluster = doc?.clusters?.find(entry => entry.name === context?.context?.cluster)?.cluster;
+    const user = doc?.users?.find(entry => entry.name === context?.context?.user)?.user;
+    const endpoint = cluster?.server;
+    const ca = cluster?.['certificate-authority-data'];
+    const cert = user?.['client-certificate-data'];
+    const key = user?.['client-key-data'];
+    if (typeof endpoint !== 'string' || typeof ca !== 'string' || typeof cert !== 'string' || typeof key !== 'string') {
+      throw new Error('The CatBee kubeconfig is missing the Kubernetes API endpoint or TLS credentials.');
+    }
+    const server = URL.parse(endpoint.replace(/^https:\/\/0\.0\.0\.0:/, 'https://127.0.0.1:'));
+    if (server?.protocol !== 'https:' || server.username || server.password) {
+      throw new Error('The CatBee kubeconfig does not contain a valid HTTPS API endpoint.');
+    }
+    return {
+      server,
+      ca: Buffer.from(ca, 'base64'),
+      cert: Buffer.from(cert, 'base64'),
+      key: Buffer.from(key, 'base64')
+    };
   }
 
-  private async waitForApi(engine: ClusterEngine): Promise<void> {
-    const containers = await engine.containers.listContainers({ all: true });
-    const controlPlane = containers.find(c => isClusterNode(c) && c.Labels[KIND_ROLE_LABEL] === 'control-plane');
-    if (!controlPlane) throw new Error('The Kubernetes cluster is missing its control-plane container.');
+  private async isApiReady({ server, ca, cert, key }: ApiTarget, signal?: AbortSignal): Promise<boolean> {
+    const timeout = AbortSignal.timeout(4_000);
+    return new Promise<boolean>(resolve => {
+      const request = httpsGet(
+        new URL('/readyz', server),
+        {
+          ca,
+          cert,
+          key,
+          rejectUnauthorized: true,
+          agent: false,
+          signal: signal ? AbortSignal.any([signal, timeout]) : timeout
+        },
+        response => {
+          response.resume();
+          resolve(response.statusCode === 200);
+        }
+      );
+      request.on('error', () => resolve(false));
+    }).catch(() => false);
+  }
 
+  private async waitForApi(target: ApiTarget, signal: AbortSignal): Promise<void> {
     const deadline = Date.now() + API_START_TIMEOUT_MS;
     do {
-      if (await this.isApiReady(engine.exec, controlPlane.Id)) return;
-      await sleep(1_000);
+      signal.throwIfAborted();
+      const ready = await this.isApiReady(target, signal);
+      signal.throwIfAborted();
+      if (ready) return;
+      await delay(1_000, undefined, { signal });
     } while (Date.now() < deadline);
-    throw new Error('The Kubernetes API server did not become ready. Cluster data was preserved.');
+    throw new Error('The Kubernetes API did not become ready at the endpoint published to the host.');
   }
 
   private generateKindConfig(version: string, nodeCount: number): string {
@@ -618,7 +697,7 @@ class K8sManager {
       'apiVersion: kind.x-k8s.io/v1alpha4',
       `name: ${CATBEE_K8S_CLUSTER_NAME}`,
       'networking:',
-      '  apiServerAddress: "0.0.0.0"',
+      `  apiServerAddress: "${process.platform === 'linux' ? '127.0.0.1' : '0.0.0.0'}"`,
       'kubeadmConfigPatches:',
       '  - |',
       '    kind: ClusterConfiguration',
@@ -719,14 +798,10 @@ class K8sManager {
 
   private getKubeconfigPath(): string {
     // eslint-disable-next-line n/no-process-env
-    if (process.env.KUBECONFIG) {
-      // eslint-disable-next-line n/no-process-env
-      return process.env.KUBECONFIG.split(path.delimiter)[0];
-    }
-    return path.join(homeDir(), '.kube', 'config');
+    return process.env.KUBECONFIG?.split(path.delimiter).find(Boolean) ?? path.join(homeDir(), '.kube', 'config');
   }
 
-  private async syncKubeconfig(runtime: SelectedDockerRuntime): Promise<void> {
+  private async syncKubeconfig(runtime: SelectedDockerRuntime): Promise<ApiTarget> {
     const kubeconfigPath = path.resolve(this.getKubeconfigPath());
     try {
       const kindPath = this.isWslEngine(runtime) ? windowsToWslPath(kubeconfigPath) : kubeconfigPath;
@@ -744,13 +819,6 @@ class K8sManager {
 
     try {
       const raw = await readFile(kubeconfigPath, 'utf8');
-      interface KubeconfigDoc {
-        contexts?: { name: string; context: Record<string, unknown> }[];
-        clusters?: { name: string; cluster: Record<string, unknown> }[];
-        users?: { name: string; user: Record<string, unknown> }[];
-        'current-context'?: string;
-        [key: string]: unknown;
-      }
       const doc = jsyaml.load(raw) as KubeconfigDoc | null;
       const kindName = `kind-${CATBEE_K8S_CLUSTER_NAME}`;
       const context = doc?.contexts?.find(entry => entry.name === kindName);
@@ -778,8 +846,10 @@ class K8sManager {
       ];
 
       doc['current-context'] = CATBEE_K8S_CLUSTER_NAME;
+      const target = this.getApiTarget(doc);
       await writeFile(kubeconfigPath, jsyaml.dump(doc, { lineWidth: -1 }), 'utf8');
       logger.info(`[K8sManager] Successfully synced kubeconfig with context "${CATBEE_K8S_CLUSTER_NAME}".`);
+      return target;
     } catch (err) {
       throw new Error('Could not update the CatBee context in kubeconfig.', { cause: err });
     }
@@ -790,33 +860,57 @@ class K8sManager {
     try {
       if (!(await pathExists(kubeconfigPath))) return;
       const raw = await readFile(kubeconfigPath, 'utf8');
-      interface KubeconfigDoc {
-        contexts?: { name: string; context: Record<string, unknown> }[];
-        clusters?: { name: string; cluster: Record<string, unknown> }[];
-        users?: { name: string; user: Record<string, unknown> }[];
-        'current-context'?: string;
-        [key: string]: unknown;
-      }
       const doc = jsyaml.load(raw) as KubeconfigDoc | null;
-      if (!doc || !Array.isArray(doc.contexts)) return;
+      if (!doc) return;
 
       const kindContextName = `kind-${CATBEE_K8S_CLUSTER_NAME}`;
-      doc.contexts = doc.contexts.filter(c => c.name !== CATBEE_K8S_CLUSTER_NAME && c.name !== kindContextName);
-      if (doc.clusters) {
-        doc.clusters = doc.clusters.filter(cl => cl.name !== kindContextName && cl.name !== CATBEE_K8S_CLUSTER_NAME);
-      }
-      if (doc.users) {
-        doc.users = doc.users.filter(u => u.name !== kindContextName && u.name !== CATBEE_K8S_CLUSTER_NAME);
-      }
+      const isCatBeeName = (name?: string): boolean => name === CATBEE_K8S_CLUSTER_NAME || name === kindContextName;
+      const keep = (entry: { name: string }): boolean => !isCatBeeName(entry.name);
+      const contexts = Array.isArray(doc.contexts) ? doc.contexts.filter(keep) : undefined;
+      const clusters = Array.isArray(doc.clusters) ? doc.clusters.filter(keep) : undefined;
+      const users = Array.isArray(doc.users) ? doc.users.filter(keep) : undefined;
+      const currentContextRemoved = isCatBeeName(doc['current-context']);
+      const entriesRemoved =
+        (contexts && contexts.length !== doc.contexts?.length) ||
+        (clusters && clusters.length !== doc.clusters?.length) ||
+        (users && users.length !== doc.users?.length);
+      if (!entriesRemoved && !currentContextRemoved) return;
 
-      if (doc['current-context'] === CATBEE_K8S_CLUSTER_NAME || doc['current-context'] === kindContextName) {
-        doc['current-context'] = doc.contexts[0]?.name ?? '';
-      }
+      if (contexts) doc.contexts = contexts;
+      if (clusters) doc.clusters = clusters;
+      if (users) doc.users = users;
+      if (currentContextRemoved) doc['current-context'] = contexts?.[0]?.name ?? '';
 
       await writeFile(kubeconfigPath, jsyaml.dump(doc, { lineWidth: -1 }), 'utf8');
       logger.info(`[K8sManager] Removed "${CATBEE_K8S_CLUSTER_NAME}" contexts from kubeconfig.`);
     } catch (err) {
       logger.warn({ err }, '[K8sManager] Failed to clean kubeconfig contexts.');
+      throw err;
+    }
+  }
+
+  /** Prevents provisioning from racing with a Docker context change, shutdown, or data removal. */
+  async suspendOperations(): Promise<() => void> {
+    this.suspensions++;
+    const resumed = (this.operationsResumed ??= Promise.withResolvers<void>());
+    const resume = (): void => {
+      this.suspensions--;
+      if (this.suspensions === 0) {
+        this.operationsResumed = null;
+        resumed.resolve();
+      }
+    };
+    try {
+      this.apiReadinessController?.abort();
+      if (this.activeCreation && !(await this.cancelCurrentOperation()).success) {
+        throw new Error('Could not cancel Kubernetes provisioning before changing the Docker engine.');
+      }
+      await this.pendingOperation;
+      await Promise.allSettled(this.kindInstalls.values());
+      return resume;
+    } catch (error) {
+      resume();
+      throw error;
     }
   }
 
@@ -828,12 +922,12 @@ class K8sManager {
       const containers = await service.listContainers({ all: true });
       const companion = containers.find(isCloudProvider);
       if (companion) {
-        await service.stopContainer(companion.Id).catch(() => {});
-        await service.removeContainer(companion.Id, true).catch(() => {});
+        await service.removeContainer(companion.Id, true);
       }
       for (const container of containers.filter(isClusterNode)) {
-        if (container.State === 'running') {
-          await service.stopContainer(container.Id).catch(() => {});
+        if (container.State === 'paused') await service.unpauseContainer(container.Id);
+        if (['running', 'paused', 'restarting'].includes(container.State)) {
+          await service.stopContainer(container.Id);
         }
       }
     } catch (err) {
@@ -844,7 +938,7 @@ class K8sManager {
   async onEngineUninstall(): Promise<void> {
     this.lastError = null;
     this.currentProgress = null;
-    await this.cleanKubeconfig().catch(() => {});
+    await this.cleanKubeconfig();
   }
 
   private async ensureCloudProvider(engine: ClusterEngine): Promise<void> {
@@ -889,7 +983,7 @@ class K8sManager {
         const availableImages = await images.listImages();
         const hasImage = availableImages.some((img: Docker.ImageInfo) =>
           (img.RepoTags ?? []).some(
-            (t: string) => t.includes(KIND_CLOUD_PROVIDER_IMAGE) || t.includes('desktop-cloud-provider-kind')
+            (t: string) => t.replace(/^docker\.io\//, '') === KIND_CLOUD_PROVIDER_IMAGE.replace(/^docker\.io\//, '')
           )
         );
         if (!hasImage) {
@@ -966,9 +1060,11 @@ class K8sManager {
     config?: KubernetesSettingsConfig,
     fromReset = false,
     engine = this.getClusterEngine()
-  ): Promise<void> {
-    if (this.isStarting || this.isStopping || (!fromReset && this.isResetting)) return;
+  ): Promise<K8sStartResult> {
+    if (this.suspensions || this.isStarting || this.isStopping || (!fromReset && this.isResetting))
+      return { success: false };
     this.isStarting = true;
+    const finish = fromReset ? undefined : this.trackOperation();
     this.lastError = null;
 
     try {
@@ -980,6 +1076,7 @@ class K8sManager {
       }
       const service = engine.containers;
       const containers = await service.listContainers({ all: true });
+      if (this.suspensions) return { success: false, cancelled: true };
       const clusterContainers = containers.filter(isClusterNode);
 
       // Startup resumes existing nodes. Configuration changes take effect through an explicit cluster reset.
@@ -997,23 +1094,33 @@ class K8sManager {
             detail: `Starting ${stoppedNodes.length} container(s)`
           });
           for (const container of stoppedNodes) {
-            await service.startContainer(container.Id);
+            if (this.suspensions) return { success: false, cancelled: true };
+            if (container.State === 'paused') await service.unpauseContainer(container.Id);
+            else await service.startContainer(container.Id);
           }
         }
       } else if (!(await this.createCluster(engine, k8s, fromReset))) {
-        return;
+        return { success: false, cancelled: true };
       }
 
+      if (this.suspensions) return { success: false, cancelled: true };
+      const target = await this.syncKubeconfig(engine.runtime);
+      if (this.suspensions) return { success: false, cancelled: true };
+      const readiness = new AbortController();
+      this.apiReadinessController = readiness;
       this.emitProgress({
         operation: fromReset ? 'reset' : 'start',
         stage: 'Waiting for the Kubernetes API server...',
         progress: 95
       });
-      await this.waitForApi(engine);
-      await this.syncKubeconfig(engine.runtime);
+      await this.waitForApi(target, readiness.signal);
+      readiness.signal.throwIfAborted();
+      this.apiReadinessController = null;
       await this.ensureCloudProvider(engine);
       logger.info(`[K8sManager] Successfully started cluster "${CATBEE_K8S_CLUSTER_NAME}".`);
+      return { success: true };
     } catch (error) {
+      if (this.apiReadinessController?.signal.aborted) return { success: false, cancelled: true };
       const msg = error instanceof Error ? error.message : String(error);
       this.lastError = { runtime: engine?.runtime ?? null, message: msg };
       logger.error({ err: error }, `[K8sManager] Failed to start cluster: ${msg}`);
@@ -1031,7 +1138,9 @@ class K8sManager {
       }
       throw error;
     } finally {
+      this.apiReadinessController = null;
       this.isStarting = false;
+      finish?.();
       if (!fromReset) {
         this.emitProgress(null);
       }
@@ -1043,7 +1152,10 @@ class K8sManager {
     config: KubernetesSettingsConfig,
     fromReset: boolean
   ): Promise<boolean> {
-    const tempDir = await mkdtemp(path.join(os.tmpdir(), 'catbee-k8s-'));
+    // AppData/Temp can be virtualized in MSIX; WSL needs files at their actual host paths.
+    const tempRoot = path.join(homeDir(), '.catbee', 'k8s');
+    await mkdir(tempRoot, { recursive: true, mode: 0o700 });
+    const tempDir = await mkdtemp(path.join(tempRoot, 'create-'));
     const configPath = path.join(tempDir, 'kind.yaml');
     const kubeconfigPath = path.join(tempDir, 'kubeconfig');
     const cancelFile = this.isWslEngine(engine.runtime) ? path.join(tempDir, 'cancel') : undefined;
@@ -1053,6 +1165,7 @@ class K8sManager {
 
     try {
       await writeFile(configPath, this.generateKindConfig(config.version, config.nodeCount), 'utf8');
+      if (this.suspensions) return false;
       this.emitProgress({
         operation: fromReset ? 'reset' : 'start',
         stage: 'Initializing cluster configuration...',
@@ -1111,33 +1224,71 @@ class K8sManager {
     }
   }
 
-  async stopCluster(fromReset = false, engine = this.getClusterEngine()): Promise<void> {
+  private trackOperation(): () => void {
+    const completion = Promise.withResolvers<void>();
+    this.pendingOperation = completion.promise;
+    return () => {
+      this.pendingOperation = null;
+      completion.resolve();
+    };
+  }
+
+  applyEnabledSetting(): Promise<void> {
+    const apply = this.settingsQueue.then(async () => {
+      for (;;) {
+        const pending = this.operationsResumed?.promise ?? this.pendingOperation;
+        if (pending) {
+          await pending;
+          continue;
+        }
+        const { kubernetes } = await getEngineSettings();
+        if (this.operationsResumed || this.pendingOperation) continue;
+        if (!dockerManager.currentRuntime) return;
+        if (kubernetes.enabled) await this.startCluster(kubernetes);
+        else await this.stopCluster();
+        return;
+      }
+    });
+    this.settingsQueue = apply.catch(() => {});
+    return apply;
+  }
+
+  async stopCluster(): Promise<void> {
+    if (this.suspensions) throw new Error('Wait for the engine operation to finish before stopping Kubernetes.');
     if (this.isStopping) return;
+    if (this.isStarting || this.isResetting) throw new Error('Wait for the active Kubernetes operation to finish.');
     this.isStopping = true;
-    if (!fromReset) {
-      this.emitProgress({
-        operation: 'stop',
-        stage: 'Stopping and deleting Kubernetes cluster...',
-        progress: 50
-      });
-    }
-
+    const finish = this.trackOperation();
+    const engine = this.getClusterEngine();
+    this.emitProgress({ operation: 'stop', stage: 'Stopping Kubernetes cluster...', progress: 50 });
     try {
-      if (engine) await this.deleteClusterContainers(engine.containers);
-
-      await this.cleanKubeconfig();
+      if (engine) {
+        const containers = await engine.containers.listContainers({ all: true });
+        for (const container of containers) {
+          if (!isClusterNode(container) && !isCloudProvider(container)) continue;
+          if (container.State === 'paused') await engine.containers.unpauseContainer(container.Id);
+          if (['running', 'paused', 'restarting'].includes(container.State)) {
+            await engine.containers.stopContainer(container.Id);
+          }
+        }
+      }
       this.lastError = null;
     } finally {
       this.isStopping = false;
-      if (!fromReset) {
-        this.emitProgress(null);
-      }
+      finish();
+      this.emitProgress(null);
     }
   }
 
-  async resetCluster(): Promise<{ success: boolean }> {
-    if (this.isResetting) return { success: false };
+  async removeCluster(engine = this.getClusterEngine()): Promise<void> {
+    if (engine) await this.deleteClusterContainers(engine.containers);
+    await this.cleanKubeconfig();
+  }
+
+  async resetCluster(): Promise<K8sStartResult> {
+    if (this.suspensions || this.isResetting || this.isStarting || this.isStopping) return { success: false };
     this.isResetting = true;
+    const finish = this.trackOperation();
     const engine = this.getClusterEngine();
     this.lastError = null;
     this.emitProgress({
@@ -1148,11 +1299,11 @@ class K8sManager {
 
     try {
       logger.info(`[K8sManager] Resetting cluster "${CATBEE_K8S_CLUSTER_NAME}"...`);
-      await this.stopCluster(true, engine);
+      await this.removeCluster(engine);
 
       const settings = await getEngineSettings();
       if (settings.kubernetes.enabled) {
-        await this.startCluster(settings.kubernetes, true, engine);
+        return await this.startCluster(settings.kubernetes, true, engine);
       }
       return { success: true };
     } catch (error) {
@@ -1162,11 +1313,16 @@ class K8sManager {
       return { success: false };
     } finally {
       this.isResetting = false;
+      finish();
       this.emitProgress(null);
     }
   }
 
   async uninstallRuntime(): Promise<{ success: boolean }> {
+    if (this.suspensions || this.kindInstalls.size || this.isStarting || this.isStopping || this.isResetting)
+      return { success: false };
+    this.isStopping = true;
+    const finish = this.trackOperation();
     const engine = this.getClusterEngine();
     this.emitProgress({
       operation: 'uninstall',
@@ -1174,19 +1330,20 @@ class K8sManager {
       progress: 20
     });
     try {
-      await this.stopCluster(false, engine);
+      await this.removeCluster(engine);
 
       if (this.isWslEngine(engine?.runtime ?? null)) {
         await runCommand('wsl.exe', ['-d', CATBEE_WSL_DISTRO, '-u', 'root', 'rm', '-f', '/usr/local/bin/kind'], {
           timeoutMs: 15_000
-        }).catch(() => {});
-        const cachedLinuxBin = path.join(getEngineBinDir(), 'kind-linux-amd64');
-        await rm(cachedLinuxBin, { force: true }).catch(() => {});
+        });
+        const arch = process.arch === 'arm64' ? 'arm64' : 'amd64';
+        const cachedLinuxBin = path.join(getEngineBinDir(), `kind-linux-${arch}`);
+        await rm(cachedLinuxBin, { force: true });
       }
 
       const kindBin = await this.getKindBinaryPath();
       if (kindBin && (await pathExists(kindBin))) {
-        await rm(kindBin, { force: true }).catch(() => {});
+        await rm(kindBin, { force: true });
         logger.info(`[K8sManager] Removed kind binary: ${kindBin}`);
       }
 
@@ -1198,14 +1355,19 @@ class K8sManager {
       logger.error({ err: error }, `[K8sManager] Failed to uninstall kind: ${msg}`);
       return { success: false };
     } finally {
+      this.isStopping = false;
+      finish();
       this.emitProgress(null);
     }
   }
 
   async cancelCurrentOperation(): Promise<{ success: boolean }> {
     const creation = this.activeCreation;
-    if (!creation || creation.controller.signal.aborted) {
+    if (!creation) {
       return { success: false };
+    }
+    if (creation.controller.signal.aborted) {
+      return { success: await creation.completion };
     }
     if (creation.cancelFile) {
       try {

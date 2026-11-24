@@ -346,6 +346,7 @@ export class FooterComponent implements OnInit {
       console.error('Failed to toggle engine pause state:', err);
     } finally {
       this.isPausing.set(false);
+      await this.refreshPauseStatus();
     }
   }
 
