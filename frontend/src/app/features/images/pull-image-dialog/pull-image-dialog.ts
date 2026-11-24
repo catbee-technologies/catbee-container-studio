@@ -56,6 +56,15 @@ export class PullImageDialogComponent {
     this.closeDialog.emit();
   }
 
+  onInputEnter(event: Event): void {
+    event.preventDefault();
+    const target = event.target as HTMLInputElement | null;
+    if (target) {
+      this.reference.set(target.value);
+    }
+    void this.startPull();
+  }
+
   async startPull(): Promise<void> {
     const image = this.reference().trim();
     if (!image || this.isPulling()) {
