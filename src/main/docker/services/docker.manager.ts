@@ -117,7 +117,7 @@ export class DockerManager {
         forceMode
       );
       this.client = createDockerClient(this.selectedRuntime.connection);
-      this.initializeServices();
+      this.initializeServices(this.selectedRuntime.connection);
       await this.syncCliContext(this.selectedRuntime);
 
       this.emitStatus({
@@ -295,7 +295,7 @@ export class DockerManager {
       if (connection) {
         this.client = createDockerClient(connection);
         this.selectedRuntime = { source: 'embedded', runtimeName: 'CatBee Built-in Engine', connection };
-        this.initializeServices();
+        this.initializeServices(connection);
         await activateCatBeeEngineContext(connection);
       }
       this.emitStatus({
@@ -415,8 +415,10 @@ export class DockerManager {
     onProgress?.(10, 'Stopping and deleting Kubernetes cluster...');
     try {
       const { k8sManager } = await import('../../k8s/k8s-manager.js');
-      await k8sManager.stopCluster().catch(() => {});
-      await k8sManager.cleanKubeconfig().catch(() => {});
+      await k8sManager.removeCluster().catch(async err => {
+        await k8sManager.cleanKubeconfig();
+        throw err;
+      });
     } catch (err) {
       logger.debug({ err }, '[DockerManager] K8s cleanup during teardown.');
     }
@@ -577,7 +579,7 @@ export class DockerManager {
 
     // Swap client and re-initialize services
     this.client = testClient;
-    this.initializeServices();
+    this.initializeServices(targetConnection);
     this.selectedRuntime = {
       source: isCatBee ? 'embedded' : 'external',
       runtimeName: contextName,
@@ -618,8 +620,8 @@ export class DockerManager {
     }
   }
 
-  private initializeServices(): void {
-    this.containers = new DockerContainerService(this.client, () => this.getContainerEnvDefaults());
+  private initializeServices(connection: DockerConnection): void {
+    this.containers = new DockerContainerService(this.client, connection, () => this.getContainerEnvDefaults());
     this.exec = new DockerExecService(this.client);
     this.images = new DockerImageService(this.client);
     this.networks = new DockerNetworkService(this.client);

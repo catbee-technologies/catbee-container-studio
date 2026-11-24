@@ -6,6 +6,8 @@ import { promisify } from 'node:util';
 import { Readable } from 'node:stream';
 import { extract, pack } from 'tar-stream';
 import { logger } from '../../logger';
+import type { DockerConnection } from '../types/connection.types';
+import { connectionToUri } from '../embedded/engine-utils';
 import { getDockerCliPath } from '../runtime/docker.runtime';
 import { DockerBaseService } from './docker.base.service';
 import {
@@ -32,6 +34,7 @@ export type ContainerEnvDefaultsProvider = () => Promise<Record<string, string>>
 export class DockerContainerService extends DockerBaseService {
   constructor(
     client: Docker,
+    private readonly connection: DockerConnection,
     private readonly envDefaults?: ContainerEnvDefaultsProvider
   ) {
     super(client);
@@ -101,8 +104,7 @@ export class DockerContainerService extends DockerBaseService {
       typeof rawWorkingDir !== 'string' ||
       !path.isAbsolute(rawWorkingDir) ||
       rawWorkingDir.includes('\0') ||
-      rawWorkingDir.includes('..') ||
-      path.normalize(rawWorkingDir) !== rawWorkingDir
+      rawWorkingDir.split(process.platform === 'win32' ? /[\\/]/ : '/').includes('..')
     ) {
       throw new Error(
         'Cannot recreate compose group: working directory must be a valid absolute path without traversal.'
@@ -111,6 +113,18 @@ export class DockerContainerService extends DockerBaseService {
     const workingDir = path.resolve(rawWorkingDir);
 
     const dockerCli = (await getDockerCliPath()) || 'docker';
+    // eslint-disable-next-line n/no-process-env
+    const env: NodeJS.ProcessEnv = { ...process.env };
+    for (const key of Object.keys(env)) {
+      if (
+        ['DOCKER_CONTEXT', 'DOCKER_HOST', 'DOCKER_TLS', 'DOCKER_TLS_VERIFY', 'DOCKER_CERT_PATH'].includes(
+          key.toUpperCase()
+        )
+      ) {
+        delete env[key];
+      }
+    }
+    env.DOCKER_HOST = connectionToUri(this.connection);
 
     const composeArgs = ['compose'];
 
@@ -147,6 +161,7 @@ export class DockerContainerService extends DockerBaseService {
     try {
       const res = await execFileAsync(dockerCli, composeArgs, {
         cwd: workingDir,
+        env,
         encoding: 'utf8',
         windowsHide: true,
         maxBuffer: 10 * 1024 * 1024
@@ -166,6 +181,7 @@ export class DockerContainerService extends DockerBaseService {
         try {
           const res = await execFileAsync('docker-compose', standaloneArgs, {
             cwd: workingDir,
+            env,
             encoding: 'utf8',
             windowsHide: true,
             maxBuffer: 10 * 1024 * 1024
@@ -343,9 +359,11 @@ export class DockerContainerService extends DockerBaseService {
       );
     }
 
+    const image = config.Image || inspectInfo.Image;
+
     const createOptions: Docker.ContainerCreateOptions = {
       name,
-      Image: hasCustomOverrides ? inspectInfo.Image || config.Image : config.Image || inspectInfo.Image,
+      Image: image,
       Env: options?.env !== undefined ? options.env : config.Env || undefined,
       Cmd: config.Cmd || undefined,
       Entrypoint: config.Entrypoint || undefined,

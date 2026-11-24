@@ -63,7 +63,7 @@ CatBee Container Studio is also available directly from the **Microsoft Store** 
 
 - Reset environment variables, mounts, or ports to the last configured values before saving.
 - Confirm before clearing configured environment variables or mounts, or discarding unsaved edits when cancelling, switching tabs, or navigating away.
-- Engine-based configuration edits retain the existing image ID, unchanged named and anonymous volume sources, and unrelated port bindings.
+- Engine-based configuration edits retain the original image reference, unchanged named and anonymous volume sources, and unrelated port bindings.
 - Engine recreation keeps the original container until replacement setup and, for running containers, startup succeed. On failure, it attempts to restore the original name, network connections, and running/paused state; recovery failures are reported explicitly.
 - Running auto-remove containers and containers sharing another container's network namespace are blocked from Engine recreation to avoid unsafe replacement.
 
