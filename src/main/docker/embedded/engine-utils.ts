@@ -1,14 +1,18 @@
 import { createWriteStream } from 'node:fs';
 import { appendFile, chmod, copyFile, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { spawn, type SpawnOptions } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
+import { net, session } from 'electron';
 import http from 'node:http';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as WebReadableStream } from 'node:stream/web';
+import { isDeepStrictEqual } from 'node:util';
 import { logger } from '../../logger';
 import { DOCKER_CLI_RELEASE_VERSION } from '../../../constants.docker';
 import type { DockerConnection } from '../types/connection.types';
+import { getEngineSettings } from './engine-settings';
 import type { EngineManifest } from './types/manifest.types';
 import {
   getEngineBinDir,
@@ -68,6 +72,9 @@ export function runCommand(command: string, args: string[], options: RunOptions 
       return Promise.reject(new Error('Invalid command argument.'));
     }
   }
+  if (options.signal?.aborted) {
+    return Promise.reject(new Error('Command aborted'));
+  }
   return new Promise((resolve, reject) => {
     // eslint-disable-next-line n/no-process-env
     const baseEnv = options.env ?? process.env;
@@ -87,6 +94,7 @@ export function runCommand(command: string, args: string[], options: RunOptions 
       if (settled) return;
       settled = true;
       if (timer) clearTimeout(timer);
+      options.signal?.removeEventListener('abort', abort);
       reject(err);
     };
 
@@ -94,6 +102,7 @@ export function runCommand(command: string, args: string[], options: RunOptions 
       if (settled) return;
       settled = true;
       if (timer) clearTimeout(timer);
+      options.signal?.removeEventListener('abort', abort);
       resolve(res);
     };
 
@@ -104,32 +113,27 @@ export function runCommand(command: string, args: string[], options: RunOptions 
       }, options.timeoutMs);
     }
 
-    if (options.signal) {
-      if (options.signal.aborted) {
-        child.kill();
-        doReject(new Error('Command aborted'));
-        return;
+    const abort = (): void => {
+      // Let the close handler settle the command before callers clean up any subprocess output or resources.
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => child.kill('SIGKILL'), 5_000);
+      if (process.platform === 'win32' && child.pid) {
+        // eslint-disable-next-line n/no-process-env
+        const systemRoot = process.env.SystemRoot ?? process.env.SYSTEMROOT ?? String.raw`C:\Windows`;
+        const taskkillBin = path.join(systemRoot, 'System32', 'taskkill.exe');
+        const killer = spawn(taskkillBin, ['/pid', String(child.pid), '/f', '/t'], {
+          windowsHide: true,
+          stdio: 'ignore'
+        });
+        killer.on('error', () => child.kill());
+        killer.on('exit', code => {
+          if (code !== 0) child.kill();
+        });
+      } else {
+        child.kill('SIGTERM');
       }
-      options.signal.addEventListener(
-        'abort',
-        () => {
-          try {
-            if (process.platform === 'win32' && child.pid) {
-              // eslint-disable-next-line n/no-process-env
-              const systemRoot = process.env.SystemRoot ?? process.env.SYSTEMROOT ?? String.raw`C:\Windows`;
-              const taskkillBin = path.join(systemRoot, 'System32', 'taskkill.exe');
-              spawn(taskkillBin, ['/pid', String(child.pid), '/f', '/t'], { windowsHide: true });
-            } else {
-              child.kill('SIGTERM');
-            }
-          } catch {
-            child.kill();
-          }
-          doReject(new Error('Command aborted'));
-        },
-        { once: true }
-      );
-    }
+    };
+    options.signal?.addEventListener('abort', abort, { once: true });
 
     const emitLines = (chunk: Buffer): void => {
       if (!options.onOutput) return;
@@ -151,6 +155,10 @@ export function runCommand(command: string, args: string[], options: RunOptions 
       doReject(err);
     });
     child.on('close', code => {
+      if (options.signal?.aborted) {
+        doReject(new Error('Command aborted'));
+        return;
+      }
       const stdout = Buffer.concat(stdoutChunks).toString(encoding).replaceAll('\0', '');
       const stderr = Buffer.concat(stderrChunks).toString(encoding).replaceAll('\0', '');
       if (code === 0) {
@@ -228,6 +236,98 @@ export function describeDownload(label: string, receivedBytes: number, totalByte
   return `Downloading ${label} (${size})`;
 }
 
+/** Uses Chromium's proxy resolution and certificate trust for engine assets and release metadata. */
+export async function fetchEngineResource(
+  url: string,
+  options?: Pick<RequestInit, 'headers' | 'redirect' | 'signal'>
+): Promise<Response> {
+  const proxy = (await getEngineSettings()).desktopProxy;
+  if (proxy.mode === 'system') return net.fetch(url, options);
+
+  const proxies = new Map<string, URL>();
+  if (proxy.mode === 'manual') {
+    if (proxy.httpProxy?.trim()) proxies.set('http', new URL(proxy.httpProxy.trim().replace(/^socks5h:/i, 'socks5:')));
+    if (proxy.httpsProxy?.trim())
+      proxies.set('https', new URL(proxy.httpsProxy.trim().replace(/^socks5h:/i, 'socks5:')));
+  }
+  const proxyRules = Array.from(proxies, ([scheme, server]) => `${scheme}=${server.protocol}//${server.host}`).join(
+    ';'
+  );
+  const proxyBypassRules = proxy.mode === 'manual' ? proxy.noProxy : undefined;
+  const key = createHash('sha256')
+    .update(JSON.stringify([Array.from(proxies), proxyBypassRules]))
+    .digest('hex');
+  let configuredSession = downloadSessions.get(key);
+  if (!configuredSession) {
+    const downloadSession = session.fromPartition(`catbee-engine-download-${key}`);
+    configuredSession = downloadSession
+      .setProxy(proxyRules ? { mode: 'fixed_servers', proxyRules, proxyBypassRules } : { mode: 'direct' })
+      .then(() => downloadSession)
+      .catch(error => {
+        downloadSessions.delete(key);
+        throw error;
+      });
+    downloadSessions.set(key, configuredSession);
+  }
+  const downloadSession = await configuredSession;
+  const authenticatedProxies = Array.from(proxies.values()).filter(server => server.username || server.password);
+  if (!authenticatedProxies.length) return downloadSession.fetch(url, options);
+  return fetchWithProxyCredentials(downloadSession, authenticatedProxies, url, options);
+}
+
+const downloadSessions = new Map<string, Promise<Electron.Session>>();
+
+function fetchWithProxyCredentials(
+  downloadSession: Electron.Session,
+  proxies: URL[],
+  url: string,
+  options?: Pick<RequestInit, 'headers' | 'redirect' | 'signal'>
+): Promise<Response> {
+  const signal = options?.signal;
+  signal?.throwIfAborted();
+  return new Promise((resolve, reject) => {
+    const request = net.request({ url, session: downloadSession, redirect: options?.redirect ?? 'follow' });
+    for (const [name, value] of new Headers(options?.headers)) request.setHeader(name, value);
+    const abort = () => request.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    const attempted = new Set<URL>();
+    request.on('login', (auth, reply) => {
+      const proxy = proxies.find(
+        server =>
+          server.hostname === auth.host &&
+          Number(server.port || (server.protocol === 'https:' ? 443 : 80)) === auth.port
+      );
+      if (!auth.isProxy || !proxy || attempted.has(proxy)) return reply();
+      attempted.add(proxy);
+      try {
+        reply(decodeURIComponent(proxy.username), decodeURIComponent(proxy.password));
+      } catch (error) {
+        reply();
+        reject(error);
+      }
+    });
+    request.on('response', incoming => {
+      if (!(incoming instanceof Readable)) {
+        reject(new Error('Engine download did not return a readable response.'));
+        return;
+      }
+      const headers = new Headers();
+      for (const [name, value] of Object.entries(incoming.headers)) {
+        for (const entry of Array.isArray(value) ? value : [value]) headers.append(name, entry);
+      }
+      const status = incoming.statusCode;
+      const body = status === 204 || status === 205 || status === 304 ? null : Readable.toWeb(incoming);
+      resolve(
+        new Response(body as ReadableStream<Uint8Array> | null, { status, statusText: incoming.statusMessage, headers })
+      );
+    });
+    request.on('error', reject);
+    request.on('abort', () => reject(signal?.reason ?? new Error('Engine download aborted.')));
+    request.on('close', () => signal?.removeEventListener('abort', abort));
+    request.end();
+  });
+}
+
 /** Streams a download to disk, reporting progress (0..1) when the server provides a content length. */
 export async function downloadFile(
   url: string,
@@ -236,7 +336,7 @@ export async function downloadFile(
 ): Promise<void> {
   logger.info(`[EngineUtils] Downloading ${url}`);
   await mkdir(path.dirname(destination), { recursive: true });
-  const response = await fetch(url, { redirect: 'follow' });
+  const response = await fetchEngineResource(url, { redirect: 'follow' });
   if (!response.ok || !response.body) {
     throw new Error(`Download failed (${response.status} ${response.statusText}): ${url}`);
   }
@@ -338,6 +438,15 @@ export function connectionToUri(connection: DockerConnection): string {
   }
 }
 
+/** Compares JSON without treating formatting or object key order as configuration changes. */
+export function sameJson(a: string, b: string): boolean {
+  try {
+    return isDeepStrictEqual(JSON.parse(a), JSON.parse(b));
+  } catch {
+    return false;
+  }
+}
+
 /** Single-quotes a value for POSIX shells. */
 export function shellQuote(value: string): string {
   const escaped = value.replaceAll("'", String.raw`'\''`);
@@ -392,8 +501,15 @@ export async function readEngineManifest(): Promise<EngineManifest | null> {
 
 export async function writeEngineManifest(manifest: EngineManifest): Promise<void> {
   const manifestPath = getEngineManifestPath();
+  const temporaryPath = `${manifestPath}.${randomUUID()}.tmp`;
   await mkdir(path.dirname(manifestPath), { recursive: true });
-  await writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+  try {
+    await writeFile(temporaryPath, JSON.stringify(manifest, null, 2), 'utf8');
+    await rename(temporaryPath, manifestPath);
+  } catch (error) {
+    await rm(temporaryPath, { force: true }).catch(() => {});
+    throw error;
+  }
 }
 
 export async function updateEngineManifest(patch: Partial<EngineManifest>): Promise<void> {

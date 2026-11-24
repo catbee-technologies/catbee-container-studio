@@ -1,5 +1,5 @@
 import { closeSync, openSync } from 'node:fs';
-import { chmod, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, readlink, realpath, rm, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
@@ -28,6 +28,7 @@ import {
   commandExists,
   describeDownload,
   downloadFile,
+  fetchEngineResource,
   extractArchive,
   getDockerServerVersion,
   hostArch,
@@ -35,6 +36,7 @@ import {
   pingDockerEndpoint,
   readEngineManifest,
   runCommand,
+  sameJson,
   sleep,
   tailFile,
   updateEngineManifest,
@@ -145,17 +147,8 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
         actionHint: 'Run: sudo sysctl -w user.max_user_namespaces=28633'
       };
     }
-    if ((await readSysctl('/proc/sys/kernel/apparmor_restrict_unprivileged_userns')) === '1') {
-      const rootlesskit = path.join(this.binDir, 'rootlesskit');
-      return {
-        ok: false,
-        reason: 'AppArmor restricts unprivileged user namespaces (Ubuntu 23.10+).',
-        actionHint:
-          `Allow rootlesskit by creating /etc/apparmor.d/catbee-rootlesskit containing:\n` +
-          `abi <abi/4.0>,\ninclude <tunables/global>\n"${rootlesskit}" flags=(unconfined) {\n  userns,\n  include if exists <local/catbee-rootlesskit>\n}\n` +
-          'then run: sudo systemctl restart apparmor.service'
-      };
-    }
+    const appArmor = await this.checkAppArmor();
+    if (!appArmor.ok) return appArmor;
 
     if (!(await findBinary('iptables'))) {
       return {
@@ -184,6 +177,46 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
 
   async getManifest(): Promise<EngineManifest | null> {
     return await readEngineManifest();
+  }
+
+  private launchPath(): string {
+    // eslint-disable-next-line n/no-process-env
+    return [this.binDir, ...SBIN_PATHS, process.env.PATH ?? '/usr/bin:/bin'].join(':');
+  }
+
+  private async checkAppArmor(): Promise<PrerequisiteCheckResult> {
+    let rootlesskit = path.join(this.binDir, 'rootlesskit');
+    if (
+      (await readSysctl('/proc/sys/kernel/apparmor_restrict_unprivileged_userns')) !== '1' ||
+      !(await pathExists(rootlesskit))
+    ) {
+      return { ok: true };
+    }
+    try {
+      // Match dockerd-rootless.sh, which prefers docker-rootlesskit even if rootlesskit is earlier in PATH.
+      // eslint-disable-next-line n/no-process-env
+      const env = { ...process.env, PATH: this.launchPath() };
+      const { stdout } = await runCommand(
+        '/bin/sh',
+        ['-c', 'command -v docker-rootlesskit || command -v rootlesskit'],
+        {
+          env,
+          timeoutMs: 5_000
+        }
+      );
+      rootlesskit = await realpath(stdout.trim());
+      await runCommand(rootlesskit, ['--net=host', '/usr/bin/true'], { env, timeoutMs: 5_000 });
+      return { ok: true };
+    } catch (error) {
+      return {
+        ok: false,
+        reason: `RootlessKit could not create a user namespace with AppArmor enabled: ${error instanceof Error ? error.message : String(error)}`,
+        actionHint:
+          `Allow rootlesskit by creating /etc/apparmor.d/catbee-rootlesskit containing:\n` +
+          `abi <abi/4.0>,\ninclude <tunables/global>\n"${rootlesskit}" flags=(unconfined) {\n  userns,\n  include if exists <local/catbee-rootlesskit>\n}\n` +
+          'then run: sudo systemctl restart apparmor.service'
+      };
+    }
   }
 
   async install(onProgress: EngineProgressCallback): Promise<EngineManifest> {
@@ -215,6 +248,8 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
       archives.map(archive => extractArchive(path.join(getEngineDownloadsDir(), archive), this.binDir, 1))
     );
     await chmod(path.join(this.binDir, 'dockerd-rootless.sh'), 0o755);
+    const appArmor = await this.checkAppArmor();
+    if (!appArmor.ok) throw new Error(`${appArmor.reason} ${appArmor.actionHint}`);
     await mkdir(this.dataRoot, { recursive: true });
 
     const manifest: EngineManifest = {
@@ -246,7 +281,7 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
   async start(settings: EngineSettings, onStatus?: (status: string) => void): Promise<DockerConnection> {
     const desiredConfig = `${JSON.stringify(await this.buildDaemonConfig(settings), null, 2)}\n`;
     const currentConfig = await readFile(this.configPath, 'utf8').catch(() => '');
-    const configChanged = currentConfig.trim() !== desiredConfig.trim();
+    const configChanged = !sameJson(currentConfig, desiredConfig);
 
     if (await pingDockerEndpoint(this.socket)) {
       if (!configChanged) {
@@ -256,6 +291,8 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
       await this.stop();
     }
 
+    const appArmor = await this.checkAppArmor();
+    if (!appArmor.ok) throw new Error(`${appArmor.reason} ${appArmor.actionHint}`);
     onStatus?.('Starting rootless Docker Engine...');
     await mkdir(this.engineDir, { recursive: true });
     await writeFile(this.configPath, desiredConfig, 'utf8');
@@ -266,12 +303,12 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
 
     // eslint-disable-next-line n/no-process-env
     const hostEnv = process.env;
-    const hostPath = hostEnv.PATH ?? '/usr/bin:/bin';
     const env: NodeJS.ProcessEnv = {
       ...hostEnv,
       ...proxyToEnv(resolveDaemonProxy(settings, await detectSystemProxy())),
-      PATH: [this.binDir, ...SBIN_PATHS, hostPath].join(':'),
+      PATH: this.launchPath(),
       XDG_RUNTIME_DIR: this.runtimeDir,
+      DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR: path.join(this.runtimeDir, 'dockerd-rootless'),
       HOME: hostEnv.SNAP_REAL_HOME ?? os.homedir()
     };
     // Never let an outer DOCKER_HOST/context leak into the daemon environment.
@@ -323,25 +360,26 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
 
   async stop(): Promise<void> {
     const pid = await this.readPid();
-    if (pid && isAlive(pid)) {
+    const startTime = pid ? await this.getOwnedProcessStartTime(pid) : null;
+    if (pid && startTime && (await getProcessStartTime(pid)) === startTime) {
       signalGroup(pid, 'SIGTERM');
-      const stopped = await this.waitForProcessExit(pid);
+      const stopped = await this.waitForProcessExit(pid, startTime);
       if (!stopped) {
         logger.warn('[RootlessEngineDriver] Engine did not stop within 20s; killing it.');
-        signalGroup(pid, 'SIGKILL');
+        if ((await getProcessStartTime(pid)) === startTime) signalGroup(pid, 'SIGKILL');
+        if (!(await this.waitForProcessExit(pid, startTime))) throw new Error('Rootless Docker Engine did not stop.');
       }
     }
     await this.cleanupStaleState();
     await updateEngineManifest({ state: 'stopped' });
   }
 
-  private async waitForProcessExit(pid: number): Promise<boolean> {
-    let attempts = 0;
-    while (isAlive(pid) && attempts < 40) {
+  private async waitForProcessExit(pid: number, startTime: string): Promise<boolean> {
+    for (let attempts = 0; attempts < 40; attempts++) {
+      if ((await getProcessStartTime(pid)) !== startTime) return true;
       await sleep(500);
-      attempts++;
     }
-    return !isAlive(pid);
+    return (await getProcessStartTime(pid)) !== startTime;
   }
 
   async getStatus(): Promise<EngineDriverStatus> {
@@ -379,12 +417,34 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
     return Number.isInteger(pid) && pid > 1 ? pid : null;
   }
 
+  private async getOwnedProcessStartTime(pid: number): Promise<string | null> {
+    const startTime = await getProcessStartTime(pid);
+    if (!startTime) return null;
+    const cmdline = await readFile(`/proc/${pid}/cmdline`, 'utf8').catch(() => '');
+    const args = new Set(cmdline.split('\0'));
+    const executable = await readlink(`/proc/${pid}/exe`).catch(() => '');
+    // /proc resolves symlinks. Match the launcher and its CatBee arguments across binary aliases.
+    const binary = path.basename(executable.replace(/ \(deleted\)$/, ''));
+    const stateDir = path.join(this.runtimeDir, 'dockerd-rootless');
+    if (
+      !['rootlesskit', 'docker-rootlesskit'].includes(binary) ||
+      !args.has(path.join(this.binDir, 'dockerd-rootless.sh')) ||
+      !args.has(`--state-dir=${stateDir}`) ||
+      !args.has(`--data-root=${this.dataRoot}`) ||
+      (await getProcessStartTime(pid)) !== startTime
+    )
+      return null;
+    return startTime;
+  }
+
   /** Removes leftovers from a crashed engine; never touches a live daemon. */
   private async cleanupStaleState(): Promise<void> {
     const pid = await this.readPid();
-    if (pid && isAlive(pid)) {
+    if (pid && (await this.getOwnedProcessStartTime(pid))) {
       return;
     }
+    if (await pingDockerEndpoint(this.socket))
+      throw new Error('The rootless Docker socket is active without a verified CatBee launcher.');
     await rm(this.pidPath, { force: true });
     await rm(this.socket.path, { force: true });
     await rm(path.join(this.runtimeDir, 'docker.pid'), { force: true });
@@ -392,13 +452,11 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
   }
 }
 
-function isAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
+async function getProcessStartTime(pid: number): Promise<string | null> {
+  const stat = await readFile(`/proc/${pid}/stat`, 'utf8').catch(() => '');
+  // The executable name can contain spaces and parentheses. Field 22 is the process start time.
+  const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ');
+  return fields[0] === 'Z' || fields[2] !== String(pid) ? null : fields[19] || null;
 }
 
 function signalGroup(pid: number, signal: NodeJS.Signals): void {
@@ -430,7 +488,7 @@ async function findBinary(name: string): Promise<boolean> {
 
 async function resolveDockerVersion(arch: string): Promise<string> {
   try {
-    const response = await fetch(`https://download.docker.com/linux/static/stable/${arch}/`, {
+    const response = await fetchEngineResource(`https://download.docker.com/linux/static/stable/${arch}/`, {
       signal: AbortSignal.timeout(10_000)
     });
     if (response.ok) {
