@@ -5,6 +5,9 @@ import { isDev, isMacOS } from './constants';
 import { logger } from '../logger';
 import { IPC_CHANNELS } from '../../ipc/channels';
 
+type UpdateInstallPhase = 'preparing' | 'installing';
+type UpdateInstallStatus = { phase: UpdateInstallPhase } | { phase: 'failed'; message: string };
+
 export type AutoUpdaterStatus =
   | {
       status: 'checking';
@@ -27,6 +30,7 @@ export type AutoUpdaterStatus =
   | {
       status: 'downloaded';
       version: string;
+      install?: UpdateInstallStatus;
     }
   | {
       status: 'error';
@@ -34,8 +38,8 @@ export type AutoUpdaterStatus =
     };
 
 let mainWindow: BrowserWindow | null = null;
-let downloadedUpdateFile: string | null = null;
-let installingUpdate = false;
+let downloadedUpdate: { file: string; version: string } | null = null;
+let installPhase: UpdateInstallPhase | null = null;
 let recoverFromInstallFailure: (() => void) | null = null;
 
 export type PrepareForUpdateInstall = () => Promise<() => void>;
@@ -240,16 +244,19 @@ export function initializeAutoUpdater(window: BrowserWindow): void {
   });
 
   autoUpdater.on('update-downloaded', info => {
-    downloadedUpdateFile = info.downloadedFile;
+    downloadedUpdate = { file: info.downloadedFile, version: info.version };
     logger.info(`[AutoUpdater] Update downloaded: ${info.version}`);
     sendStatus({ status: 'downloaded', version: info.version });
   });
 
   autoUpdater.on('error', error => {
-    const installFailed = recoverFromInstallFailure !== null;
-    recoverFromInstallFailure?.();
     logger.error({ err: error }, '[AutoUpdater] Error');
-    sendStatus({ status: 'error', message: installFailed ? 'Could not install the update.' : getErrorMessage(error) });
+    if (recoverFromInstallFailure) {
+      recoverFromInstallFailure();
+      sendInstallStatus({ phase: 'failed', message: 'Could not install the update.' });
+      return;
+    }
+    sendStatus({ status: 'error', message: getErrorMessage(error) });
   });
 }
 
@@ -261,7 +268,10 @@ export function isMicrosoftStoreInstallation(): boolean {
 }
 
 export async function checkForUpdates(): Promise<void> {
-  if (installingUpdate) return;
+  if (installPhase) {
+    sendInstallStatus({ phase: installPhase });
+    return;
+  }
   if (isDev) {
     logger.debug('[AutoUpdater] Skipping update check in development.');
     return;
@@ -308,7 +318,7 @@ export async function checkForUpdates(): Promise<void> {
 }
 
 export async function downloadUpdate(): Promise<void> {
-  if (isDev || isMicrosoftStoreInstallation() || installingUpdate) {
+  if (isDev || isMicrosoftStoreInstallation() || installPhase) {
     return;
   }
 
@@ -325,27 +335,30 @@ export function skipAutoInstallOnQuit(): void {
 }
 
 export async function restartAndInstallUpdate(prepare: PrepareForUpdateInstall): Promise<void> {
-  if (isDev || isMacOS || isMicrosoftStoreInstallation() || !downloadedUpdateFile || installingUpdate) {
+  if (isDev || isMacOS || isMicrosoftStoreInstallation() || !downloadedUpdate?.file || installPhase) {
     return;
   }
-  const isLinuxPackage = process.platform === 'linux' && /\.(deb|rpm)$/.test(downloadedUpdateFile);
-  installingUpdate = true;
+  const isLinuxPackage = process.platform === 'linux' && /\.(deb|rpm)$/.test(downloadedUpdate.file);
+  installPhase = 'preparing';
+  sendInstallStatus({ phase: installPhase });
 
   let restoreShutdownState: () => void;
   try {
     restoreShutdownState = await prepare();
   } catch (err) {
-    installingUpdate = false;
+    installPhase = null;
     logger.warn({ err }, '[AutoUpdater] Background shutdown did not finish before update installation.');
-    sendStatus({ status: 'error', message: 'CatBee could not finish shutting down. Try installing the update again.' });
+    sendInstallStatus({ phase: 'failed', message: 'CatBee could not finish shutting down.' });
     return;
   }
 
   recoverFromInstallFailure = () => {
     restoreShutdownState();
     recoverFromInstallFailure = null;
-    installingUpdate = false;
+    installPhase = null;
   };
+  installPhase = 'installing';
+  sendInstallStatus({ phase: installPhase });
   logger.info('[AutoUpdater] Restarting and installing update...');
   try {
     if (isLinuxPackage) {
@@ -353,7 +366,7 @@ export async function restartAndInstallUpdate(prepare: PrepareForUpdateInstall):
       if (!installed) {
         if (recoverFromInstallFailure) {
           recoverFromInstallFailure();
-          sendStatus({ status: 'error', message: 'Could not install the update.' });
+          sendInstallStatus({ phase: 'failed', message: 'Could not install the update.' });
         }
         return;
       }
@@ -365,7 +378,7 @@ export async function restartAndInstallUpdate(prepare: PrepareForUpdateInstall):
   } catch (err) {
     recoverFromInstallFailure?.();
     logger.error({ err }, '[AutoUpdater] Could not start the update installer.');
-    sendStatus({ status: 'error', message: 'Could not start the update installer.' });
+    sendInstallStatus({ phase: 'failed', message: 'Could not start the update installer.' });
   }
 }
 
@@ -378,6 +391,12 @@ function relaunchLinuxPackage(): void {
     logger.error({ err }, '[AutoUpdater] Could not reopen CatBee after installing the update.')
   );
   child.unref();
+}
+
+function sendInstallStatus(install: UpdateInstallStatus): void {
+  if (downloadedUpdate) {
+    sendStatus({ status: 'downloaded', version: downloadedUpdate.version, install });
+  }
 }
 
 function sendStatus(status: AutoUpdaterStatus): void {

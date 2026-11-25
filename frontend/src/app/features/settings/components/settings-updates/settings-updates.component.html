@@ -151,19 +151,54 @@
         }
 
         @case ('downloaded') {
+          @let phase = status.install?.phase;
+          @let installing = page.isInstallingUpdate();
           <div class="update-icon-wrapper">
             <span class="mat-icon-filled update-icon update-success" aria-hidden="true">download_done</span>
           </div>
           <div class="updates-details">
-            <h3>CatBee Container Studio v{{ status.version }} ready to install</h3>
-            <p class="field-hint">
-              The update has been downloaded successfully. Restart the application to finish the update.
+            <h3>CatBee Container Studio v{{ status.version }}{{ installing ? '' : ' ready to install' }}</h3>
+            <p class="field-hint" [class.error-hint]="phase === 'failed'" role="status">
+              @switch (status.install?.phase) {
+                @case ('preparing') {
+                  Shutting down the built-in engine and Kubernetes before restarting.
+                }
+                @case ('installing') {
+                  Follow any system prompts to finish installing the update.
+                }
+                @case ('failed') {
+                  {{ status.install.message }}
+                }
+                @default {
+                  Restart the application to finish the update.
+                }
+              }
             </p>
           </div>
           <div class="updates-action-col">
-            <button type="button" class="catbee-action-btn primary" (click)="page.restartAndInstall()">
-              <span class="mat-icon-filled" aria-hidden="true">restart_alt</span>
-              Restart Now
+            <button
+              type="button"
+              class="catbee-action-btn primary"
+              [disabled]="installing"
+              (click)="page.restartAndInstall()"
+            >
+              <span class="mat-icon-filled" [class.spin]="installing" aria-hidden="true">{{
+                installing ? 'sync' : 'restart_alt'
+              }}</span>
+              @switch (phase) {
+                @case ('preparing') {
+                  Preparing...
+                }
+                @case ('installing') {
+                  Installing...
+                }
+                @case ('failed') {
+                  Retry Update
+                }
+                @default {
+                  Restart Now
+                }
+              }
             </button>
           </div>
         }

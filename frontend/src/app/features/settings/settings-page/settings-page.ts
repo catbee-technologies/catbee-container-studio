@@ -243,6 +243,13 @@ export class SettingsPageComponent implements OnInit {
   readonly engineErrorMessage = signal<string | null>(null);
   readonly updateErrorMessage = signal<string | null>(null);
   readonly updaterStatus = signal<AutoUpdaterStatus>({ status: 'idle' });
+  readonly isInstallingUpdate = computed(() => {
+    const status = this.updaterStatus();
+    return (
+      status.status === 'downloaded' &&
+      (status.install?.phase === 'preparing' || status.install?.phase === 'installing')
+    );
+  });
   readonly isMicrosoftStore = signal(false);
   readonly macosQuarantineCommand = 'xattr -d com.apple.quarantine "/Applications/CatBee Container Studio.app"';
   readonly copiedQuarantine = signal(false);
@@ -1671,7 +1678,11 @@ export class SettingsPageComponent implements OnInit {
       if ('version' in status && status.version) {
         this.targetUpdateVersion.set(status.version);
       }
-      if (status.status === 'available' || status.status === 'downloading' || status.status === 'downloaded') {
+      if (
+        status.status === 'available' ||
+        status.status === 'downloading' ||
+        (status.status === 'downloaded' && !status.install)
+      ) {
         const ver = 'version' in status && status.version ? status.version : this.targetUpdateVersion();
         if (ver) {
           void this.loadUpdateReleaseNotes(ver);
@@ -2056,7 +2067,7 @@ export class SettingsPageComponent implements OnInit {
     if (id === 'kubernetes') {
       void this.refreshK8sStatus();
     }
-    if (id === 'updates' && this.updaterStatus().status !== 'checking') {
+    if (id === 'updates' && this.updaterStatus().status !== 'downloaded') {
       void this.checkForUpdates();
     }
   }
@@ -2345,7 +2356,11 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async checkForUpdates(): Promise<void> {
-    if (this.activeAction() === 'check-updates' || this.updaterStatus().status === 'checking') {
+    if (
+      this.activeAction() === 'check-updates' ||
+      this.updaterStatus().status === 'checking' ||
+      this.isInstallingUpdate()
+    ) {
       return;
     }
     this.activeAction.set('check-updates');
@@ -2390,11 +2405,20 @@ export class SettingsPageComponent implements OnInit {
     await this.electronApi.downloadUpdate();
   }
 
-  restartAndInstall(): void {
-    if (this.isMacOS()) {
+  async restartAndInstall(): Promise<void> {
+    const status = this.updaterStatus();
+    if (this.isMacOS() || status.status !== 'downloaded' || this.isInstallingUpdate()) {
       return;
     }
-    this.electronApi.restartAndInstallUpdate();
+    try {
+      await this.electronApi.restartAndInstallUpdate();
+    } catch (err) {
+      console.error('Failed to request update installation:', err);
+      this.updaterStatus.set({
+        ...status,
+        install: { phase: 'failed', message: 'Could not start the update installer.' }
+      });
+    }
   }
 
   openChangelog(currentVersion: string, newVersion: string): void {

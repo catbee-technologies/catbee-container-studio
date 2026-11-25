@@ -50,11 +50,28 @@ describe('Electron updater', () => {
     const prepare = vi.fn(() => shutdown.promise);
 
     const install = updater.restartAndInstallUpdate(prepare);
+    expect(send).toHaveBeenLastCalledWith(expect.any(String), {
+      status: 'downloaded',
+      version: downloadedUpdate.version,
+      install: { phase: 'preparing' }
+    });
     await updater.restartAndInstallUpdate(prepare);
     expect(prepare).toHaveBeenCalledOnce();
     expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+    await updater.checkForUpdates();
+    expect(autoUpdater.checkForUpdates).not.toHaveBeenCalled();
+    expect(send).toHaveBeenLastCalledWith(expect.any(String), {
+      status: 'downloaded',
+      version: downloadedUpdate.version,
+      install: { phase: 'preparing' }
+    });
     shutdown.resolve(vi.fn<() => void>());
     await install;
+    expect(send).toHaveBeenLastCalledWith(expect.any(String), {
+      status: 'downloaded',
+      version: downloadedUpdate.version,
+      install: { phase: 'installing' }
+    });
     expect(autoUpdater.quitAndInstall).toHaveBeenCalledOnce();
   });
 
@@ -64,7 +81,11 @@ describe('Electron updater', () => {
       throw new Error('engine still running');
     });
     expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled();
-    expect(send).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ status: 'error' }));
+    expect(send).toHaveBeenLastCalledWith(expect.any(String), {
+      status: 'downloaded',
+      version: downloadedUpdate.version,
+      install: { phase: 'failed', message: 'CatBee could not finish shutting down.' }
+    });
     await updater.restartAndInstallUpdate(async () => vi.fn<() => void>());
     expect(autoUpdater.quitAndInstall).toHaveBeenCalledOnce();
   });
@@ -116,7 +137,11 @@ describe('Electron updater', () => {
     expect(restore).toHaveBeenCalledOnce();
     expect(app.quit).not.toHaveBeenCalled();
     expect(app.listenerCount('quit')).toBe(0);
-    expect(send).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ status: 'error' }));
+    expect(send).toHaveBeenLastCalledWith(expect.any(String), {
+      status: 'downloaded',
+      version: downloadedUpdate.version,
+      install: { phase: 'failed', message: 'Could not install the update.' }
+    });
 
     await updater.restartAndInstallUpdate(prepare);
     expect(app.quit).toHaveBeenCalledOnce();
@@ -138,7 +163,14 @@ describe('Electron updater', () => {
       await updater.restartAndInstallUpdate(prepare);
       if (failure === 'asynchronous') autoUpdater.emit('error', new Error('installer failed'));
       expect(restore).toHaveBeenCalledOnce();
-      expect(send).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ status: 'error' }));
+      expect(send).toHaveBeenLastCalledWith(expect.any(String), {
+        status: 'downloaded',
+        version: downloadedUpdate.version,
+        install: {
+          phase: 'failed',
+          message: failure === 'synchronous' ? 'Could not start the update installer.' : 'Could not install the update.'
+        }
+      });
 
       await updater.restartAndInstallUpdate(prepare);
       expect(installer).toHaveBeenCalledTimes(2);
