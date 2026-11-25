@@ -100,6 +100,8 @@ export interface ReleaseNotesInfo {
   htmlUrl: string;
 }
 
+export type UpdateInstallStatus = { phase: 'preparing' | 'installing' } | { phase: 'failed'; message: string };
+
 export type AutoUpdaterStatus =
   | {
       status: 'idle';
@@ -121,6 +123,7 @@ export type AutoUpdaterStatus =
   | {
       status: 'downloaded';
       version: string;
+      install?: UpdateInstallStatus;
     }
   | {
       status: 'error';

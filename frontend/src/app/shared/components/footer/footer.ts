@@ -52,6 +52,7 @@ export class FooterComponent implements OnInit {
   readonly updateAvailable = signal(false);
   readonly downloadProgress = signal<UpdateDownloadProgress | null>(null);
   readonly updateDownloaded = signal(false);
+  readonly isInstallingUpdate = signal(false);
   readonly isMicrosoftStore = signal(false);
 
   // Engine controls state
@@ -230,6 +231,10 @@ export class FooterComponent implements OnInit {
       this.isExiting.set(true);
     });
     const unsubscribeUpdater = this.electronApi.onUpdaterStatus(status => {
+      this.isInstallingUpdate.set(
+        status.status === 'downloaded' &&
+          (status.install?.phase === 'preparing' || status.install?.phase === 'installing')
+      );
       switch (status.status) {
         case 'available':
           this.updateAvailable.set(true);

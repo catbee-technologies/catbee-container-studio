@@ -168,23 +168,29 @@
     @let hasUpdate = updateAvailable();
     @let progress = downloadProgress();
     @let downloaded = updateDownloaded();
+    @let installing = isInstallingUpdate();
 
     <button
       type="button"
       class="catbee-action-btn plain-btn updater-launch-btn"
       (click)="openUpdates()"
       [catbeeTooltip]="
-        progress
-          ? 'Downloading update (' + (progress.percent | number: '1.0-0') + '%) - Click to open Settings'
-          : downloaded
-            ? 'Update ready - Click to restart in Settings'
-            : hasUpdate
-              ? 'Update available - Click to view in Settings'
-              : 'Software updates'
+        installing
+          ? 'Update in progress - Click to view in Settings'
+          : progress
+            ? 'Downloading update (' + (progress.percent | number: '1.0-0') + '%) - Click to open Settings'
+            : downloaded
+              ? 'Update ready - Click to restart in Settings'
+              : hasUpdate
+                ? 'Update available - Click to view in Settings'
+                : 'Software updates'
       "
       catbeeTooltipPosition="top"
     >
-      @if (progress) {
+      @if (installing) {
+        <span class="mat-icon-filled spin" aria-hidden="true">sync</span>
+        <span class="version">Updating...</span>
+      } @else if (progress) {
         <span class="update-progress">
           <span class="update-progress-percent"> {{ progress.percent | number: '1.0-0' }}% </span>
           <span class="update-progress-size">
