@@ -532,7 +532,8 @@ export class SettingsPageComponent implements OnInit {
     this.dismissK8sRuntimeError();
   }
 
-  readonly isKindInstalled = computed(() => this.k8sClusterInfo()?.isKindInstalled ?? false);
+  readonly isKindInstalled = computed(() => this.k8sClusterInfo()?.isKindInstalled === true);
+  readonly isKindInstallationKnown = computed(() => typeof this.k8sClusterInfo()?.isKindInstalled === 'boolean');
 
   readonly k8sActualVersion = computed(() => {
     return this.k8sClusterInfo()?.version || this.k8sVersion();
@@ -554,7 +555,14 @@ export class SettingsPageComponent implements OnInit {
   readonly isActiveEngineAvailable = computed(
     () => this.engineStatus()?.runtime?.source === 'external' || (this.isEngineInstalled() && this.isEngineRunning())
   );
-  readonly isK8sEngineAvailable = this.isActiveEngineAvailable;
+  readonly isK8sEngineAvailable = computed(
+    () =>
+      this.isEngineInstalled() &&
+      this.isEngineRunning() &&
+      !this.isEngineBusy() &&
+      this.engineStatus()?.runtime?.source === 'embedded' &&
+      this.k8sClusterInfo()?.status !== 'unavailable'
+  );
 
   readonly isEngineInstalling = computed(
     () =>
@@ -566,12 +574,13 @@ export class SettingsPageComponent implements OnInit {
   readonly isEngineStarting = computed(() => this.engineState() === 'starting' || this.activeAction() === 'start');
 
   readonly k8sUnavailableReason = computed<
-    'engine-installing' | 'engine-starting' | 'engine-not-installed' | 'engine-stopped' | null
+    'engine-installing' | 'engine-starting' | 'engine-not-installed' | 'engine-external' | 'engine-stopped' | null
   >(() => {
     if (this.isK8sEngineAvailable()) return null;
     if (this.isEngineInstalling()) return 'engine-installing';
     if (this.isEngineStarting()) return 'engine-starting';
-    if (this.isEngineNotInstalled()) return 'engine-not-installed';
+    if (!this.isEngineInstalled()) return 'engine-not-installed';
+    if (this.isEngineRunning() && this.engineStatus()?.runtime?.source !== 'embedded') return 'engine-external';
     return 'engine-stopped';
   });
 
@@ -598,6 +607,7 @@ export class SettingsPageComponent implements OnInit {
   ];
 
   readonly k8sStatus = computed<K8sClusterInfo['status']>(() => {
+    if (!this.isK8sEngineAvailable()) return 'unavailable';
     const op = this.k8sOperation();
     if (op) {
       if (op.operation === 'stop') return 'stopping';
@@ -607,7 +617,7 @@ export class SettingsPageComponent implements OnInit {
     if (this.isStartingK8sCluster() || this.isResettingK8sCluster()) return 'starting';
     return this.k8sClusterInfo()?.status ?? 'stopped';
   });
-  readonly isK8sRunning = computed(() => this.k8sStatus() === 'running' && !this.isK8sBusy());
+  readonly isK8sRunning = computed(() => ['running', 'degraded'].includes(this.k8sStatus()) && !this.isK8sBusy());
   readonly isK8sStopping = computed(
     () => this.k8sStatus() === 'stopping' || this.isStoppingK8sCluster() || this.k8sOperation()?.operation === 'stop'
   );
@@ -626,6 +636,7 @@ export class SettingsPageComponent implements OnInit {
     );
   });
   readonly k8sStatusLabel = computed(() => {
+    if (!this.isK8sEngineAvailable()) return 'Unavailable';
     const op = this.k8sOperation();
     if (op) {
       if (op.operation === 'stop') return 'Stopping';
@@ -639,6 +650,8 @@ export class SettingsPageComponent implements OnInit {
     switch (status) {
       case 'running':
         return 'Running';
+      case 'degraded':
+        return 'Degraded';
       case 'starting':
         return 'Starting';
       case 'stopping':
@@ -793,7 +806,7 @@ export class SettingsPageComponent implements OnInit {
       const res = await this.electronApi.startK8sCluster(this.draftKubernetesSettings());
       this.adoptSavedKubernetesSettings(res.settings);
       if (res.success) {
-        this.flashSuccess('Kubernetes cluster started.', 4000);
+        this.flashSuccess('Kubernetes API is ready.', 4000);
       } else if (!res.cancelled) {
         this.reportK8sClusterError('Failed to start Kubernetes cluster.');
       }

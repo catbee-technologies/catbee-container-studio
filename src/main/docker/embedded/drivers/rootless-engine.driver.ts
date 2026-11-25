@@ -14,7 +14,7 @@ import type {
   PlatformEngineDriver,
   PrerequisiteCheckResult
 } from '../types/engine.interface';
-import type { EngineSettings } from '../engine-settings';
+import { getEngineSettings, type EngineSettings } from '../engine-settings';
 import { buildDaemonConfig, proxyToEnv, resolveDaemonProxy } from '../daemon-config';
 import { detectSystemProxy } from '../system-proxy';
 import {
@@ -254,17 +254,19 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
     if (!appArmor.ok) throw new Error(`${appArmor.reason} ${appArmor.actionHint}`);
     await mkdir(this.dataRoot, { recursive: true });
 
+    await this.start(await getEngineSettings(), stage => onProgress(95, stage));
+
     const manifest: EngineManifest = {
       schemaVersion: 2,
       backend: 'rootless',
-      engineVersion: version,
+      engineVersion: (await getDockerServerVersion(this.socket)) ?? version,
       components: { docker: version },
       platform: 'linux',
       architecture: hostArch(),
       distribution: 'static',
       installedAt: new Date().toISOString(),
       endpoint: { type: 'unix', address: this.socket.path },
-      state: 'stopped'
+      state: 'running'
     };
     await writeEngineManifest(manifest);
     onProgress(100, 'Installation complete.');

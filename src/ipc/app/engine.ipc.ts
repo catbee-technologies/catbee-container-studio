@@ -202,6 +202,7 @@ export function registerEngineHandlers(): void {
       try {
         let kubernetesEnabledChanged = false;
         const updated = await saveEngineSettings(settings, async (previous, next, persist) => {
+          if (!previous.kubernetes.enabled && next.kubernetes.enabled) await k8sManager.checkEngineAvailable();
           await engineManager.applyWslIntegration(previous, next, persist);
           kubernetesEnabledChanged = next.kubernetes.enabled !== previous.kubernetes.enabled;
         });

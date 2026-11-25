@@ -226,12 +226,22 @@
         }
       }
 
-      &.stopped {
+      &.stopped,
+      &.unavailable {
         color: var(--ink-300);
 
         catbee-k8s-icon,
         .k8s-svg-icon {
           color: var(--ink-400);
+        }
+      }
+
+      &.degraded {
+        color: var(--color-warning-text);
+
+        catbee-k8s-icon,
+        .k8s-svg-icon {
+          color: var(--color-warning-text);
         }
       }
 

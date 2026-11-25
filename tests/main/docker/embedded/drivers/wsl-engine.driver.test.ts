@@ -1,15 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   dockerApiGetJson,
+  ensureHostDockerCli,
   runCommand,
-  updateEngineManifest
+  updateEngineManifest,
+  writeEngineManifest
 } from '../../../../../src/main/docker/embedded/engine-utils';
+import type { EngineManifest } from '../../../../../src/main/docker/embedded/types/manifest.types';
 import { WslEngineDriver } from '../../../../../src/main/docker/embedded/drivers/wsl-engine.driver';
 import { CATBEE_WSL_DISTRO } from '../../../../../src/main/docker/embedded/engine-paths';
 
 const { stopRelay } = vi.hoisted(() => ({ stopRelay: vi.fn(async () => {}) }));
 vi.mock('electron', () => ({}));
-vi.mock('../../../../../src/main/logger', () => ({ logger: { debug: vi.fn(), warn: vi.fn() } }));
+vi.mock('../../../../../src/main/logger', () => ({ logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
+vi.mock('../../../../../src/main/docker/embedded/engine-settings', () => ({
+  getEngineSettings: async () => ({ desktopProxy: { mode: 'none' } })
+}));
+vi.mock('../../../../../src/main/docker/embedded/system-proxy', () => ({ detectSystemProxy: async () => null }));
 vi.mock('../../../../../src/main/docker/embedded/endpoint-relay', () => ({
   EndpointRelay: class {
     stop = stopRelay;
@@ -19,12 +26,25 @@ vi.mock('../../../../../src/main/docker/embedded/engine-utils', async importOrig
   ...(await importOriginal<typeof import('../../../../../src/main/docker/embedded/engine-utils')>()),
   runCommand: vi.fn(),
   dockerApiGetJson: vi.fn(),
+  ensureHostDockerCli: vi.fn(),
   updateEngineManifest: vi.fn(),
+  writeEngineManifest: vi.fn(),
   sleep: vi.fn()
 }));
 
 const running = CATBEE_WSL_DISTRO.split('').join('\0') + '\r\n';
 const response = (stdout = '') => ({ stdout, stderr: '' });
+const incompleteManifest: EngineManifest = {
+  schemaVersion: 2,
+  backend: 'wsl2',
+  engineVersion: 'unknown',
+  platform: 'win32',
+  architecture: 'x64',
+  distribution: 'alpine',
+  installedAt: '2026-11-25T18:00:00.000Z',
+  endpoint: { type: 'npipe', address: 'catbee' },
+  state: 'stopped'
+};
 
 describe('Windows WSL engine', () => {
   let driver: WslEngineDriver;
@@ -48,8 +68,8 @@ describe('Windows WSL engine', () => {
     expect(runCommand).toHaveBeenNthCalledWith(
       2,
       expect.any(String),
-      expect.arrayContaining([expect.stringContaining('unix:///var/run/docker.sock')]),
-      expect.any(Object)
+      ['-d', CATBEE_WSL_DISTRO, '-u', 'root', '--exec', 'sh', '-s'],
+      expect.objectContaining({ input: expect.stringContaining('unix:///var/run/docker.sock') })
     );
     expect(dockerApiGetJson).toHaveBeenCalledWith(expect.objectContaining({ host: '127.0.0.1' }), '/info', 2_000);
   });
@@ -82,5 +102,57 @@ describe('Windows WSL engine', () => {
   it('does not pass option-shaped distro names to WSL', async () => {
     await expect(driver.configureWslDistroIntegration('--list', true)).resolves.toBe(false);
     expect(runCommand).not.toHaveBeenCalled();
+  });
+
+  it('does not treat an unknown-version manifest as installed without a working dockerd', async () => {
+    vi.spyOn(driver, 'getManifest').mockResolvedValue(incompleteManifest);
+    vi.mocked(runCommand)
+      .mockResolvedValueOnce(response(CATBEE_WSL_DISTRO))
+      .mockRejectedValueOnce(new Error('dockerd not found'));
+
+    await expect(driver.isInstalled()).resolves.toBe(false);
+    expect(runCommand).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves the registered distro and reports APK TLS failure instead of completing installation', async () => {
+    vi.spyOn(driver, 'checkPrerequisites').mockResolvedValue({ ok: true });
+    vi.spyOn(driver, 'getManifest').mockResolvedValue({ ...incompleteManifest });
+    vi.mocked(runCommand).mockImplementation(async (executable, args, options) => {
+      if (executable.toLowerCase().endsWith('powershell.exe')) return response('[]');
+      if (args[0] === '-l') return response(CATBEE_WSL_DISTRO);
+      const script = args.at(-1) === '-s' ? (options?.input ?? '') : (args.at(-1) ?? '');
+      if (script.includes('dockerd --version')) throw new Error('dockerd not found');
+      if (script.includes('apk add')) {
+        expect(args).toEqual(['-d', CATBEE_WSL_DISTRO, '-u', 'root', '--exec', 'sh', '-s']);
+        expect(script).toMatch(/^set -e\n/);
+        expect(script).toContain('SSL_CERT_FILE="$bootstrap_ca" apk add');
+        expect(script).not.toContain('|| true');
+        options?.onOutput?.('WARNING: fetching Alpine package index: TLS: server certificate not trusted');
+        throw new Error('apk returned exit 1');
+      }
+      return response();
+    });
+    const progress = vi.fn();
+
+    await expect(driver.install(progress)).rejects.toThrow('TLS: server certificate not trusted');
+    expect(writeEngineManifest).not.toHaveBeenCalled();
+    expect(ensureHostDockerCli).not.toHaveBeenCalled();
+    expect(progress.mock.calls.some(([percent]) => percent === 100)).toBe(false);
+    expect(
+      vi.mocked(runCommand).mock.calls.some(([, args]) => args.includes('--unregister') || args.includes('--import'))
+    ).toBe(false);
+  });
+
+  it('refuses to record installation when APK exits successfully but dockerd still does not work', async () => {
+    vi.spyOn(driver, 'checkPrerequisites').mockResolvedValue({ ok: true });
+    vi.spyOn(driver, 'getManifest').mockResolvedValue(null);
+    vi.mocked(runCommand).mockImplementation(async (executable, args) => {
+      if (executable.toLowerCase().endsWith('powershell.exe')) return response('[]');
+      if (args[0] === '-l') return response(CATBEE_WSL_DISTRO);
+      return response();
+    });
+
+    await expect(driver.install(vi.fn())).rejects.toThrow('dockerd is unavailable');
+    expect(writeEngineManifest).not.toHaveBeenCalled();
   });
 });

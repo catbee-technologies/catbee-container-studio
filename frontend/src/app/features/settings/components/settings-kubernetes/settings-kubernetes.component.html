@@ -40,18 +40,24 @@
     } @else if (page.k8sUnavailableReason() === 'engine-not-installed') {
       <div class="k8s-engine-callout">
         <catbee-container-studio-callout type="warning" title="Container Engine Not Installed">
-          <p>
-            Kubernetes runs inside containers using kind and requires a container engine. Please install the CatBee
-            built-in engine to enable Kubernetes.
-          </p>
+          <p>Install the CatBee built-in engine to run Kubernetes.</p>
           <div class="callout-actions">
             <button type="button" class="catbee-action-btn primary sm" (click)="page.selectCategory('engine')">
               <span class="mat-icon-filled" aria-hidden="true">build</span>
-              Install Docker Engine
+              Go to Docker Engine
             </button>
           </div>
         </catbee-container-studio-callout>
       </div>
+    } @else if (page.k8sUnavailableReason() === 'engine-external') {
+      <catbee-container-studio-callout type="warning" title="Built-in engine required">
+        <p>Switch to the CatBee built-in engine to install kind or manage a cluster.</p>
+        <div class="callout-actions">
+          <button type="button" class="catbee-action-btn primary sm" (click)="page.selectCategory('engine')">
+            Go to Docker Engine
+          </button>
+        </div>
+      </catbee-container-studio-callout>
     } @else if (page.k8sUnavailableReason() === 'engine-stopped') {
       <div class="k8s-engine-callout">
         <catbee-container-studio-callout type="warning" title="Container Engine is Stopped">
@@ -99,7 +105,9 @@
                       ? 'sync'
                       : page.isKindInstalled()
                         ? 'check'
-                        : 'close'
+                        : page.isKindInstallationKnown()
+                          ? 'close'
+                          : 'help_outline'
                   }}
                 </span>
                 <span>
@@ -110,7 +118,9 @@
                         ? 'Uninstalling'
                         : page.isKindInstalled()
                           ? 'Installed'
-                          : 'Not installed'
+                          : page.isKindInstallationKnown()
+                            ? 'Not installed'
+                            : 'Not verified'
                   }}
                 </span>
               </span>
@@ -122,7 +132,10 @@
         </div>
 
         <div class="runtime-card-right">
-          @if (!page.isKindInstalled()) {
+          @if (
+            page.isInstallingK8sRuntime() ||
+            (!page.isUninstallingK8sRuntime() && page.isKindInstallationKnown() && !page.isKindInstalled())
+          ) {
             <button
               type="button"
               class="catbee-action-btn primary sm"
@@ -136,7 +149,7 @@
               </span>
               <span>{{ page.isInstallingK8sRuntime() ? 'Installing kind...' : 'Install kind runtime' }}</span>
             </button>
-          } @else {
+          } @else if (page.isKindInstalled() || page.isUninstallingK8sRuntime()) {
             <button
               type="button"
               class="catbee-action-btn plain-btn danger sm"
@@ -220,6 +233,8 @@
               Kubernetes cluster is currently performing an operation.
             } @else if (!page.isK8sEngineAvailable()) {
               Container engine must be running to enable Kubernetes.
+            } @else if (!page.isKindInstallationKnown()) {
+              The kind installation must be verified to enable Kubernetes.
             } @else if (!page.isKindInstalled()) {
               Install the kind runtime above to enable Kubernetes.
             } @else {
@@ -256,7 +271,8 @@
         <div class="cluster-card-right">
           <span
             class="k8s-status-badge"
-            [class.status-running]="page.isK8sRunning() && !page.isK8sBusy()"
+            [class.status-running]="page.k8sStatus() === 'running' && !page.isK8sBusy()"
+            [class.status-degraded]="page.k8sStatus() === 'degraded' && !page.isK8sBusy()"
             [class.status-error]="page.k8sStatus() === 'error'"
             [class.status-busy]="page.isK8sBusy()"
             [class.status-inactive]="!page.isK8sRunning() && page.k8sStatus() !== 'error' && !page.isK8sBusy()"
@@ -266,7 +282,9 @@
                 page.isK8sBusy()
                   ? 'sync'
                   : page.isK8sRunning()
-                    ? 'play_arrow'
+                    ? page.k8sStatus() === 'degraded'
+                      ? 'warning'
+                      : 'play_arrow'
                     : page.k8sStatus() === 'error'
                       ? 'error'
                       : 'stop'
@@ -364,6 +382,12 @@
             </div>
           </output>
         }
+      }
+
+      @if (page.k8sStatus() === 'degraded' && page.k8sClusterInfo()?.warning; as warning) {
+        <catbee-container-studio-callout type="warning" title="Cloud provider unavailable">
+          <p>{{ warning }}</p>
+        </catbee-container-studio-callout>
       }
 
       @if (page.k8sClusterErrorMessage(); as err) {
@@ -480,14 +504,17 @@
       [class.is-disabled]="page.isK8sConfigDisabled()"
     >
       <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
-      <div class="checkbox-row" (click)="!page.isK8sConfigDisabled() && page.toggleK8sShowSystemContainers()">
-        <catbee-container-studio-table-checkbox
+      <div
+        class="checkbox-row switch-row"
+        (click)="page.toggleSwitchRow($event, page.k8sShowSystemContainers, page.isK8sConfigDisabled())"
+      >
+        <catbee-container-studio-switch-input
           [checked]="page.k8sShowSystemContainers()"
+          [disabled]="page.isK8sConfigDisabled()"
           inputId="field-show-system-containers"
-          ariaLabel="Show system containers (advanced)"
           (checkedChange)="page.k8sShowSystemContainers.set($event)"
         />
-        <label class="checkbox-row-text" for="field-show-system-containers">
+        <label class="switch-row-text" for="field-show-system-containers">
           <span class="checkbox-label">Show system containers (advanced)</span>
           <span class="field-hint"
             >Display internal Kubernetes infrastructure and kind control-plane containers in the Containers list.</span

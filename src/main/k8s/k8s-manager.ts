@@ -6,14 +6,16 @@ import { setTimeout as delay } from 'node:timers/promises';
 import type Docker from 'dockerode';
 import jsyaml from 'js-yaml';
 import { logger } from '../logger';
-import { getEngineBinDir, homeDir } from '../docker/embedded/engine-paths';
+import { getEngineBinDir, getWslEngineDiskPath, homeDir } from '../docker/embedded/engine-paths';
 import {
   describeDownload,
   downloadFile,
   fetchEngineResource,
   ensureHostDockerCli,
   pathExists,
+  pingDockerEndpoint,
   runCommand,
+  type RunOptions,
   type RunResult
 } from '../docker/embedded/engine-utils';
 import { getEngineSettings, type KubernetesSettingsConfig } from '../docker/embedded/engine-settings';
@@ -35,6 +37,8 @@ import {
 const KIND_CLUSTER_LABEL = 'io.x-k8s.kind.cluster';
 const KIND_ROLE_LABEL = 'io.x-k8s.kind.role';
 const KUBERNETES_NAMESPACE_LABEL = 'io.kubernetes.pod.namespace';
+const EMBEDDED_ENGINE_REQUIRED = 'Start and connect to the CatBee built-in engine to use Kubernetes.';
+const WSL_KIND_BINARY = '/usr/local/bin/kind';
 const CLOUD_PROVIDER_DOCKER_SOCKET = '/var/run/docker.sock';
 const API_START_TIMEOUT_MS = 60_000;
 const KIND_CREATE_TIMEOUT_MS = 15 * 60_000;
@@ -96,7 +100,9 @@ function isCloudProvider(container: Docker.ContainerInfo): boolean {
   return (
     container.Labels?.[KIND_CLUSTER_LABEL] === CATBEE_K8S_CLUSTER_NAME &&
     container.Labels[KUBERNETES_NAMESPACE_LABEL] === 'kube-system' &&
-    Boolean(container.Names?.includes(`/${KIND_CLOUD_PROVIDER_CONTAINER}`))
+    Boolean(
+      container.Names?.some(name => name === `/${KIND_CLOUD_PROVIDER_CONTAINER}` || name === '/kind-cloud-provider')
+    )
   );
 }
 
@@ -108,16 +114,17 @@ export interface K8sOperationProgress {
 }
 
 export interface K8sClusterInfo {
-  status: 'stopped' | 'starting' | 'running' | 'stopping' | 'error';
+  status: 'unavailable' | 'stopped' | 'starting' | 'running' | 'degraded' | 'stopping' | 'error';
   name: string;
   provisioner: 'kind' | 'kubeadm';
   version: string;
   nodeCount: number;
-  isKindInstalled: boolean;
+  isKindInstalled: boolean | null;
   runtimeVersion?: string;
   operation?: K8sOperationProgress | null;
   startedAt?: number;
   error?: string;
+  warning?: string;
   apiEndpoint?: string;
   kubeconfigPath?: string;
 }
@@ -226,7 +233,29 @@ class K8sManager {
 
   private getClusterEngine(): ClusterEngine | null {
     const { currentRuntime: runtime, containers, images, networks } = dockerManager;
-    return runtime ? { runtime, containers, images, networks } : null;
+    return runtime?.source === 'embedded' ? { runtime, containers, images, networks } : null;
+  }
+
+  private assertEngineAvailable(): void {
+    if (this.suspensions || !dockerManager.isEmbeddedEngineReady) throw new Error(EMBEDDED_ENGINE_REQUIRED);
+  }
+
+  async checkEngineAvailable(): Promise<void> {
+    await this.requireReachableEngine(dockerManager.currentRuntime);
+  }
+
+  private async requireReachableEngine(runtime: SelectedDockerRuntime | null): Promise<void> {
+    this.assertEngineAvailable();
+    if (
+      !runtime ||
+      runtime.source !== 'embedded' ||
+      runtime !== dockerManager.currentRuntime ||
+      !(await pingDockerEndpoint(runtime.connection))
+    ) {
+      throw new Error(EMBEDDED_ENGINE_REQUIRED);
+    }
+    this.assertEngineAvailable();
+    if (runtime !== dockerManager.currentRuntime) throw new Error(EMBEDDED_ENGINE_REQUIRED);
   }
 
   private isWslEngine(runtime = dockerManager.currentRuntime): boolean {
@@ -246,10 +275,16 @@ class K8sManager {
   }
 
   async isKindInstalled(runtime = dockerManager.currentRuntime): Promise<boolean> {
+    if (
+      runtime?.source !== 'embedded' ||
+      runtime !== dockerManager.currentRuntime ||
+      !dockerManager.isEmbeddedEngineReady
+    )
+      return false;
     if (this.isWslEngine(runtime)) {
       if (this.suspensions) return false;
       try {
-        await runCommand('wsl.exe', ['-d', CATBEE_WSL_DISTRO, '-u', 'root', 'test', '-x', '/usr/local/bin/kind'], {
+        await this.runInWsl([WSL_KIND_BINARY, 'version'], {
           timeoutMs: 5000
         });
         return true;
@@ -258,6 +293,52 @@ class K8sManager {
       }
     }
     return (await this.getKindBinaryPath()) !== null;
+  }
+
+  private getWslKindStatePath(): string {
+    return path.join(path.dirname(getWslEngineDiskPath()), 'kind-installation');
+  }
+
+  private async rememberWslKindInstallation(installed: boolean): Promise<void> {
+    const statePath = this.getWslKindStatePath();
+    const state = String(installed);
+    try {
+      if ((await readFile(statePath, 'utf8').catch(() => null)) !== state) {
+        await writeFile(statePath, state);
+      }
+    } catch (error) {
+      logger.warn({ err: error }, '[K8sManager] Could not save WSL kind installation status.');
+    }
+  }
+
+  private async getKindInstallationStatus(runtime: SelectedDockerRuntime | undefined): Promise<boolean | null> {
+    if (process.platform !== 'win32') return (await this.getKindBinaryPath()) !== null;
+    if (!(await pathExists(getWslEngineDiskPath()))) return false;
+
+    const canProbe = () =>
+      runtime &&
+      runtime === dockerManager.currentRuntime &&
+      dockerManager.isEmbeddedEngineReady &&
+      !this.suspensions &&
+      !this.kindInstalls.size &&
+      !this.isStopping;
+    if (canProbe()) {
+      // Distinguish a missing or broken executable from an unavailable WSL session.
+      const result = await this.runInWsl(['sh', '-s'], {
+        input: `if "${WSL_KIND_BINARY}" version >/dev/null 2>&1; then printf true; else printf false; fi\n`,
+        timeoutMs: 5_000
+      }).catch(() => null);
+      const state = result?.stdout.trim();
+      if ((state === 'true' || state === 'false') && canProbe()) {
+        await this.rememberWslKindInstallation(state === 'true');
+        return state === 'true';
+      }
+    }
+
+    const savedState = await readFile(this.getWslKindStatePath(), 'utf8').catch(() => null);
+    if (savedState === 'true') return true;
+    if (savedState === 'false') return false;
+    return null;
   }
 
   private async installKindInWsl(): Promise<string> {
@@ -299,23 +380,11 @@ class K8sManager {
     }
 
     try {
-      await runCommand(
-        'wsl.exe',
-        [
-          '-d',
-          CATBEE_WSL_DISTRO,
-          '-u',
-          'root',
-          'sh',
-          '-c',
-          'cp "$1" /usr/local/bin/kind && chmod +x /usr/local/bin/kind',
-          '_',
-          wslSource
-        ],
-        { timeoutMs: 30_000 }
-      );
+      await this.runInWsl(['install', '-D', '-m', '0755', '--', wslSource, WSL_KIND_BINARY], { timeoutMs: 30_000 });
+      await this.runInWsl([WSL_KIND_BINARY, 'version'], { timeoutMs: 5_000 });
+      await this.rememberWslKindInstallation(true);
       logger.info('[K8sManager] Successfully installed kind binary in WSL distro.');
-      return '/usr/local/bin/kind';
+      return WSL_KIND_BINARY;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(`[K8sManager] Failed to copy kind binary into WSL: ${msg}`);
@@ -375,10 +444,12 @@ class K8sManager {
     const existing = this.kindInstalls.get(wsl);
     if (existing) return existing;
 
-    const install = (wsl ? this.installKindInWsl() : this.installKindOnHost()).finally(() => {
-      this.kindInstalls.delete(wsl);
-      if (!this.kindInstalls.size) this.emitProgress(null);
-    });
+    const install = this.requireReachableEngine(runtime)
+      .then(() => (wsl ? this.installKindInWsl() : this.installKindOnHost()))
+      .finally(() => {
+        this.kindInstalls.delete(wsl);
+        if (!this.kindInstalls.size) this.emitProgress(null);
+      });
     this.kindInstalls.set(wsl, install);
     return install;
   }
@@ -392,7 +463,7 @@ class K8sManager {
       if (!isInstalled) {
         return this.installKind(runtime);
       }
-      return '/usr/local/bin/kind';
+      return WSL_KIND_BINARY;
     }
     const existing = await this.getKindBinaryPath();
     if (existing) {
@@ -431,14 +502,8 @@ class K8sManager {
         commandOptions.signal = undefined;
         commandOptions.timeoutMs = KIND_CREATE_TIMEOUT_MS + 15_000;
       }
-      return runCommand(
-        'wsl.exe',
+      return this.runInWsl(
         [
-          '-d',
-          CATBEE_WSL_DISTRO,
-          '-u',
-          'root',
-          '--',
           'env',
           '-u',
           'DOCKER_CONTEXT',
@@ -459,6 +524,10 @@ class K8sManager {
     const env = await this.getDockerEnv(runtime);
     options?.signal?.throwIfAborted();
     return runCommand(kindBin, args, { env, ...options });
+  }
+
+  private runInWsl(args: string[], options: RunOptions): Promise<RunResult> {
+    return runCommand('wsl.exe', ['-d', CATBEE_WSL_DISTRO, '-u', 'root', '--exec', ...args], options);
   }
 
   private async getDockerEnv(runtime: SelectedDockerRuntime): Promise<NodeJS.ProcessEnv> {
@@ -532,10 +601,11 @@ class K8sManager {
   }
 
   async getStatus(): Promise<K8sClusterInfo> {
-    const engine = this.getClusterEngine();
+    const candidate = dockerManager.isEmbeddedEngineReady ? this.getClusterEngine() : null;
+    const engine = candidate && (await pingDockerEndpoint(candidate.runtime.connection)) ? candidate : null;
     const settings = await getEngineSettings();
     const k8sConfig = settings.kubernetes;
-    const isKindInstalled = await this.isKindInstalled(engine?.runtime ?? null);
+    const isKindInstalled = await this.getKindInstallationStatus(engine?.runtime);
     const lastError = this.lastError?.runtime === (engine?.runtime ?? null) ? this.lastError?.message : undefined;
 
     const baseInfo: Omit<K8sClusterInfo, 'status'> = {
@@ -549,8 +619,11 @@ class K8sManager {
       error: lastError
     };
 
+    if (!engine || engine.runtime !== dockerManager.currentRuntime || !dockerManager.isEmbeddedEngineReady) {
+      return { ...baseInfo, status: 'unavailable', operation: null, error: undefined };
+    }
     if (this.kindInstalls.size) {
-      return { ...baseInfo, status: 'starting', isKindInstalled: false };
+      return { ...baseInfo, status: 'starting' };
     }
     if (this.isStarting) {
       return { ...baseInfo, status: 'starting' };
@@ -563,10 +636,6 @@ class K8sManager {
     }
 
     try {
-      if (!engine) {
-        return { ...baseInfo, status: lastError ? 'error' : 'stopped' };
-      }
-
       const containers = await engine.containers.listContainers({ all: true });
       const clusterContainers = containers.filter(isClusterNode);
 
@@ -609,9 +678,18 @@ class K8sManager {
         return { ...clusterInfo, status: 'error', error: 'The CatBee Kubernetes API is not reachable or ready.' };
       }
 
+      if (engine.runtime !== dockerManager.currentRuntime || !dockerManager.isEmbeddedEngineReady) {
+        return { ...baseInfo, status: 'unavailable', operation: null, error: undefined };
+      }
+      const cloudProviderRunning = containers.some(
+        container => isCloudProvider(container) && container.State === 'running'
+      );
       return {
         ...clusterInfo,
-        status: 'running',
+        status: cloudProviderRunning ? 'running' : 'degraded',
+        warning: cloudProviderRunning
+          ? undefined
+          : 'The Kubernetes API is ready, but the cloud provider is unavailable. LoadBalancer services may not work.',
         startedAt: controlPlane.Created ? controlPlane.Created * 1000 : undefined,
         apiEndpoint: target.server.origin,
         kubeconfigPath: this.getKubeconfigPath()
@@ -916,7 +994,7 @@ class K8sManager {
   }
 
   async onAppQuit(): Promise<void> {
-    if (!dockerManager.currentRuntime) return;
+    if (dockerManager.currentRuntime?.source !== 'embedded') return;
     logger.info('[K8sManager] Gracefully stopping Kubernetes companion and cluster containers on app quit...');
     const service = dockerManager.containers;
     try {
@@ -1062,17 +1140,16 @@ class K8sManager {
   ): Promise<K8sStartResult> {
     if (this.suspensions || this.isStarting || this.isStopping || (!fromReset && this.isResetting))
       return { success: false };
+    this.assertEngineAvailable();
+    if (!engine) throw new Error(EMBEDDED_ENGINE_REQUIRED);
     this.isStarting = true;
     const finish = fromReset ? undefined : this.trackOperation();
     this.lastError = null;
 
     try {
+      await this.requireReachableEngine(engine.runtime);
       const settings = await getEngineSettings();
       const k8s = config ?? settings.kubernetes;
-
-      if (!engine) {
-        throw new Error('A Docker engine must be connected to start Kubernetes.');
-      }
       if (!(await this.prepareClusterNodes(engine, k8s, fromReset)) || this.suspensions) {
         return { success: false, cancelled: true };
       }
@@ -1094,6 +1171,7 @@ class K8sManager {
       return { success: true };
     } catch (error) {
       if (this.apiReadinessController?.signal.aborted) return { success: false, cancelled: true };
+      if (error instanceof Error && error.message === EMBEDDED_ENGINE_REQUIRED) throw error;
       await this.recordClusterStartFailure(error, engine);
       throw error;
     } finally {
@@ -1255,7 +1333,7 @@ class K8sManager {
         }
         const { kubernetes } = await getEngineSettings();
         if (this.operationsResumed || this.pendingOperation) continue;
-        if (!dockerManager.currentRuntime) return;
+        if (!dockerManager.isEmbeddedEngineReady || !this.getClusterEngine()) return;
         if (kubernetes.enabled) await this.startCluster(kubernetes);
         else await this.stopCluster();
         return;
@@ -1269,6 +1347,7 @@ class K8sManager {
     if (this.suspensions) throw new Error('Wait for the engine operation to finish before stopping Kubernetes.');
     if (this.isStopping) return;
     if (this.isStarting || this.isResetting) throw new Error('Wait for the active Kubernetes operation to finish.');
+    this.assertEngineAvailable();
     this.isStopping = true;
     const finish = this.trackOperation();
     const engine = this.getClusterEngine();
@@ -1313,6 +1392,7 @@ class K8sManager {
 
     try {
       logger.info(`[K8sManager] Resetting cluster "${CATBEE_K8S_CLUSTER_NAME}"...`);
+      await this.requireReachableEngine(engine?.runtime ?? null);
       await this.removeCluster(engine);
 
       const settings = await getEngineSettings();
@@ -1344,12 +1424,12 @@ class K8sManager {
       progress: 20
     });
     try {
+      await this.requireReachableEngine(engine?.runtime ?? null);
       await this.removeCluster(engine);
 
       if (this.isWslEngine(engine?.runtime ?? null)) {
-        await runCommand('wsl.exe', ['-d', CATBEE_WSL_DISTRO, '-u', 'root', 'rm', '-f', '/usr/local/bin/kind'], {
-          timeoutMs: 15_000
-        });
+        await this.runInWsl(['rm', '-f', '--', WSL_KIND_BINARY], { timeoutMs: 15_000 });
+        await this.rememberWslKindInstallation(false);
         const arch = process.arch === 'arm64' ? 'arm64' : 'amd64';
         const cachedLinuxBin = path.join(getEngineBinDir(), `kind-linux-${arch}`);
         await rm(cachedLinuxBin, { force: true });

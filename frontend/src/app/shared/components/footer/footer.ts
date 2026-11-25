@@ -136,7 +136,13 @@ export class FooterComponent implements OnInit {
   readonly isK8sEnabled = computed(() => this.settings.kubernetes().enabled);
 
   readonly k8sStatus = computed(() => {
-    if (!this.dockerConnected()) return 'stopped';
+    if (
+      !this.dockerConnected() ||
+      this.connectedRuntimeSource() !== 'embedded' ||
+      this.k8sClusterInfo()?.status === 'unavailable'
+    ) {
+      return 'unavailable';
+    }
     const op = this.k8sOperation();
     if (op) {
       if (op.operation === 'stop' || op.operation === 'uninstall') return 'stopping';
@@ -146,12 +152,14 @@ export class FooterComponent implements OnInit {
   });
 
   readonly k8sStatusLabel = computed(() => {
+    if (this.k8sStatus() === 'unavailable') return 'Kubernetes unavailable';
     const op = this.k8sOperation();
     if (op) {
       return formatK8sOperationLabel(op);
     }
     const statusLabels: Record<string, string> = {
       running: 'Kubernetes running',
+      degraded: 'Kubernetes degraded',
       starting: 'Kubernetes starting...',
       stopping: 'Kubernetes stopping...',
       error: 'Kubernetes error',
@@ -161,6 +169,7 @@ export class FooterComponent implements OnInit {
   });
 
   readonly k8sTooltip = computed(() => {
+    if (this.k8sStatus() === 'unavailable') return 'Start and connect to the CatBee built-in engine to use Kubernetes.';
     const op = this.k8sOperation();
     if (op) {
       return `${op.stage}${op.detail ? ' — ' + op.detail : ''} - Click to open settings`;
@@ -171,6 +180,8 @@ export class FooterComponent implements OnInit {
     switch (status) {
       case 'running':
         return `Kubernetes cluster is running (${version}, ${nodes} ${nodes === 1 ? 'node' : 'nodes'}) - Click to open settings`;
+      case 'degraded':
+        return this.k8sClusterInfo()?.warning ?? 'The Kubernetes cloud provider is unavailable.';
       case 'starting':
         return 'Kubernetes cluster is starting... - Click to open settings';
       case 'stopping':

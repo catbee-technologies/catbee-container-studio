@@ -378,7 +378,7 @@
 
     .radio-row {
       padding: 0.85rem 1rem;
-      border-radius: 10px;
+      border-radius: var(--radius-md);
       background: var(--bg-surface, rgba(255, 255, 255, 0.02));
       border: 1px solid var(--border-color-light, rgba(255, 255, 255, 0.08));
       transition:
@@ -405,7 +405,7 @@
   ::ng-deep .radio-label {
     width: 100%;
     padding: 0.85rem 1rem;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: var(--bg-surface, rgba(255, 255, 255, 0.02));
     border: 1px solid var(--border-color-light, rgba(255, 255, 255, 0.08));
     align-items: flex-start;

@@ -219,16 +219,17 @@ export interface K8sStartResult {
 }
 
 export interface K8sClusterInfo {
-  status: 'stopped' | 'starting' | 'running' | 'stopping' | 'error';
+  status: 'unavailable' | 'stopped' | 'starting' | 'running' | 'degraded' | 'stopping' | 'error';
   name: string;
   provisioner: 'kind' | 'kubeadm';
   version: string;
   nodeCount: number;
-  isKindInstalled: boolean;
+  isKindInstalled: boolean | null;
   runtimeVersion?: string;
   operation?: K8sOperationProgress | null;
   startedAt?: number;
   error?: string;
+  warning?: string;
   apiEndpoint?: string;
   kubeconfigPath?: string;
 }

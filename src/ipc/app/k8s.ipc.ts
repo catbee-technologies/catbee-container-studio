@@ -32,6 +32,7 @@ export function registerK8sHandlers(): void {
     IPC_CHANNELS.App.K8s.ResetCluster,
     async (_event, config?: KubernetesSettingsConfig): Promise<IpcResult<K8sStartResult>> => {
       try {
+        if (config) await k8sManager.checkEngineAvailable();
         const saved = config ? await saveEngineSettings({ kubernetes: config }) : undefined;
         const result = await k8sManager.resetCluster();
         return ok({ ...result, settings: saved?.kubernetes });
@@ -58,6 +59,7 @@ export function registerK8sHandlers(): void {
     IPC_CHANNELS.App.K8s.StartCluster,
     async (_event, config?: KubernetesSettingsConfig): Promise<IpcResult<K8sStartResult>> => {
       try {
+        if (config) await k8sManager.checkEngineAvailable();
         const saved = config ? await saveEngineSettings({ kubernetes: config }) : undefined;
         return ok({ ...(await k8sManager.startCluster(saved?.kubernetes)), settings: saved?.kubernetes });
       } catch (error) {
