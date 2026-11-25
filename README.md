@@ -151,6 +151,33 @@ This makes it easier to inspect application data, configuration files, logs, and
 
 - Curated **Dark Theme** and **Light Theme** with instant switching.
 
+### Built-in Engine & Kubernetes
+
+- **macOS**: Lima VM using Apple Virtualization.framework; requires macOS 13 or later and hardware virtualization.
+- **Windows**: An isolated Alpine Linux WSL 2 distribution; WSL 2 must be installed and ready before engine installation.
+- **Linux**: Native rootless Docker; requires a regular user, `newuidmap`, `newgidmap`, subordinate UID/GID ranges, user namespaces, and `iptables`. Kubernetes also requires cgroup v2 and the host prerequisites documented by [kind](https://kind.sigs.k8s.io/docs/user/rootless/).
+- **External engines**: Docker contexts can be used without installing the built-in engine. Explicit context switches fail if the selected context is unreachable or unsupported. Startup detection can try the platform-default Docker endpoint if the current context is unavailable.
+- **Kubernetes**: kind clusters can use either the built-in engine or a connected external Docker engine. Starting or recreating a cluster saves only Kubernetes settings; unrelated settings drafts remain unapplied.
+
+#### Cleanup & Uninstallation
+
+Use **Settings → Troubleshoot → Factory Reset & Teardown** before removing the application, including Microsoft Store uninstallation. Ordinary OS uninstallation does not necessarily remove the built-in VM/WSL distribution or files outside the application package.
+
+Teardown removes the CatBee-managed cluster on the active engine, the built-in engine and its data, and CatBee CLI configuration. Other engines and unrelated Kubernetes clusters are preserved. Engine files are not deleted if shutdown or VM/distribution removal fails; errors are reported so remaining data can be recovered.
+
+The application also accepts `--factory-reset` and `--uninstall` for headless engine teardown. Close all CatBee instances first; these commands exit nonzero on failure and do not remove the desktop application package. Headless teardown does not discover clusters on external engines; remove those through the connected application's Kubernetes settings first.
+
+For development reset testing:
+
+```bash
+npm run build
+npm run reset:env -- --dry-run
+# Destructive: removes the built-in engine, its data, and application settings.
+npm run reset:env
+```
+
+The reset tool uses the same teardown flow rather than killing unrelated Electron applications. `--force` skips the countdown, not the shutdown safety checks.
+
 ---
 
 ## Tech Stack
@@ -243,7 +270,7 @@ Before running CatBee Container Studio locally, ensure you have:
 
 - **Node.js** (v22 or newer recommended)
 - **npm** (v10 or newer)
-- **Docker Engine** / **Docker Desktop** installed, running, and accessible on your host machine
+- **Docker Engine** / **Docker Desktop** installed and accessible when using an external engine; alternatively, install CatBee's built-in engine from Settings
 - **Docker CLI with the Compose plugin** (`docker compose`) and accessible project files for Compose-based recreation
 
 Verify your Docker daemon is accessible:
