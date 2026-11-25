@@ -18,12 +18,15 @@
     "dist:mac": "npm run package && electron-builder --mac --config electron-builder.config.mjs",
     "dist:linux": "npm run package && electron-builder --linux --config electron-builder.config.mjs",
     "start": "npm run build && electron ./dist/main/main.js",
+    "test": "tsc -p tsconfig.test.json && vitest run",
+    "test:watch": "tsc -p tsconfig.test.json && vitest",
+    "test:coverage": "tsc -p tsconfig.test.json && vitest run --coverage",
     "app:serve": "npm-run-all -p angular:serve build:watch electron:serve:wait",
     "angular:serve": "cd frontend && ng serve --port 4281",
     "electron:serve": "electron ./dist/main/main.js --serve",
     "electron:serve:wait": "wait-on http://localhost:4281 && electron ./dist/main/main.js --serve",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix",
+    "lint": "eslint src tests",
+    "lint:fix": "eslint src tests --fix",
     "lint:ui": "cd frontend && npm run lint",
     "lint:ui:fix": "cd frontend && npm run lint:fix",
     "lint:all": "npm-run-all lint lint:ui",
@@ -48,6 +51,7 @@
     "@electron-toolkit/eslint-config-ts": "^4.0.0",
     "@types/dockerode": "^4.0.2",
     "@types/js-yaml": "^4.0.9",
+    "@vitest/coverage-v8": "^4.1.12",
     "7zip-bin": "^5.2.0",
     "electron": "^45.3.4",
     "electron-builder": "^27.0.0-alpha.14",
@@ -60,6 +64,7 @@
     "semver": "^7.8.6",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
+    "vitest": "^4.1.12",
     "wait-on": "^9.5.1"
   }
 }

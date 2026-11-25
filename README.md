@@ -335,6 +335,11 @@ npm run app:serve
 
 ## Code Quality & Linting
 
+- **Run Electron backend unit tests**
+  ```bash
+  npm test
+  ```
+
 - **Lint Electron main process**:
   ```bash
   npm run lint

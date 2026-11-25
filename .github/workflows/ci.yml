@@ -66,6 +66,9 @@ jobs:
       - name: Run Electron linting
         run: npm run lint
 
+      - name: Run Electron unit tests
+        run: npm test
+
       - name: Build Electron application
         run: npm run build
 
