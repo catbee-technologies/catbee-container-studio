@@ -148,3 +148,15 @@
     [dockerInitStatus]="dockerInitStatus()"
   />
 </div>
+
+@if (quitConfirmationRequest() !== null) {
+  <catbee-container-studio-confirm-dialog
+    [open]="true"
+    [trapFocus]="true"
+    title="Quit CatBee Container Studio?"
+    message="Running containers and background services may be stopped."
+    confirmLabel="Quit"
+    (cancelAction)="respondToQuitConfirmation(false)"
+    (confirm)="respondToQuitConfirmation(true)"
+  />
+}

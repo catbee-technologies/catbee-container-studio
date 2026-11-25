@@ -12,6 +12,7 @@ import {
   RouterOutlet
 } from '@angular/router';
 import { WindowHeaderComponent } from '@components/window-header/window-header';
+import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
 import { DockerApiService } from '@core/docker-api.service';
 import { LocalStorageService, SessionStorageService } from '@ng-catbee/storage';
 import { CatbeeLoaderComponent, CatbeeLoaderService } from '@ng-catbee/loader';
@@ -33,6 +34,7 @@ import { SettingsService } from '@features/settings/services/settings.service';
     RouterLink,
     RouterLinkActive,
     WindowHeaderComponent,
+    ConfirmDialogComponent,
     EmptyStateComponent,
     FooterComponent,
     CatbeeTooltip,
@@ -95,6 +97,7 @@ export class App implements OnInit {
     return this.dockerInitStatus().state === 'installing-engine';
   });
   readonly isInstalling = signal(false);
+  readonly quitConfirmationRequest = signal<string | null>(null);
 
   readonly currentUrl = signal(this.router.url);
   readonly isSettingsRoute = computed(() => this.currentUrl().startsWith('/settings'));
@@ -130,6 +133,9 @@ export class App implements OnInit {
 
   ngOnInit(): void {
     void this.settingsService.syncFromBackend();
+    const unsubscribeQuitConfirmation = this.electronApi.onQuitConfirmation(requestId => {
+      this.quitConfirmationRequest.set(requestId);
+    });
     this.unsubscribeDockerStatus = this.electronApi.onDockerInitializationStatus(status => {
       this.dockerInitStatus.set(status);
       this.sessionStorage.setJson(UI_STORAGE_KEYS.DOCKER_INIT_STATUS, status);
@@ -149,6 +155,7 @@ export class App implements OnInit {
     this.destroyRef.onDestroy(() => {
       this.unsubscribeDockerStatus?.();
       unsubscribeNavigate();
+      unsubscribeQuitConfirmation();
     });
 
     timer(0, 5000)
@@ -193,6 +200,13 @@ export class App implements OnInit {
         clearTimeout(this.navigationLoaderTimeout);
       }
     });
+  }
+
+  respondToQuitConfirmation(confirmed: boolean): void {
+    const requestId = this.quitConfirmationRequest();
+    if (requestId === null) return;
+    this.quitConfirmationRequest.set(null);
+    this.electronApi.respondToQuitConfirmation(requestId, confirmed);
   }
 
   onNavClick(event: MouseEvent): void {

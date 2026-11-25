@@ -32,6 +32,10 @@ const IPC_CHANNELS = {
       Close: 'app:window:close'
     },
     Quit: 'app:quit',
+    QuitConfirmation: {
+      Request: 'app:quit-confirmation:request',
+      Response: 'app:quit-confirmation:response'
+    },
     Quitting: 'app:quitting',
     Navigate: 'app:navigate',
     Menu: {
@@ -217,6 +221,17 @@ const electronBridge = {
       close: () => ipcRenderer.invoke(IPC_CHANNELS.App.Window.Close)
     },
     quit: () => ipcRenderer.invoke(IPC_CHANNELS.App.Quit),
+    onQuitConfirmation: (callback: (requestId: string | null) => void) => {
+      const { Request, Response } = IPC_CHANNELS.App.QuitConfirmation;
+      const listener = (_event: Electron.IpcRendererEvent, requestId: string | null): void => {
+        callback(requestId);
+        if (requestId !== null) ipcRenderer.send(Response, requestId, 'shown');
+      };
+      ipcRenderer.on(Request, listener);
+      return () => ipcRenderer.removeListener(Request, listener);
+    },
+    respondToQuitConfirmation: (requestId: string, confirmed: boolean) =>
+      ipcRenderer.send(IPC_CHANNELS.App.QuitConfirmation.Response, requestId, confirmed),
     onNavigate: (callback: (payload: { path: string; queryParams?: Record<string, string> }) => void) => {
       const listener = (
         _event: Electron.IpcRendererEvent,

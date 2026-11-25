@@ -1,10 +1,11 @@
-import { app, BrowserWindow, dialog, protocol } from 'electron';
+import { app, BrowserWindow, protocol } from 'electron';
 import { registerIpcHandlers } from '../ipc';
 import { registerAppProtocol } from './app/protocol';
 import { createMainWindow } from './window';
 import { buildApplicationMenu } from './app/menu';
 import { logger } from './logger';
 import { isDev, isMacOS } from './app/constants';
+import { requestQuitConfirmation } from './app/quit-confirmation';
 import { initializeAutoUpdater, skipAutoInstallOnQuit } from './app/updater';
 import { IPC_CHANNELS } from '../ipc/channels';
 import { dockerManager } from './docker/services/docker.manager';
@@ -119,34 +120,6 @@ if (!gotTheLock) {
     };
   }
 
-  async function requestQuitConfirmation(parentWindow?: BrowserWindow | null): Promise<boolean> {
-    const target = parentWindow && !parentWindow.isDestroyed() ? parentWindow : mainWindow;
-    if (target && !target.isDestroyed()) {
-      if (target.isMinimized()) {
-        target.restore();
-      }
-      target.show();
-      target.focus();
-    }
-
-    const options: Electron.MessageBoxOptions = {
-      type: 'question',
-      buttons: ['Quit', 'Cancel'],
-      defaultId: 0,
-      cancelId: 1,
-      title: 'Quit CatBee Container Studio',
-      message: 'Are you sure you want to quit CatBee Container Studio?',
-      detail: 'Any running containers and background services may be stopped.'
-    };
-
-    const { response } =
-      target && !target.isDestroyed()
-        ? await dialog.showMessageBox(target, options)
-        : await dialog.showMessageBox(options);
-
-    return response === 0;
-  }
-
   // Stop the built-in engine before exiting on every quit path (menu, Cmd+Q, window close, IPC).
   app.on('before-quit', event => {
     if (shutdownState === 'done') {
@@ -172,6 +145,8 @@ if (!gotTheLock) {
           } else {
             logger.info('[App] Quit cancelled by user.');
           }
+        } catch (err) {
+          logger.warn({ err }, '[App] Could not request quit confirmation.');
         } finally {
           isConfirmingQuit = false;
         }

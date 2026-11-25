@@ -349,6 +349,8 @@ export interface ElectronBridge {
       close: () => IpcPromise<{ closed: boolean }>;
     };
     quit?: () => IpcPromise<{ quit: boolean }>;
+    onQuitConfirmation?: (callback: (requestId: string | null) => void) => () => void;
+    respondToQuitConfirmation?: (requestId: string, confirmed: boolean) => void;
     onNavigate?: (callback: (payload: { path: string; queryParams?: Record<string, string> }) => void) => () => void;
     onQuitting?: (callback: () => void) => () => void;
     menu: {

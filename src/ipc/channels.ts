@@ -24,6 +24,10 @@ export const IPC_CHANNELS = {
       Close: 'app:window:close'
     },
     Quit: 'app:quit',
+    QuitConfirmation: {
+      Request: 'app:quit-confirmation:request',
+      Response: 'app:quit-confirmation:response'
+    },
     Quitting: 'app:quitting',
     Navigate: 'app:navigate',
     Menu: {

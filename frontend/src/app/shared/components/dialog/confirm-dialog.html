@@ -1,16 +1,18 @@
 <ng-template #dialogTemplate>
   <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events -->
-  <article
+  <div
     class="catbee-base-panel catbee-dialog"
     role="dialog"
     aria-modal="true"
+    [cdkTrapFocus]="trapFocus()"
+    [cdkTrapFocusAutoCapture]="trapFocus()"
     [attr.aria-labelledby]="titleId"
     (click)="$event.stopPropagation()"
     [style]="style()"
   >
-    <header class="catbee-dialog-header">
+    <div class="catbee-dialog-header">
       <h2 class="catbee-dialog-title" [id]="titleId">{{ title() }}</h2>
-    </header>
+    </div>
 
     <div class="catbee-dialog-body">
       <div class="catbee-confirm-dialog-message">
@@ -39,5 +41,5 @@
         {{ confirmLabel() }}
       </button>
     </div>
-  </article>
+  </div>
 </ng-template>

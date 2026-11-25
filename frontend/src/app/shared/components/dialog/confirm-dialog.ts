@@ -1,13 +1,16 @@
 import { Component, TemplateRef, effect, input, output, signal, viewChild } from '@angular/core';
+import { CdkTrapFocus } from '@angular/cdk/a11y';
 import { DialogOverlayBase } from './dialog.base';
 
 @Component({
   selector: 'catbee-container-studio-confirm-dialog',
+  imports: [CdkTrapFocus],
   templateUrl: './confirm-dialog.html',
   styleUrl: './confirm-dialog.scss'
 })
 export class ConfirmDialogComponent extends DialogOverlayBase {
   readonly open = input(false);
+  readonly trapFocus = input(false);
   readonly title = input('Confirm');
   readonly message = input('');
   readonly note = input<string | null>(null);

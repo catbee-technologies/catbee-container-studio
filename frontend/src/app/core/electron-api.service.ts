@@ -58,6 +58,14 @@ export class ElectronApiService extends ElectronBaseService {
     this.unwrapResult(response);
   }
 
+  onQuitConfirmation(callback: (requestId: string | null) => void): () => void {
+    return this.bridge.app?.onQuitConfirmation?.(callback) ?? (() => undefined);
+  }
+
+  respondToQuitConfirmation(requestId: string, confirmed: boolean): void {
+    this.bridge.app?.respondToQuitConfirmation?.(requestId, confirmed);
+  }
+
   onNavigate(callback: (payload: { path: string; queryParams?: Record<string, string> }) => void): () => void {
     return this.bridge.app?.onNavigate?.(callback) ?? (() => undefined);
   }
