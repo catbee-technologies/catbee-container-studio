@@ -506,7 +506,7 @@ export class WslEngineDriver implements PlatformEngineDriver {
       logger.info(`[WslEngineDriver] ${enabled ? 'Enabled' : 'Disabled'} Docker integration for ${distroName}.`);
       return true;
     } catch (err) {
-      logger.warn({ err }, `[WslEngineDriver] Could not update integration for ${distroName}.`);
+      logger.error({ err }, `[WslEngineDriver] Could not update integration for ${distroName}.`);
       return false;
     }
   }
@@ -523,13 +523,15 @@ export class WslEngineDriver implements PlatformEngineDriver {
       logger.error({ err }, '[WslEngineDriver] Failed to spawn dockerd.');
     });
     child.on('exit', code => {
-      logger.info(`[WslEngineDriver] dockerd session exited (code ${code}).`);
       if (this.daemonProcess === child) {
         this.daemonProcess = null;
         if (code !== 0) {
           this.daemonExitReason = `dockerd exited unexpectedly (code ${code}).`;
+          logger.error({ exitCode: code }, '[WslEngineDriver] dockerd exited unexpectedly.');
+          return;
         }
       }
+      logger.debug({ exitCode: code }, '[WslEngineDriver] dockerd session exited.');
     });
     this.daemonProcess = child;
   }
@@ -755,7 +757,7 @@ fi
 echo "${certsHash}" > ${cachePath}
 `;
       await this.sh(installScript, { input: certsPayload });
-      logger.info(
+      logger.debug(
         `[WslEngineDriver] Synchronized ${trustedCaPems.length} trusted host CA certificates into CatBee WSL.`
       );
       return true;
@@ -851,7 +853,7 @@ echo "UPDATED"
       });
       const isUpdated = copyRes.stdout.trim() === 'UPDATED';
       if (isUpdated) {
-        logger.info(
+        logger.debug(
           `[WslEngineDriver] Reconciled ${certFiles.length} host Docker certificate files via copy into WSL.`
         );
       }

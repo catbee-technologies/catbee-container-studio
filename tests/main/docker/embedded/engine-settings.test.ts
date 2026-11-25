@@ -13,7 +13,7 @@ import {
 
 const { getEngineSettingsFilePath } = vi.hoisted(() => ({ getEngineSettingsFilePath: vi.fn<() => string>() }));
 vi.mock('../../../../src/main/docker/embedded/engine-paths', () => ({ getEngineSettingsFilePath }));
-vi.mock('../../../../src/main/logger', () => ({ logger: { info: vi.fn(), error: vi.fn() } }));
+vi.mock('../../../../src/main/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 
 describe('engine settings', () => {
   let directory: string;

@@ -43,4 +43,4 @@ export const logger = pino(
   transport
 );
 
-logger.info({ logDir: LOG_DIR_PATH }, 'Logger initialized');
+logger.debug({ logDir: LOG_DIR_PATH }, 'Logger initialized');

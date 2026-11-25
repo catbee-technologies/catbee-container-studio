@@ -79,7 +79,7 @@ export function registerWindowHandlers(): void {
 
   ipcMain.removeHandler(IPC_CHANNELS.App.Quit);
   ipcMain.handle(IPC_CHANNELS.App.Quit, (): IpcResult<{ quit: boolean }> => {
-    logger.info('[App] Quit requested from UI.');
+    logger.debug('[App] Quit requested from UI.');
     // Engine and stream shutdown happen in the app-wide before-quit hook so Cmd+Q / tray quit behave the same.
     app.quit();
     return ok({ quit: true });

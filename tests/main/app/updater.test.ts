@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { app, type BrowserWindow } from 'electron';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { autoUpdater, type BaseUpdater } from 'electron-updater';
+import { logger } from '../../../src/main/logger';
 
 vi.mock('node:child_process', () => ({ spawn: vi.fn() }));
 vi.mock('electron', async () => {
@@ -16,7 +17,9 @@ vi.mock('electron', async () => {
   };
 });
 vi.mock('../../../src/main/app/constants', () => ({ isDev: false, isMacOS: false }));
-vi.mock('../../../src/main/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
+vi.mock('../../../src/main/logger', () => ({
+  logger: { debug: vi.fn(), error: vi.fn(), info: vi.fn(), warn: vi.fn() }
+}));
 vi.mock('electron-updater', async () => {
   const { EventEmitter } = await import('node:events');
   return {
@@ -43,6 +46,19 @@ describe('Electron updater', () => {
   });
 
   afterEach(() => vi.unstubAllGlobals());
+
+  it('routes Electron updater logs through the backend log levels', () => {
+    const updaterLogger = autoUpdater.logger;
+    updaterLogger?.info('installer progress');
+    updaterLogger?.debug?.('installer detail');
+    updaterLogger?.warn('installer warning');
+    updaterLogger?.error('installer error');
+
+    expect(logger.debug).toHaveBeenCalledWith('[ElectronUpdater] %s', 'installer progress');
+    expect(logger.debug).toHaveBeenCalledWith('[ElectronUpdater] %s', 'installer detail');
+    expect(logger.warn).toHaveBeenCalledWith('[ElectronUpdater] %s', 'installer warning');
+    expect(logger.error).toHaveBeenCalledWith('[ElectronUpdater] %s', 'installer error');
+  });
 
   it('waits for background shutdown and ignores duplicate install requests', async () => {
     autoUpdater.emit('update-downloaded', downloadedUpdate);
@@ -81,6 +97,10 @@ describe('Electron updater', () => {
       throw new Error('engine still running');
     });
     expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+    expect(logger.error).toHaveBeenCalledWith(
+      { err: expect.any(Error) },
+      '[AutoUpdater] Background shutdown did not finish before update installation.'
+    );
     expect(send).toHaveBeenLastCalledWith(expect.any(String), {
       status: 'downloaded',
       version: downloadedUpdate.version,

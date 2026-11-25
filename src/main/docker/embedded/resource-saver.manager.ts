@@ -13,7 +13,7 @@ export class ResourceSaverManager {
       return;
     }
 
-    logger.info('[ResourceSaver] Starting Resource Saver background monitor.');
+    logger.debug('[ResourceSaver] Starting Resource Saver background monitor.');
     this.timer = setInterval(async () => {
       if (this.isChecking) return;
       this.isChecking = true;
@@ -44,7 +44,7 @@ export class ResourceSaverManager {
           }
         } else {
           if (this.inSaverMode) {
-            logger.info('[ResourceSaver] Active containers detected. Exiting Resource Saver mode.');
+            logger.debug('[ResourceSaver] Active containers detected. Exiting Resource Saver mode.');
             this.inSaverMode = false;
           }
           this.idleSeconds = 0;

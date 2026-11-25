@@ -136,6 +136,7 @@ export class EngineManager {
         const manifest = await this.driver.install(report);
         // Some backends (Lima) boot during install; reflect the real state.
         this.currentState = (await this.driver.getStatus()) === 'running' ? 'running' : 'stopped';
+        logger.info({ state: this.currentState }, '[EngineManager] Built-in engine installed.');
         return manifest;
       } catch (error) {
         this.fail(error, 'Installation failed.');
@@ -198,6 +199,7 @@ export class EngineManager {
         this.lastConnection = null;
         this.lastError = null;
         this.currentState = 'not-installed';
+        logger.info('[EngineManager] Built-in engine uninstalled.');
       } catch (error) {
         this.fail(error, 'Uninstall failed.');
         throw error;
@@ -288,7 +290,7 @@ export class EngineManager {
   }
 
   private async startUnlocked(onStatus?: (status: string) => void): Promise<DockerConnection> {
-    logger.info('[EngineManager] Starting built-in engine.');
+    logger.debug('[EngineManager] Starting built-in engine.');
     this.currentState = 'starting';
     this.lastError = null;
     try {
@@ -305,7 +307,7 @@ export class EngineManager {
       this.lastConnection = connection;
       await this.syncTcpExposure(settings, connection);
       this.currentState = 'running';
-      logger.info({ endpoint: connectionToUri(connection) }, '[EngineManager] Built-in engine is running.');
+      logger.debug({ endpoint: connectionToUri(connection) }, '[EngineManager] Built-in engine is running.');
       return connection;
     } catch (error) {
       this.fail(error, 'Failed to start engine.');
@@ -317,13 +319,14 @@ export class EngineManager {
     if (this.currentState === 'not-installed') {
       return;
     }
-    logger.info('[EngineManager] Stopping built-in engine.');
+    logger.debug('[EngineManager] Stopping built-in engine.');
     this.currentState = 'stopping';
     try {
       await this.tcpRelay.stop();
       await this.driver.stop();
       this.lastConnection = null;
       this.currentState = 'stopped';
+      logger.info('[EngineManager] Built-in engine stopped.');
     } catch (error) {
       this.fail(error, 'Failed to stop engine cleanly.');
       throw error;

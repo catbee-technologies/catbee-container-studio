@@ -274,7 +274,8 @@ export function saveEngineSettings(settings: Partial<EngineSettings>, apply?: Ap
       const updated = mergeEngineSettings(current, settings);
 
       await persistSettings(current, updated, apply);
-      logger.info({ settings: updated }, '[EngineSettings] Successfully saved engine settings.');
+      logger.info('[EngineSettings] Engine settings saved.');
+      logger.debug({ settings: updated }, '[EngineSettings] Saved engine settings details.');
       return updated;
     } catch (error) {
       logger.error({ err: error }, '[EngineSettings] Failed to save engine settings.');
@@ -298,7 +299,8 @@ export function resetEngineSettings(apply?: ApplySettings): Promise<EngineSettin
       const preservedMode = current.engineMode === 'embedded' ? 'embedded' : DEFAULT_ENGINE_SETTINGS.engineMode;
       const reset = mergeEngineSettings(DEFAULT_ENGINE_SETTINGS, { engineMode: preservedMode });
       await persistSettings(current, reset, apply);
-      logger.info({ settings: reset }, '[EngineSettings] Successfully reset engine settings to defaults.');
+      logger.info('[EngineSettings] Engine settings reset to defaults.');
+      logger.debug({ settings: reset }, '[EngineSettings] Reset engine settings details.');
       return reset;
     } catch (error) {
       logger.error({ err: error }, '[EngineSettings] Failed to reset engine settings.');

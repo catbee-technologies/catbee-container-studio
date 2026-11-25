@@ -212,27 +212,33 @@ async function checkMicrosoftStoreVersion(): Promise<string | null> {
 export function initializeAutoUpdater(window: BrowserWindow): void {
   mainWindow = window;
 
+  autoUpdater.logger = {
+    debug: message => logger.debug('[ElectronUpdater] %s', message),
+    info: message => logger.debug('[ElectronUpdater] %s', message),
+    warn: message => logger.warn('[ElectronUpdater] %s', message),
+    error: message => logger.error('[ElectronUpdater] %s', message)
+  };
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallEvent = 'onQuit';
   autoUpdater.allowPrerelease = app.getVersion().includes('-');
 
   autoUpdater.on('checking-for-update', () => {
-    logger.info('[AutoUpdater] Checking for update...');
+    logger.debug('[AutoUpdater] Checking for update...');
     sendStatus({ status: 'checking' });
   });
 
   autoUpdater.on('update-available', info => {
-    logger.info(`[AutoUpdater] Update available: ${info.version}`);
+    logger.debug(`[AutoUpdater] Update available: ${info.version}`);
     sendStatus({ status: 'available', version: info.version });
   });
 
   autoUpdater.on('update-not-available', info => {
-    logger.info(`[AutoUpdater] No update available: ${info.version}`);
+    logger.debug(`[AutoUpdater] No update available: ${info.version}`);
     sendStatus({ status: 'not-available', version: info.version });
   });
 
   autoUpdater.on('download-progress', progress => {
-    logger.info(`[AutoUpdater] Download progress: ${progress.percent.toFixed(1)}%`);
+    logger.debug(`[AutoUpdater] Download progress: ${progress.percent.toFixed(1)}%`);
 
     sendStatus({
       status: 'downloading',
@@ -278,16 +284,16 @@ export async function checkForUpdates(): Promise<void> {
   }
 
   if (isMicrosoftStoreInstallation()) {
-    logger.info('[AutoUpdater] Checking Microsoft Store Display Catalog for updates...');
+    logger.debug('[AutoUpdater] Checking Microsoft Store Display Catalog for updates...');
     sendStatus({ status: 'checking' });
     try {
       const storeVersion = await checkMicrosoftStoreVersion();
       const currentVersion = app.getVersion();
       if (storeVersion && compareVersions(storeVersion, currentVersion) > 0) {
-        logger.info(`[AutoUpdater] Microsoft Store update available: ${storeVersion}`);
+        logger.debug(`[AutoUpdater] Microsoft Store update available: ${storeVersion}`);
         sendStatus({ status: 'available', version: storeVersion });
       } else {
-        logger.info(`[AutoUpdater] Microsoft Store app is up to date (${currentVersion})`);
+        logger.debug(`[AutoUpdater] Microsoft Store app is up to date (${currentVersion})`);
         sendStatus({ status: 'not-available', version: currentVersion });
       }
     } catch (error) {
@@ -347,7 +353,7 @@ export async function restartAndInstallUpdate(prepare: PrepareForUpdateInstall):
     restoreShutdownState = await prepare();
   } catch (err) {
     installPhase = null;
-    logger.warn({ err }, '[AutoUpdater] Background shutdown did not finish before update installation.');
+    logger.error({ err }, '[AutoUpdater] Background shutdown did not finish before update installation.');
     sendInstallStatus({ phase: 'failed', message: 'CatBee could not finish shutting down.' });
     return;
   }

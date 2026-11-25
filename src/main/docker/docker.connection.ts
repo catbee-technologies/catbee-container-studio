@@ -40,16 +40,14 @@ export async function resolveExternalDockerConnection(): Promise<ResolvedDockerC
       const connection = parseDockerHost(dockerHost);
       const available = await isConnectionAvailable(connection);
       if (available) {
-        logger.info(`[DockerConnection] Docker connection resolved using DOCKER_HOST: ${dockerHost}`);
+        logger.debug(`[DockerConnection] Docker connection resolved using DOCKER_HOST: ${dockerHost}`);
         return {
           ...connection,
           source: 'docker-host'
         };
       }
     } catch (error) {
-      logger.debug(
-        `[DockerConnection] Failed to resolve DOCKER_HOST: ${error instanceof Error ? error.message : String(error)}`
-      );
+      logger.warn({ err: error }, '[DockerConnection] Could not use DOCKER_HOST. Trying other Docker endpoints.');
     }
   }
 
@@ -58,7 +56,7 @@ export async function resolveExternalDockerConnection(): Promise<ResolvedDockerC
   if (contextConnection) {
     const available = await isConnectionAvailable(contextConnection);
     if (available) {
-      logger.info('[DockerConnection] Docker connection resolved using Docker context.');
+      logger.debug('[DockerConnection] Docker connection resolved using Docker context.');
       return {
         ...contextConnection,
         source: 'docker-context'
@@ -70,7 +68,7 @@ export async function resolveExternalDockerConnection(): Promise<ResolvedDockerC
   const defaultConnection = getPlatformDefaultConnection();
   const defaultAvailable = await isConnectionAvailable(defaultConnection);
   if (defaultAvailable) {
-    logger.info('[DockerConnection] Docker connection resolved using platform default socket/pipe.');
+    logger.debug('[DockerConnection] Docker connection resolved using platform default socket/pipe.');
     return {
       ...defaultConnection,
       source: 'platform-default'
@@ -80,7 +78,7 @@ export async function resolveExternalDockerConnection(): Promise<ResolvedDockerC
   // 4. Another CLI context
   const reachableContext = await resolveReachableDockerContext();
   if (reachableContext) {
-    logger.info(`[DockerConnection] Docker connection resolved using context "${reachableContext.contextName}".`);
+    logger.debug(`[DockerConnection] Docker connection resolved using context "${reachableContext.contextName}".`);
     return {
       ...reachableContext.connection,
       source: 'docker-context'
@@ -119,7 +117,6 @@ export function parseDockerHost(value: string): DockerConnection {
     return { type: 'tcp', host, port };
   }
 
-  logger.error(`[DockerConnection] Unsupported Docker host format: ${value}`);
   throw new Error(`Unsupported DOCKER_HOST: ${value}`);
 }
 

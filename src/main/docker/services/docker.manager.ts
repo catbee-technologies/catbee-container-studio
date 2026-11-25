@@ -137,6 +137,10 @@ export class DockerManager {
       this.client = createDockerClient(runtime.connection);
       this.initializeServices(runtime.connection);
       await this.syncCliContext(runtime);
+      logger.info(
+        { source: runtime.source, runtime: runtime.runtimeName },
+        '[DockerManager] Connected to Docker Engine.'
+      );
 
       this.emitStatus({
         state: 'ready',
@@ -144,12 +148,12 @@ export class DockerManager {
         hint: 'Docker Engine is running and accessible.'
       });
     } catch (error) {
-      logger.warn({ err: error }, '[DockerManager] Docker initialization did not complete.');
       // If the runtime manager already emitted engine-not-installed or error, preserve that
       if (
         !this.latestStatus ||
         (this.latestStatus.state !== 'engine-not-installed' && this.latestStatus.state !== 'error')
       ) {
+        logger.error({ err: error }, '[DockerManager] Failed to initialize Docker Engine.');
         this.emitStatus({
           state: 'error',
           message: 'Failed to connect to Docker Engine.',
@@ -165,7 +169,7 @@ export class DockerManager {
   }
 
   private async installEmbeddedEngineUnlocked(onProgress?: (progress: number, stage: string) => void): Promise<void> {
-    logger.info('[DockerManager] Installing embedded container engine.');
+    logger.debug('[DockerManager] Installing embedded container engine.');
     this.emitStatus({
       state: 'installing-engine',
       progress: 0,
@@ -186,7 +190,7 @@ export class DockerManager {
         onProgress?.(progress, stage);
       });
 
-      logger.info('[DockerManager] Connecting to the installed embedded engine...');
+      logger.debug('[DockerManager] Connecting to the installed embedded engine...');
       await this.initializeRuntime(this.statusListener, undefined, 'embedded', true);
     } catch (error) {
       logger.error({ err: error }, '[DockerManager] Failed to install embedded engine.');
@@ -204,9 +208,9 @@ export class DockerManager {
   }
 
   private async startEmbeddedEngineUnlocked(): Promise<void> {
-    logger.info('[DockerManager] Explicitly starting embedded engine.');
+    logger.debug('[DockerManager] Explicitly starting embedded engine.');
     if (!(await engineManager.isInstalled())) {
-      logger.info('[DockerManager] Embedded engine is not installed. Installing automatically.');
+      logger.debug('[DockerManager] Embedded engine is not installed. Installing automatically.');
       await this.installEmbeddedEngineUnlocked();
       return;
     }
@@ -222,7 +226,7 @@ export class DockerManager {
   }
 
   private async stopEmbeddedEngineUnlocked(): Promise<void> {
-    logger.info('[DockerManager] Stopping embedded engine.');
+    logger.debug('[DockerManager] Stopping embedded engine.');
     const wasActive = this.isUsingEmbeddedEngine;
     if (!wasActive) {
       // CatBee is on another engine; stopping the idle built-in one must not touch the app-wide status.
@@ -264,7 +268,7 @@ export class DockerManager {
     const effectiveMode = mode ?? (await getEngineSettings()).engineMode;
     logger.info(`[DockerManager] Restarting engine with mode: ${effectiveMode}`);
     if (effectiveMode === 'embedded' && !(await engineManager.isInstalled())) {
-      logger.info(
+      logger.debug(
         '[DockerManager] Restart requested with embedded mode, but engine is not installed. Installing automatically.'
       );
       await this.installEmbeddedEngineUnlocked();
@@ -334,7 +338,7 @@ export class DockerManager {
   }
 
   private async uninstallEmbeddedEngineUnlocked(onProgress?: (progress: number, stage: string) => void): Promise<void> {
-    logger.info('[DockerManager] Uninstalling built-in engine.');
+    logger.debug('[DockerManager] Uninstalling built-in engine.');
     const wasActive = this.isUsingEmbeddedEngine;
     if (wasActive) {
       resourceSaverManager.stop();
@@ -398,7 +402,7 @@ export class DockerManager {
       containersPruned = containersRes.ContainersDeleted?.length ?? 0;
       spaceReclaimed += containersRes.SpaceReclaimed ?? 0;
     } catch (err) {
-      logger.warn({ err }, '[DockerManager] Failed to prune containers during purgeData.');
+      logger.error({ err }, '[DockerManager] Failed to prune containers during purgeData.');
       errors.push(err);
     }
     try {
@@ -406,7 +410,7 @@ export class DockerManager {
       imagesPruned = imagesRes.ImagesDeleted?.length ?? 0;
       spaceReclaimed += imagesRes.SpaceReclaimed ?? 0;
     } catch (err) {
-      logger.warn({ err }, '[DockerManager] Failed to prune images during purgeData.');
+      logger.error({ err }, '[DockerManager] Failed to prune images during purgeData.');
       errors.push(err);
     }
     try {
@@ -414,14 +418,14 @@ export class DockerManager {
       volumesPruned = volumesRes.VolumesDeleted?.length ?? 0;
       spaceReclaimed += volumesRes.SpaceReclaimed ?? 0;
     } catch (err) {
-      logger.warn({ err }, '[DockerManager] Failed to prune volumes during purgeData.');
+      logger.error({ err }, '[DockerManager] Failed to prune volumes during purgeData.');
       errors.push(err);
     }
     try {
       const systemRes = await client.pruneBuilder();
       spaceReclaimed += systemRes.SpaceReclaimed ?? 0;
     } catch (err) {
-      logger.debug({ err }, '[DockerManager] Failed to prune build cache during purgeData.');
+      logger.error({ err }, '[DockerManager] Failed to prune build cache during purgeData.');
       errors.push(err);
     }
     if (errors.length) {
@@ -520,7 +524,7 @@ export class DockerManager {
   }
 
   private async pauseEngineUnlocked(): Promise<{ pausedCount: number; isPaused: boolean }> {
-    logger.info('[DockerManager] Pausing Docker Engine / containers.');
+    logger.debug('[DockerManager] Pausing Docker Engine / containers.');
     if (!this.selectedRuntime) throw new Error('A Docker engine must be connected before pausing containers.');
     if (this.isEnginePaused) return this.getEnginePauseStatus();
     this.pausedContainerIds = [];
@@ -538,8 +542,9 @@ export class DockerManager {
       else errors.push(result.reason);
     }
     if (errors.length) {
-      logger.warn({ errors }, '[DockerManager] Some containers could not be paused.');
-      throw new AggregateError(errors, `Could not pause ${errors.length} container(s).`);
+      const error = new AggregateError(errors, `Could not pause ${errors.length} container(s).`);
+      logger.error({ err: error }, '[DockerManager] Some containers could not be paused.');
+      throw error;
     }
     void resourceSaverManager.reclaimMemory();
     return this.getEnginePauseStatus();
@@ -550,7 +555,7 @@ export class DockerManager {
   }
 
   private async resumeEngineUnlocked(): Promise<{ resumedCount: number; isPaused: boolean }> {
-    logger.info('[DockerManager] Resuming Docker Engine / containers.');
+    logger.debug('[DockerManager] Resuming Docker Engine / containers.');
     if (!this.selectedRuntime) throw new Error('A Docker engine must be connected before resuming containers.');
     const owned = new Set(this.pausedContainerIds);
     const containers = await this.client.listContainers({ all: true });
@@ -559,8 +564,12 @@ export class DockerManager {
     this.pausedContainerIds = targetIds.filter((_id, index) => results[index].status === 'rejected');
     const errors = results.filter(result => result.status === 'rejected').map(result => result.reason);
     if (errors.length) {
-      logger.warn({ errors }, '[DockerManager] Some containers could not be resumed.');
-      throw new AggregateError(errors, `Could not resume ${errors.length} container(s). Retry Resume to try again.`);
+      const error = new AggregateError(
+        errors,
+        `Could not resume ${errors.length} container(s). Retry Resume to try again.`
+      );
+      logger.error({ err: error }, '[DockerManager] Some containers could not be resumed.');
+      throw error;
     }
     return { resumedCount: results.length, isPaused: false };
   }
@@ -577,7 +586,7 @@ export class DockerManager {
 
     if (isCatBee) {
       if (!(await engineManager.isInstalled())) {
-        logger.info('[DockerManager] Built-in engine not installed; installing before switching context...');
+        logger.debug('[DockerManager] Built-in engine not installed; installing before switching context...');
         await engineManager.install();
       }
       targetConnection = await engineManager.start();

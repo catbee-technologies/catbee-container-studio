@@ -26,7 +26,7 @@ import { getDockerCliVersion } from '../../main/docker/runtime/docker.runtime';
 export function registerEngineHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.App.Engine.Install);
   ipcMain.handle(IPC_CHANNELS.App.Engine.Install, async (): Promise<IpcResult<{ success: boolean }>> => {
-    logger.info('[IPC] Received request to install embedded engine.');
+    logger.debug('[IPC] Received request to install embedded engine.');
     try {
       await dockerManager.installEmbeddedEngine();
       return ok({ success: true });
@@ -37,7 +37,7 @@ export function registerEngineHandlers(): void {
 
   ipcMain.removeHandler(IPC_CHANNELS.App.Engine.Start);
   ipcMain.handle(IPC_CHANNELS.App.Engine.Start, async (): Promise<IpcResult<{ success: boolean }>> => {
-    logger.info('[IPC] Received request to start embedded engine.');
+    logger.debug('[IPC] Received request to start embedded engine.');
     try {
       await dockerManager.startEmbeddedEngine();
       return ok({ success: true });
@@ -48,7 +48,7 @@ export function registerEngineHandlers(): void {
 
   ipcMain.removeHandler(IPC_CHANNELS.App.Engine.Stop);
   ipcMain.handle(IPC_CHANNELS.App.Engine.Stop, async (): Promise<IpcResult<{ success: boolean }>> => {
-    logger.info('[IPC] Received request to stop embedded engine.');
+    logger.debug('[IPC] Received request to stop embedded engine.');
     try {
       await dockerManager.stopEmbeddedEngine();
       return ok({ success: true });
@@ -61,7 +61,7 @@ export function registerEngineHandlers(): void {
   ipcMain.handle(
     IPC_CHANNELS.App.Engine.Restart,
     async (_event, mode?: 'auto' | 'embedded' | 'external'): Promise<IpcResult<{ success: boolean }>> => {
-      logger.info(`[IPC] Received request to restart engine with mode: ${mode ?? 'configured'}`);
+      logger.debug(`[IPC] Received request to restart engine with mode: ${mode ?? 'configured'}`);
       try {
         if (mode) {
           await saveEngineSettings({ engineMode: mode });
@@ -266,7 +266,7 @@ export function registerEngineHandlers(): void {
 
   ipcMain.removeHandler(IPC_CHANNELS.App.Engine.Uninstall);
   ipcMain.handle(IPC_CHANNELS.App.Engine.Uninstall, async (): Promise<IpcResult<{ success: boolean }>> => {
-    logger.info('[IPC] Received request to uninstall the built-in engine.');
+    logger.debug('[IPC] Received request to uninstall the built-in engine.');
     try {
       stopAllStreamSessions();
       await dockerManager.uninstallEmbeddedEngine();
@@ -321,7 +321,7 @@ export function registerEngineHandlers(): void {
         spaceReclaimed: number;
       }>
     > => {
-      logger.info('[IPC] Received request to purge Docker data.');
+      logger.debug('[IPC] Received request to purge Docker data.');
       try {
         const result = await dockerManager.purgeData();
         return ok(result);
@@ -333,7 +333,7 @@ export function registerEngineHandlers(): void {
 
   ipcMain.removeHandler(IPC_CHANNELS.App.Engine.FactoryResetTeardown);
   ipcMain.handle(IPC_CHANNELS.App.Engine.FactoryResetTeardown, async event => {
-    logger.info('[IPC] Received request for complete Factory Reset & Teardown.');
+    logger.debug('[IPC] Received request for complete Factory Reset & Teardown.');
     const webContents = event.sender;
     try {
       stopAllStreamSessions();

@@ -9,7 +9,7 @@ import { getEngineBinDir, homeDir } from '../embedded/engine-paths';
 const execFileAsync = promisify(execFile);
 
 export async function startDockerRuntime(runtimeInfo: DockerRuntimeInfo): Promise<void> {
-  logger.info(`[DockerRuntime] Starting runtime: ${runtimeInfo.runtime}`);
+  logger.debug(`[DockerRuntime] Starting runtime: ${runtimeInfo.runtime}`);
 
   switch (runtimeInfo.runtime) {
     case 'docker-desktop':
@@ -30,7 +30,7 @@ async function startDockerDesktop(dockerPath: string): Promise<void> {
     windowsHide: true
   });
 
-  logger.info('[DockerRuntime] Docker Desktop start command completed.');
+  logger.debug('[DockerRuntime] Docker Desktop start command completed.');
 }
 
 async function startRancherDesktop(rdctlPath: string): Promise<void> {
@@ -50,7 +50,7 @@ async function startRancherDesktop(rdctlPath: string): Promise<void> {
       logger.debug(`[DockerRuntime] Rancher Desktop start process exited. code=${code}, signal=${signal ?? 'none'}`);
     });
 
-    logger.info('[DockerRuntime] Rancher Desktop start command launched.');
+    logger.debug('[DockerRuntime] Rancher Desktop start command launched.');
     return;
   }
 
@@ -59,7 +59,7 @@ async function startRancherDesktop(rdctlPath: string): Promise<void> {
     windowsHide: true
   });
 
-  logger.info('[DockerRuntime] Rancher Desktop start command completed.');
+  logger.debug('[DockerRuntime] Rancher Desktop start command completed.');
 }
 
 async function findWindowsDockerCli(): Promise<string | null> {

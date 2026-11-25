@@ -56,7 +56,7 @@ export class EndpointRelay {
       });
 
       const onListening = (): void => {
-        logger.info(`[EndpointRelay:${this.name}] Relaying ${key}`);
+        logger.debug(`[EndpointRelay:${this.name}] Relaying ${key}`);
         server.on('error', err => logger.warn({ err }, `[EndpointRelay:${this.name}] Server error.`));
         this.server = server;
         this.key = key;

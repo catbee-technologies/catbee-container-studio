@@ -10,6 +10,7 @@ import { initializeAutoUpdater, skipAutoInstallOnQuit } from './app/updater';
 import { IPC_CHANNELS } from '../ipc/channels';
 import { dockerManager } from './docker/services/docker.manager';
 import { engineManager } from './docker/embedded/engine.manager';
+import type { DockerInitializationStatus } from './docker/types/runtime.types';
 import { stopAllStreamSessions } from '../ipc/docker/streams.ipc';
 
 app.commandLine.appendSwitch('force-color-profile', 'srgb');
@@ -79,7 +80,7 @@ if (!gotTheLock) {
   function stopBackgroundServices(): Promise<void> {
     if (backgroundShutdown) return backgroundShutdown;
 
-    logger.info('Shutting down background services before quit');
+    logger.info('Shutting down background services');
     try {
       stopAllStreamSessions();
     } catch (err) {
@@ -140,13 +141,13 @@ if (!gotTheLock) {
           const confirmed = await requestQuitConfirmation(mainWindow);
           if (confirmed) {
             quitConfirmed = true;
-            logger.info('[App] Quit confirmed by user.');
+            logger.debug('[App] Quit confirmed by user.');
             app.quit();
           } else {
-            logger.info('[App] Quit cancelled by user.');
+            logger.debug('[App] Quit cancelled by user.');
           }
         } catch (err) {
-          logger.warn({ err }, '[App] Could not request quit confirmation.');
+          logger.error({ err }, '[App] Could not request quit confirmation.');
         } finally {
           isConfirmingQuit = false;
         }
@@ -162,7 +163,7 @@ if (!gotTheLock) {
 
     void waitForBackgroundShutdown()
       .catch(err => {
-        logger.warn({ err }, 'Error stopping built-in engine on quit');
+        logger.error({ err }, 'Background shutdown did not finish before quit');
         skipAutoInstallOnQuit();
       })
       .finally(() => {
@@ -172,7 +173,7 @@ if (!gotTheLock) {
   });
 
   app.on('second-instance', () => {
-    logger.info('Second application instance detected');
+    logger.debug('Second application instance detected');
     showOrCreateMainWindow();
     mainWindow?.moveTop();
   });
@@ -192,12 +193,12 @@ if (!gotTheLock) {
   app
     .whenReady()
     .then(async () => {
-      logger.info('Application is ready');
+      logger.debug('Application is ready');
 
       if (isHeadlessTeardown) {
         logger.info('Detected --uninstall or --factory-reset command line flag; executing headless teardown...');
         await dockerManager.factoryResetTeardown((progress, stage) => {
-          logger.info(`[Teardown] ${progress}% - ${stage}`);
+          logger.debug(`[Teardown] ${progress}% - ${stage}`);
         });
         logger.info('Headless teardown finished cleanly; exiting.');
         quitConfirmed = true;
@@ -242,9 +243,11 @@ if (!gotTheLock) {
         }
       })();
 
+      let engineInitializationState: DockerInitializationStatus['state'] | undefined;
       void dockerManager
         .initialize(
           status => {
+            engineInitializationState = status.state;
             if (!mainWindow || mainWindow.isDestroyed()) {
               return;
             }
@@ -259,7 +262,9 @@ if (!gotTheLock) {
           }
         )
         .catch(error => {
-          logger.error({ err: error }, '[DockerConnection] Failed to initialize Docker service.');
+          if (engineInitializationState !== 'engine-not-installed' && engineInitializationState !== 'error') {
+            logger.error({ err: error }, '[DockerConnection] Failed to initialize Docker service.');
+          }
         });
 
       app.on('activate', () => {
@@ -272,7 +277,7 @@ if (!gotTheLock) {
       app.on('window-all-closed', () => {
         logger.debug('All application windows closed');
         if (!isMacOS) {
-          logger.info('Quitting application');
+          logger.debug('Quitting application');
           app.quit();
         }
       });

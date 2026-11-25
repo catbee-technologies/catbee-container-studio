@@ -29,7 +29,7 @@ export class DockerRuntimeManager {
   ): Promise<SelectedDockerRuntime> {
     const settings = await getEngineSettings();
     const mode = forceMode ?? settings.engineMode ?? 'auto';
-    logger.info(`[DockerRuntime] Resolving Docker runtime using mode: ${mode}`);
+    logger.debug(`[DockerRuntime] Resolving Docker runtime using mode: ${mode}`);
 
     if (mode === 'embedded') {
       return await this.ensureEmbeddedRuntime(onStatus);
@@ -54,7 +54,7 @@ export class DockerRuntimeManager {
       try {
         const client = createDockerClient(activeExternal);
         await client.ping();
-        logger.info('[DockerRuntime] Active external Docker engine is ready.');
+        logger.debug('[DockerRuntime] Active external Docker engine is ready.');
         return {
           source: 'external',
           runtimeName: activeExternal.source,
@@ -68,7 +68,7 @@ export class DockerRuntimeManager {
     // 2. If no external engine is actively responding, check if CatBee's built-in engine is installed
     const isEmbeddedInstalled = await engineManager.isInstalled();
     if (isEmbeddedInstalled) {
-      logger.info('[DockerRuntime] No active external Docker engine; starting installed embedded engine.');
+      logger.debug('[DockerRuntime] No active external Docker engine; starting installed embedded engine.');
       return await this.ensureEmbeddedRuntime(onStatus);
     }
 
@@ -81,7 +81,7 @@ export class DockerRuntimeManager {
 
     const externalInfo = await this.detectExternalRuntime();
     if (externalInfo) {
-      logger.info(`[DockerRuntime] Starting detected external runtime: ${externalInfo.runtime}`);
+      logger.debug(`[DockerRuntime] Starting detected external runtime: ${externalInfo.runtime}`);
       const runtimeName = externalInfo.runtime === 'rancher-desktop' ? 'Rancher Desktop' : 'Docker Desktop';
       onStatus?.({
         state: 'starting-runtime',
@@ -109,7 +109,7 @@ export class DockerRuntimeManager {
     }
 
     // 4. Fallback to CatBee's Embedded Engine prompt/prerequisites
-    logger.info('[DockerRuntime] No external Docker engine available. Checking embedded engine.');
+    logger.debug('[DockerRuntime] No external Docker engine available. Checking embedded engine.');
     return await this.ensureEmbeddedRuntime(onStatus);
   }
 
@@ -128,7 +128,7 @@ export class DockerRuntimeManager {
       try {
         const client = createDockerClient(activeExternal);
         await client.ping();
-        logger.info('[DockerRuntime] Active external Docker engine is ready.');
+        logger.debug('[DockerRuntime] Active external Docker engine is ready.');
         return {
           source: 'external',
           runtimeName: activeExternal.source,
@@ -175,7 +175,7 @@ export class DockerRuntimeManager {
     const isInstalled = await engineManager.isInstalled();
 
     if (!isInstalled) {
-      logger.info('[DockerRuntime] Embedded engine is not installed.');
+      logger.info('[DockerRuntime] Built-in engine is not installed.');
       const prereq = await engineManager.checkPrerequisites();
 
       onStatus?.({
@@ -191,7 +191,7 @@ export class DockerRuntimeManager {
     }
 
     // User recommendation #3: If installed but stopped, automatically start it
-    logger.info('[DockerRuntime] Embedded engine is installed. Starting background engine.');
+    logger.debug('[DockerRuntime] Embedded engine is installed. Starting background engine.');
     onStatus?.({
       state: 'starting-runtime',
       runtime: 'catbee-embedded',
@@ -211,7 +211,7 @@ export class DockerRuntimeManager {
       const client = createDockerClient(connection);
       await client.ping();
 
-      logger.info('[DockerRuntime] CatBee embedded engine is ready.');
+      logger.debug('[DockerRuntime] CatBee embedded engine is ready.');
       return {
         source: 'embedded',
         runtimeName: 'CatBee Built-in Engine',

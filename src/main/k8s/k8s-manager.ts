@@ -349,7 +349,7 @@ class K8sManager {
     const downloadUrl = `https://github.com/kubernetes-sigs/kind/releases/download/${KIND_RELEASE_VERSION}/kind-linux-${arch}`;
 
     if (!(await pathExists(cachedLinuxBin))) {
-      logger.info(`[K8sManager] Downloading kind Linux binary from ${downloadUrl} to ${cachedLinuxBin}`);
+      logger.debug(`[K8sManager] Downloading kind Linux binary from ${downloadUrl} to ${cachedLinuxBin}`);
       this.emitProgress({
         operation: 'install',
         stage: 'Downloading kind runtime CLI...',
@@ -383,7 +383,7 @@ class K8sManager {
       await this.runInWsl(['install', '-D', '-m', '0755', '--', wslSource, WSL_KIND_BINARY], { timeoutMs: 30_000 });
       await this.runInWsl([WSL_KIND_BINARY, 'version'], { timeoutMs: 5_000 });
       await this.rememberWslKindInstallation(true);
-      logger.info('[K8sManager] Successfully installed kind binary in WSL distro.');
+      logger.info('[K8sManager] Kubernetes runtime installed in WSL.');
       return WSL_KIND_BINARY;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -407,7 +407,7 @@ class K8sManager {
     const arch = process.platform !== 'win32' && process.arch === 'arm64' ? 'arm64' : 'amd64';
     const downloadUrl = `https://github.com/kubernetes-sigs/kind/releases/download/${KIND_RELEASE_VERSION}/kind-${platform}-${arch}`;
 
-    logger.info(`[K8sManager] Downloading kind binary from ${downloadUrl} to ${target}`);
+    logger.debug(`[K8sManager] Downloading kind binary from ${downloadUrl} to ${target}`);
     this.emitProgress({
       operation: 'install',
       stage: 'Downloading kind runtime CLI...',
@@ -428,7 +428,7 @@ class K8sManager {
       if (process.platform !== 'win32') {
         await chmod(target, 0o755);
       }
-      logger.info(`[K8sManager] Successfully installed kind binary to ${target}`);
+      logger.info('[K8sManager] Kubernetes runtime installed.');
       return target;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -798,7 +798,7 @@ class K8sManager {
   }
 
   private parseKindOutput(line: string): void {
-    logger.info(`[K8sManager:kind] ${line}`);
+    logger.debug(`[K8sManager:kind] ${line}`);
     // Strip ANSI escape sequences (cursor movement, colors, and formatting).
     const ansiRegex = /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
     const cleanAnsi = line.replace(ansiRegex, '');
@@ -927,7 +927,7 @@ class K8sManager {
       doc['current-context'] = CATBEE_K8S_CLUSTER_NAME;
       const target = this.getApiTarget(doc);
       await writeFile(kubeconfigPath, jsyaml.dump(doc, { lineWidth: -1 }), 'utf8');
-      logger.info(`[K8sManager] Successfully synced kubeconfig with context "${CATBEE_K8S_CLUSTER_NAME}".`);
+      logger.debug(`[K8sManager] Successfully synced kubeconfig with context "${CATBEE_K8S_CLUSTER_NAME}".`);
       return target;
     } catch (err) {
       throw new Error('Could not update the CatBee context in kubeconfig.', { cause: err });
@@ -961,9 +961,9 @@ class K8sManager {
       if (currentContextRemoved) doc['current-context'] = contexts?.[0]?.name ?? '';
 
       await writeFile(kubeconfigPath, jsyaml.dump(doc, { lineWidth: -1 }), 'utf8');
-      logger.info(`[K8sManager] Removed "${CATBEE_K8S_CLUSTER_NAME}" contexts from kubeconfig.`);
+      logger.debug(`[K8sManager] Removed "${CATBEE_K8S_CLUSTER_NAME}" contexts from kubeconfig.`);
     } catch (err) {
-      logger.warn({ err }, '[K8sManager] Failed to clean kubeconfig contexts.');
+      logger.error({ err }, '[K8sManager] Failed to clean kubeconfig contexts.');
       throw err;
     }
   }
@@ -995,7 +995,7 @@ class K8sManager {
 
   async onAppQuit(): Promise<void> {
     if (dockerManager.currentRuntime?.source !== 'embedded') return;
-    logger.info('[K8sManager] Gracefully stopping Kubernetes companion and cluster containers on app quit...');
+    logger.debug('[K8sManager] Gracefully stopping Kubernetes companion and cluster containers on app quit...');
     const service = dockerManager.containers;
     try {
       const containers = await service.listContainers({ all: true });
@@ -1033,7 +1033,7 @@ class K8sManager {
       const existing = containers.find(isCloudProvider);
       if (existing && (await this.reuseCloudProvider(service, existing, rootlessSocket))) return;
 
-      logger.info(`[K8sManager] Ensuring cloud-provider-kind container (${KIND_CLOUD_PROVIDER_IMAGE})...`);
+      logger.debug(`[K8sManager] Ensuring cloud-provider-kind container (${KIND_CLOUD_PROVIDER_IMAGE})...`);
       await this.ensureCloudProviderImage(engine.images);
       const targetNetwork = await this.resolveCloudProviderNetwork(engine.networks, containers);
 
@@ -1059,7 +1059,7 @@ class K8sManager {
         await service.removeContainer(container.Id, true).catch(() => {});
         throw startErr;
       }
-      logger.info(`[K8sManager] Successfully started ${KIND_CLOUD_PROVIDER_CONTAINER}.`);
+      logger.debug(`[K8sManager] Successfully started ${KIND_CLOUD_PROVIDER_CONTAINER}.`);
     } catch (err) {
       logger.warn({ err }, '[K8sManager] Optional cloud-provider-kind could not be started.');
     }
@@ -1100,7 +1100,7 @@ class K8sManager {
       const available = await images.listImages();
       if (available.some(image => image.RepoTags?.some(tag => tag.replace(/^docker\.io\//, '') === expectedTag)))
         return;
-      logger.info(`[K8sManager] Pulling cloud-provider-kind image: ${KIND_CLOUD_PROVIDER_IMAGE}...`);
+      logger.debug(`[K8sManager] Pulling cloud-provider-kind image: ${KIND_CLOUD_PROVIDER_IMAGE}...`);
       await images.pullImage(KIND_CLOUD_PROVIDER_IMAGE);
     } catch (err) {
       logger.warn(
@@ -1124,7 +1124,7 @@ class K8sManager {
       );
       targetNetwork = Object.keys(controlPlane?.NetworkSettings?.Networks ?? {})[0] || targetNetwork;
       if (!networks.some(network => network.Name === targetNetwork)) {
-        logger.info(`[K8sManager] Creating missing Docker network "${targetNetwork}" for kind...`);
+        logger.debug(`[K8sManager] Creating missing Docker network "${targetNetwork}" for kind...`);
         await service.createNetwork({ Name: targetNetwork, Driver: 'bridge' });
       }
     } catch (err) {
@@ -1438,10 +1438,11 @@ class K8sManager {
       const kindBin = await this.getKindBinaryPath();
       if (kindBin && (await pathExists(kindBin))) {
         await rm(kindBin, { force: true });
-        logger.info(`[K8sManager] Removed kind binary: ${kindBin}`);
+        logger.debug(`[K8sManager] Removed kind binary: ${kindBin}`);
       }
 
       this.lastError = null;
+      logger.info('[K8sManager] Kubernetes runtime uninstalled.');
       return { success: true };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
@@ -1467,11 +1468,11 @@ class K8sManager {
       try {
         writeFileSync(creation.cancelFile, '');
       } catch (err) {
-        logger.warn({ err }, '[K8sManager] Could not signal cancellation to the WSL process.');
+        logger.error({ err }, '[K8sManager] Could not signal cancellation to the WSL process.');
         return { success: false };
       }
     }
-    logger.info('[K8sManager] User requested cancellation of active Kubernetes cluster operation.');
+    logger.debug('[K8sManager] User requested cancellation of active Kubernetes cluster operation.');
     this.emitProgress({
       operation: 'stop',
       stage: 'Cancelling operation and cleaning up cluster...',

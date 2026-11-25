@@ -695,7 +695,7 @@ echo "UPDATED"
       const copyRes = await this.guestShell(['sh', '-c', copyScript, '_', payloadHash], env, payload);
       const isUpdated = copyRes.stdout.trim() === 'UPDATED';
       if (isUpdated) {
-        logger.info(
+        logger.debug(
           `[LimaEngineDriver] Reconciled ${certFiles.length} host Docker certificate files via copy fallback.`
         );
       }
@@ -796,7 +796,7 @@ fi
           : 'Cleaning up stale host CA certificates in CatBee VM...'
       );
       await this.guestShell(['sh', '-c', hostCaInstallScript(certsHash)], env, certsPayload);
-      logger.info(
+      logger.debug(
         `[LimaEngineDriver] Synchronized ${trustedCaPems.length} trusted host CA certificates into CatBee VM.`
       );
       return true;

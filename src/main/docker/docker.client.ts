@@ -3,7 +3,7 @@ import type { DockerConnection } from './types/connection.types';
 import { logger } from '../logger';
 
 export function createDockerClient(connection: DockerConnection): Docker {
-  logger.info({ connection }, '[DockerClient] Creating Docker client instance.');
+  logger.debug({ connection }, '[DockerClient] Creating Docker client instance.');
 
   switch (connection.type) {
     case 'unix':

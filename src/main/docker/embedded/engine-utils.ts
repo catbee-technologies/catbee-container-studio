@@ -700,7 +700,7 @@ export async function ensureShellPath(): Promise<void> {
           const addition = `\n${comment}\n${exportLine}\n`;
           await appendFile(filePath, addition, 'utf8');
           modifiedAny = true;
-          logger.info(`[EngineUtils] Added CatBee bin dir to ${filePath}`);
+          logger.debug(`[EngineUtils] Added CatBee bin dir to ${filePath}`);
         } else {
           modifiedAny = true;
         }
@@ -715,7 +715,7 @@ export async function ensureShellPath(): Promise<void> {
     const profilePath = path.join(home, defaultProfile);
     try {
       await writeFile(profilePath, `${comment}\n${exportLine}\n`, 'utf8');
-      logger.info(`[EngineUtils] Created ${profilePath} with CatBee PATH`);
+      logger.debug(`[EngineUtils] Created ${profilePath} with CatBee PATH`);
     } catch {
       // ignore
     }
@@ -768,7 +768,7 @@ export async function removeShellPath(): Promise<void> {
             .filter(line => !line.includes('# Added by CatBee Container Studio') && !line.includes('.catbee/bin'))
             .join('\n');
           await writeFile(filePath, cleaned, 'utf8');
-          logger.info(`[EngineUtils] Removed CatBee bin dir from ${filePath}`);
+          logger.debug(`[EngineUtils] Removed CatBee bin dir from ${filePath}`);
         }
       }
     } catch (err) {
@@ -825,7 +825,7 @@ async function installHostDockerCli(onProgress?: (progress: number, stage: strin
     if (currentVersion === DOCKER_CLI_RELEASE_VERSION) {
       return target;
     }
-    logger.info(
+    logger.debug(
       `[EngineUtils] Current CatBee Docker CLI is ${currentVersion ?? 'unknown'} (target: ${DOCKER_CLI_RELEASE_VERSION}). Updating...`
     );
   }
@@ -866,6 +866,6 @@ async function installHostDockerCli(onProgress?: (progress: number, stage: strin
     await rm(temporaryBinary, { force: true });
   }
   onProgress?.(100, 'Docker CLI ready.');
-  logger.info(`[EngineUtils] Successfully prepared host Docker CLI at: ${target}`);
+  logger.debug(`[EngineUtils] Successfully prepared host Docker CLI at: ${target}`);
   return target;
 }
