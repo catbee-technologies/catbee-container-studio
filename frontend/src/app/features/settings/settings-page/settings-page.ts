@@ -542,14 +542,6 @@ export class SettingsPageComponent implements OnInit {
     return this.k8sClusterInfo()?.nodeCount ?? this.k8sNodeCount();
   });
 
-  private isK8sFormDirty(): boolean {
-    const init = this.initialState().kubernetes;
-    if (!init) return false;
-    const versionChanged = normalizeK8sVersion(init.version) !== normalizeK8sVersion(this.k8sVersion());
-    const nodeCountChanged = init.nodeCount !== this.k8sNodeCount();
-    return versionChanged || nodeCountChanged;
-  }
-
   readonly isK8sRecreationPending = computed(() => {
     const info = this.k8sClusterInfo();
     if (info?.status !== 'running') return false;
@@ -798,23 +790,8 @@ export class SettingsPageComponent implements OnInit {
     this.dismissK8sClusterError();
     this.isStartingK8sCluster.set(true);
     try {
-      if (this.isK8sFormDirty()) {
-        const payload = this.buildSettingsPayload();
-        payload.kubernetes = {
-          ...payload.kubernetes,
-          enabled: this.k8sEnabled(),
-          provisioner: this.k8sProvisioner(),
-          version: this.k8sVersion(),
-          nodeCount: this.k8sNodeCount(),
-          showSystemContainers: this.k8sShowSystemContainers()
-        };
-        const saved = await this.electronApi.saveEngineSettings(payload);
-        if (saved) {
-          this.saveSettingsToStorage(saved);
-          this.commitInitialState();
-        }
-      }
-      const res = await this.electronApi.startK8sCluster();
+      const res = await this.electronApi.startK8sCluster(this.draftKubernetesSettings());
+      this.adoptSavedKubernetesSettings(res.settings);
       if (res.success) {
         this.flashSuccess('Kubernetes cluster started.', 4000);
       } else if (!res.cancelled) {
@@ -852,22 +829,9 @@ export class SettingsPageComponent implements OnInit {
     this.dismissK8sClusterError();
     this.isResettingK8sCluster.set(true);
     try {
-      const payload = this.buildSettingsPayload();
-      payload.kubernetes = {
-        ...payload.kubernetes,
-        enabled: this.k8sEnabled(),
-        provisioner: this.k8sProvisioner(),
-        version: this.k8sVersion(),
-        nodeCount: this.k8sNodeCount(),
-        showSystemContainers: this.k8sShowSystemContainers()
-      };
-      const saved = await this.electronApi.saveEngineSettings(payload);
-      if (saved) {
-        this.saveSettingsToStorage(saved);
-        this.commitInitialState();
-      }
       this.flashSuccess('Recreating Kubernetes cluster with new configuration...', 4000);
-      const res = await this.electronApi.resetK8sCluster();
+      const res = await this.electronApi.resetK8sCluster(this.draftKubernetesSettings());
+      this.adoptSavedKubernetesSettings(res.settings);
       if (res.success) {
         this.flashSuccess('Kubernetes cluster recreated successfully.', 4000);
       } else if (!res.cancelled) {
@@ -881,24 +845,16 @@ export class SettingsPageComponent implements OnInit {
     }
   }
 
-  private syncK8sClusterState(info: NonNullable<K8sClusterInfo>): void {
-    if (info.status !== 'running' || this.isK8sFormDirty()) return;
-
-    if (info.version && normalizeK8sVersion(this.k8sVersion()) !== normalizeK8sVersion(info.version)) {
-      const normalized = info.version.startsWith('v') ? info.version : `v${info.version}`;
-      this.k8sVersion.set(normalized);
-      this.initialState.update(s => ({
-        ...s,
-        kubernetes: { ...s.kubernetes, version: normalized }
-      }));
-    }
-    if (info.nodeCount !== undefined && info.nodeCount !== this.k8sNodeCount()) {
-      this.k8sNodeCount.set(info.nodeCount);
-      this.initialState.update(s => ({
-        ...s,
-        kubernetes: { ...s.kubernetes, nodeCount: info.nodeCount }
-      }));
-    }
+  private adoptSavedKubernetesSettings(settings?: KubernetesSettingsConfig): void {
+    if (!settings) return;
+    this.settings.setKubernetes(settings);
+    this.k8sEnabled.set(settings.enabled);
+    this.k8sProvisioner.set(settings.provisioner);
+    this.k8sVersion.set(settings.version);
+    this.k8sNodeCount.set(settings.nodeCount);
+    this.k8sShowSystemContainers.set(settings.showSystemContainers);
+    this.localStorage.set(UI_STORAGE_KEYS.CONTAINERS_SHOW_K8S, String(settings.showSystemContainers));
+    this.initialState.update(initial => ({ ...initial, kubernetes: { ...settings } }));
   }
 
   async refreshK8sStatus(): Promise<void> {
@@ -914,8 +870,6 @@ export class SettingsPageComponent implements OnInit {
         } else if (!info.operation) {
           this.isInstallingK8sRuntime.set(false);
         }
-
-        this.syncK8sClusterState(info);
       }
     } catch {
       // Ignore if not supported
@@ -1769,17 +1723,8 @@ export class SettingsPageComponent implements OnInit {
       this.startAtLogin.set(this.settings.startAtLogin());
       this.k8sEnabled.set(this.settings.kubernetes().enabled);
       this.k8sProvisioner.set(this.settings.kubernetes().provisioner);
-      const activeCluster = this.k8sClusterInfo();
-      const initialVer =
-        activeCluster?.status === 'running' && activeCluster.version
-          ? activeCluster.version
-          : this.settings.kubernetes().version;
-      const initialNodes =
-        activeCluster?.status === 'running' && activeCluster.nodeCount !== undefined
-          ? activeCluster.nodeCount
-          : this.settings.kubernetes().nodeCount;
-      this.k8sVersion.set(initialVer);
-      this.k8sNodeCount.set(initialNodes);
+      this.k8sVersion.set(this.settings.kubernetes().version);
+      this.k8sNodeCount.set(this.settings.kubernetes().nodeCount);
       this.k8sShowSystemContainers.set(this.settings.kubernetes().showSystemContainers);
       this.commitInitialState();
     } catch {

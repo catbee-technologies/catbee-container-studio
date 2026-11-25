@@ -313,9 +313,9 @@ const electronBridge = {
     k8s: {
       getStatus: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.GetStatus),
       getProgress: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.GetProgress),
-      startCluster: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.StartCluster),
+      startCluster: (config?: unknown) => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.StartCluster, config),
       stopCluster: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.StopCluster),
-      resetCluster: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.ResetCluster),
+      resetCluster: (config?: unknown) => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.ResetCluster, config),
       cancelOperation: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.CancelOperation),
       getVersions: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.GetVersions),
       installRuntime: () => ipcRenderer.invoke(IPC_CHANNELS.App.K8s.InstallRuntime),

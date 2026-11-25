@@ -3,6 +3,7 @@ import { IPC_CHANNELS } from '../channels';
 import { fail, ok, type IpcResult } from '../contracts';
 import { k8sManager, type K8sClusterInfo, type K8sStartResult } from '../../main/k8s/k8s-manager';
 import { logger } from '../../main/logger';
+import { saveEngineSettings, type KubernetesSettingsConfig } from '../../main/docker/embedded/engine-settings';
 
 export function registerK8sHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.App.K8s.GetStatus);
@@ -27,15 +28,19 @@ export function registerK8sHandlers(): void {
   });
 
   ipcMain.removeHandler(IPC_CHANNELS.App.K8s.ResetCluster);
-  ipcMain.handle(IPC_CHANNELS.App.K8s.ResetCluster, async (): Promise<IpcResult<K8sStartResult>> => {
-    try {
-      const result = await k8sManager.resetCluster();
-      return ok(result);
-    } catch (error) {
-      logger.error({ err: error }, '[IPC] Failed to reset Kubernetes cluster.');
-      return fail(error);
+  ipcMain.handle(
+    IPC_CHANNELS.App.K8s.ResetCluster,
+    async (_event, config?: KubernetesSettingsConfig): Promise<IpcResult<K8sStartResult>> => {
+      try {
+        const saved = config ? await saveEngineSettings({ kubernetes: config }) : undefined;
+        const result = await k8sManager.resetCluster();
+        return ok({ ...result, settings: saved?.kubernetes });
+      } catch (error) {
+        logger.error({ err: error }, '[IPC] Failed to reset Kubernetes cluster.');
+        return fail(error);
+      }
     }
-  });
+  );
 
   ipcMain.removeHandler(IPC_CHANNELS.App.K8s.GetVersions);
   ipcMain.handle(IPC_CHANNELS.App.K8s.GetVersions, async (): Promise<IpcResult<string[]>> => {
@@ -49,14 +54,18 @@ export function registerK8sHandlers(): void {
   });
 
   ipcMain.removeHandler(IPC_CHANNELS.App.K8s.StartCluster);
-  ipcMain.handle(IPC_CHANNELS.App.K8s.StartCluster, async (): Promise<IpcResult<K8sStartResult>> => {
-    try {
-      return ok(await k8sManager.startCluster());
-    } catch (error) {
-      logger.error({ err: error }, '[IPC] Failed to start Kubernetes cluster.');
-      return fail(error);
+  ipcMain.handle(
+    IPC_CHANNELS.App.K8s.StartCluster,
+    async (_event, config?: KubernetesSettingsConfig): Promise<IpcResult<K8sStartResult>> => {
+      try {
+        const saved = config ? await saveEngineSettings({ kubernetes: config }) : undefined;
+        return ok({ ...(await k8sManager.startCluster(saved?.kubernetes)), settings: saved?.kubernetes });
+      } catch (error) {
+        logger.error({ err: error }, '[IPC] Failed to start Kubernetes cluster.');
+        return fail(error);
+      }
     }
-  });
+  );
 
   ipcMain.removeHandler(IPC_CHANNELS.App.K8s.StopCluster);
   ipcMain.handle(IPC_CHANNELS.App.K8s.StopCluster, async (): Promise<IpcResult<{ success: boolean }>> => {

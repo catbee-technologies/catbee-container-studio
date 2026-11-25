@@ -215,6 +215,7 @@ export interface K8sOperationProgress {
 export interface K8sStartResult {
   success: boolean;
   cancelled?: true;
+  settings?: KubernetesSettingsConfig;
 }
 
 export interface K8sClusterInfo {
@@ -398,9 +399,9 @@ export interface ElectronBridge {
     k8s?: {
       getStatus: () => IpcPromise<K8sClusterInfo>;
       getProgress: () => IpcPromise<K8sOperationProgress | null>;
-      startCluster: () => IpcPromise<K8sStartResult>;
+      startCluster: (config?: KubernetesSettingsConfig) => IpcPromise<K8sStartResult>;
       stopCluster: () => IpcPromise<{ success: boolean }>;
-      resetCluster: () => IpcPromise<K8sStartResult>;
+      resetCluster: (config?: KubernetesSettingsConfig) => IpcPromise<K8sStartResult>;
       cancelOperation: () => IpcPromise<{ success: boolean }>;
       getVersions: () => IpcPromise<string[]>;
       installRuntime: () => IpcPromise<{ success: boolean }>;

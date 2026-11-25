@@ -125,6 +125,7 @@ export interface K8sClusterInfo {
 export interface K8sStartResult {
   success: boolean;
   cancelled?: true;
+  settings?: KubernetesSettingsConfig;
 }
 
 class K8sManager {
@@ -942,7 +943,7 @@ class K8sManager {
   }
 
   private async ensureCloudProvider(engine: ClusterEngine): Promise<void> {
-    const { runtime, containers: service, images, networks: networkService } = engine;
+    const { runtime, containers: service } = engine;
     // On Linux the embedded daemon and its socket share the host filesystem.
     // VM and external engines can expose a different socket to the desktop app.
     const rootlessSocket =
@@ -952,108 +953,106 @@ class K8sManager {
     try {
       const containers = await service.listContainers({ all: true });
       const existing = containers.find(isCloudProvider);
-
-      if (
-        existing &&
-        rootlessSocket &&
-        !existing.Mounts?.some(
-          mount => mount.Source === rootlessSocket && mount.Destination === CLOUD_PROVIDER_DOCKER_SOCKET
-        )
-      ) {
-        await service.removeContainer(existing.Id, true);
-      } else if (existing) {
-        if (existing.State === 'running') {
-          return;
-        }
-        try {
-          await service.startContainer(existing.Id);
-          return;
-        } catch (startErr) {
-          logger.warn(
-            { err: startErr },
-            `[K8sManager] Failed to start existing ${KIND_CLOUD_PROVIDER_CONTAINER}, removing and recreating...`
-          );
-          await service.removeContainer(existing.Id, true).catch(() => {});
-        }
-      }
+      if (existing && (await this.reuseCloudProvider(service, existing, rootlessSocket))) return;
 
       logger.info(`[K8sManager] Ensuring cloud-provider-kind container (${KIND_CLOUD_PROVIDER_IMAGE})...`);
+      await this.ensureCloudProviderImage(engine.images);
+      const targetNetwork = await this.resolveCloudProviderNetwork(engine.networks, containers);
 
-      try {
-        const availableImages = await images.listImages();
-        const hasImage = availableImages.some((img: Docker.ImageInfo) =>
-          (img.RepoTags ?? []).some(
-            (t: string) => t.replace(/^docker\.io\//, '') === KIND_CLOUD_PROVIDER_IMAGE.replace(/^docker\.io\//, '')
-          )
-        );
-        if (!hasImage) {
-          logger.info(`[K8sManager] Pulling cloud-provider-kind image: ${KIND_CLOUD_PROVIDER_IMAGE}...`);
-          await images.pullImage(KIND_CLOUD_PROVIDER_IMAGE);
+      const container = await service.createContainer({
+        Image: KIND_CLOUD_PROVIDER_IMAGE,
+        name: KIND_CLOUD_PROVIDER_CONTAINER,
+        HostConfig: {
+          NetworkMode: targetNetwork,
+          ...(rootlessSocket
+            ? { Mounts: [{ Type: 'bind', Source: rootlessSocket, Target: CLOUD_PROVIDER_DOCKER_SOCKET }] }
+            : { Binds: [`${CLOUD_PROVIDER_DOCKER_SOCKET}:${CLOUD_PROVIDER_DOCKER_SOCKET}`] }),
+          RestartPolicy: { Name: 'always' }
+        },
+        Labels: {
+          [KIND_CLUSTER_LABEL]: CATBEE_K8S_CLUSTER_NAME,
+          [KUBERNETES_NAMESPACE_LABEL]: 'kube-system'
         }
-      } catch (pullErr) {
-        logger.warn(
-          { err: pullErr },
-          '[K8sManager] Could not pull cloud-provider-kind image, attempting container create anyway.'
-        );
-      }
+      });
 
-      // Check available Docker networks and determine target network
-      let targetNetwork = 'kind';
       try {
-        const networks = await networkService.listNetworks();
-        const hasKindNet = networks.some((n: Docker.NetworkInspectInfo) => n.Name === 'kind');
-        if (!hasKindNet) {
-          // Check if kind control-plane container is connected to another network
-          const controlPlane = containers.find(c => isClusterNode(c) && c.Labels[KIND_ROLE_LABEL] === 'control-plane');
-          if (controlPlane?.NetworkSettings?.Networks) {
-            const nets = Object.keys(controlPlane.NetworkSettings.Networks);
-            if (nets.length > 0 && nets[0]) {
-              targetNetwork = nets[0];
-            }
-          }
-          if (!networks.some((n: Docker.NetworkInspectInfo) => n.Name === targetNetwork)) {
-            logger.info(`[K8sManager] Creating missing Docker network "${targetNetwork}" for kind...`);
-            await networkService.createNetwork({
-              Name: targetNetwork,
-              Driver: 'bridge'
-            });
-          }
-        }
-      } catch (netErr) {
-        logger.warn({ err: netErr }, '[K8sManager] Could not inspect/create Docker network for cloud provider.');
-      }
-
-      let container: { Id: string } | null = null;
-      try {
-        container = await service.createContainer({
-          Image: KIND_CLOUD_PROVIDER_IMAGE,
-          name: KIND_CLOUD_PROVIDER_CONTAINER,
-          HostConfig: {
-            NetworkMode: targetNetwork,
-            ...(rootlessSocket
-              ? { Mounts: [{ Type: 'bind', Source: rootlessSocket, Target: CLOUD_PROVIDER_DOCKER_SOCKET }] }
-              : { Binds: [`${CLOUD_PROVIDER_DOCKER_SOCKET}:${CLOUD_PROVIDER_DOCKER_SOCKET}`] }),
-            RestartPolicy: {
-              Name: 'always'
-            }
-          },
-          Labels: {
-            [KIND_CLUSTER_LABEL]: CATBEE_K8S_CLUSTER_NAME,
-            [KUBERNETES_NAMESPACE_LABEL]: 'kube-system'
-          }
-        });
-
         await service.startContainer(container.Id);
-        logger.info(`[K8sManager] Successfully started ${KIND_CLOUD_PROVIDER_CONTAINER}.`);
       } catch (startErr) {
-        if (container) {
-          await service.removeContainer(container.Id, true).catch(() => {});
-        }
+        await service.removeContainer(container.Id, true).catch(() => {});
         throw startErr;
       }
+      logger.info(`[K8sManager] Successfully started ${KIND_CLOUD_PROVIDER_CONTAINER}.`);
     } catch (err) {
       logger.warn({ err }, '[K8sManager] Optional cloud-provider-kind could not be started.');
     }
+  }
+
+  private async reuseCloudProvider(
+    service: ClusterEngine['containers'],
+    existing: Docker.ContainerInfo,
+    rootlessSocket: string | undefined
+  ): Promise<boolean> {
+    if (
+      rootlessSocket &&
+      !existing.Mounts?.some(
+        mount => mount.Source === rootlessSocket && mount.Destination === CLOUD_PROVIDER_DOCKER_SOCKET
+      )
+    ) {
+      await service.removeContainer(existing.Id, true);
+      return false;
+    }
+    if (existing.State === 'running') return true;
+
+    try {
+      await service.startContainer(existing.Id);
+      return true;
+    } catch (error) {
+      logger.warn(
+        { err: error },
+        `[K8sManager] Failed to start existing ${KIND_CLOUD_PROVIDER_CONTAINER}, removing and recreating...`
+      );
+      await service.removeContainer(existing.Id, true).catch(() => {});
+      return false;
+    }
+  }
+
+  private async ensureCloudProviderImage(images: ClusterEngine['images']): Promise<void> {
+    try {
+      const expectedTag = KIND_CLOUD_PROVIDER_IMAGE.replace(/^docker\.io\//, '');
+      const available = await images.listImages();
+      if (available.some(image => image.RepoTags?.some(tag => tag.replace(/^docker\.io\//, '') === expectedTag)))
+        return;
+      logger.info(`[K8sManager] Pulling cloud-provider-kind image: ${KIND_CLOUD_PROVIDER_IMAGE}...`);
+      await images.pullImage(KIND_CLOUD_PROVIDER_IMAGE);
+    } catch (err) {
+      logger.warn(
+        { err },
+        '[K8sManager] Could not pull cloud-provider-kind image, attempting container create anyway.'
+      );
+    }
+  }
+
+  private async resolveCloudProviderNetwork(
+    service: ClusterEngine['networks'],
+    containers: Docker.ContainerInfo[]
+  ): Promise<string> {
+    let targetNetwork = 'kind';
+    try {
+      const networks = await service.listNetworks();
+      if (networks.some(network => network.Name === targetNetwork)) return targetNetwork;
+
+      const controlPlane = containers.find(
+        node => isClusterNode(node) && node.Labels[KIND_ROLE_LABEL] === 'control-plane'
+      );
+      targetNetwork = Object.keys(controlPlane?.NetworkSettings?.Networks ?? {})[0] || targetNetwork;
+      if (!networks.some(network => network.Name === targetNetwork)) {
+        logger.info(`[K8sManager] Creating missing Docker network "${targetNetwork}" for kind...`);
+        await service.createNetwork({ Name: targetNetwork, Driver: 'bridge' });
+      }
+    } catch (err) {
+      logger.warn({ err }, '[K8sManager] Could not inspect/create Docker network for cloud provider.');
+    }
+    return targetNetwork;
   }
 
   async startCluster(
@@ -1074,36 +1073,10 @@ class K8sManager {
       if (!engine) {
         throw new Error('A Docker engine must be connected to start Kubernetes.');
       }
-      const service = engine.containers;
-      const containers = await service.listContainers({ all: true });
-      if (this.suspensions) return { success: false, cancelled: true };
-      const clusterContainers = containers.filter(isClusterNode);
-
-      // Startup resumes existing nodes. Configuration changes take effect through an explicit cluster reset.
-      if (clusterContainers.length > 0) {
-        if (!clusterContainers.some(container => container.Labels[KIND_ROLE_LABEL] === 'control-plane')) {
-          throw new Error('The existing Kubernetes cluster is missing its control-plane container.');
-        }
-
-        const stoppedNodes = clusterContainers.filter(container => container.State !== 'running');
-        if (stoppedNodes.length > 0) {
-          this.emitProgress({
-            operation: fromReset ? 'reset' : 'start',
-            stage: 'Starting existing cluster containers...',
-            progress: 50,
-            detail: `Starting ${stoppedNodes.length} container(s)`
-          });
-          for (const container of stoppedNodes) {
-            if (this.suspensions) return { success: false, cancelled: true };
-            if (container.State === 'paused') await service.unpauseContainer(container.Id);
-            else await service.startContainer(container.Id);
-          }
-        }
-      } else if (!(await this.createCluster(engine, k8s, fromReset))) {
+      if (!(await this.prepareClusterNodes(engine, k8s, fromReset)) || this.suspensions) {
         return { success: false, cancelled: true };
       }
 
-      if (this.suspensions) return { success: false, cancelled: true };
       const target = await this.syncKubeconfig(engine.runtime);
       if (this.suspensions) return { success: false, cancelled: true };
       const readiness = new AbortController();
@@ -1121,21 +1094,7 @@ class K8sManager {
       return { success: true };
     } catch (error) {
       if (this.apiReadinessController?.signal.aborted) return { success: false, cancelled: true };
-      const msg = error instanceof Error ? error.message : String(error);
-      this.lastError = { runtime: engine?.runtime ?? null, message: msg };
-      logger.error({ err: error }, `[K8sManager] Failed to start cluster: ${msg}`);
-      try {
-        const containers = await engine?.containers.listContainers({ all: true });
-        const controlPlane = containers?.find(c => isClusterNode(c) && c.Labels[KIND_ROLE_LABEL] === 'control-plane');
-        if (controlPlane && engine) {
-          const { State } = await engine.containers.inspectContainer(controlPlane.Id);
-          logger.error(
-            `[K8sManager] Retained control-plane state=${controlPlane.State}, exitCode=${State.ExitCode}, error="${State.Error}", OOMKilled=${State.OOMKilled}`
-          );
-        }
-      } catch (inspectErr) {
-        logger.debug({ err: inspectErr }, '[K8sManager] Could not inspect retained control-plane container.');
-      }
+      await this.recordClusterStartFailure(error, engine);
       throw error;
     } finally {
       this.apiReadinessController = null;
@@ -1144,6 +1103,59 @@ class K8sManager {
       if (!fromReset) {
         this.emitProgress(null);
       }
+    }
+  }
+
+  private async prepareClusterNodes(
+    engine: ClusterEngine,
+    config: KubernetesSettingsConfig,
+    fromReset: boolean
+  ): Promise<boolean> {
+    const service = engine.containers;
+    const containers = await service.listContainers({ all: true });
+    if (this.suspensions) return false;
+
+    // Startup resumes existing nodes. Configuration changes take effect through an explicit cluster reset.
+    const nodes = containers.filter(isClusterNode);
+    if (!nodes.length) return this.createCluster(engine, config, fromReset);
+    if (!nodes.some(node => node.Labels[KIND_ROLE_LABEL] === 'control-plane')) {
+      throw new Error('The existing Kubernetes cluster is missing its control-plane container.');
+    }
+
+    const stoppedNodes = nodes.filter(node => node.State !== 'running');
+    if (!stoppedNodes.length) return true;
+    this.emitProgress({
+      operation: fromReset ? 'reset' : 'start',
+      stage: 'Starting existing cluster containers...',
+      progress: 50,
+      detail: `Starting ${stoppedNodes.length} container(s)`
+    });
+    for (const node of stoppedNodes) {
+      if (this.suspensions) return false;
+      if (node.State === 'paused') await service.unpauseContainer(node.Id);
+      else await service.startContainer(node.Id);
+    }
+    return true;
+  }
+
+  private async recordClusterStartFailure(error: unknown, engine: ClusterEngine | null): Promise<void> {
+    const message = error instanceof Error ? error.message : String(error);
+    this.lastError = { runtime: engine?.runtime ?? null, message };
+    logger.error({ err: error }, `[K8sManager] Failed to start cluster: ${message}`);
+    if (!engine) return;
+
+    try {
+      const containers = await engine.containers.listContainers({ all: true });
+      const controlPlane = containers.find(
+        node => isClusterNode(node) && node.Labels[KIND_ROLE_LABEL] === 'control-plane'
+      );
+      if (!controlPlane) return;
+      const { State } = await engine.containers.inspectContainer(controlPlane.Id);
+      logger.error(
+        `[K8sManager] Retained control-plane state=${controlPlane.State}, exitCode=${State.ExitCode}, error="${State.Error}", OOMKilled=${State.OOMKilled}`
+      );
+    } catch (err) {
+      logger.debug({ err }, '[K8sManager] Could not inspect retained control-plane container.');
     }
   }
 
@@ -1262,21 +1274,23 @@ class K8sManager {
     const engine = this.getClusterEngine();
     this.emitProgress({ operation: 'stop', stage: 'Stopping Kubernetes cluster...', progress: 50 });
     try {
-      if (engine) {
-        const containers = await engine.containers.listContainers({ all: true });
-        for (const container of containers) {
-          if (!isClusterNode(container) && !isCloudProvider(container)) continue;
-          if (container.State === 'paused') await engine.containers.unpauseContainer(container.Id);
-          if (['running', 'paused', 'restarting'].includes(container.State)) {
-            await engine.containers.stopContainer(container.Id);
-          }
-        }
-      }
+      if (engine) await this.stopClusterContainers(engine.containers);
       this.lastError = null;
     } finally {
       this.isStopping = false;
       finish();
       this.emitProgress(null);
+    }
+  }
+
+  private async stopClusterContainers(service: ClusterEngine['containers']): Promise<void> {
+    const containers = await service.listContainers({ all: true });
+    for (const container of containers) {
+      if (!isClusterNode(container) && !isCloudProvider(container)) continue;
+      if (container.State === 'paused') await service.unpauseContainer(container.Id);
+      if (['running', 'paused', 'restarting'].includes(container.State)) {
+        await service.stopContainer(container.Id);
+      }
     }
   }
 
