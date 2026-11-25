@@ -543,7 +543,7 @@ export class DockerManager {
     return this.withLifecycle(() => this.switchContextUnlocked(contextName));
   }
 
-  async switchContext(contextName: string): Promise<DockerContextDetails> {
+  private async switchContextUnlocked(contextName: string): Promise<DockerContextDetails> {
     logger.info(`[DockerManager] Switching Docker context to: ${contextName}`);
 
     const isCatBee = contextName === CATBEE_CONTEXT_NAME;

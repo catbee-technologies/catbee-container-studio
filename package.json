@@ -44,16 +44,15 @@
     "tar-stream": "^3.2.2"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
+    "@electron-toolkit/eslint-config-prettier": "^3.0.1",
+    "@electron-toolkit/eslint-config-ts": "^4.0.0",
     "@types/dockerode": "^4.0.2",
     "@types/js-yaml": "^4.0.9",
     "7zip-bin": "^5.2.0",
     "electron": "^45.3.4",
     "electron-builder": "^27.0.0-alpha.14",
     "eslint": "^10.15.0",
-    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-n": "^18.5.0",
-    "eslint-plugin-prettier": "^5.5.7",
     "globals": "^17.14.0",
     "npm-run-all2": "^9.0.4",
     "pino-pretty": "^13.2.0",
@@ -61,7 +60,6 @@
     "semver": "^7.8.6",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.73.0",
     "wait-on": "^9.5.1"
   }
 }

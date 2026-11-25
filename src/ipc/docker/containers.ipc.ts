@@ -2,6 +2,7 @@ import type Docker from 'dockerode';
 import { IPC_CHANNELS } from '../channels';
 import { registerHandle } from '../utils/ipc.utils';
 import { dockerManager } from '../../main/docker/services/docker.manager';
+import type { RecreateContainerOptions } from '../../main/docker/services/docker.container.service';
 
 export function registerDockerContainerHandlers(): void {
   registerHandle(IPC_CHANNELS.Docker.Containers.List, (options?: Docker.ContainerListOptions) =>
@@ -28,8 +29,8 @@ export function registerDockerContainerHandlers(): void {
     dockerManager.containers.restartContainer(containerId)
   );
 
-  registerHandle(IPC_CHANNELS.Docker.Containers.Recreate, (containerId: string, options?: unknown) =>
-    dockerManager.containers.recreateContainer(containerId, options as any)
+  registerHandle(IPC_CHANNELS.Docker.Containers.Recreate, (containerId: string, options?: RecreateContainerOptions) =>
+    dockerManager.containers.recreateContainer(containerId, options)
   );
 
   registerHandle(IPC_CHANNELS.Docker.Containers.Update, (containerId: string, options: { restartPolicy?: string }) =>

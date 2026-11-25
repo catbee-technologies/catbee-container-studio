@@ -1,41 +1,22 @@
-import globals from 'globals';
-import pluginJs from '@eslint/js';
-import tseslint from 'typescript-eslint';
-import pluginPrettierRecommended from 'eslint-plugin-prettier/recommended';
+import electronEslint from '@electron-toolkit/eslint-config-ts';
+import electronConfigPrettier from '@electron-toolkit/eslint-config-prettier';
 import nodePlugin from 'eslint-plugin-n';
+import globals from 'globals';
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
   {
-    name: 'ignore files',
-    ignores: ['dist/', 'reports/', 'data/']
+    name: 'ignore-paths',
+    ignores: ['dist/', 'reports/', 'data/', 'build/', 'frontend/']
   },
-  {
-    name: 'include files',
-    files: ['**/*.{js,mjs,cjs,ts}']
-  },
-  {
-    name: 'globals for node',
-    files: ['**/*.{mjs,cjs,ts}'],
-    languageOptions: { globals: globals.node }
-  },
-  {
-    ...pluginJs.configs.recommended,
-    name: 'plugin-js recommended',
-    files: ['**/*.{js,mjs,cjs}']
-  },
+  ...electronEslint.configs.recommended,
   {
     ...nodePlugin.configs['flat/recommended-module'],
-    name: 'custom eslint-plugin-n plugin config',
+    name: 'node-plugin',
     files: ['**/*.ts'],
     rules: {
       'n/no-process-env': 'error',
-      'n/no-missing-import': [
-        'off', // eslint-plugin-n fails to resolve index.ts files
-        {
-          tryExtensions: ['.ts', '.d.ts']
-        }
-      ]
+      'n/no-missing-import': 'off'
     },
     languageOptions: {
       globals: {
@@ -46,9 +27,8 @@ export default [
   },
   {
     ...nodePlugin.configs['flat/recommended-module'],
-    name: 'custom eslint-plugin-n plugin config for tests',
+    name: 'node-plugin-tests',
     files: ['tests*/**/*.ts'],
-    // eslint-plugin-n rules
     rules: {
       'n/no-process-env': 'off'
     },
@@ -58,45 +38,25 @@ export default [
       }
     }
   },
-  ...tseslint.configs.recommended.map(config => ({
-    ...config,
-    files: ['**/*.ts'],
+  {
+    name: 'catbee-rules',
     rules: {
-      'no-unused-vars': 'off',
+      'no-console': 'error',
+      eqeqeq: ['error', 'smart'],
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
           argsIgnorePattern: '^_',
           caughtErrorsIgnorePattern: '^_'
         }
-      ]
-    }
-  })),
-  {
-    // eslint core rules
-    rules: {
-      // complexity: ['error', 10],
-      'no-console': 'error',
-      eqeqeq: ['error', 'smart']
+      ],
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-empty-object-type': 'off',
+      'preserve-caught-error': 'off',
+      'no-useless-assignment': 'error',
+      'no-control-regex': 'off'
     }
   },
-  {
-    name: 'scripts that run in the browser',
-    files: ['public/**/*.js'],
-    languageOptions: {
-      sourceType: 'script',
-      globals: {
-        ...globals.browser
-      }
-    },
-    rules: {
-      'no-unused-vars': [
-        'error',
-        {
-          vars: 'local'
-        }
-      ]
-    }
-  },
-  pluginPrettierRecommended
+  electronConfigPrettier
 ];

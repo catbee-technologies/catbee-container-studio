@@ -156,8 +156,8 @@ export class DockerContainerService extends DockerBaseService {
       `[DockerContainerService] Running compose recreate: ${dockerCli} ${composeArgs.join(' ')} (cwd: ${workingDir})`
     );
 
-    let stdout = '';
-    let stderr = '';
+    let stdout: string;
+    let stderr: string;
     try {
       const res = await execFileAsync(dockerCli, composeArgs, {
         cwd: workingDir,

@@ -612,7 +612,7 @@ export async function getDockerBuilderInfo(): Promise<DockerBuilderInfo> {
   );
 
   if (builders.length === 0) {
-    let alive = false;
+    let alive: boolean;
     try {
       alive = (await dockerManager?.system?.ping()) ?? false;
     } catch {
