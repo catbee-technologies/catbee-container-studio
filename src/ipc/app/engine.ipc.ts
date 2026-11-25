@@ -200,10 +200,13 @@ export function registerEngineHandlers(): void {
     IPC_CHANNELS.App.Engine.SaveSettings,
     async (_event, settings: Partial<EngineSettings>): Promise<IpcResult<EngineSettings>> => {
       try {
-        const previous = await getEngineSettings();
-        const updated = await saveEngineSettings(settings);
+        let kubernetesEnabledChanged = false;
+        const updated = await saveEngineSettings(settings, async (previous, next, persist) => {
+          await engineManager.applyWslIntegration(previous, next, persist);
+          kubernetesEnabledChanged = next.kubernetes.enabled !== previous.kubernetes.enabled;
+        });
 
-        if (updated.kubernetes.enabled !== previous.kubernetes.enabled) {
+        if (kubernetesEnabledChanged) {
           void k8sManager.applyEnabledSetting().catch(err => {
             logger.error({ err }, '[IPC] Failed to apply the Kubernetes enabled setting.');
           });
@@ -219,7 +222,12 @@ export function registerEngineHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.App.Engine.ResetSettings);
   ipcMain.handle(IPC_CHANNELS.App.Engine.ResetSettings, async (): Promise<IpcResult<EngineSettings>> => {
     try {
-      const reset = await resetEngineSettings();
+      const reset = await resetEngineSettings((previous, next, persist) =>
+        engineManager.applyWslIntegration(previous, next, persist)
+      );
+      void k8sManager.applyEnabledSetting().catch(error => {
+        logger.error({ err: error }, '[IPC] Failed to apply Kubernetes defaults.');
+      });
       return ok(reset);
     } catch (error) {
       return fail(error);
@@ -240,8 +248,11 @@ export function registerEngineHandlers(): void {
   ipcMain.handle(
     IPC_CHANNELS.App.Engine.ApplyWslDistroIntegration,
     async (_event, distroName: string, enabled: boolean): Promise<IpcResult<boolean>> => {
-      if (!distroName || typeof distroName !== 'string' || !/^[a-zA-Z0-9._-]+$/.test(distroName)) {
+      if (typeof distroName !== 'string' || !/^[a-zA-Z0-9._][a-zA-Z0-9._-]*$/.test(distroName)) {
         return fail(new Error('Invalid WSL distribution name.'));
+      }
+      if (typeof enabled !== 'boolean') {
+        return fail(new Error('Invalid WSL integration state.'));
       }
       try {
         const success = await engineManager.configureWslDistroIntegration(distroName, enabled);

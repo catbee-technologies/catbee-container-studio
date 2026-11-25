@@ -3,13 +3,20 @@
   <div class="settings-section-body">
     <div id="setting-start-at-login" class="form-group">
       <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
-      <div class="checkbox-row switch-row" (click)="page.toggleSwitchRow($event, page.startAtLogin)">
+      <div
+        class="checkbox-row switch-row"
+        [class.is-disabled]="page.isMicrosoftStore()"
+        (click)="page.toggleSwitchRow($event, page.startAtLogin, page.isMicrosoftStore())"
+      >
         <catbee-container-studio-switch-input
           [formField]="page.settingsForm.startAtLogin"
           inputId="field-start-at-login"
         />
         <label class="switch-row-text" for="field-start-at-login">
           <span class="checkbox-label">Start CatBee Container Studio when you sign in to your computer</span>
+          @if (page.isMicrosoftStore()) {
+            <span class="field-hint">Start at login is not available in the Microsoft Store package.</span>
+          }
         </label>
       </div>
     </div>

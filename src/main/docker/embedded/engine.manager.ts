@@ -236,10 +236,55 @@ export class EngineManager {
     return this.driver instanceof WslEngineDriver ? await this.driver.getInstalledDistros() : [];
   }
 
-  async configureWslDistroIntegration(distroName: string, enabled: boolean): Promise<boolean> {
-    return this.driver instanceof WslEngineDriver
-      ? await this.driver.configureWslDistroIntegration(distroName, enabled)
-      : false;
+  configureWslDistroIntegration(distroName: string, enabled: boolean): Promise<boolean> {
+    const driver = this.driver;
+    if (!(driver instanceof WslEngineDriver)) return Promise.resolve(false);
+
+    return this.exclusive(async () => {
+      const requestedName = distroName.toLowerCase();
+      const distro = (await driver.getInstalledDistros(true)).find(name => name.toLowerCase() === requestedName);
+      return distro ? driver.configureWslDistroIntegration(distro, enabled) : false;
+    });
+  }
+
+  applyWslIntegration(previous: EngineSettings, settings: EngineSettings, persist: () => Promise<void>): Promise<void> {
+    const driver = this.driver;
+    if (!(driver instanceof WslEngineDriver)) return persist();
+
+    const enabledBefore = new Map(
+      (previous.wslIntegrationEnabled ? previous.wslAdditionalDistros : []).map(name => [name.toLowerCase(), name])
+    );
+    const enabledAfter = new Map(
+      (settings.wslIntegrationEnabled ? settings.wslAdditionalDistros : []).map(name => [name.toLowerCase(), name])
+    );
+    const changes = [...new Map([...enabledBefore, ...enabledAfter])].filter(
+      ([key]) => enabledBefore.has(key) !== enabledAfter.has(key)
+    );
+    if (!changes.length) return persist();
+
+    return this.exclusive(async () => {
+      const installed = new Map((await driver.getInstalledDistros(true)).map(name => [name.toLowerCase(), name]));
+      const applied: { distro: string; enabled: boolean }[] = [];
+      try {
+        for (const [key, name] of changes) {
+          const enabled = enabledAfter.has(key);
+          const distro = installed.get(key);
+          if (!distro && !enabled) continue;
+          if (!distro || !(await driver.configureWslDistroIntegration(distro, enabled))) {
+            throw new Error(`Could not ${enabled ? 'enable' : 'disable'} Docker integration for "${name}".`);
+          }
+          applied.push({ distro, enabled });
+        }
+        await persist();
+      } catch (error) {
+        for (const { distro, enabled } of applied.reverse()) {
+          if (!(await driver.configureWslDistroIntegration(distro, !enabled))) {
+            logger.error(`[EngineManager] Could not restore Docker integration for "${distro}".`);
+          }
+        }
+        throw error;
+      }
+    });
   }
 
   private async startUnlocked(onStatus?: (status: string) => void): Promise<DockerConnection> {

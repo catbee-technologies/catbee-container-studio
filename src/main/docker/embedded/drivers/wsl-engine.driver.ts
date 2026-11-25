@@ -453,14 +453,14 @@ export class WslEngineDriver implements PlatformEngineDriver {
   }
 
   /** Lists user WSL distributions (excluding CatBee and Docker Desktop internals) for WSL integration. */
-  async getInstalledDistros(): Promise<string[]> {
-    return (await this.listDistros(false)).filter(
+  async getInstalledDistros(requireSuccess = false): Promise<string[]> {
+    return (await this.listDistros(false, requireSuccess)).filter(
       name => !/^(catbee-container-engine|docker-desktop(-data)?)$/i.test(name)
     );
   }
 
   async configureWslDistroIntegration(distroName: string, enabled: boolean): Promise<boolean> {
-    if (!distroName || !/^[a-zA-Z0-9._-]+$/.test(distroName) || distroName.toLowerCase() === CATBEE_WSL_DISTRO) {
+    if (!/^[a-zA-Z0-9._][a-zA-Z0-9._-]*$/.test(distroName) || distroName.toLowerCase() === CATBEE_WSL_DISTRO) {
       return false;
     }
     // All WSL 2 distros share one network namespace, so loopback reaches the CatBee daemon.
@@ -551,7 +551,7 @@ export class WslEngineDriver implements PlatformEngineDriver {
       .some(name => name.trim() === CATBEE_WSL_DISTRO);
   }
 
-  private async listDistros(runningOnly: boolean): Promise<string[]> {
+  private async listDistros(runningOnly: boolean, requireSuccess = false): Promise<string[]> {
     try {
       const args = runningOnly ? ['-l', '--running', '-q'] : ['-l', '-q'];
       const { stdout } = await this.wsl(args);
@@ -559,7 +559,8 @@ export class WslEngineDriver implements PlatformEngineDriver {
         .split(/\r?\n/)
         .map(s => s.trim())
         .filter(Boolean);
-    } catch {
+    } catch (error) {
+      if (requireSuccess) throw error;
       return [];
     }
   }

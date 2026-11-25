@@ -336,6 +336,7 @@ export class SettingsPageComponent implements OnInit {
   readonly settingsForm = form(
     this.formModel,
     path => {
+      disabled(path.startAtLogin, { when: () => this.isMicrosoftStore() });
       disabled(path.exposeTcp, { when: () => this.isExternalMode() });
       disabled(path.resourceSaverEnabled, { when: () => this.isExternalMode() });
       disabled(path.resourceSaverTimeout, { when: () => this.isExternalMode() || !this.resourceSaverEnabled() });
@@ -1126,7 +1127,6 @@ export class SettingsPageComponent implements OnInit {
     const updated = isIntegrated ? current.filter(d => d !== distro) : [...current, distro];
     this.wslAdditionalDistros.set(updated);
     try {
-      await this.electronApi.applyWslDistroIntegration(distro, !isIntegrated);
       // Integration is applied immediately, so persist it right away rather than waiting for Apply.
       await this.electronApi.saveEngineSettings({ wslAdditionalDistros: updated });
       this.settings.setWslAdditionalDistros(updated);

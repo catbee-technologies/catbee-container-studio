@@ -7,6 +7,7 @@ import { IPC_CHANNELS } from '../channels';
 import { fail, ok } from '../contracts';
 import { APP_VERSION, LOG_DIR_PATH } from '../../main/app/constants';
 import { getEngineRootDir } from '../../main/docker/embedded/engine-paths';
+import { isMicrosoftStoreInstallation } from '../../main/app/updater';
 
 const LINUX_AUTOSTART_FILE = 'catbee-container-studio.desktop';
 
@@ -17,6 +18,7 @@ function linuxAutostartPath(): string {
 }
 
 function getStartAtLogin(): boolean {
+  if (isMicrosoftStoreInstallation()) return false;
   if (process.platform === 'linux') {
     return existsSync(linuxAutostartPath());
   }
@@ -24,6 +26,9 @@ function getStartAtLogin(): boolean {
 }
 
 async function setStartAtLogin(enabled: boolean): Promise<void> {
+  if (isMicrosoftStoreInstallation()) {
+    throw new Error('Start at login is not available in the Microsoft Store package.');
+  }
   if (process.platform !== 'linux') {
     app.setLoginItemSettings({ openAtLogin: enabled });
     return;
@@ -89,8 +94,8 @@ export function registerPlatformHandlers(): void {
 
   ipcMain.removeHandler(IPC_CHANNELS.App.Platform.OpenLogs);
   ipcMain.handle(IPC_CHANNELS.App.Platform.OpenLogs, async () => {
-    await shell.openPath(LOG_DIR_PATH);
-    return ok({ opened: true });
+    const error = await shell.openPath(LOG_DIR_PATH);
+    return error ? fail(new Error(error)) : ok({ opened: true });
   });
 
   ipcMain.removeHandler(IPC_CHANNELS.App.Platform.OpenEngineDir);

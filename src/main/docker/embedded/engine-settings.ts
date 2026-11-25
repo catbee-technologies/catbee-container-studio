@@ -252,14 +252,26 @@ async function atomicWriteFile(filePath: string, data: string): Promise<void> {
   }
 }
 
-export function saveEngineSettings(settings: Partial<EngineSettings>): Promise<EngineSettings> {
+/** Runs inside the settings queue so system changes and the file write can succeed or roll back together. */
+type ApplySettings = (previous: EngineSettings, updated: EngineSettings, persist: () => Promise<void>) => Promise<void>;
+
+async function persistSettings(
+  previous: EngineSettings,
+  updated: EngineSettings,
+  apply?: ApplySettings
+): Promise<void> {
+  const persist = (): Promise<void> => atomicWriteFile(getEngineSettingsFilePath(), JSON.stringify(updated, null, 2));
+  if (apply) await apply(previous, updated, persist);
+  else await persist();
+}
+
+export function saveEngineSettings(settings: Partial<EngineSettings>, apply?: ApplySettings): Promise<EngineSettings> {
   const op = async (): Promise<EngineSettings> => {
-    const filePath = getEngineSettingsFilePath();
     try {
       const current = await getEngineSettings();
       const updated = mergeEngineSettings(current, settings);
 
-      await atomicWriteFile(filePath, JSON.stringify(updated, null, 2));
+      await persistSettings(current, updated, apply);
       logger.info({ settings: updated }, '[EngineSettings] Successfully saved engine settings.');
       return updated;
     } catch (error) {
@@ -276,15 +288,14 @@ export function saveEngineSettings(settings: Partial<EngineSettings>): Promise<E
   return next;
 }
 
-export function resetEngineSettings(): Promise<EngineSettings> {
+export function resetEngineSettings(apply?: ApplySettings): Promise<EngineSettings> {
   const op = async (): Promise<EngineSettings> => {
-    const filePath = getEngineSettingsFilePath();
     try {
       const current = await getEngineSettings();
       // If the user is currently using the CatBee built-in engine, keep it in embedded mode
       const preservedMode = current.engineMode === 'embedded' ? 'embedded' : DEFAULT_ENGINE_SETTINGS.engineMode;
       const reset = mergeEngineSettings(DEFAULT_ENGINE_SETTINGS, { engineMode: preservedMode });
-      await atomicWriteFile(filePath, JSON.stringify(reset, null, 2));
+      await persistSettings(current, reset, apply);
       logger.info({ settings: reset }, '[EngineSettings] Successfully reset engine settings to defaults.');
       return reset;
     } catch (error) {
