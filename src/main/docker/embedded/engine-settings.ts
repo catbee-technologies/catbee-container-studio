@@ -43,8 +43,10 @@ export interface ResourceSettingsConfig {
   rosetta: boolean;
 }
 
+export type EngineMode = 'auto' | 'embedded' | 'external';
+
 export interface EngineSettings {
-  engineMode: 'auto' | 'embedded' | 'external';
+  engineMode: EngineMode;
   exposeTcp: boolean;
   resourceSaverEnabled: boolean;
   resourceSaverTimeout: number;

@@ -393,7 +393,7 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
 
   async uninstall(onProgress?: EngineProgressCallback): Promise<void> {
     onProgress?.(10, 'Stopping Docker Engine...');
-    await this.stop().catch(() => undefined);
+    await this.stop();
 
     onProgress?.(30, 'Deleting images, containers and volumes...');
     // Data created inside the user namespace is owned by subordinate IDs; rootlesskit can delete it.

@@ -15,7 +15,7 @@ import type {
   PlatformEngineDriver,
   PrerequisiteCheckResult
 } from '../types/engine.interface';
-import type { EngineSettings } from '../engine-settings';
+import { getEngineSettings, type EngineSettings } from '../engine-settings';
 import { buildDaemonConfig, proxyToEnv, resolveDaemonProxy } from '../daemon-config';
 import { detectSystemProxy } from '../system-proxy';
 import { EndpointRelay } from '../endpoint-relay';
@@ -433,11 +433,23 @@ export class WslEngineDriver implements PlatformEngineDriver {
 
   async uninstall(onProgress?: EngineProgressCallback): Promise<void> {
     onProgress?.(10, 'Stopping Docker Engine...');
-    await this.stop().catch(() => undefined);
-    onProgress?.(35, 'Removing the CatBee WSL distribution and its data...');
-    await this.wsl(['--unregister', CATBEE_WSL_DISTRO], { timeoutMs: 5 * 60_000 }).catch(err => {
-      logger.warn({ err }, '[WslEngineDriver] wsl --unregister failed during uninstall.');
-    });
+    if ((await pathExists(this.wslDir)) || (await this.getManifest())) {
+      const distros = await this.listDistros(false, true);
+      if (distros.some(name => name.toLowerCase() === CATBEE_WSL_DISTRO)) {
+        await this.stop();
+        const settings = await getEngineSettings();
+        for (const distro of settings.wslAdditionalDistros.filter(name => distros.includes(name))) {
+          if (!(await this.configureWslDistroIntegration(distro, false))) {
+            throw new Error(`Could not remove CatBee Docker integration from WSL distribution "${distro}".`);
+          }
+        }
+        onProgress?.(35, 'Removing the CatBee WSL distribution and its data...');
+        await this.wsl(['--unregister', CATBEE_WSL_DISTRO], { timeoutMs: 5 * 60_000 });
+        if ((await this.listDistros(false, true)).some(name => name.toLowerCase() === CATBEE_WSL_DISTRO)) {
+          throw new Error('The CatBee WSL distribution is still registered. Its files have not been deleted.');
+        }
+      }
+    }
     onProgress?.(80, 'Deleting engine files...');
     await rm(this.wslDir, { recursive: true, force: true });
     await rm(getEngineDownloadsDir(), { recursive: true, force: true });

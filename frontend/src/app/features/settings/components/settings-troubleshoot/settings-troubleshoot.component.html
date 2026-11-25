@@ -26,7 +26,7 @@
         <div class="troubleshoot-info">
           <h3 class="group-title">Restart Docker Engine</h3>
           <p class="field-hint">
-            Cleanly restarts the container runtime daemon without losing any existing images, volumes, or settings.
+            Cleanly restarts the CatBee built-in engine without losing existing images, volumes, or settings.
           </p>
         </div>
         <div class="troubleshoot-action-col">
@@ -38,6 +38,7 @@
               page.isActionLoading() ||
               page.isEngineBusy() ||
               page.isK8sBusy() ||
+              page.engineStatus()?.runtime?.source !== 'embedded' ||
               !page.isEngineInstalled() ||
               !page.isEngineRunning()
             "
@@ -63,8 +64,8 @@
         <div class="troubleshoot-info">
           <h3 class="group-title">Clean / Purge Data</h3>
           <p class="field-hint">
-            Reclaims disk space by removing all stopped containers, dangling images, unused volumes, and BuildKit
-            caches.
+            Reclaims disk space by removing all stopped containers, dangling images, unused anonymous volumes, and
+            BuildKit caches.
           </p>
         </div>
         <div class="troubleshoot-action-col">
@@ -77,7 +78,7 @@
               page.isEngineBusy() ||
               page.isK8sBusy() ||
               page.isPurgingData() ||
-              !page.isEngineRunning()
+              !page.isActiveEngineAvailable()
             "
             (click)="page.requestPurgeData()"
           >
@@ -146,9 +147,9 @@
             <span class="danger-badge">Destructive</span>
           </div>
           <p class="field-hint">
-            Completely stops and removes all Kubernetes clusters, Docker virtual machines (Lima / WSL), container disks,
-            CLI contexts, system PATH entries, and CatBee directories. Recommended before removing the application or
-            moving it to Trash.
+            Removes the CatBee-managed Kubernetes cluster on the active engine, the built-in engine and its data, CatBee
+            CLI contexts, PATH entries, and directories. Other engines and clusters are preserved. Recommended before
+            removing the application or moving it to Trash.
           </p>
         </div>
         <div class="troubleshoot-action-col">

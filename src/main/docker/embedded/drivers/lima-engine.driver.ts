@@ -328,13 +328,24 @@ export class LimaEngineDriver implements PlatformEngineDriver {
 
   async stop(): Promise<void> {
     const env = await this.limaEnv();
-    if (!(await pathExists(this.limactl))) return;
+    if (!(await pathExists(this.limactl))) {
+      if (await pathExists(this.instanceDir)) {
+        throw new Error(
+          'Lima is missing. Restore the built-in engine installation before stopping or removing its VM.'
+        );
+      }
+      return;
+    }
+    const instance = await this.getInstance(env);
+    if (!instance || instance.status === 'Stopped') return;
     try {
       await this.limactlRun(['stop', CATBEE_LIMA_INSTANCE], env, { timeoutMs: 120_000 });
     } catch (err) {
       logger.warn({ err }, '[LimaEngineDriver] Graceful stop failed; forcing.');
-      await this.limactlRun(['stop', '--force', CATBEE_LIMA_INSTANCE], env).catch(() => undefined);
+      await this.limactlRun(['stop', '--force', CATBEE_LIMA_INSTANCE], env);
     }
+    const remaining = await this.getInstance(env);
+    if (remaining && remaining.status !== 'Stopped') throw new Error('The CatBee VM did not stop.');
     await updateEngineManifest({ state: 'stopped' });
   }
 
@@ -350,14 +361,12 @@ export class LimaEngineDriver implements PlatformEngineDriver {
   }
 
   async uninstall(onProgress?: EngineProgressCallback): Promise<void> {
-    if (await pathExists(this.limactl)) {
+    onProgress?.(10, 'Stopping the CatBee VM...');
+    await this.stop();
+    if (await pathExists(this.instanceDir)) {
       const env = await this.limaEnv();
-      onProgress?.(10, 'Stopping the CatBee VM...');
-      await this.limactlRun(['stop', '--force', CATBEE_LIMA_INSTANCE], env).catch(() => undefined);
       onProgress?.(40, 'Deleting the CatBee VM and its disk...');
-      await this.limactlRun(['delete', '--force', CATBEE_LIMA_INSTANCE], env).catch(err => {
-        logger.warn({ err }, '[LimaEngineDriver] limactl delete failed; removing files directly.');
-      });
+      await this.limactlRun(['delete', '--force', CATBEE_LIMA_INSTANCE], env);
     }
     onProgress?.(75, 'Deleting engine files...');
     await rm(this.limaHome, { recursive: true, force: true });
@@ -847,13 +856,9 @@ fi
 
   private async getInstance(env: NodeJS.ProcessEnv): Promise<LimaInstanceInfo | null> {
     if (!(await pathExists(this.limactl))) return null;
-    try {
-      const { stdout } = await this.limactlRun(['list', '--json', CATBEE_LIMA_INSTANCE], env, { timeoutMs: 20_000 });
-      const line = stdout.split(/\r?\n/).find(l => l.trim().startsWith('{'));
-      return line ? (JSON.parse(line) as LimaInstanceInfo) : null;
-    } catch {
-      return null;
-    }
+    const { stdout } = await this.limactlRun(['list', '--json', CATBEE_LIMA_INSTANCE], env, { timeoutMs: 20_000 });
+    const line = stdout.split(/\r?\n/).find(l => l.trim().startsWith('{'));
+    return line ? (JSON.parse(line) as LimaInstanceInfo) : null;
   }
 
   private async limaEnv(settings?: EngineSettings): Promise<NodeJS.ProcessEnv> {

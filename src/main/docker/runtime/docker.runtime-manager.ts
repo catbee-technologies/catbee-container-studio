@@ -9,7 +9,7 @@ import {
 import { getDockerCliPath, getRdctlPath, startDockerRuntime } from './docker.runtime';
 import { engineManager } from '../embedded/engine.manager';
 import { logger } from '../../logger';
-import { getEngineSettings } from '../embedded/engine-settings';
+import { getEngineSettings, type EngineMode } from '../embedded/engine-settings';
 import type { DockerInitializationStatus, DockerRuntimeInfo, SelectedDockerRuntime } from '../types/runtime.types';
 import type { DockerConnection } from '../types/connection.types';
 
@@ -25,7 +25,7 @@ export class DockerRuntimeManager {
   async ensureRuntime(
     onStatus?: (status: DockerInitializationStatus) => void,
     onRuntimeStarted?: () => void,
-    forceMode?: 'auto' | 'embedded' | 'external'
+    forceMode?: EngineMode
   ): Promise<SelectedDockerRuntime> {
     const settings = await getEngineSettings();
     const mode = forceMode ?? settings.engineMode ?? 'auto';

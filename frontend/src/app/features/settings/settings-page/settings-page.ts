@@ -2257,9 +2257,7 @@ export class SettingsPageComponent implements OnInit {
       this.purgeDataSuccessMessage.set(`Purge complete: ${count} items deleted, ~${mb} MB disk space reclaimed.`);
       setTimeout(() => this.purgeDataSuccessMessage.set(null), 6000);
     } catch (err) {
-      console.error('Failed to purge data:', err);
-      const msg = err instanceof Error ? err.message : String(err);
-      this.engineErrorMessage.set(`Failed to purge data: ${msg}`);
+      this.reportSettingsError('Failed to purge data', err);
     } finally {
       this.isPurgingData.set(false);
     }
@@ -2297,9 +2295,7 @@ export class SettingsPageComponent implements OnInit {
       this.teardownSuccess.set(true);
       this.engineOperation.set(null);
     } catch (err) {
-      console.error('Failed to perform teardown:', err);
-      const msg = err instanceof Error ? err.message : String(err);
-      this.engineErrorMessage.set(`Teardown failed: ${msg}`);
+      this.reportSettingsError('Teardown failed', err);
       this.isTeardownInProgress.set(false);
       this.showTeardownModal.set(false);
       this.engineOperation.set(null);

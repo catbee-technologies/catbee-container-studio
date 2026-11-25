@@ -11,7 +11,12 @@ import { DockerSystemService } from './docker.system.service';
 import { DockerVolumeService } from './docker.volume.service';
 import { DockerRuntimeManager } from '../runtime/docker.runtime-manager';
 import { engineManager } from '../embedded/engine.manager';
-import { getEngineSettings, resetEngineSettings, saveEngineSettings } from '../embedded/engine-settings';
+import {
+  getEngineSettings,
+  resetEngineSettings,
+  saveEngineSettings,
+  type EngineMode
+} from '../embedded/engine-settings';
 import {
   activateCatBeeEngineContext,
   CATBEE_CONTEXT_NAME,
@@ -85,7 +90,7 @@ export class DockerManager {
   initialize(
     onStatus?: (status: DockerInitializationStatus) => void,
     onRuntimeStarted?: () => void,
-    forceMode?: 'auto' | 'embedded' | 'external'
+    forceMode?: EngineMode
   ): Promise<void> {
     return this.withLifecycle(() => this.initializeRuntime(onStatus, onRuntimeStarted, forceMode));
   }
@@ -93,7 +98,7 @@ export class DockerManager {
   private async initializeRuntime(
     onStatus?: (status: DockerInitializationStatus) => void,
     onRuntimeStarted?: () => void,
-    forceMode?: 'auto' | 'embedded' | 'external'
+    forceMode?: EngineMode
   ): Promise<void> {
     if (onStatus) {
       this.statusListener = onStatus;
@@ -241,11 +246,11 @@ export class DockerManager {
     });
   }
 
-  restartEmbeddedEngine(mode?: 'auto' | 'embedded' | 'external'): Promise<void> {
+  restartEmbeddedEngine(mode?: EngineMode): Promise<void> {
     return this.withLifecycle(() => this.restartEmbeddedEngineUnlocked(mode));
   }
 
-  private async restartEmbeddedEngineUnlocked(mode?: 'auto' | 'embedded' | 'external'): Promise<void> {
+  private async restartEmbeddedEngineUnlocked(mode?: EngineMode): Promise<void> {
     const effectiveMode = mode ?? (await getEngineSettings()).engineMode;
     logger.info(`[DockerManager] Restarting engine with mode: ${effectiveMode}`);
     if (effectiveMode === 'embedded' && !(await engineManager.isInstalled())) {
@@ -352,7 +357,7 @@ export class DockerManager {
   }
 
   /**
-   * Purges unused containers, dangling/unused images, build cache, and volumes.
+   * Purges stopped containers, dangling images, build cache, and unused anonymous volumes.
    */
   async purgeData(): Promise<{
     containersPruned: number;
@@ -360,40 +365,60 @@ export class DockerManager {
     volumesPruned: number;
     spaceReclaimed: number;
   }> {
+    const client = this.client;
+    if (!this.selectedRuntime || !client) throw new Error('A Docker engine must be connected before purging data.');
+
+    return this.queueLifecycleOperation(() => {
+      if (!this.selectedRuntime || this.client !== client) {
+        throw new Error('The active Docker engine changed before the purge could start. Confirm the target and retry.');
+      }
+      return this.purgeDockerClient(client);
+    });
+  }
+
+  private async purgeDockerClient(client: Docker) {
     logger.info('[DockerManager] Purging Docker data (containers, images, volumes, build cache)...');
     let containersPruned = 0;
     let imagesPruned = 0;
     let volumesPruned = 0;
     let spaceReclaimed = 0;
-
-    if (this.client) {
-      try {
-        const containersRes = await this.client.pruneContainers();
-        containersPruned = containersRes.ContainersDeleted?.length ?? 0;
-        spaceReclaimed += containersRes.SpaceReclaimed ?? 0;
-      } catch (err) {
-        logger.warn({ err }, '[DockerManager] Failed to prune containers during purgeData.');
-      }
-      try {
-        const imagesRes = await this.client.pruneImages({ dangling: false });
-        imagesPruned = imagesRes.ImagesDeleted?.length ?? 0;
-        spaceReclaimed += imagesRes.SpaceReclaimed ?? 0;
-      } catch (err) {
-        logger.warn({ err }, '[DockerManager] Failed to prune images during purgeData.');
-      }
-      try {
-        const volumesRes = await this.client.pruneVolumes();
-        volumesPruned = volumesRes.VolumesDeleted?.length ?? 0;
-        spaceReclaimed += volumesRes.SpaceReclaimed ?? 0;
-      } catch (err) {
-        logger.warn({ err }, '[DockerManager] Failed to prune volumes during purgeData.');
-      }
-      try {
-        const systemRes = await this.client.pruneBuilder();
-        spaceReclaimed += systemRes.SpaceReclaimed ?? 0;
-      } catch (err) {
-        logger.debug({ err }, '[DockerManager] Failed to prune build cache during purgeData.');
-      }
+    const errors: unknown[] = [];
+    try {
+      const containersRes = await client.pruneContainers();
+      containersPruned = containersRes.ContainersDeleted?.length ?? 0;
+      spaceReclaimed += containersRes.SpaceReclaimed ?? 0;
+    } catch (err) {
+      logger.warn({ err }, '[DockerManager] Failed to prune containers during purgeData.');
+      errors.push(err);
+    }
+    try {
+      const imagesRes = await client.pruneImages();
+      imagesPruned = imagesRes.ImagesDeleted?.length ?? 0;
+      spaceReclaimed += imagesRes.SpaceReclaimed ?? 0;
+    } catch (err) {
+      logger.warn({ err }, '[DockerManager] Failed to prune images during purgeData.');
+      errors.push(err);
+    }
+    try {
+      const volumesRes = await client.pruneVolumes();
+      volumesPruned = volumesRes.VolumesDeleted?.length ?? 0;
+      spaceReclaimed += volumesRes.SpaceReclaimed ?? 0;
+    } catch (err) {
+      logger.warn({ err }, '[DockerManager] Failed to prune volumes during purgeData.');
+      errors.push(err);
+    }
+    try {
+      const systemRes = await client.pruneBuilder();
+      spaceReclaimed += systemRes.SpaceReclaimed ?? 0;
+    } catch (err) {
+      logger.debug({ err }, '[DockerManager] Failed to prune build cache during purgeData.');
+      errors.push(err);
+    }
+    if (errors.length) {
+      throw new AggregateError(
+        errors,
+        'Data purge was incomplete. Some resources may already have been removed; check the engine logs before retrying.'
+      );
     }
     return { containersPruned, imagesPruned, volumesPruned, spaceReclaimed };
   }
@@ -407,60 +432,51 @@ export class DockerManager {
    * 5. Removes CatBee from system PATH (.zshrc, .bashrc, Windows User PATH)
    * 6. Deletes ~/.catbee folder, engine caches, and settings
    */
-  async factoryResetTeardown(onProgress?: (progress: number, stage: string) => void): Promise<void> {
+  factoryResetTeardown(onProgress?: (progress: number, stage: string) => void): Promise<void> {
+    return this.withLifecycle(() => this.factoryResetTeardownUnlocked(onProgress));
+  }
+
+  private async factoryResetTeardownUnlocked(onProgress?: (progress: number, stage: string) => void): Promise<void> {
     logger.info('[DockerManager] Starting complete factory reset & teardown.');
     resourceSaverManager.stop();
+    await waitForHostDockerCliInstall();
 
     // 1. Kubernetes teardown
     onProgress?.(10, 'Stopping and deleting Kubernetes cluster...');
-    try {
-      const { k8sManager } = await import('../../k8s/k8s-manager.js');
-      await k8sManager.removeCluster().catch(async err => {
-        await k8sManager.cleanKubeconfig();
-        throw err;
-      });
-    } catch (err) {
-      logger.debug({ err }, '[DockerManager] K8s cleanup during teardown.');
-    }
-    this.selectedRuntime = null;
+    const { k8sManager } = await import('../../k8s/k8s-manager.js');
+    await k8sManager.removeCluster();
 
     // 2. Embedded engine uninstall
     onProgress?.(30, 'Uninstalling container engine and virtual disks...');
-    await engineManager
-      .uninstall((progress, stage) => {
-        onProgress?.(30 + Math.round((progress * 35) / 100), stage);
-      })
-      .catch(err => {
-        logger.warn({ err }, '[DockerManager] Engine uninstall during teardown.');
-      });
+    await engineManager.uninstall((progress, stage) => {
+      onProgress?.(30 + Math.round((progress * 35) / 100), stage);
+    });
+    this.selectedRuntime = null;
+    this.pausedContainersByEndpoint.clear();
 
     // 3. Docker context removal
     onProgress?.(70, 'Resetting Docker CLI contexts...');
-    await removeCatBeeContext().catch(err => {
-      logger.debug({ err }, '[DockerManager] Docker context cleanup during teardown.');
-    });
+    await removeCatBeeContext();
 
     // 4. Shell PATH removal
     onProgress?.(80, 'Removing CatBee from system PATH...');
-    await removeShellPath().catch(err => {
-      logger.debug({ err }, '[DockerManager] Shell PATH cleanup during teardown.');
-    });
+    await removeShellPath();
 
     // 5. Delete ~/.catbee folder entirely
     onProgress?.(90, 'Removing application data and leftover directories...');
     const catbeeUserDir = path.join(homeDir(), '.catbee');
-    await rm(catbeeUserDir, { recursive: true, force: true }).catch(() => {});
+    await rm(catbeeUserDir, { recursive: true, force: true });
 
     // Delete engine root directory
     const engineRootDir = getEngineRootDir();
-    await rm(engineRootDir, { recursive: true, force: true }).catch(() => {});
+    await rm(engineRootDir, { recursive: true, force: true });
 
     // Delete config directory (~/.config/catbee)
     const configDir = path.join(homeDir(), '.config', 'catbee');
-    await rm(configDir, { recursive: true, force: true }).catch(() => {});
+    await rm(configDir, { recursive: true, force: true });
 
     // 6. Reset saved settings to default
-    await resetEngineSettings().catch(() => {});
+    await resetEngineSettings();
 
     onProgress?.(100, 'Teardown complete.');
     this.emitStatus({
