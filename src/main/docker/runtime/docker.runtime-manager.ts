@@ -1,7 +1,11 @@
 import { promisify } from 'node:util';
 import { execFile } from 'node:child_process';
 import { createDockerClient } from '../docker.client';
-import { resolveExternalDockerConnection, DockerConnectionError } from '../docker.connection';
+import {
+  resolveExternalDockerConnection,
+  DockerConnectionError,
+  getCurrentDockerContextName
+} from '../docker.connection';
 import { getDockerCliPath, getRdctlPath, startDockerRuntime } from './docker.runtime';
 import { engineManager } from '../embedded/engine.manager';
 import { logger } from '../../logger';
@@ -229,7 +233,7 @@ export class DockerRuntimeManager {
 
     const dockerPath = await getDockerCliPath();
     if (dockerPath) {
-      const context = await this.getCurrentContext(dockerPath);
+      const context = await getCurrentDockerContextName(dockerPath);
       if (context === 'rancher-desktop') {
         const rdctlPath = await getRdctlPath();
         if (rdctlPath) {
@@ -267,18 +271,6 @@ export class DockerRuntimeManager {
         runtime: 'docker-desktop',
         executablePath: dockerPath
       };
-    } catch {
-      return null;
-    }
-  }
-
-  private async getCurrentContext(dockerPath: string): Promise<string | null> {
-    try {
-      const { stdout } = await execFileAsync(dockerPath, ['context', 'show'], {
-        encoding: 'utf8',
-        windowsHide: true
-      });
-      return stdout.trim() || null;
     } catch {
       return null;
     }

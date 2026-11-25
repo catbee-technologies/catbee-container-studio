@@ -1,5 +1,5 @@
 import { createWriteStream } from 'node:fs';
-import { appendFile, chmod, copyFile, mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { appendFile, chmod, copyFile, mkdir, mkdtemp, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { spawn, type SpawnOptions } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { net, session } from 'electron';
@@ -81,6 +81,7 @@ export function runCommand(command: string, args: string[], options: RunOptions 
     const spawnOptions: SpawnOptions = {
       env: sanitizeEnv(baseEnv),
       windowsHide: true,
+      detached: process.platform !== 'win32',
       stdio: ['pipe', 'pipe', 'pipe']
     };
     const child = spawn(command, args, spawnOptions);
@@ -89,6 +90,7 @@ export function runCommand(command: string, args: string[], options: RunOptions 
     const stderrChunks: Buffer[] = [];
     let timer: NodeJS.Timeout | null = null;
     let settled = false;
+    let terminationError: Error | null = null;
 
     const doReject = (err: Error): void => {
       if (settled) return;
@@ -106,17 +108,26 @@ export function runCommand(command: string, args: string[], options: RunOptions 
       resolve(res);
     };
 
-    if (options.timeoutMs) {
-      timer = setTimeout(() => {
-        child.kill();
-        doReject(new Error(`Command timed out after ${options.timeoutMs}ms: ${command} ${args.join(' ')}`));
-      }, options.timeoutMs);
-    }
+    const signalChild = (signal: NodeJS.Signals): void => {
+      if (process.platform !== 'win32' && child.pid) {
+        try {
+          process.kill(-child.pid, signal);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
+            logger.warn({ err: error }, '[EngineUtils] Could not signal command process group.');
+            child.kill(signal);
+          }
+        }
+      } else {
+        child.kill(signal);
+      }
+    };
 
-    const abort = (): void => {
-      // Let the close handler settle the command before callers clean up any subprocess output or resources.
+    const terminate = (error: Error): void => {
+      if (terminationError || settled) return;
+      terminationError = error;
       if (timer) clearTimeout(timer);
-      timer = setTimeout(() => child.kill('SIGKILL'), 5_000);
+      timer = setTimeout(() => signalChild('SIGKILL'), 5_000);
       if (process.platform === 'win32' && child.pid) {
         // eslint-disable-next-line n/no-process-env
         const systemRoot = process.env.SystemRoot ?? process.env.SYSTEMROOT ?? String.raw`C:\Windows`;
@@ -125,14 +136,21 @@ export function runCommand(command: string, args: string[], options: RunOptions 
           windowsHide: true,
           stdio: 'ignore'
         });
-        killer.on('error', () => child.kill());
+        killer.on('error', () => signalChild('SIGTERM'));
         killer.on('exit', code => {
-          if (code !== 0) child.kill();
+          if (code !== 0) signalChild('SIGTERM');
         });
       } else {
-        child.kill('SIGTERM');
+        signalChild('SIGTERM');
       }
     };
+    const abort = (): void => terminate(new Error('Command aborted'));
+    if (options.timeoutMs) {
+      timer = setTimeout(
+        () => terminate(new Error(`Command timed out after ${options.timeoutMs}ms: ${command} ${args.join(' ')}`)),
+        options.timeoutMs
+      );
+    }
     options.signal?.addEventListener('abort', abort, { once: true });
 
     const emitLines = (chunk: Buffer): void => {
@@ -155,8 +173,8 @@ export function runCommand(command: string, args: string[], options: RunOptions 
       doReject(err);
     });
     child.on('close', code => {
-      if (options.signal?.aborted) {
-        doReject(new Error('Command aborted'));
+      if (terminationError || options.signal?.aborted) {
+        doReject(terminationError ?? new Error('Command aborted'));
         return;
       }
       const stdout = Buffer.concat(stdoutChunks).toString(encoding).replaceAll('\0', '');
@@ -180,6 +198,8 @@ export function runCommand(command: string, args: string[], options: RunOptions 
       doReject(new Error(`${path.basename(command)} ${args[0] ?? ''} failed (exit ${code}): ${detail}`));
     });
 
+    child.stdin?.on('error', terminate);
+    if (options.signal?.aborted) abort();
     if (options.input !== undefined) {
       child.stdin?.end(options.input);
     } else {
@@ -351,7 +371,7 @@ export async function downloadFile(
     }
   });
 
-  const partial = `${destination}.partial`;
+  const partial = `${destination}.${randomUUID()}.partial`;
   try {
     await pipeline(source, createWriteStream(partial));
     await rename(partial, destination);
@@ -391,6 +411,7 @@ export function pingDockerEndpoint(connection: DockerConnection, timeoutMs = 2_0
       res.setEncoding('utf8');
       res.on('data', chunk => (body += chunk));
       res.on('end', () => resolve(res.statusCode === 200 && body.trim() === 'OK'));
+      res.on('error', () => resolve(false));
     });
     req.on('timeout', () => req.destroy());
     req.on('error', () => resolve(false));
@@ -464,6 +485,7 @@ export function dockerApiGetJson<T>(connection: DockerConnection, apiPath: strin
       let body = '';
       res.setEncoding('utf8');
       res.on('data', chunk => (body += chunk));
+      res.on('error', reject);
       res.on('end', () => {
         if (res.statusCode !== 200) {
           reject(new Error(`Docker API ${apiPath} returned ${res.statusCode}`));
@@ -774,13 +796,29 @@ export async function getCliVersion(cliPath: string): Promise<string | null> {
  * the engine bin directory (~/.catbee/bin) matching DOCKER_CLI_RELEASE_VERSION.
  * Returns the absolute path to the binary.
  */
-export async function ensureHostDockerCli(onProgress?: (progress: number, stage: string) => void): Promise<string> {
+let hostDockerCliInstall: Promise<string> | null = null;
+
+export function ensureHostDockerCli(onProgress?: (progress: number, stage: string) => void): Promise<string> {
+  hostDockerCliInstall ??= installHostDockerCli(onProgress).finally(() => {
+    hostDockerCliInstall = null;
+  });
+  return hostDockerCliInstall;
+}
+
+/** Waits for an in-flight CLI install before teardown removes its files. */
+export async function waitForHostDockerCliInstall(): Promise<void> {
+  await hostDockerCliInstall?.catch(error => {
+    logger.warn({ err: error }, '[EngineUtils] Host Docker CLI installation failed before teardown.');
+  });
+}
+
+async function installHostDockerCli(onProgress?: (progress: number, stage: string) => void): Promise<string> {
   const binDir = getEngineBinDir();
   const binaryName = process.platform === 'win32' ? 'docker.exe' : 'docker';
   const target = path.join(binDir, binaryName);
 
-  await mkdir(binDir, { recursive: true }).catch(() => {});
-  await ensureShellPath().catch(() => {});
+  await mkdir(binDir, { recursive: true });
+  await ensureShellPath();
 
   if (await pathExists(target)) {
     const currentVersion = await getCliVersion(target);
@@ -793,7 +831,8 @@ export async function ensureHostDockerCli(onProgress?: (progress: number, stage:
   }
 
   const { url, archiveName } = getDockerCliDownloadInfo();
-  const downloadsDir = getEngineDownloadsDir();
+  const downloadsDir = path.join(getEngineDownloadsDir(), 'host-cli');
+  await mkdir(downloadsDir, { recursive: true });
   const archivePath = path.join(downloadsDir, archiveName);
 
   if (!(await pathExists(archivePath))) {
@@ -807,16 +846,24 @@ export async function ensureHostDockerCli(onProgress?: (progress: number, stage:
   }
 
   onProgress?.(85, 'Extracting Docker CLI...');
-  await extractArchive(archivePath, binDir, 1);
-  if (!(await pathExists(target))) {
-    const nestedBinary = path.join(binDir, 'docker', binaryName);
-    if (await pathExists(nestedBinary)) {
-      await copyFile(nestedBinary, target).catch(() => {});
+  const staging = await mkdtemp(path.join(downloadsDir, 'extract-'));
+  const temporaryBinary = path.join(binDir, `.${binaryName}.${randomUUID()}.tmp`);
+  try {
+    // Linux and Windows archives also contain daemon binaries; never extract them over a live engine.
+    await extractArchive(archivePath, staging, 1);
+    const binary = path.join(staging, binaryName);
+    if (!(await pathExists(binary))) {
+      throw new Error(`The Docker CLI archive does not contain ${binaryName}.`);
     }
-  }
-
-  if (process.platform !== 'win32' && (await pathExists(target))) {
-    await chmod(target, 0o755);
+    if (process.platform !== 'win32') await chmod(binary, 0o755);
+    if ((await getCliVersion(binary)) !== DOCKER_CLI_RELEASE_VERSION) {
+      throw new Error('The downloaded Docker CLI did not report the expected version.');
+    }
+    await copyFile(binary, temporaryBinary);
+    await rename(temporaryBinary, target);
+  } finally {
+    await rm(staging, { recursive: true, force: true });
+    await rm(temporaryBinary, { force: true });
   }
   onProgress?.(100, 'Docker CLI ready.');
   logger.info(`[EngineUtils] Successfully prepared host Docker CLI at: ${target}`);

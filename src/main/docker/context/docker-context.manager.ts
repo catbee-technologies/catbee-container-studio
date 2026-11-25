@@ -6,12 +6,7 @@ import { promisify } from 'node:util';
 import { logger } from '../../logger';
 import { getDockerCliPath } from '../runtime/docker.runtime';
 import type { DockerConnection, DockerContextInspect } from '../types/connection.types';
-import {
-  dockerCliEnv,
-  getPlatformDefaultConnection,
-  parseDockerHost,
-  resolveReachableDockerContext
-} from '../docker.connection';
+import { dockerCliEnv, parseDockerHost, resolveReachableDockerContext } from '../docker.connection';
 import {
   CATBEE_LIMA_INSTANCE,
   CATBEE_WINDOWS_PIPE_PATH,
@@ -244,9 +239,14 @@ export async function resolveDockerContextConnection(contextName: string): Promi
     if (host) {
       return parseDockerHost(host);
     }
-    return getPlatformDefaultConnection();
-  } catch {
-    return getPlatformDefaultConnection();
+    throw new Error('The context does not define a Docker endpoint.');
+  } catch (error) {
+    throw new Error(
+      `Unable to resolve Docker context "${contextName}": ${error instanceof Error ? error.message : String(error)}`,
+      {
+        cause: error
+      }
+    );
   }
 }
 

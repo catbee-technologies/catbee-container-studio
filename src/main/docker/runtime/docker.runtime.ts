@@ -114,7 +114,13 @@ export async function getDockerCliVersion(): Promise<string> {
 
 export async function getDockerCliPath(): Promise<string | null> {
   if (cachedDockerCliPath) {
-    return cachedDockerCliPath;
+    try {
+      await access(cachedDockerCliPath);
+      return cachedDockerCliPath;
+    } catch {
+      cachedDockerCliPath = null;
+      cachedDockerCliVersion = null;
+    }
   }
 
   // 1. Check CatBee's own embedded host Docker CLI first
@@ -184,26 +190,23 @@ export async function getDockerCliPath(): Promise<string | null> {
     }
   }
 
-  if (process.platform !== 'win32') {
-    try {
-      const { stdout } = await execFileAsync('which', ['docker'], {
-        encoding: 'utf8',
-        windowsHide: true
-      });
+  if (process.platform === 'win32') return null;
 
-      const dockerPath = stdout.trim();
-
-      if (dockerPath) {
-        logger.debug(`[DockerRuntime] Docker CLI found in PATH: ${dockerPath}`);
-        cachedDockerCliPath = dockerPath;
-        return dockerPath;
-      }
-    } catch {
-      // Docker CLI is not available in PATH.
-    }
+  const dockerPath = await findDockerCliInPath();
+  if (dockerPath) {
+    logger.debug(`[DockerRuntime] Docker CLI found in PATH: ${dockerPath}`);
+    cachedDockerCliPath = dockerPath;
   }
+  return dockerPath;
+}
 
-  return null;
+async function findDockerCliInPath(): Promise<string | null> {
+  try {
+    const { stdout } = await execFileAsync('which', ['docker'], { encoding: 'utf8', windowsHide: true });
+    return stdout.trim() || null;
+  } catch {
+    return null;
+  }
 }
 
 export async function getRdctlPath(): Promise<string | null> {

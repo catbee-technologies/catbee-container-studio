@@ -1,9 +1,8 @@
-import { access } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
-import http from 'node:http';
 import { promisify } from 'node:util';
 import { logger } from '../logger';
 import { getDockerCliPath } from './runtime/docker.runtime';
+import { pingDockerEndpoint } from './embedded/engine-utils';
 import type { DockerConnection, DockerContextInspect, ResolvedDockerConnection } from './types/connection.types';
 import { CATBEE_CONTEXT_NAME } from '../../constants.docker';
 
@@ -16,8 +15,9 @@ const execFileAsync = promisify(execFile);
 export function dockerCliEnv(): NodeJS.ProcessEnv {
   // eslint-disable-next-line n/no-process-env
   const env = { ...process.env };
-  delete env.DOCKER_HOST;
-  delete env.DOCKER_CONTEXT;
+  for (const key of Object.keys(env)) {
+    if (['DOCKER_HOST', 'DOCKER_CONTEXT'].includes(key.toUpperCase())) delete env[key];
+  }
   return env;
 }
 
@@ -136,7 +136,8 @@ export async function resolveCurrentDockerContext(): Promise<DockerConnection | 
 
     const { stdout } = await execFileAsync(dockerPath, ['context', 'inspect', contextName, '--format', '{{json .}}'], {
       encoding: 'utf8',
-      windowsHide: true
+      windowsHide: true,
+      env: dockerCliEnv()
     });
     const context = JSON.parse(stdout.trim()) as DockerContextInspect;
     const host = context.Endpoints?.docker?.Host;
@@ -158,7 +159,8 @@ export async function getCurrentDockerContextName(dockerPath?: string): Promise<
     }
     const { stdout } = await execFileAsync(resolvedDockerPath, ['context', 'show'], {
       encoding: 'utf8',
-      windowsHide: true
+      windowsHide: true,
+      env: dockerCliEnv()
     });
     return stdout.trim() || null;
   } catch {
@@ -185,13 +187,7 @@ export function getPlatformDefaultConnection(): DockerConnection {
 }
 
 export async function isConnectionAvailable(connection: DockerConnection): Promise<boolean> {
-  switch (connection.type) {
-    case 'unix':
-    case 'npipe':
-      return await socketExists(connection.path);
-    case 'tcp':
-      return await testTcpPing(connection.host, connection.port);
-  }
+  return await pingDockerConnection(connection);
 }
 
 /**
@@ -236,40 +232,7 @@ export async function resolveReachableDockerContext(): Promise<{
 
 /** True when a Docker engine answers `/_ping` on the connection (a socket file alone may be stale). */
 export async function pingDockerConnection(connection: DockerConnection): Promise<boolean> {
-  if (connection.type === 'tcp') {
-    return await testTcpPing(connection.host, connection.port);
-  }
-  const socketPath = connection.type === 'npipe' ? connection.path.replaceAll('/', '\\') : connection.path;
-  return await new Promise<boolean>(resolve => {
-    const request = http.request({ socketPath, path: '/_ping', method: 'GET', timeout: 1500 }, response => {
-      response.resume();
-      resolve(response.statusCode === 200);
-    });
-    request.on('timeout', () => request.destroy());
-    request.on('error', () => resolve(false));
-    request.end();
-  });
-}
-
-async function socketExists(socketPath: string): Promise<boolean> {
-  try {
-    await access(socketPath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function testTcpPing(host: string, port: number): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1500);
-    const response = await fetch(`http://${host}:${port}/_ping`, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    return response.ok;
-  } catch {
-    return false;
-  }
+  return await pingDockerEndpoint(connection, 1500);
 }
 
 export class DockerConnectionError extends Error {
