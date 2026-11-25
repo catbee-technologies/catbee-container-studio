@@ -1,13 +1,31 @@
-import type { BrowserWindow } from 'electron';
+import { EventEmitter } from 'node:events';
+import { spawn } from 'node:child_process';
+import { app, type BrowserWindow } from 'electron';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { autoUpdater } from 'electron-updater';
+import { autoUpdater, type BaseUpdater } from 'electron-updater';
 
-vi.mock('electron', () => ({ app: { getVersion: () => '0.6.0' } }));
+vi.mock('node:child_process', () => ({ spawn: vi.fn() }));
+vi.mock('electron', async () => {
+  const { EventEmitter } = await import('node:events');
+  return {
+    app: Object.assign(new EventEmitter(), {
+      getVersion: () => '0.6.0',
+      quit: vi.fn(),
+      releaseSingleInstanceLock: vi.fn()
+    })
+  };
+});
 vi.mock('../../../src/main/app/constants', () => ({ isDev: false, isMacOS: false }));
 vi.mock('../../../src/main/logger', () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 vi.mock('electron-updater', async () => {
   const { EventEmitter } = await import('node:events');
-  return { autoUpdater: Object.assign(new EventEmitter(), { quitAndInstall: vi.fn(), checkForUpdates: vi.fn() }) };
+  return {
+    autoUpdater: Object.assign(new EventEmitter(), {
+      quitAndInstall: vi.fn(),
+      installAsync: vi.fn(),
+      checkForUpdates: vi.fn()
+    })
+  };
 });
 
 describe('Electron updater', () => {
@@ -18,6 +36,7 @@ describe('Electron updater', () => {
   beforeEach(async () => {
     vi.resetModules();
     vi.resetAllMocks();
+    app.removeAllListeners('quit');
     autoUpdater.removeAllListeners();
     updater = await import('../../../src/main/app/updater.js');
     updater.initializeAutoUpdater({ isDestroyed: () => false, webContents: { send } } as unknown as BrowserWindow);
@@ -58,6 +77,49 @@ describe('Electron updater', () => {
       expect.any(String),
       expect.objectContaining({ status: 'error', message: expect.stringContaining('Download a new archive') })
     );
+  });
+
+  it.each(['deb', 'rpm'])('reopens CatBee after a successful Linux %s update', async extension => {
+    vi.stubGlobal('process', Object.create(process, { platform: { value: 'linux' } }));
+    autoUpdater.emit('update-downloaded', { ...downloadedUpdate, downloadedFile: `update.${extension}` });
+    const install = Promise.withResolvers<boolean>();
+    vi.mocked((autoUpdater as BaseUpdater).installAsync).mockReturnValue(install.promise);
+    const child = Object.assign(new EventEmitter(), { unref: vi.fn() });
+    vi.mocked(spawn).mockReturnValue(child as unknown as ReturnType<typeof spawn>);
+
+    const update = updater.restartAndInstallUpdate(async () => vi.fn<() => void>());
+    await Promise.resolve();
+    expect((autoUpdater as BaseUpdater).installAsync).toHaveBeenCalledWith(false, false);
+    expect(app.quit).not.toHaveBeenCalled();
+    install.resolve(true);
+    await update;
+
+    expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled();
+    expect(app.quit).toHaveBeenCalledOnce();
+    expect(spawn).not.toHaveBeenCalled();
+    app.emit('quit', {} as Electron.Event, 0);
+    expect(app.releaseSingleInstanceLock).toHaveBeenCalledBefore(vi.mocked(spawn));
+    expect(spawn).toHaveBeenCalledWith(process.execPath, process.argv.slice(1), { detached: true, stdio: 'ignore' });
+    expect(child.unref).toHaveBeenCalledOnce();
+  });
+
+  it('restores shutdown state and permits retry after a Linux package update fails', async () => {
+    vi.stubGlobal('process', Object.create(process, { platform: { value: 'linux' } }));
+    autoUpdater.emit('update-downloaded', { ...downloadedUpdate, downloadedFile: 'update.deb' });
+    vi.mocked((autoUpdater as BaseUpdater).installAsync)
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    const restore = vi.fn<() => void>();
+    const prepare = vi.fn(async () => restore);
+
+    await updater.restartAndInstallUpdate(prepare);
+    expect(restore).toHaveBeenCalledOnce();
+    expect(app.quit).not.toHaveBeenCalled();
+    expect(app.listenerCount('quit')).toBe(0);
+    expect(send).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ status: 'error' }));
+
+    await updater.restartAndInstallUpdate(prepare);
+    expect(app.quit).toHaveBeenCalledOnce();
   });
 
   it.each(['synchronous', 'asynchronous'])(

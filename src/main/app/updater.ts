@@ -1,5 +1,6 @@
+import { spawn } from 'node:child_process';
 import { app, BrowserWindow } from 'electron';
-import { autoUpdater } from 'electron-updater';
+import { autoUpdater, type BaseUpdater } from 'electron-updater';
 import { isDev, isMacOS } from './constants';
 import { logger } from '../logger';
 import { IPC_CHANNELS } from '../../ipc/channels';
@@ -33,7 +34,7 @@ export type AutoUpdaterStatus =
     };
 
 let mainWindow: BrowserWindow | null = null;
-let updateDownloaded = false;
+let downloadedUpdateFile: string | null = null;
 let installingUpdate = false;
 let recoverFromInstallFailure: (() => void) | null = null;
 
@@ -239,7 +240,7 @@ export function initializeAutoUpdater(window: BrowserWindow): void {
   });
 
   autoUpdater.on('update-downloaded', info => {
-    updateDownloaded = true;
+    downloadedUpdateFile = info.downloadedFile;
     logger.info(`[AutoUpdater] Update downloaded: ${info.version}`);
     sendStatus({ status: 'downloaded', version: info.version });
   });
@@ -324,9 +325,10 @@ export function skipAutoInstallOnQuit(): void {
 }
 
 export async function restartAndInstallUpdate(prepare: PrepareForUpdateInstall): Promise<void> {
-  if (isDev || isMacOS || isMicrosoftStoreInstallation() || !updateDownloaded || installingUpdate) {
+  if (isDev || isMacOS || isMicrosoftStoreInstallation() || !downloadedUpdateFile || installingUpdate) {
     return;
   }
+  const isLinuxPackage = process.platform === 'linux' && /\.(deb|rpm)$/.test(downloadedUpdateFile);
   installingUpdate = true;
 
   let restoreShutdownState: () => void;
@@ -346,12 +348,36 @@ export async function restartAndInstallUpdate(prepare: PrepareForUpdateInstall):
   };
   logger.info('[AutoUpdater] Restarting and installing update...');
   try {
+    if (isLinuxPackage) {
+      const installed = await (autoUpdater as BaseUpdater).installAsync(false, false);
+      if (!installed) {
+        if (recoverFromInstallFailure) {
+          recoverFromInstallFailure();
+          sendStatus({ status: 'error', message: 'Could not install the update.' });
+        }
+        return;
+      }
+      app.once('quit', relaunchLinuxPackage);
+      app.quit();
+      return;
+    }
     autoUpdater.quitAndInstall();
   } catch (err) {
     recoverFromInstallFailure?.();
     logger.error({ err }, '[AutoUpdater] Could not start the update installer.');
     sendStatus({ status: 'error', message: 'Could not start the update installer.' });
   }
+}
+
+function relaunchLinuxPackage(): void {
+  // Electron's Linux relauncher sets NoNewPrivs, which blocks RootlessKit's newuidmap helper.
+  // The quit event fires before Electron releases its single-instance lock.
+  app.releaseSingleInstanceLock();
+  const child = spawn(process.execPath, process.argv.slice(1), { detached: true, stdio: 'ignore' });
+  child.once('error', err =>
+    logger.error({ err }, '[AutoUpdater] Could not reopen CatBee after installing the update.')
+  );
+  child.unref();
 }
 
 function sendStatus(status: AutoUpdaterStatus): void {
