@@ -76,6 +76,14 @@ export class DockerManager {
     return this.selectedRuntime;
   }
 
+  get isEmbeddedEngineReady(): boolean {
+    return (
+      this.selectedRuntime?.source === 'embedded' &&
+      this.latestStatus?.state === 'ready' &&
+      engineManager.state === 'running'
+    );
+  }
+
   get isEnginePaused(): boolean {
     return this.pausedContainerIds.length > 0;
   }
@@ -98,7 +106,8 @@ export class DockerManager {
   private async initializeRuntime(
     onStatus?: (status: DockerInitializationStatus) => void,
     onRuntimeStarted?: () => void,
-    forceMode?: EngineMode
+    forceMode?: EngineMode,
+    persistMode = false
   ): Promise<void> {
     if (onStatus) {
       this.statusListener = onStatus;
@@ -116,14 +125,18 @@ export class DockerManager {
     });
 
     try {
-      this.selectedRuntime = await this.runtimeManager.ensureRuntime(
+      const runtime = await this.runtimeManager.ensureRuntime(
         status => this.emitStatus(status),
         onRuntimeStarted,
         forceMode
       );
-      this.client = createDockerClient(this.selectedRuntime.connection);
-      this.initializeServices(this.selectedRuntime.connection);
-      await this.syncCliContext(this.selectedRuntime);
+      if (persistMode && forceMode) {
+        await saveEngineSettings({ engineMode: forceMode });
+      }
+      this.selectedRuntime = runtime;
+      this.client = createDockerClient(runtime.connection);
+      this.initializeServices(runtime.connection);
+      await this.syncCliContext(runtime);
 
       this.emitStatus({
         state: 'ready',
@@ -173,11 +186,8 @@ export class DockerManager {
         onProgress?.(progress, stage);
       });
 
-      logger.info('[DockerManager] Embedded engine installed. Persisting embedded mode.');
-      await saveEngineSettings({ engineMode: 'embedded' });
-
-      logger.info('[DockerManager] Re-initializing DockerManager with embedded engine...');
-      await this.initializeRuntime(this.statusListener, undefined, 'embedded');
+      logger.info('[DockerManager] Connecting to the installed embedded engine...');
+      await this.initializeRuntime(this.statusListener, undefined, 'embedded', true);
     } catch (error) {
       logger.error({ err: error }, '[DockerManager] Failed to install embedded engine.');
       this.emitStatus({

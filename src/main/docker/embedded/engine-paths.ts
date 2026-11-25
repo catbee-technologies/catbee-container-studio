@@ -38,6 +38,10 @@ export function getEngineManifestPath(): string {
   return path.join(getEngineRootDir(), 'manifest.json');
 }
 
+export function getWslEngineDiskPath(): string {
+  return path.join(getEngineRootDir(), 'wsl', 'ext4.vhdx');
+}
+
 export function getEngineBinDir(): string {
   return path.join(homeDir(), '.catbee', 'bin');
 }

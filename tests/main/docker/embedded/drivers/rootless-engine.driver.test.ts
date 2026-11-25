@@ -1,4 +1,4 @@
-import { readFile, readlink, rm } from 'node:fs/promises';
+import { chmod, mkdir, readFile, readlink, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RootlessEngineDriver } from '../../../../../src/main/docker/embedded/drivers/rootless-engine.driver';
@@ -7,15 +7,39 @@ import {
   getEngineRootDir,
   getLinuxRuntimeDir
 } from '../../../../../src/main/docker/embedded/engine-paths';
-import { pingDockerEndpoint, updateEngineManifest } from '../../../../../src/main/docker/embedded/engine-utils';
+import {
+  extractArchive,
+  fetchEngineResource,
+  getDockerServerVersion,
+  pathExists,
+  pingDockerEndpoint,
+  updateEngineManifest,
+  writeEngineManifest
+} from '../../../../../src/main/docker/embedded/engine-utils';
+import { DEFAULT_ENGINE_SETTINGS } from '../../../../../src/main/docker/embedded/engine-settings';
 
 vi.mock('electron', () => ({}));
 vi.mock('../../../../../src/main/logger', () => ({ logger: { debug: vi.fn(), warn: vi.fn() } }));
-vi.mock('node:fs/promises', () => ({ readFile: vi.fn(), readlink: vi.fn(), rm: vi.fn() }));
+vi.mock('node:fs/promises', () => ({
+  chmod: vi.fn(),
+  mkdir: vi.fn(),
+  readFile: vi.fn(),
+  readlink: vi.fn(),
+  rm: vi.fn()
+}));
+vi.mock('../../../../../src/main/docker/embedded/engine-settings', async importOriginal => {
+  const original = await importOriginal<typeof import('../../../../../src/main/docker/embedded/engine-settings')>();
+  return { ...original, getEngineSettings: async () => original.DEFAULT_ENGINE_SETTINGS };
+});
 vi.mock('../../../../../src/main/docker/embedded/engine-utils', async importOriginal => ({
   ...(await importOriginal<typeof import('../../../../../src/main/docker/embedded/engine-utils')>()),
   pingDockerEndpoint: vi.fn(),
+  extractArchive: vi.fn(),
+  fetchEngineResource: vi.fn(),
+  getDockerServerVersion: vi.fn(),
+  pathExists: vi.fn(),
   updateEngineManifest: vi.fn(),
+  writeEngineManifest: vi.fn(),
   sleep: vi.fn()
 }));
 
@@ -69,5 +93,47 @@ describe('Linux rootless shutdown', () => {
     expect(kill).not.toHaveBeenCalled();
     expect(rm).not.toHaveBeenCalled();
     expect(updateEngineManifest).not.toHaveBeenCalled();
+  });
+});
+
+describe('Linux rootless installation', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(readFile).mockRejectedValue(new Error('No AppArmor setting'));
+    vi.mocked(pathExists).mockResolvedValue(true);
+    vi.mocked(fetchEngineResource).mockResolvedValue(new Response('docker-rootless-extras-29.9.3.tgz'));
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('keeps the installation incomplete if the extracted engine cannot start', async () => {
+    const driver = new RootlessEngineDriver();
+    vi.spyOn(driver, 'checkPrerequisites').mockResolvedValue({ ok: true });
+    vi.spyOn(driver, 'stop').mockResolvedValue(undefined);
+    const start = vi.spyOn(driver, 'start').mockRejectedValue(new Error('dockerd not found'));
+    const progress = vi.fn();
+
+    await expect(driver.install(progress)).rejects.toThrow('dockerd not found');
+    expect(extractArchive).toHaveBeenCalledTimes(2);
+    expect(chmod).toHaveBeenCalled();
+    expect(mkdir).toHaveBeenCalled();
+    expect(start).toHaveBeenCalledExactlyOnceWith(DEFAULT_ENGINE_SETTINGS, expect.any(Function));
+    expect(writeEngineManifest).not.toHaveBeenCalled();
+    expect(progress).not.toHaveBeenCalledWith(100, expect.any(String));
+  });
+
+  it('records a running manifest only after startup succeeds', async () => {
+    const driver = new RootlessEngineDriver();
+    vi.spyOn(driver, 'checkPrerequisites').mockResolvedValue({ ok: true });
+    vi.spyOn(driver, 'stop').mockResolvedValue(undefined);
+    const start = vi.spyOn(driver, 'start').mockResolvedValue(driver.getRunningConnection());
+    vi.mocked(getDockerServerVersion).mockResolvedValue('29.9.3');
+    const progress = vi.fn();
+
+    const manifest = await driver.install(progress);
+    expect(manifest).toMatchObject({ state: 'running', engineVersion: '29.9.3' });
+    expect(writeEngineManifest).toHaveBeenCalledExactlyOnceWith(manifest);
+    expect(start.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(writeEngineManifest).mock.invocationCallOrder[0]);
+    expect(progress).toHaveBeenLastCalledWith(100, 'Installation complete.');
   });
 });

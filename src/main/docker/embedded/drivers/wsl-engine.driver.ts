@@ -27,7 +27,8 @@ import {
   getEngineDownloadsDir,
   getEngineLogsDir,
   getEngineManifestPath,
-  getEngineRootDir
+  getEngineRootDir,
+  getWslEngineDiskPath
 } from '../engine-paths';
 import {
   describeDownload,
@@ -55,6 +56,22 @@ const DAEMON_LOG_PATH = '/var/log/docker/dockerd.log';
 const START_SCRIPT_PATH = '/usr/local/bin/catbee-dockerd';
 const INTEGRATION_PROFILE = '/etc/profile.d/catbee-docker.sh';
 const FALLBACK_ALPINE_VERSION = '3.24.4';
+
+const INSTALL_DOCKER_PACKAGES = String.raw`
+grep -q "^nameserver" /etc/resolv.conf 2>/dev/null || printf '%s\n' 'nameserver 1.1.1.1' > /etc/resolv.conf
+bootstrap_ca=$(mktemp)
+trap 'rm -f "$bootstrap_ca"' EXIT
+# Repair joined PEM records left by older installers in a temporary copy. Alpine's
+# /etc/ssl/cert.pem is a symlink to this bundle, so appending to both broke it.
+sed 's/-----END CERTIFICATE----------BEGIN CERTIFICATE-----/-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----/g' /etc/ssl/certs/ca-certificates.crt > "$bootstrap_ca"
+for cert in /usr/local/share/ca-certificates/catbee-win-*.crt; do
+  [ -f "$cert" ] || continue
+  printf '\n' >> "$bootstrap_ca"
+  cat "$cert" >> "$bootstrap_ca"
+done
+SSL_CERT_FILE="$bootstrap_ca" apk add --no-cache docker docker-cli-buildx docker-cli-compose iptables ip6tables ca-certificates
+update-ca-certificates
+`.trim();
 
 // eslint-disable-next-line n/no-process-env
 const systemRoot = process.env.SystemRoot;
@@ -111,8 +128,8 @@ true
 export class WslEngineDriver implements PlatformEngineDriver {
   readonly platform: NodeJS.Platform = 'win32';
   private readonly engineDir = getEngineRootDir();
-  private readonly wslDir = path.join(this.engineDir, 'wsl');
-  private readonly diskPath = path.join(this.wslDir, 'ext4.vhdx');
+  private readonly diskPath = getWslEngineDiskPath();
+  private readonly wslDir = path.dirname(this.diskPath);
   private daemonProcess: ChildProcess | null = null;
   private daemonExitReason: string | null = null;
   /** Translates Windows bind-mount paths (C:\...) to /mnt/<drive>/... for every client using the pipe. */
@@ -183,7 +200,7 @@ export class WslEngineDriver implements PlatformEngineDriver {
     if (!distros.some(name => name.toLowerCase() === CATBEE_WSL_DISTRO)) return false;
 
     const manifest = await this.getManifest();
-    if (manifest?.engineVersion && manifest.engineVersion !== 'pending first start') return true;
+    if (manifest?.engineVersion && !['unknown', 'pending first start'].includes(manifest.engineVersion)) return true;
     // The registration and the installed binary can outlive a missing or unreadable manifest.
     return (await this.readInstalledDockerVersion()) !== null;
   }
@@ -209,7 +226,7 @@ export class WslEngineDriver implements PlatformEngineDriver {
 
   private async readInstalledDockerVersion(): Promise<string | null> {
     return this.sh(`test -x ${START_SCRIPT_PATH} && dockerd --version`, { timeoutMs: 20_000 })
-      .then(({ stdout }) => /version\s+([\w.\-+]+)/i.exec(stdout)?.[1] ?? 'unknown')
+      .then(({ stdout }) => /version\s+([\w.\-+]+)/i.exec(stdout)?.[1] ?? null)
       .catch(() => null);
   }
 
@@ -278,37 +295,16 @@ export class WslEngineDriver implements PlatformEngineDriver {
     });
 
     onProgress(55, 'Installing Docker Engine (docker, containerd, iptables)...');
-    const proxyEnv = proxyToEnv(await detectSystemProxy());
-    const exports = Object.entries(proxyEnv)
-      .map(([key, value]) => `export ${key}=${shellQuote(value)}`)
-      .join('; ');
-    await this.sh(
-      [
-        exports,
-        'grep -q "^nameserver" /etc/resolv.conf 2>/dev/null || echo "nameserver 1.1.1.1" > /etc/resolv.conf',
-        'apk update',
-        'apk add --no-cache docker docker-cli-buildx docker-cli-compose iptables ip6tables ca-certificates',
-        'update-ca-certificates 2>/dev/null || true'
-      ]
-        .filter(Boolean)
-        .join(' && '),
-      {
-        timeoutMs: 15 * 60_000,
-        onOutput: line => {
-          // apk prints "(12/40) Installing containerd (1.7.x)"; map that onto the 55-85% band.
-          const match = /^\((\d{1,5})\/(\d{1,5})\)\s+(\S[^\r\n]*)$/.exec(line);
-          if (match) {
-            onProgress(55 + Math.round((Number(match[1]) / Number(match[2])) * 30), match[3]);
-          }
-        }
-      }
-    );
+    await this.installDockerPackages(onProgress);
 
     onProgress(85, 'Installing the engine launcher...');
     await this.writeFileInDistro(START_SCRIPT_PATH, START_SCRIPT);
     await this.sh(`chmod +x ${START_SCRIPT_PATH} && mkdir -p /etc/docker /var/log/docker`);
 
-    manifest.engineVersion = (await this.readInstalledDockerVersion()) ?? 'unknown';
+    const installedVersion = await this.readInstalledDockerVersion();
+    if (!installedVersion)
+      throw new Error('Docker packages finished installing, but dockerd is unavailable in CatBee WSL.');
+    manifest.engineVersion = installedVersion;
 
     // Stop the distro so the next start picks up wsl.conf.
     await this.wsl(['--terminate', CATBEE_WSL_DISTRO]).catch(() => undefined);
@@ -324,6 +320,32 @@ export class WslEngineDriver implements PlatformEngineDriver {
     await writeEngineManifest(manifest);
     onProgress(100, 'Installation complete.');
     return manifest;
+  }
+
+  private async installDockerPackages(onProgress: EngineProgressCallback): Promise<void> {
+    const settings = await getEngineSettings();
+    const proxyEnv = proxyToEnv(resolveDaemonProxy(settings, await detectSystemProxy()));
+    const exports = Object.entries(proxyEnv).map(([key, value]) => `export ${key}=${shellQuote(value)}`);
+    let certificateError: string | undefined;
+    try {
+      await this.sh(['set -e', ...exports, INSTALL_DOCKER_PACKAGES].join('\n'), {
+        timeoutMs: 15 * 60_000,
+        onOutput: line => {
+          if (/TLS:.*certificate/i.test(line)) certificateError = line;
+          // apk can pad the item counter, for example "( 1/14) Installing ca-certificates".
+          const match = /^\(\s*(\d{1,5})\/(\d{1,5})\)\s+(\S[^\r\n]*)$/.exec(line);
+          if (match) {
+            onProgress(55 + Math.round((Number(match[1]) / Number(match[2])) * 30), match[3]);
+          }
+        }
+      });
+    } catch (error) {
+      if (certificateError)
+        throw new Error(`CatBee WSL could not verify the Alpine package repository. ${certificateError}`, {
+          cause: error
+        });
+      throw error;
+    }
   }
 
   async buildDaemonConfig(settings: EngineSettings): Promise<Record<string, unknown>> {
@@ -480,7 +502,7 @@ export class WslEngineDriver implements PlatformEngineDriver {
       ? `mkdir -p /etc/profile.d && echo 'export DOCKER_HOST=tcp://127.0.0.1:${CATBEE_WSL_DOCKER_TCP_PORT}' > ${INTEGRATION_PROFILE}`
       : `rm -f ${INTEGRATION_PROFILE}`;
     try {
-      await this.wsl(['-d', distroName, '-u', 'root', '--', 'sh', '-c', script]);
+      await this.wsl(['-d', distroName, '-u', 'root', '--exec', 'sh', '-s'], { input: script });
       logger.info(`[WslEngineDriver] ${enabled ? 'Enabled' : 'Disabled'} Docker integration for ${distroName}.`);
       return true;
     } catch (err) {
@@ -491,7 +513,7 @@ export class WslEngineDriver implements PlatformEngineDriver {
 
   private spawnDaemon(): void {
     this.daemonExitReason = null;
-    const child = spawn(WSL_EXECUTABLE, ['-d', CATBEE_WSL_DISTRO, '-u', 'root', '--', START_SCRIPT_PATH], {
+    const child = spawn(WSL_EXECUTABLE, ['-d', CATBEE_WSL_DISTRO, '-u', 'root', '--exec', START_SCRIPT_PATH], {
       windowsHide: true,
       stdio: 'ignore',
       env: wslEnv()
@@ -591,25 +613,20 @@ export class WslEngineDriver implements PlatformEngineDriver {
 
   private sh(
     script: string,
-    options: { timeoutMs?: number; onOutput?: (line: string) => void } = {}
+    options: { input?: string; timeoutMs?: number; onOutput?: (line: string) => void } = {}
   ): Promise<RunResult> {
-    return this.wsl(['-d', CATBEE_WSL_DISTRO, '-u', 'root', '--', 'sh', '-c', script], options);
+    // WSL's default shell can expand variables in the script before our guest shell sees them.
+    const shellArgs = options.input === undefined ? ['-s'] : ['-c', script];
+    return this.wsl(['-d', CATBEE_WSL_DISTRO, '-u', 'root', '--exec', 'sh', ...shellArgs], {
+      ...options,
+      input: options.input ?? `${script}\n`
+    });
   }
 
   private async writeFileInDistro(filePath: string, content: string): Promise<void> {
-    await this.wsl(
-      [
-        '-d',
-        CATBEE_WSL_DISTRO,
-        '-u',
-        'root',
-        '--',
-        'sh',
-        '-c',
-        `mkdir -p ${shellQuote(path.posix.dirname(filePath))} && cat > ${shellQuote(filePath)}`
-      ],
-      { input: content.replaceAll('\r\n', '\n') }
-    );
+    await this.sh(`mkdir -p ${shellQuote(path.posix.dirname(filePath))} && cat > ${shellQuote(filePath)}`, {
+      input: content.replaceAll('\r\n', '\n')
+    });
   }
 
   /**
@@ -734,14 +751,10 @@ rm -f /usr/local/share/ca-certificates/catbee-win-*.crt
 awk 'BEGIN {c=0} /BEGIN CERTIFICATE/ {c++} {print > ("/usr/local/share/ca-certificates/catbee-win-" c ".crt")}' "$tmpdir/certs.pem"
 if command -v update-ca-certificates >/dev/null 2>&1; then
   update-ca-certificates
-else
-  mkdir -p /etc/ssl/certs
-  cat "$tmpdir/certs.pem" >> /etc/ssl/certs/ca-certificates.crt 2>/dev/null || true
-  cat "$tmpdir/certs.pem" >> /etc/ssl/cert.pem 2>/dev/null || true
 fi
 echo "${certsHash}" > ${cachePath}
 `;
-      await this.wsl(['-d', CATBEE_WSL_DISTRO, '-u', 'root', '--', 'sh', '-c', installScript], { input: certsPayload });
+      await this.sh(installScript, { input: certsPayload });
       logger.info(
         `[WslEngineDriver] Synchronized ${trustedCaPems.length} trusted host CA certificates into CatBee WSL.`
       );
@@ -833,7 +846,7 @@ echo "copied" > "$marker"
 echo "${payloadHash}" > "$hash_marker"
 echo "UPDATED"
 `;
-      const copyRes = await this.wsl(['-d', CATBEE_WSL_DISTRO, '-u', 'root', '--', 'sh', '-c', copyScript], {
+      const copyRes = await this.sh(copyScript, {
         input: payload
       });
       const isUpdated = copyRes.stdout.trim() === 'UPDATED';

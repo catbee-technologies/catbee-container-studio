@@ -38,7 +38,7 @@ export const DOCKER_CLI_RELEASE_VERSION = '29.10.0';
 export const KIND_CLOUD_PROVIDER_IMAGE = 'docker.io/docker/desktop-cloud-provider-kind:v0.6.0';
 
 /** Companion container name for Kind Cloud Controller Manager. */
-export const KIND_CLOUD_PROVIDER_CONTAINER = 'kind-cloud-provider';
+export const KIND_CLOUD_PROVIDER_CONTAINER = 'catbee-kind-cloud-provider';
 
 export const DEFAULT_K8S_VERSION = 'v1.37.0';
 

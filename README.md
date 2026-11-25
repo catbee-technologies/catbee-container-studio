@@ -157,15 +157,15 @@ This makes it easier to inspect application data, configuration files, logs, and
 - **Windows**: An isolated Alpine Linux WSL 2 distribution; WSL 2 must be installed and ready before engine installation.
 - **Linux**: Native rootless Docker; requires a regular user, `newuidmap`, `newgidmap`, subordinate UID/GID ranges, user namespaces, and `iptables`. Kubernetes also requires cgroup v2 and the host prerequisites documented by [kind](https://kind.sigs.k8s.io/docs/user/rootless/).
 - **External engines**: Docker contexts can be used without installing the built-in engine. Explicit context switches fail if the selected context is unreachable or unsupported. Startup detection can try the platform-default Docker endpoint if the current context is unavailable.
-- **Kubernetes**: kind clusters can use either the built-in engine or a connected external Docker engine. Starting or recreating a cluster saves only Kubernetes settings; unrelated settings drafts remain unapplied.
+- **Kubernetes**: Installing kind and managing clusters require a running CatBee built-in engine. Starting or recreating a cluster saves only Kubernetes settings.
 
 #### Cleanup & Uninstallation
 
 Use **Settings → Troubleshoot → Factory Reset & Teardown** before removing the application, including Microsoft Store uninstallation. Ordinary OS uninstallation does not necessarily remove the built-in VM/WSL distribution or files outside the application package.
 
-Teardown removes the CatBee-managed cluster on the active engine, the built-in engine and its data, and CatBee CLI configuration. Other engines and unrelated Kubernetes clusters are preserved. Engine files are not deleted if shutdown or VM/distribution removal fails; errors are reported so remaining data can be recovered.
+Teardown removes the CatBee-managed cluster on the built-in engine, the engine and its data, and CatBee CLI configuration. Other engines and unrelated Kubernetes clusters are preserved. Engine files are not deleted if shutdown or VM/distribution removal fails; errors are reported so remaining data can be recovered.
 
-The application also accepts `--factory-reset` and `--uninstall` for headless engine teardown. Close all CatBee instances first; these commands exit nonzero on failure and do not remove the desktop application package. Headless teardown does not discover clusters on external engines; remove those through the connected application's Kubernetes settings first.
+The application also accepts `--factory-reset` and `--uninstall` for headless engine teardown. Close all CatBee instances first. These commands exit nonzero on failure and keep the desktop application package installed.
 
 For development reset testing:
 

@@ -4,9 +4,13 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CATBEE_K8S_CLUSTER_NAME, KIND_CLOUD_PROVIDER_IMAGE } from '../../../src/constants.docker';
+import {
+  CATBEE_K8S_CLUSTER_NAME,
+  KIND_CLOUD_PROVIDER_CONTAINER,
+  KIND_CLOUD_PROVIDER_IMAGE
+} from '../../../src/constants.docker';
 import { DEFAULT_ENGINE_SETTINGS, getEngineSettings } from '../../../src/main/docker/embedded/engine-settings';
-import { runCommand } from '../../../src/main/docker/embedded/engine-utils';
+import { pingDockerEndpoint, runCommand } from '../../../src/main/docker/embedded/engine-utils';
 import { dockerManager } from '../../../src/main/docker/services/docker.manager';
 import { k8sManager } from '../../../src/main/k8s/k8s-manager';
 
@@ -27,6 +31,7 @@ vi.mock('../../../src/main/docker/embedded/engine-paths', async importOriginal =
 }));
 vi.mock('../../../src/main/docker/embedded/engine-utils', async importOriginal => ({
   ...(await importOriginal<typeof import('../../../src/main/docker/embedded/engine-utils')>()),
+  pingDockerEndpoint: vi.fn(),
   runCommand: vi.fn()
 }));
 vi.mock('../../../src/main/docker/embedded/engine-settings', async importOriginal => ({
@@ -36,7 +41,8 @@ vi.mock('../../../src/main/docker/embedded/engine-settings', async importOrigina
 vi.mock('../../../src/main/docker/runtime/docker.runtime', () => ({ getDockerCliPath: async () => null }));
 vi.mock('../../../src/main/docker/services/docker.manager', () => ({
   dockerManager: {
-    currentRuntime: { source: 'external', connection: { type: 'unix', path: '/var/run/docker.sock' } },
+    currentRuntime: { source: 'embedded', connection: { type: 'unix', path: '/var/run/docker.sock' } },
+    isEmbeddedEngineReady: true,
     containers: {
       listContainers: vi.fn(),
       inspectContainer: vi.fn(),
@@ -84,19 +90,22 @@ describe('Kubernetes lifecycle', () => {
 
   beforeEach(async () => {
     vi.resetAllMocks();
+    vi.stubGlobal('process', Object.create(process, { platform: { value: 'linux' } }));
     directory = await mkdtemp(path.join(tmpdir(), 'catbee-kind-test-'));
     kubeconfig = path.join(directory, 'config');
     home.mockReturnValue(directory);
     vi.stubEnv('KUBECONFIG', kubeconfig);
     vi.mocked(getEngineSettings).mockResolvedValue(DEFAULT_ENGINE_SETTINGS);
+    vi.mocked(pingDockerEndpoint).mockResolvedValue(true);
     vi.spyOn(k8sManager, 'getKindBinaryPath').mockResolvedValue('kind');
     vi.spyOn(k8sManager, 'isKindInstalled').mockResolvedValue(true);
   });
 
   afterEach(async () => {
-    Object.assign(dockerManager, { currentRuntime: runtime, containers });
+    Object.assign(dockerManager, { currentRuntime: runtime, containers, isEmbeddedEngineReady: true });
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     await rm(directory, { recursive: true, force: true });
   });
 
@@ -152,6 +161,35 @@ describe('Kubernetes lifecycle', () => {
       status: 'error',
       error: 'Could not read the CatBee kubeconfig.'
     });
+  });
+
+  it.each(['external', 'stopped'])('blocks operations when the selected engine is %s', async condition => {
+    Object.assign(dockerManager, {
+      currentRuntime: condition === 'external' ? { ...runtime, source: 'external' } : runtime,
+      isEmbeddedEngineReady: false
+    });
+    await expect(k8sManager.installKind()).rejects.toThrow('Start and connect to the CatBee built-in engine');
+    await expect(k8sManager.startCluster()).rejects.toThrow('Start and connect to the CatBee built-in engine');
+    await expect(k8sManager.getStatus()).resolves.toMatchObject({ status: 'unavailable', isKindInstalled: true });
+    expect(runCommand).not.toHaveBeenCalled();
+    expect(list).not.toHaveBeenCalled();
+  });
+
+  it('does not run kind when the built-in engine no longer answers its readiness probe', async () => {
+    vi.mocked(pingDockerEndpoint).mockResolvedValue(false);
+    await expect(k8sManager.checkEngineAvailable()).rejects.toThrow('Start and connect to the CatBee built-in engine');
+    await expect(k8sManager.installKind()).rejects.toThrow('Start and connect to the CatBee built-in engine');
+    await expect(k8sManager.getStatus()).resolves.toMatchObject({ status: 'unavailable', isKindInstalled: true });
+    expect(runCommand).not.toHaveBeenCalled();
+  });
+
+  it.each(['darwin', 'linux'])('reports a missing host kind binary with the engine stopped on %s', async platform => {
+    vi.stubGlobal('process', Object.create(process, { platform: { value: platform } }));
+    Object.assign(dockerManager, { isEmbeddedEngineReady: false });
+    vi.mocked(k8sManager.getKindBinaryPath).mockResolvedValue(null);
+
+    await expect(k8sManager.getStatus()).resolves.toMatchObject({ status: 'unavailable', isKindInstalled: false });
+    expect(runCommand).not.toHaveBeenCalled();
   });
 
   it('keeps creation and kubeconfig export on the original runtime through a context change', async () => {
@@ -243,9 +281,39 @@ describe('Kubernetes lifecycle', () => {
     expect(dockerManager.networks.createNetwork).toHaveBeenCalledWith({ Name: 'custom', Driver: 'bridge' });
     expect(dockerManager.images.pullImage).not.toHaveBeenCalled();
     expect(containers.createContainer).toHaveBeenCalledWith(
-      expect.objectContaining({ HostConfig: expect.objectContaining({ NetworkMode: 'custom' }) })
+      expect.objectContaining({
+        name: KIND_CLOUD_PROVIDER_CONTAINER,
+        HostConfig: expect.objectContaining({ NetworkMode: 'custom' })
+      })
     );
     expect(containers.startContainer).toHaveBeenCalledExactlyOnceWith('companion');
     expect(containers.removeContainer).toHaveBeenCalledExactlyOnceWith('companion', true);
+  });
+
+  it.each([
+    ['unowned', {}, 'degraded'],
+    [
+      'legacy',
+      { 'io.x-k8s.kind.cluster': CATBEE_K8S_CLUSTER_NAME, 'io.kubernetes.pod.namespace': 'kube-system' },
+      'running'
+    ]
+  ])('reports API readiness separately from a %s cloud-provider container', async (id, labels, status) => {
+    await exportKindKubeconfig();
+    const controlPlane = node('control-plane', 'running');
+    controlPlane.Ports = [{ IP: '127.0.0.1', PrivatePort: 6443, PublicPort: 6443, Type: 'tcp' }];
+    list.mockResolvedValue([
+      controlPlane,
+      { ...node(id, 'running'), Names: ['/kind-cloud-provider'], Labels: labels as Record<string, string> }
+    ]);
+    request.mockImplementation((_url, _options, callback) => {
+      callback({ statusCode: 200, resume: vi.fn() });
+      return new EventEmitter();
+    });
+
+    const result = await k8sManager.getStatus();
+    expect(result.status).toBe(status);
+    if (status === 'degraded') expect(result.warning).toContain('LoadBalancer');
+    else expect(result.warning).toBeUndefined();
+    expect(containers.removeContainer).not.toHaveBeenCalled();
   });
 });
