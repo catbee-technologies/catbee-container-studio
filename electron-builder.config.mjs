@@ -86,6 +86,7 @@ export default {
   },
   nsis: {
     oneClick: false,
+    include: 'assets/installer.nsh',
     allowToChangeInstallationDirectory: true,
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
