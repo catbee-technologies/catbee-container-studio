@@ -3,6 +3,7 @@ import { IPC_CHANNELS } from '../channels';
 import { fail, ok, type IpcResult } from '../contracts';
 import { dockerManager } from '../../main/docker/services/docker.manager';
 import { engineManager } from '../../main/docker/embedded/engine.manager';
+import { validateLimaFileSharingPaths } from '../../main/docker/embedded/drivers/lima-engine.driver';
 import {
   CATBEE_CONTEXT_NAME,
   getDockerBuilderInfo,
@@ -202,6 +203,12 @@ export function registerEngineHandlers(): void {
       try {
         let kubernetesEnabledChanged = false;
         const updated = await saveEngineSettings(settings, async (previous, next, persist) => {
+          if (
+            process.platform === 'darwin' &&
+            JSON.stringify(previous.fileSharingPaths) !== JSON.stringify(next.fileSharingPaths)
+          ) {
+            await validateLimaFileSharingPaths(next.fileSharingPaths);
+          }
           if (!previous.kubernetes.enabled && next.kubernetes.enabled) await k8sManager.checkEngineAvailable();
           await engineManager.applyWslIntegration(previous, next, persist);
           kubernetesEnabledChanged = next.kubernetes.enabled !== previous.kubernetes.enabled;

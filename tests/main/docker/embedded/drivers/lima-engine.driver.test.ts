@@ -1,8 +1,11 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { beforeEach, expect, it, vi } from 'vitest';
-import { LimaEngineDriver } from '../../../../../src/main/docker/embedded/drivers/lima-engine.driver';
+import {
+  LimaEngineDriver,
+  validateLimaFileSharingPaths
+} from '../../../../../src/main/docker/embedded/drivers/lima-engine.driver';
 import { CATBEE_LIMA_INSTANCE } from '../../../../../src/main/docker/embedded/engine-paths';
 import {
   ensureHostDockerCli,
@@ -14,7 +17,12 @@ import {
 import { DEFAULT_ENGINE_SETTINGS, getEngineSettings } from '../../../../../src/main/docker/embedded/engine-settings';
 
 vi.mock('electron', () => ({}));
-vi.mock('node:fs/promises', () => ({ mkdir: vi.fn(), readFile: vi.fn(), writeFile: vi.fn() }));
+vi.mock('node:fs/promises', () => ({
+  mkdir: vi.fn(),
+  readFile: vi.fn(),
+  stat: vi.fn(async () => ({ isDirectory: () => true })),
+  writeFile: vi.fn()
+}));
 vi.mock('../../../../../src/main/docker/embedded/engine-settings', async importOriginal => {
   const original = await importOriginal<typeof import('../../../../../src/main/docker/embedded/engine-settings')>();
   return { ...original, getEngineSettings: vi.fn(async () => original.DEFAULT_ENGINE_SETTINGS) };
@@ -51,6 +59,47 @@ it('refuses to create a VM over an existing instance directory missing its confi
   await expect(driver.install(vi.fn())).rejects.toThrow('Restore lima.yaml before reinstalling');
   expect(pathExists).toHaveBeenNthCalledWith(1, expect.stringContaining('lima.yaml'));
   expect(runCommand).not.toHaveBeenCalled();
+});
+
+it('reports a missing shared folder before stopping a running VM', async () => {
+  const driver = new LimaEngineDriver();
+  const mount = path.resolve('/abc');
+  vi.mocked(pathExists).mockResolvedValue(true);
+  vi.mocked(runCommand).mockResolvedValue({
+    stdout: JSON.stringify({ name: CATBEE_LIMA_INSTANCE, status: 'Running' }),
+    stderr: ''
+  });
+  vi.mocked(stat).mockRejectedValueOnce(Object.assign(new Error('missing directory'), { code: 'ENOENT' }));
+
+  await expect(driver.start({ ...DEFAULT_ENGINE_SETTINGS, fileSharingPaths: [mount] })).rejects.toThrow(
+    `The shared path “${mount}” could not be found. Choose an existing folder or remove this path in Settings → Resources → File sharing.`
+  );
+  expect(vi.mocked(runCommand).mock.calls.map(([, [command]]) => command)).toEqual(['list']);
+  expect(writeFile).not.toHaveBeenCalled();
+});
+
+it('explains what to do when a shared folder is inaccessible', async () => {
+  const mount = path.resolve('/abc');
+  vi.mocked(stat).mockRejectedValueOnce(Object.assign(new Error('permission denied'), { code: 'EACCES' }));
+
+  await expect(validateLimaFileSharingPaths([mount])).rejects.toThrow(
+    `CatBee couldn’t access “${mount}”. Check its permissions or remove it in Settings → Resources → File sharing.`
+  );
+});
+
+it('points to app logs when the VM fails to boot and preserves the Lima error', async () => {
+  const driver = new LimaEngineDriver();
+  const cause = new Error('limactl start failed (exit 1): raw Lima output');
+  vi.mocked(pathExists).mockResolvedValue(true);
+  vi.mocked(runCommand).mockImplementation(async (_binary, [command]) => {
+    if (command === 'start') throw cause;
+    return { stdout: '', stderr: '' };
+  });
+
+  await expect(driver.start({ ...DEFAULT_ENGINE_SETTINGS, fileSharingPaths: [] })).rejects.toMatchObject({
+    message: expect.stringContaining('Settings → About → Open Logs Folder'),
+    cause
+  });
 });
 
 it('creates the VM with forwarding disabled and verifies Docker readiness', async () => {
