@@ -154,7 +154,7 @@ it.each([
   const driver = new LimaEngineDriver();
   const settings = { ...DEFAULT_ENGINE_SETTINGS, fileSharingPaths: [], forwardHostFileChanges: true };
   const { cpus, memoryGb, diskGb, rosetta } = settings.resources;
-  const mounts = [path.resolve(os.homedir()), path.resolve('/var/folders')].sort((a, b) => a.length - b.length);
+  const mounts = [path.resolve(os.homedir()), path.resolve('/var/folders')].sort((a, b) => a.localeCompare(b));
   vi.spyOn(driver, 'getManifest').mockResolvedValue(null);
   vi.mocked(pathExists).mockResolvedValue(true);
   vi.mocked(readFile).mockResolvedValue(
