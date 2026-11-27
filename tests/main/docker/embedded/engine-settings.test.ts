@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -64,16 +64,16 @@ describe('engine settings', () => {
     expect(await getEngineSettings()).toMatchObject({ engineMode: 'embedded', exposeTcp: false });
   });
 
-  it('defaults host file change forwarding to off and preserves an explicit opt-in until reset', async () => {
+  it('forces host file change forwarding off when reading or saving settings', async () => {
     await writeFile(file, JSON.stringify({ engineMode: 'embedded' }));
     expect((await getEngineSettings()).forwardHostFileChanges).toBe(false);
 
-    await saveEngineSettings({ forwardHostFileChanges: true });
-    await saveEngineSettings({ exposeTcp: true });
-    expect((await getEngineSettings()).forwardHostFileChanges).toBe(true);
-
-    await resetEngineSettings();
+    await writeFile(file, JSON.stringify({ forwardHostFileChanges: true }));
     expect((await getEngineSettings()).forwardHostFileChanges).toBe(false);
+
+    const saved = await saveEngineSettings({ forwardHostFileChanges: true, exposeTcp: true });
+    expect(saved).toMatchObject({ forwardHostFileChanges: false, exposeTcp: true });
+    expect(JSON.parse(await readFile(file, 'utf8'))).toMatchObject({ forwardHostFileChanges: false, exposeTcp: true });
   });
 
   it('serializes patches and allows later writes after an apply failure', async () => {

@@ -53,11 +53,10 @@ it('refuses to create a VM over an existing instance directory missing its confi
   expect(runCommand).not.toHaveBeenCalled();
 });
 
-it.each([false, true])('creates the VM with --mount-inotify=%s and verifies Docker readiness', async enabled => {
+it('creates the VM with forwarding disabled and verifies Docker readiness', async () => {
   const driver = new LimaEngineDriver();
   vi.spyOn(driver, 'checkPrerequisites').mockResolvedValue({ ok: true });
-  if (enabled)
-    vi.mocked(getEngineSettings).mockResolvedValue({ ...DEFAULT_ENGINE_SETTINGS, forwardHostFileChanges: true });
+  vi.mocked(getEngineSettings).mockResolvedValue({ ...DEFAULT_ENGINE_SETTINGS, forwardHostFileChanges: true });
   vi.mocked(pathExists).mockImplementation(async target => path.basename(target) === 'limactl');
   vi.mocked(runCommand).mockResolvedValue({ stdout: '', stderr: '' });
   vi.mocked(waitForDockerEndpoint).mockRejectedValue(new Error('No response from Docker'));
@@ -66,7 +65,7 @@ it.each([false, true])('creates the VM with --mount-inotify=%s and verifies Dock
   await expect(driver.install(progress)).rejects.toThrow('No response from Docker');
   expect(runCommand).toHaveBeenCalledWith(
     expect.stringContaining('limactl'),
-    expect.arrayContaining(['create', `--mount-inotify=${enabled}`]),
+    expect.arrayContaining(['create', '--mount-inotify=false']),
     expect.any(Object)
   );
   expect(runCommand).toHaveBeenCalledWith(
@@ -80,13 +79,13 @@ it.each([false, true])('creates the VM with --mount-inotify=%s and verifies Dock
 });
 
 it.each([
-  { applied: undefined, enabled: true, restarts: true },
-  { applied: true, enabled: false, restarts: true },
-  { applied: undefined, enabled: false, restarts: false }
-])('applies forwarding from $applied to $enabled on an existing VM (restart: $restarts)', async testCase => {
-  const { applied, enabled, restarts } = testCase;
+  { applied: true, restarts: true },
+  { applied: false, restarts: false },
+  { applied: undefined, restarts: false }
+])('forces forwarding off on an existing VM with $applied applied (restart: $restarts)', async testCase => {
+  const { applied, restarts } = testCase;
   const driver = new LimaEngineDriver();
-  const settings = { ...DEFAULT_ENGINE_SETTINGS, fileSharingPaths: [], forwardHostFileChanges: enabled };
+  const settings = { ...DEFAULT_ENGINE_SETTINGS, fileSharingPaths: [], forwardHostFileChanges: true };
   const { cpus, memoryGb, diskGb, rosetta } = settings.resources;
   const mounts = [path.resolve(os.homedir()), path.resolve('/var/folders')].sort((a, b) => a.length - b.length);
   vi.spyOn(driver, 'getManifest').mockResolvedValue(null);
@@ -118,10 +117,10 @@ it.each([
     .map(([, args]) => args);
   if (restarts) {
     expect(vmCommands.map(([command]) => command)).toEqual(['list', 'stop', 'edit', 'start']);
-    expect(vmCommands[2]).toContain(`--mount-inotify=${enabled}`);
+    expect(vmCommands[2]).toContain('--mount-inotify=false');
     expect(writeFile).toHaveBeenCalledWith(
       expect.stringContaining('lima-vm.json'),
-      expect.stringContaining(`"mountInotify": ${enabled}`),
+      expect.stringContaining('"mountInotify": false'),
       'utf8'
     );
   } else {
