@@ -11,11 +11,16 @@ export interface DaemonConfigOptions {
   hosts?: string[];
   /** Proxy the daemon itself uses for pulls/pushes. */
   daemonProxy?: ResolvedProxy | null;
+  /** Override the default open file hard limit, or inherit runtime limits when null. */
+  nofileHardLimit?: number | null;
   /** Extra keys that a backend must enforce (e.g. features the guest provisioning relies on). */
   extra?: Record<string, unknown>;
 }
 
 const IPV6_ULA_SUBNET = ['fd00', 'cb', '', '/64'].join(':');
+
+const DEFAULT_NOFILE_SOFT_LIMIT = 82_920;
+const DEFAULT_NOFILE_HARD_LIMIT = 524_288;
 
 /** Builds the Docker daemon.json for the built-in engine from the user's settings. */
 export function buildDaemonConfig(
@@ -38,6 +43,17 @@ export function buildDaemonConfig(
       'max-file': '3'
     }
   };
+
+  const nofileHardLimit = options.nofileHardLimit === undefined ? DEFAULT_NOFILE_HARD_LIMIT : options.nofileHardLimit;
+  if (nofileHardLimit !== null) {
+    config['default-ulimits'] = {
+      nofile: {
+        Name: 'nofile',
+        Soft: Math.min(DEFAULT_NOFILE_SOFT_LIMIT, nofileHardLimit),
+        Hard: nofileHardLimit
+      }
+    };
+  }
 
   if (options.hosts?.length) {
     config.hosts = options.hosts;

@@ -8,6 +8,7 @@ import {
   waitForDockerEndpoint,
   writeEngineManifest
 } from '../../../../../src/main/docker/embedded/engine-utils';
+import { DEFAULT_ENGINE_SETTINGS } from '../../../../../src/main/docker/embedded/engine-settings';
 
 vi.mock('electron', () => ({}));
 vi.mock('node:fs/promises', () => ({ mkdir: vi.fn(), writeFile: vi.fn() }));
@@ -26,6 +27,16 @@ vi.mock('../../../../../src/main/docker/embedded/engine-utils', async importOrig
 }));
 
 beforeEach(() => vi.resetAllMocks());
+
+it('raises the default open file soft limit for containers in the Lima VM', async () => {
+  const driver = new LimaEngineDriver();
+
+  await expect(driver.buildDaemonConfig(DEFAULT_ENGINE_SETTINGS)).resolves.toMatchObject({
+    'default-ulimits': {
+      nofile: { Name: 'nofile', Soft: 82_920, Hard: 524_288 }
+    }
+  });
+});
 
 it('refuses to create a VM over an existing instance directory missing its configuration', async () => {
   const driver = new LimaEngineDriver();

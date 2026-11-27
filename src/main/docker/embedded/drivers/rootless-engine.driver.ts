@@ -274,9 +274,18 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
   }
 
   async buildDaemonConfig(settings: EngineSettings): Promise<Record<string, unknown>> {
+    // The rootless runtime cannot raise the hard limit inherited from CatBee.
+    const processLimits = await readFile('/proc/self/limits', 'utf8').catch(() => '');
+    const inheritedHard = /^Max open files[ \t]+\S+[ \t]+(\d+|unlimited)[ \t]+files\b/m.exec(processLimits)?.[1];
+    let nofileHardLimit: number | null | undefined;
+    if (inheritedHard !== 'unlimited') {
+      nofileHardLimit = inheritedHard === undefined ? null : Number(inheritedHard);
+    }
+
     // Listeners are passed with -H, and ip6tables is unsupported inside the rootlesskit network namespace.
     const config = buildDaemonConfig(settings, {
-      daemonProxy: resolveDaemonProxy(settings, await detectSystemProxy())
+      daemonProxy: resolveDaemonProxy(settings, await detectSystemProxy()),
+      nofileHardLimit
     });
     delete config.ip6tables;
     return config;

@@ -19,6 +19,7 @@ import {
 import { DEFAULT_ENGINE_SETTINGS } from '../../../../../src/main/docker/embedded/engine-settings';
 
 vi.mock('electron', () => ({}));
+vi.mock('../../../../../src/main/docker/embedded/system-proxy.ts', () => ({ detectSystemProxy: async () => null }));
 vi.mock('../../../../../src/main/logger', () => ({ logger: { debug: vi.fn(), warn: vi.fn() } }));
 vi.mock('node:fs/promises', () => ({
   chmod: vi.fn(),
@@ -42,6 +43,34 @@ vi.mock('../../../../../src/main/docker/embedded/engine-utils', async importOrig
   writeEngineManifest: vi.fn(),
   sleep: vi.fn()
 }));
+
+describe('Linux rootless container limits', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it.each([
+    ['524288', 82_920, 524_288],
+    ['4096', 4_096, 4_096],
+    ['1048576', 82_920, 1_048_576],
+    ['unlimited', 82_920, 524_288]
+  ])('sets the container defaults with an inherited hard limit of %s', async (inheritedHard, soft, hard) => {
+    vi.mocked(readFile).mockResolvedValue(
+      `Max open files            1024                 ${inheritedHard}               files     \n`
+    );
+
+    await expect(new RootlessEngineDriver().buildDaemonConfig(DEFAULT_ENGINE_SETTINGS)).resolves.toMatchObject({
+      'default-ulimits': { nofile: { Name: 'nofile', Soft: soft, Hard: hard } }
+    });
+    expect(readFile).toHaveBeenCalledWith('/proc/self/limits', 'utf8');
+  });
+
+  it('uses the runtime defaults when the inherited limits cannot be read', async () => {
+    vi.mocked(readFile).mockRejectedValue(new Error('Cannot read process limits'));
+
+    await expect(new RootlessEngineDriver().buildDaemonConfig(DEFAULT_ENGINE_SETTINGS)).resolves.not.toHaveProperty(
+      'default-ulimits'
+    );
+  });
+});
 
 describe('Linux rootless shutdown', () => {
   const pid = 12345;

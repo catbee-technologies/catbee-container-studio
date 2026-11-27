@@ -9,13 +9,15 @@ import {
 import type { EngineManifest } from '../../../../../src/main/docker/embedded/types/manifest.types';
 import { WslEngineDriver } from '../../../../../src/main/docker/embedded/drivers/wsl-engine.driver';
 import { CATBEE_WSL_DISTRO } from '../../../../../src/main/docker/embedded/engine-paths';
+import { DEFAULT_ENGINE_SETTINGS } from '../../../../../src/main/docker/embedded/engine-settings';
 
 const { stopRelay } = vi.hoisted(() => ({ stopRelay: vi.fn(async () => {}) }));
 vi.mock('electron', () => ({}));
 vi.mock('../../../../../src/main/logger', () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }));
-vi.mock('../../../../../src/main/docker/embedded/engine-settings', () => ({
+vi.mock('../../../../../src/main/docker/embedded/engine-settings', async importOriginal => ({
+  ...(await importOriginal<typeof import('../../../../../src/main/docker/embedded/engine-settings')>()),
   getEngineSettings: async () => ({ desktopProxy: { mode: 'none' } })
 }));
 vi.mock('../../../../../src/main/docker/embedded/system-proxy', () => ({ detectSystemProxy: async () => null }));
@@ -56,6 +58,12 @@ describe('Windows WSL engine', () => {
     vi.mocked(runCommand).mockReset();
     vi.mocked(dockerApiGetJson).mockReset();
     driver = new WslEngineDriver();
+  });
+
+  it('sets the default open file limits for containers in WSL', async () => {
+    await expect(driver.buildDaemonConfig(DEFAULT_ENGINE_SETTINGS)).resolves.toMatchObject({
+      'default-ulimits': { nofile: { Name: 'nofile', Soft: 82_920, Hard: 524_288 } }
+    });
   });
 
   it.each([
