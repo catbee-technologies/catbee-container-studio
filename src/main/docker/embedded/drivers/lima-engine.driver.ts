@@ -823,7 +823,8 @@ fi
       rosetta: process.arch === 'arm64' && rosetta,
       lanPorts: settings.network.portBindingBehavior === 'open',
       networkMode: 'vznat',
-      mountInotify: settings.forwardHostFileChanges
+      // Disable forwarding on existing VMs as well as new installs while it causes write errors.
+      mountInotify: false
     };
   }
 

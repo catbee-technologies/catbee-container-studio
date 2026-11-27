@@ -1197,8 +1197,11 @@ export class SettingsPageComponent implements OnInit {
   readonly supportsResourceSaver = computed(() => this.capabilities()?.resourceSaver ?? false);
   readonly supportsRosetta = computed(() => this.capabilities()?.resources.rosetta ?? false);
   readonly supportsFileSharing = computed(() => this.capabilities()?.fileSharing ?? this.isMacOS());
+  // Temporarily hide the switch and its search result while forwarding causes write errors.
   readonly showForwardHostFileChanges = computed(
-    () => this.isMacOS() && this.supportsFileSharing() && !this.isExternalMode()
+    () =>
+      // this.isMacOS() && this.supportsFileSharing() && !this.isExternalMode()
+      false
   );
   readonly supportsWslIntegration = computed(() => this.capabilities()?.wslIntegration ?? this.isWindows());
 

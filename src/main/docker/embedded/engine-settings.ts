@@ -173,7 +173,8 @@ export function mergeEngineSettings(base: EngineSettings, patch: Partial<EngineS
   merged.wslIntegrationEnabled = Boolean(merged.wslIntegrationEnabled);
   merged.wslAdditionalDistros = uniqueStrings(merged.wslAdditionalDistros);
   merged.fileSharingPaths = uniqueStrings(merged.fileSharingPaths);
-  merged.forwardHostFileChanges = merged.forwardHostFileChanges === true;
+  // Temporarily disable forwarding, including for users who previously opted in.
+  merged.forwardHostFileChanges = false;
 
   merged.kubernetes = {
     enabled: Boolean(merged.kubernetes?.enabled),
