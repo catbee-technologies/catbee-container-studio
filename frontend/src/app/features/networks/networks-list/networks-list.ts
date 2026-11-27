@@ -34,6 +34,7 @@ import {
 import { removeStalePrefixedStorageEntries, UI_STORAGE_DEFAULTS, UI_STORAGE_KEYS } from '@utils/storage.utils';
 import { TableColumnResizerComponent } from '@components/table-column-resizer/table-column-resizer';
 import { CatbeeLoader } from '@ng-catbee/loader';
+import { DropdownComponent, DropdownOption } from '@components/dropdown/dropdown';
 
 type NetworkColumn = 'id' | 'driver' | 'subnet' | 'flags' | 'containers' | 'created';
 export type NetworkResizableColumn = 'name' | 'id' | 'driver' | 'subnet' | 'flags' | 'containers' | 'created';
@@ -74,6 +75,7 @@ export const MIN_NETWORK_COLUMN_WIDTHS: Record<NetworkResizableColumn, number> =
     CopyButtonComponent,
     ConfirmDialogComponent,
     DialogComponent,
+    DropdownComponent,
     EmptyStateComponent,
     ErrorBannerComponent,
     CatbeeTooltip,
@@ -125,6 +127,11 @@ export class NetworksPage {
   readonly confirmPruneOpen = signal(false);
   readonly createDialogOpen = signal(false);
   readonly showConfirmCloseCreate = signal(false);
+  readonly driverOptions: readonly DropdownOption[] = [
+    { value: 'bridge', label: 'Bridge' },
+    { value: 'macvlan', label: 'Macvlan' },
+    { value: 'ipvlan', label: 'Ipvlan' }
+  ];
   private readonly createModel = signal({ name: '', driver: 'bridge', internal: false, attachable: false });
   readonly createForm = form(
     this.createModel,

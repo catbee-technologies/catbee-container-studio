@@ -2,7 +2,6 @@ import { CommonModule } from '@angular/common';
 import {
   Component,
   ElementRef,
-  HostListener,
   OnDestroy,
   TemplateRef,
   ViewContainerRef,
@@ -11,6 +10,7 @@ import {
   inject,
   input,
   output,
+  untracked,
   viewChild
 } from '@angular/core';
 import { ConnectedPosition, Overlay, OverlayRef } from '@angular/cdk/overlay';
@@ -28,10 +28,13 @@ export class MenuComponent implements OnDestroy {
   private readonly overlay = inject(Overlay);
   private readonly viewContainerRef = inject(ViewContainerRef);
   private readonly menuService = inject(MenuService);
+  private readonly parentMenu = inject(MenuComponent, { optional: true, skipSelf: true });
 
   readonly open = input(false);
   readonly style = input<Record<string, string>>();
   readonly closeOnScroll = input(true, { transform: booleanAttribute });
+  readonly focusOnOpen = input(false, { transform: booleanAttribute });
+  readonly contentRole = input<'menu' | 'presentation'>('menu');
   readonly alignment = input<'start' | 'end'>('end');
   readonly placement = input<'bottom' | 'top'>('bottom');
 
@@ -47,31 +50,17 @@ export class MenuComponent implements OnDestroy {
   private closeTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly closeAnimationDuration = 120;
 
-  private readonly positions: ConnectedPosition[] = [
-    {
-      originX: 'end',
-      originY: 'bottom',
-      overlayX: 'end',
-      overlayY: 'top',
-      offsetY: 6
-    },
-    {
-      originX: 'end',
-      originY: 'top',
-      overlayX: 'end',
-      overlayY: 'bottom',
-      offsetY: -6
-    }
-  ];
-
   constructor() {
     effect(() => {
-      if (this.open()) {
-        this.menuService.register(this.menuId);
-        this.openMenu();
-      } else {
-        this.closeMenu();
-      }
+      const open = this.open();
+      untracked(() => {
+        if (open) {
+          this.menuService.register(this.menuId, this.parentMenu?.menuId);
+          this.openMenu();
+        } else {
+          this.closeMenu();
+        }
+      });
     });
 
     effect(() => {
@@ -89,9 +78,10 @@ export class MenuComponent implements OnDestroy {
     if (this.closeTimer !== null) {
       clearTimeout(this.closeTimer);
       this.closeTimer = null;
-      this.overlayRef?.dispose();
+      const closingOverlay = this.overlayRef;
       this.overlayRef = null;
       this.menuPortal = null;
+      closingOverlay?.dispose();
     }
 
     if (this.overlayRef) {
@@ -136,29 +126,40 @@ export class MenuComponent implements OnDestroy {
       .withPush(true)
       .withViewportMargin(8);
 
-    this.overlayRef = this.overlay.create({
+    const overlay = (this.overlayRef = this.overlay.create({
       positionStrategy,
       scrollStrategy: this.overlay.scrollStrategies.noop(),
       hasBackdrop: false,
       panelClass: 'catbee-menu-overlay-panel'
-    });
+    }));
+    this.overlayRef = overlay;
 
     this.menuPortal = new TemplatePortal(this.menuTemplate(), this.viewContainerRef);
 
-    this.overlayRef.attach(this.menuPortal);
+    overlay.attach(this.menuPortal);
 
     this.addScrollListener();
 
-    this.overlayRef.keydownEvents().subscribe(event => {
-      if (event.key !== 'Escape') {
-        return;
-      }
+    if (this.focusOnOpen()) {
+      const focusable = overlay.overlayElement.querySelector<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), [tabIndex="0"]'
+      );
+      focusable?.focus({ preventScroll: true });
+    }
 
-      event.preventDefault();
-      this.dismissed.emit();
+    overlay.keydownEvents().subscribe(event => this.onContentKeydown(event));
+    overlay.outsidePointerEvents().subscribe(event => {
+      const target = event.target;
+      if (!this.open() || !(target instanceof Node)) return;
+
+      const label = target instanceof Element ? target.closest('label') : null;
+      if (!trigger.contains(target) && label?.control !== trigger) {
+        this.dismissed.emit();
+      }
     });
 
-    this.overlayRef.detachments().subscribe(() => {
+    overlay.detachments().subscribe(() => {
+      if (this.overlayRef !== overlay) return;
       this.removeScrollListener();
 
       this.overlayRef = null;
@@ -265,29 +266,13 @@ export class MenuComponent implements OnDestroy {
     return null;
   }
 
-  @HostListener('document:mousedown', ['$event'])
-  onDocumentMousedown(event: MouseEvent): void {
-    if (!this.open()) {
-      return;
+  onContentKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && this.open() && this.menuService.isTopMost(this.menuId)) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.dismissed.emit();
+      this.hostElementRef.nativeElement.querySelector<HTMLElement>('[menuTrigger]')?.focus({ preventScroll: true });
     }
-
-    const target = event.target;
-
-    if (!(target instanceof Node)) {
-      return;
-    }
-
-    const trigger = this.hostElementRef.nativeElement.querySelector<HTMLElement>('[menuTrigger]');
-
-    if (trigger?.contains(target)) {
-      return;
-    }
-
-    if (this.overlayRef?.overlayElement.contains(target)) {
-      return;
-    }
-
-    this.dismissed.emit();
   }
 
   ngOnDestroy(): void {

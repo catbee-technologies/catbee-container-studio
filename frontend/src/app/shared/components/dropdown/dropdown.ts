@@ -1,5 +1,17 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, booleanAttribute, computed, input, output, signal, viewChild } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  booleanAttribute,
+  computed,
+  effect,
+  input,
+  model,
+  output,
+  signal,
+  viewChild
+} from '@angular/core';
+import { FormValueControl } from '@angular/forms/signals';
 import { MenuComponent } from '@components/menu/menu';
 
 export interface DropdownOption<T = string> {
@@ -12,7 +24,6 @@ export interface DropdownOption<T = string> {
 
 @Component({
   selector: 'catbee-container-studio-dropdown',
-  standalone: true,
   imports: [CommonModule, MenuComponent],
   templateUrl: './dropdown.html',
   styleUrl: './dropdown.scss',
@@ -21,14 +32,14 @@ export interface DropdownOption<T = string> {
     '[style.max-width]': 'width() || null'
   }
 })
-export class DropdownComponent<T = string> {
+export class DropdownComponent<T = string> implements FormValueControl<T> {
   private static nextId = 0;
   private readonly triggerBtn = viewChild<ElementRef<HTMLButtonElement>>('triggerBtn');
 
   readonly listboxId = `catbee-dropdown-listbox-${DropdownComponent.nextId++}`;
 
   readonly options = input.required<readonly DropdownOption<T>[]>();
-  readonly value = input<T>();
+  readonly value = model.required<T>();
   readonly placeholder = input('Select an option');
   readonly disabled = input(false);
   readonly inputId = input<string>();
@@ -38,12 +49,19 @@ export class DropdownComponent<T = string> {
   readonly alignment = input<'start' | 'end'>('start');
   readonly width = input<string>();
   readonly maxHeight = input('16rem');
+  readonly compact = input(false, { transform: booleanAttribute });
 
-  readonly valueChange = output<T>();
+  readonly touch = output<void>();
 
   readonly isOpen = signal(false);
   readonly activeIndex = signal(-1);
+  readonly activeOptionId = computed(() => {
+    const index = this.activeIndex();
+    return this.isOpen() && this.options()[index] ? this.optionId(index) : null;
+  });
   private readonly triggerWidth = signal<number | null>(null);
+  private searchText = '';
+  private lastSearchTime = 0;
 
   readonly triggerId = computed(() => {
     return this.labelClickOpen() ? this.inputId() || null : null;
@@ -75,6 +93,12 @@ export class DropdownComponent<T = string> {
 
     return style;
   });
+
+  constructor() {
+    effect(() => {
+      if (this.disabled()) this.close();
+    });
+  }
 
   onTriggerClick(event: MouseEvent): void {
     if (this.disabled()) return;
@@ -118,18 +142,28 @@ export class DropdownComponent<T = string> {
     this.measureWidth();
     this.syncActiveIndex();
     this.isOpen.set(true);
-    this.scrollToSelected();
+    this.scrollToActive();
   }
 
   close(): void {
     this.isOpen.set(false);
     this.activeIndex.set(-1);
+    this.searchText = '';
   }
 
   selectOption(option: DropdownOption<T>): void {
     if (option.disabled || this.disabled()) return;
-    this.valueChange.emit(option.value);
+    this.value.set(option.value);
     this.close();
+    this.focus({ preventScroll: true });
+  }
+
+  focus(options?: FocusOptions): void {
+    this.triggerBtn()?.nativeElement.focus(options);
+  }
+
+  optionId(index: number): string {
+    return `${this.listboxId}-option-${index}`;
   }
 
   isSelected(val: T): boolean {
@@ -156,9 +190,17 @@ export class DropdownComponent<T = string> {
         this.handleArrow(-1);
         break;
 
+      case 'Home':
+      case 'End':
+        event.preventDefault();
+        this.open();
+        this.moveActive(event.key === 'Home' ? 1 : -1, -1);
+        break;
+
       case 'Escape':
         if (this.isOpen()) {
           event.preventDefault();
+          event.stopPropagation();
           this.close();
         }
         break;
@@ -168,6 +210,12 @@ export class DropdownComponent<T = string> {
           this.close();
         }
         break;
+
+      default:
+        if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          event.preventDefault();
+          this.searchOptions(event.key, event.timeStamp);
+        }
     }
   }
 
@@ -188,6 +236,9 @@ export class DropdownComponent<T = string> {
   private handleArrow(delta: 1 | -1): void {
     if (!this.isOpen()) {
       this.open();
+      if (delta === -1 && !this.selectedOption()) {
+        this.moveActive(-1, -1);
+      }
     } else {
       this.moveActive(delta);
     }
@@ -202,41 +253,43 @@ export class DropdownComponent<T = string> {
 
   private syncActiveIndex(): void {
     const current = this.value();
-    const idx = this.options().findIndex(opt => opt.value === current);
-    this.activeIndex.set(idx);
+    const options = this.options();
+    const index = options.findIndex(option => !option.disabled && option.value === current);
+    this.activeIndex.set(index === -1 ? options.findIndex(option => !option.disabled) : index);
   }
 
-  private moveActive(delta: number): void {
-    const opts = this.options();
-    if (opts.length === 0) return;
-    let currentIdx = this.activeIndex();
-    if (currentIdx === -1) {
-      const selected = this.options().findIndex(opt => opt.value === this.value());
-      if (selected >= 0) {
-        currentIdx = selected;
-      } else {
-        currentIdx = delta > 0 ? -1 : 0;
+  private moveActive(delta: 1 | -1, start = this.activeIndex()): void {
+    const options = this.options();
+    const from = start === -1 && delta === -1 ? 0 : start;
+    for (const [step] of options.entries()) {
+      const index = (from + (step + 1) * delta + options.length) % options.length;
+      if (!options[index].disabled) {
+        this.activeIndex.set(index);
+        this.scrollToActive();
+        return;
       }
     }
-    let next = currentIdx + delta;
-    if (next < 0) next = opts.length - 1;
-    if (next >= opts.length) next = 0;
-    this.activeIndex.set(next);
-    this.scrollToActive();
   }
 
-  private scrollToSelected(): void {
-    setTimeout(() => {
-      if (!this.isOpen()) return;
-      const listEl = document.getElementById(this.listboxId);
-      if (!listEl) return;
-      const targetItem =
-        listEl.querySelector<HTMLElement>('.catbee-dropdown-item.is-selected') ||
-        listEl.querySelectorAll<HTMLElement>('.catbee-dropdown-item')[this.activeIndex()];
-      if (targetItem) {
-        this.centerItemInContainer(targetItem);
+  private searchOptions(key: string, time: number): void {
+    this.open();
+    const letter = key.toLocaleLowerCase();
+    const previous = time - this.lastSearchTime < 500 ? this.searchText : '';
+    const repeat = previous === letter;
+    this.searchText = repeat ? letter : previous + letter;
+    this.lastSearchTime = time;
+
+    const options = this.options();
+    const start = repeat ? this.activeIndex() + 1 : 0;
+    for (let offset = 0; offset < options.length; offset++) {
+      const index = (start + offset) % options.length;
+      const option = options[index];
+      if (!option.disabled && option.label.toLocaleLowerCase().startsWith(this.searchText)) {
+        this.activeIndex.set(index);
+        this.scrollToActive();
+        return;
       }
-    }, 30);
+    }
   }
 
   private scrollToActive(): void {

@@ -1,9 +1,17 @@
-<catbee-container-studio-menu [open]="isOpen()" [alignment]="alignment()" [style]="menuStyle()" (dismissed)="close()">
+<catbee-container-studio-menu
+  class="dropdown-menu"
+  [open]="isOpen() && !disabled()"
+  [alignment]="alignment()"
+  [style]="menuStyle()"
+  contentRole="presentation"
+  (dismissed)="close()"
+>
   <button
     #triggerBtn
     menuTrigger
     type="button"
     class="catbee-dropdown-trigger"
+    [class.is-compact]="compact()"
     [class.is-open]="isOpen()"
     [class.is-disabled]="disabled()"
     [disabled]="disabled()"
@@ -11,11 +19,13 @@
     [attr.aria-label]="ariaLabel() || selectedLabel()"
     [attr.aria-labelledby]="ariaLabelledBy() || null"
     [attr.aria-expanded]="isOpen()"
-    [attr.aria-controls]="listboxId"
-    [attr.aria-haspopup]="'listbox'"
+    [attr.aria-controls]="isOpen() ? listboxId : null"
+    [attr.aria-activedescendant]="activeOptionId()"
+    aria-haspopup="listbox"
     role="combobox"
     (click)="onTriggerClick($event)"
     (keydown)="onKeyDown($event)"
+    (blur)="touch.emit()"
   >
     @if (selectedOption()?.icon; as icon) {
       <span class="mat-icon-filled trigger-icon" aria-hidden="true">{{ icon }}</span>
@@ -31,21 +41,25 @@
   <div
     menuContent
     class="catbee-dropdown-list"
+    [class.is-compact]="compact()"
     role="listbox"
     [id]="listboxId"
     [attr.aria-label]="ariaLabel() || selectedLabel()"
-    (mouseleave)="activeIndex.set(-1)"
+    [attr.aria-labelledby]="ariaLabelledBy() || null"
   >
     @for (option of options(); track option.value; let i = $index) {
       <button
         type="button"
         role="option"
         class="catbee-dropdown-item"
+        tabindex="-1"
+        [id]="optionId(i)"
         [class.is-selected]="isSelected(option.value)"
         [class.is-active]="activeIndex() === i"
         [class.is-disabled]="option.disabled"
         [disabled]="option.disabled"
         [attr.aria-selected]="isSelected(option.value)"
+        (mousedown)="$event.preventDefault()"
         (click)="selectOption(option)"
       >
         @if (option.icon) {

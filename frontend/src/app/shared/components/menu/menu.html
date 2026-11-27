@@ -5,11 +5,12 @@
     <div
       class="options-menu"
       [style]="style()"
-      role="menu"
+      [attr.role]="contentRole()"
+      [attr.tabIndex]="contentRole() === 'menu' ? -1 : null"
       tabindex="-1"
       (mousedown)="$event.stopPropagation()"
       (click)="$event.stopPropagation()"
-      (keydown)="$event.stopPropagation()"
+      (keydown)="onContentKeydown($event); $event.stopPropagation()"
     >
       <ng-content select="[menuContent]" />
     </div>
