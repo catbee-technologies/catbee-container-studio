@@ -64,6 +64,18 @@ describe('engine settings', () => {
     expect(await getEngineSettings()).toMatchObject({ engineMode: 'embedded', exposeTcp: false });
   });
 
+  it('defaults host file change forwarding to off and preserves an explicit opt-in until reset', async () => {
+    await writeFile(file, JSON.stringify({ engineMode: 'embedded' }));
+    expect((await getEngineSettings()).forwardHostFileChanges).toBe(false);
+
+    await saveEngineSettings({ forwardHostFileChanges: true });
+    await saveEngineSettings({ exposeTcp: true });
+    expect((await getEngineSettings()).forwardHostFileChanges).toBe(true);
+
+    await resetEngineSettings();
+    expect((await getEngineSettings()).forwardHostFileChanges).toBe(false);
+  });
+
   it('serializes patches and allows later writes after an apply failure', async () => {
     const applying = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();

@@ -53,6 +53,7 @@ export interface EngineSettings {
   wslIntegrationEnabled: boolean;
   wslAdditionalDistros: string[];
   fileSharingPaths: string[];
+  forwardHostFileChanges: boolean;
   desktopProxy: DesktopProxyConfig;
   containersProxy: ContainersProxyConfig;
   network: NetworkSettingsConfig;
@@ -82,6 +83,7 @@ export const DEFAULT_ENGINE_SETTINGS: EngineSettings = {
   wslAdditionalDistros: [],
   // Directories shared into the macOS VM. An empty list also falls back to these in the Lima driver.
   fileSharingPaths: process.platform === 'darwin' ? [os.homedir(), '/var/folders'] : [],
+  forwardHostFileChanges: false,
   desktopProxy: {
     mode: 'system',
     httpProxy: '',
@@ -171,6 +173,7 @@ export function mergeEngineSettings(base: EngineSettings, patch: Partial<EngineS
   merged.wslIntegrationEnabled = Boolean(merged.wslIntegrationEnabled);
   merged.wslAdditionalDistros = uniqueStrings(merged.wslAdditionalDistros);
   merged.fileSharingPaths = uniqueStrings(merged.fileSharingPaths);
+  merged.forwardHostFileChanges = merged.forwardHostFileChanges === true;
 
   merged.kubernetes = {
     enabled: Boolean(merged.kubernetes?.enabled),

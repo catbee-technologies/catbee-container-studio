@@ -61,6 +61,7 @@ interface AppliedVmConfig {
   rosetta: boolean;
   lanPorts: boolean;
   networkMode?: 'vznat';
+  mountInotify: boolean;
 }
 
 interface LimaInstanceInfo {
@@ -821,12 +822,18 @@ fi
       mounts: normalizeMounts(settings.fileSharingPaths),
       rosetta: process.arch === 'arm64' && rosetta,
       lanPorts: settings.network.portBindingBehavior === 'open',
-      networkMode: 'vznat'
+      networkMode: 'vznat',
+      mountInotify: settings.forwardHostFileChanges
     };
   }
 
   private vmConfigArgs(config: AppliedVmConfig): string[] {
-    const args = [`--cpus=${config.cpus}`, `--memory=${config.memoryGb}`, `--disk=${config.diskGb}`];
+    const args = [
+      `--cpus=${config.cpus}`,
+      `--memory=${config.memoryGb}`,
+      `--disk=${config.diskGb}`,
+      `--mount-inotify=${config.mountInotify}`
+    ];
     for (const mount of config.mounts) {
       args.push(`--mount-only=${mount}:w`);
     }
@@ -843,7 +850,9 @@ fi
 
   private async readAppliedConfig(): Promise<AppliedVmConfig | null> {
     try {
-      return JSON.parse(await readFile(this.appliedConfigPath, 'utf8')) as AppliedVmConfig;
+      const config = JSON.parse(await readFile(this.appliedConfigPath, 'utf8')) as AppliedVmConfig;
+      // Existing snapshots omit this setting. Treat it as off to avoid an unnecessary VM restart.
+      return { ...config, mountInotify: config.mountInotify === true };
     } catch {
       return null;
     }

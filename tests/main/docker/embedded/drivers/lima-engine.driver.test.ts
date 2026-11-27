@@ -1,25 +1,30 @@
+import { readFile, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { LimaEngineDriver } from '../../../../../src/main/docker/embedded/drivers/lima-engine.driver';
 import { CATBEE_LIMA_INSTANCE } from '../../../../../src/main/docker/embedded/engine-paths';
 import {
+  ensureHostDockerCli,
   pathExists,
   runCommand,
   waitForDockerEndpoint,
   writeEngineManifest
 } from '../../../../../src/main/docker/embedded/engine-utils';
-import { DEFAULT_ENGINE_SETTINGS } from '../../../../../src/main/docker/embedded/engine-settings';
+import { DEFAULT_ENGINE_SETTINGS, getEngineSettings } from '../../../../../src/main/docker/embedded/engine-settings';
 
 vi.mock('electron', () => ({}));
-vi.mock('node:fs/promises', () => ({ mkdir: vi.fn(), writeFile: vi.fn() }));
+vi.mock('node:fs/promises', () => ({ mkdir: vi.fn(), readFile: vi.fn(), writeFile: vi.fn() }));
 vi.mock('../../../../../src/main/docker/embedded/engine-settings', async importOriginal => {
   const original = await importOriginal<typeof import('../../../../../src/main/docker/embedded/engine-settings')>();
-  return { ...original, getEngineSettings: async () => original.DEFAULT_ENGINE_SETTINGS };
+  return { ...original, getEngineSettings: vi.fn(async () => original.DEFAULT_ENGINE_SETTINGS) };
 });
 vi.mock('../../../../../src/main/docker/embedded/system-proxy', () => ({ detectSystemProxy: async () => null }));
-vi.mock('../../../../../src/main/logger', () => ({ logger: { warn: vi.fn() } }));
+vi.mock('../../../../../src/main/logger', () => ({ logger: { debug: vi.fn(), warn: vi.fn() } }));
 vi.mock('../../../../../src/main/docker/embedded/engine-utils', async importOriginal => ({
   ...(await importOriginal<typeof import('../../../../../src/main/docker/embedded/engine-utils')>()),
+  ensureHostDockerCli: vi.fn(),
+  getDockerServerVersion: vi.fn(),
   pathExists: vi.fn(),
   runCommand: vi.fn(),
   waitForDockerEndpoint: vi.fn(),
@@ -48,9 +53,11 @@ it('refuses to create a VM over an existing instance directory missing its confi
   expect(runCommand).not.toHaveBeenCalled();
 });
 
-it('does not record a successful install when Lima boots but Docker never answers', async () => {
+it.each([false, true])('creates the VM with --mount-inotify=%s and verifies Docker readiness', async enabled => {
   const driver = new LimaEngineDriver();
   vi.spyOn(driver, 'checkPrerequisites').mockResolvedValue({ ok: true });
+  if (enabled)
+    vi.mocked(getEngineSettings).mockResolvedValue({ ...DEFAULT_ENGINE_SETTINGS, forwardHostFileChanges: true });
   vi.mocked(pathExists).mockImplementation(async target => path.basename(target) === 'limactl');
   vi.mocked(runCommand).mockResolvedValue({ stdout: '', stderr: '' });
   vi.mocked(waitForDockerEndpoint).mockRejectedValue(new Error('No response from Docker'));
@@ -59,10 +66,66 @@ it('does not record a successful install when Lima boots but Docker never answer
   await expect(driver.install(progress)).rejects.toThrow('No response from Docker');
   expect(runCommand).toHaveBeenCalledWith(
     expect.stringContaining('limactl'),
+    expect.arrayContaining(['create', `--mount-inotify=${enabled}`]),
+    expect.any(Object)
+  );
+  expect(runCommand).toHaveBeenCalledWith(
+    expect.stringContaining('limactl'),
     expect.arrayContaining(['start']),
     expect.any(Object)
   );
   expect(waitForDockerEndpoint).toHaveBeenCalledExactlyOnceWith(driver.getRunningConnection(), 120_000);
   expect(writeEngineManifest).not.toHaveBeenCalled();
   expect(progress).not.toHaveBeenCalledWith(100, expect.any(String));
+});
+
+it.each([
+  { applied: undefined, enabled: true, restarts: true },
+  { applied: true, enabled: false, restarts: true },
+  { applied: undefined, enabled: false, restarts: false }
+])('applies forwarding from $applied to $enabled on an existing VM (restart: $restarts)', async testCase => {
+  const { applied, enabled, restarts } = testCase;
+  const driver = new LimaEngineDriver();
+  const settings = { ...DEFAULT_ENGINE_SETTINGS, fileSharingPaths: [], forwardHostFileChanges: enabled };
+  const { cpus, memoryGb, diskGb, rosetta } = settings.resources;
+  const mounts = [path.resolve(os.homedir()), path.resolve('/var/folders')].sort((a, b) => a.length - b.length);
+  vi.spyOn(driver, 'getManifest').mockResolvedValue(null);
+  vi.mocked(pathExists).mockResolvedValue(true);
+  vi.mocked(readFile).mockResolvedValue(
+    JSON.stringify({
+      schemaVersion: 2,
+      cpus,
+      memoryGb,
+      diskGb,
+      mounts,
+      rosetta: process.arch === 'arm64' && rosetta,
+      lanPorts: true,
+      networkMode: 'vznat',
+      mountInotify: applied
+    })
+  );
+  vi.mocked(ensureHostDockerCli).mockResolvedValue('docker');
+  vi.mocked(runCommand).mockImplementation(async (_binary, [command]) => ({
+    stdout: command === 'list' ? JSON.stringify({ name: CATBEE_LIMA_INSTANCE, status: 'Running' }) : '',
+    stderr: ''
+  }));
+
+  await expect(driver.start(settings)).resolves.toEqual(driver.getRunningConnection());
+
+  const vmCommands = vi
+    .mocked(runCommand)
+    .mock.calls.filter(([binary, [command]]) => path.basename(binary) === 'limactl' && command !== 'shell')
+    .map(([, args]) => args);
+  if (restarts) {
+    expect(vmCommands.map(([command]) => command)).toEqual(['list', 'stop', 'edit', 'start']);
+    expect(vmCommands[2]).toContain(`--mount-inotify=${enabled}`);
+    expect(writeFile).toHaveBeenCalledWith(
+      expect.stringContaining('lima-vm.json'),
+      expect.stringContaining(`"mountInotify": ${enabled}`),
+      'utf8'
+    );
+  } else {
+    expect(vmCommands.map(([command]) => command)).toEqual(['list']);
+    expect(writeFile).not.toHaveBeenCalled();
+  }
 });

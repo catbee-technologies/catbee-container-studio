@@ -231,14 +231,26 @@
   padding: 0.1rem 0.45rem;
 }
 
-.badge-recommended {
-  background: var(--bg-selected-row);
-  border: 1px solid var(--border-color-selected);
-  color: var(--color-active-text);
+.badge-recommended,
+.badge-experimental {
+  border: 1px solid;
   font-size: 0.7rem;
   font-weight: 600;
   padding: 0.15rem 0.45rem;
   border-radius: var(--radius-sm);
   margin-left: 0.5rem;
   text-transform: uppercase;
+}
+
+.badge-recommended {
+  background: var(--bg-selected-row);
+  border-color: var(--border-color-selected);
+  color: var(--color-active-text);
+}
+
+.badge-experimental {
+  display: inline-block;
+  background: color-mix(in srgb, var(--color-warning-base) 6%, var(--bg-card-base));
+  border-color: var(--badge-paused-border);
+  color: var(--color-warning-text);
 }

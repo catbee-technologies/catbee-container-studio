@@ -375,6 +375,7 @@ export class SettingsPageComponent implements OnInit {
 
   // File sharing state
   readonly fileSharingPaths = signal<string[]>([...this.settings.fileSharingPaths()]);
+  readonly forwardHostFileChanges = signal(this.settings.forwardHostFileChanges());
   readonly newSharePath = signal<string>('');
   readonly sharePathError = signal<string | null>(null);
 
@@ -460,6 +461,7 @@ export class SettingsPageComponent implements OnInit {
     resources: { ...this.settings.resources() } as ResourceSettingsConfig,
     theme: resolveInitialTheme(this.themeService),
     fileSharingPaths: [...this.settings.fileSharingPaths()],
+    forwardHostFileChanges: this.settings.forwardHostFileChanges(),
     desktopProxy: { ...this.settings.desktopProxy() },
     containersProxy: { ...this.settings.containersProxy() },
     networkSettings: { ...this.settings.network() },
@@ -1195,6 +1197,9 @@ export class SettingsPageComponent implements OnInit {
   readonly supportsResourceSaver = computed(() => this.capabilities()?.resourceSaver ?? false);
   readonly supportsRosetta = computed(() => this.capabilities()?.resources.rosetta ?? false);
   readonly supportsFileSharing = computed(() => this.capabilities()?.fileSharing ?? this.isMacOS());
+  readonly showForwardHostFileChanges = computed(
+    () => this.isMacOS() && this.supportsFileSharing() && !this.isExternalMode()
+  );
   readonly supportsWslIntegration = computed(() => this.capabilities()?.wslIntegration ?? this.isWindows());
 
   readonly isWindows = computed(() => {
@@ -1421,6 +1426,8 @@ export class SettingsPageComponent implements OnInit {
         return this.supportsResourceSaver();
       case 'res-file-sharing':
         return this.supportsFileSharing();
+      case 'res-forward-host-file-changes':
+        return this.showForwardHostFileChanges();
       default:
         if (item.subTab === 'advanced' && item.id.startsWith('res-')) {
           return this.showVmResources();
@@ -1503,6 +1510,7 @@ export class SettingsPageComponent implements OnInit {
     resourceSaverTimeout: this.resourceSaverTimeout(),
     wslIntegrationEnabled: this.wslIntegrationEnabled(),
     fileSharingPaths: this.fileSharingPaths(),
+    forwardHostFileChanges: this.forwardHostFileChanges(),
     desktopProxy: this.desktopProxy(),
     containersProxy: this.containersProxy(),
     network: this.networkSettings(),
@@ -1572,6 +1580,7 @@ export class SettingsPageComponent implements OnInit {
       JSON.stringify(this.resources()) !== JSON.stringify(init.resources) ||
       this.selectedTheme() !== init.theme ||
       JSON.stringify(this.fileSharingPaths()) !== JSON.stringify(init.fileSharingPaths) ||
+      this.forwardHostFileChanges() !== init.forwardHostFileChanges ||
       JSON.stringify(this.desktopProxy()) !== JSON.stringify(init.desktopProxy) ||
       JSON.stringify(this.containersProxy()) !== JSON.stringify(init.containersProxy) ||
       JSON.stringify(this.networkSettings()) !== JSON.stringify(init.networkSettings) ||
@@ -1592,7 +1601,10 @@ export class SettingsPageComponent implements OnInit {
       changed(this.containersProxy(), init.containersProxy) ||
       changed(this.networkSettings(), init.networkSettings) ||
       (this.showVmResources() && changed(this.resources(), init.resources)) ||
-      (this.supportsFileSharing() && changed(this.fileSharingPaths(), init.fileSharingPaths))
+      (this.supportsFileSharing() && changed(this.fileSharingPaths(), init.fileSharingPaths)) ||
+      (this.showForwardHostFileChanges() &&
+        !this.isAutoExternalRuntime() &&
+        this.forwardHostFileChanges() !== init.forwardHostFileChanges)
     );
   });
 
@@ -1739,6 +1751,7 @@ export class SettingsPageComponent implements OnInit {
       this.resourceSaverTimeout.set(this.settings.resourceSaverTimeout());
       this.wslIntegrationEnabled.set(this.settings.wslIntegrationEnabled());
       this.fileSharingPaths.set([...this.settings.fileSharingPaths()]);
+      this.forwardHostFileChanges.set(this.settings.forwardHostFileChanges());
       this.desktopProxy.set({ ...this.settings.desktopProxy() });
       this.containersProxy.set({ ...this.settings.containersProxy() });
       this.networkSettings.set({ ...this.settings.network() });
@@ -2522,6 +2535,7 @@ export class SettingsPageComponent implements OnInit {
         this.applyResourcesToForm(saved.resources);
         if (saved.network) this.networkSettings.set({ ...saved.network });
         if (saved.fileSharingPaths) this.fileSharingPaths.set([...saved.fileSharingPaths]);
+        if (saved.forwardHostFileChanges !== undefined) this.forwardHostFileChanges.set(saved.forwardHostFileChanges);
       }
       this.commitInitialState();
     } finally {
@@ -2536,6 +2550,7 @@ export class SettingsPageComponent implements OnInit {
     this.settings.setResourceSaverTimeout(this.resourceSaverTimeout());
     this.settings.setWslIntegrationEnabled(this.wslIntegrationEnabled());
     this.settings.setFileSharingPaths(saved?.fileSharingPaths ?? this.fileSharingPaths());
+    this.settings.setForwardHostFileChanges(saved?.forwardHostFileChanges ?? this.forwardHostFileChanges());
     this.settings.setDesktopProxy(this.desktopProxy());
     this.settings.setContainersProxy(this.containersProxy());
     this.settings.setNetwork(saved?.network ?? this.networkSettings());
@@ -2569,6 +2584,7 @@ export class SettingsPageComponent implements OnInit {
       resources: { ...this.resources() },
       theme: this.selectedTheme(),
       fileSharingPaths: [...this.fileSharingPaths()],
+      forwardHostFileChanges: this.forwardHostFileChanges(),
       desktopProxy: { ...this.desktopProxy() },
       containersProxy: { ...this.containersProxy() },
       networkSettings: { ...this.networkSettings() },
@@ -2730,6 +2746,7 @@ export class SettingsPageComponent implements OnInit {
     this.containerQuickSwitcherEnabled.set(init.containerQuickSwitcherEnabled);
     this.applyResourcesToForm(init.resources);
     this.fileSharingPaths.set([...init.fileSharingPaths]);
+    this.forwardHostFileChanges.set(init.forwardHostFileChanges);
     this.desktopProxy.set({ ...init.desktopProxy });
     this.containersProxy.set({ ...init.containersProxy });
     this.networkSettings.set({ ...init.networkSettings });

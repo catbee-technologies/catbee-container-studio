@@ -245,6 +245,7 @@ export interface EngineSettings {
   wslIntegrationEnabled: boolean;
   wslAdditionalDistros?: string[];
   fileSharingPaths?: string[];
+  forwardHostFileChanges?: boolean;
   desktopProxy?: DesktopProxyConfig;
   containersProxy?: ContainersProxyConfig;
   network?: NetworkSettingsConfig;

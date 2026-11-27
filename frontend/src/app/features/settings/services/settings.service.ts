@@ -87,6 +87,7 @@ export class SettingsService {
     if (backendSettings.fileSharingPaths !== undefined) {
       this.fileSharingPaths.set(backendSettings.fileSharingPaths);
     }
+    this.forwardHostFileChanges.set(backendSettings.forwardHostFileChanges ?? false);
     if (backendSettings.desktopProxy !== undefined) {
       this.desktopProxy.set(backendSettings.desktopProxy);
     }
@@ -152,6 +153,7 @@ export class SettingsService {
   );
 
   readonly fileSharingPaths = signal<string[]>([]);
+  readonly forwardHostFileChanges = signal(false);
 
   readonly desktopProxy = signal<DesktopProxyConfig>({
     mode: 'system',
@@ -229,6 +231,10 @@ export class SettingsService {
 
   setFileSharingPaths(paths: string[]): void {
     this.fileSharingPaths.set(paths);
+  }
+
+  setForwardHostFileChanges(enabled: boolean): void {
+    this.forwardHostFileChanges.set(enabled);
   }
 
   setDesktopProxy(config: DesktopProxyConfig): void {

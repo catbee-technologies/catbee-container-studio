@@ -209,7 +209,7 @@
             title="Connected to External Docker Engine (Auto Mode)"
           >
             <p>
-              File sharing paths configure the CatBee built-in engine and will take effect whenever CatBee runs its
+              File sharing settings configure the CatBee built-in engine and will take effect whenever CatBee runs its
               built-in engine.
             </p>
           </catbee-container-studio-callout>
@@ -219,6 +219,29 @@
           These directories (and their subdirectories) can be bind mounted into Docker containers.
           {{ page.fileSharingDesc() }} Changes restart the engine VM.
         </p>
+
+        @if (page.showForwardHostFileChanges()) {
+          <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+          <div
+            id="setting-res-forward-host-file-changes"
+            class="checkbox-row switch-row"
+            (click)="page.toggleSwitchRow($event, page.forwardHostFileChanges)"
+          >
+            <catbee-container-studio-switch-input
+              [(checked)]="page.forwardHostFileChanges"
+              inputId="field-forward-host-file-changes"
+            />
+            <label class="switch-row-text" for="field-forward-host-file-changes">
+              <span class="checkbox-label">
+                Forward host file changes <span class="badge-experimental">Experimental</span>
+              </span>
+              <span class="field-hint">
+                Sends file change notifications to containers for all writable shares. Host deletions produce no
+                notification.
+              </span>
+            </label>
+          </div>
+        }
 
         <div class="file-sharing-input-row" [class.is-disabled]="page.isExternalMode()">
           <div class="file-sharing-box" [class.is-invalid]="page.sharePathError()">

@@ -226,6 +226,15 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingSearchItem[] = [
     targetId: 'setting-res-file-sharing',
     icon: 'folder_shared'
   }),
+  resourceItem('file-sharing', 'File sharing', {
+    id: 'res-forward-host-file-changes',
+    title: 'Forward host file changes',
+    description: 'Enable file change notifications for writable shares in the built-in engine',
+    keywords: ['inotify', 'file watching', 'hot reload', 'live reload', 'virtiofs', 'bind mount'],
+    targetId: 'setting-res-forward-host-file-changes',
+    icon: 'folder_shared',
+    platform: 'darwin'
+  }),
 
   // RESOURCES > PROXIES
   resourceItem('proxies', 'Proxies', {
