@@ -11,12 +11,6 @@
   overflow: hidden;
 }
 
-::ng-deep {
-  .menu-item {
-    align-items: start;
-  }
-}
-
 .container-menu {
   $max-height: 20rem;
   display: grid;
@@ -37,6 +31,10 @@
   .container-options {
     max-height: $max-height;
     overflow: auto;
+
+    .menu-item {
+      align-items: start;
+    }
 
     ::ng-deep input[type='checkbox'] {
       margin-top: 2px;

@@ -90,10 +90,18 @@
 
     <catbee-container-studio-menu
       [open]="showLogOptions()"
-      [style]="{ width: '15rem' }"
+      [style]="{ width: '16rem' }"
+      contentRole="presentation"
+      focusOnOpen
       (dismissed)="closeLogOptions()"
     >
-      <button menuTrigger type="button" class="catbee-action-btn fix-height" (click)="toggleLogOptions($event)">
+      <button
+        menuTrigger
+        type="button"
+        class="catbee-action-btn fix-height"
+        [attr.aria-expanded]="showLogOptions()"
+        (click)="toggleLogOptions($event)"
+      >
         <span class="mat-icon-filled" aria-hidden="true">tune</span>
         Options
       </button>
@@ -118,6 +126,7 @@
         <label
           class="menu-item menu-item-checkbox no-select pointer"
           catbeeTooltip="Convert UTC dates to local system time"
+          catbeeTooltipPosition="left"
         >
           <catbee-container-studio-table-checkbox
             [checked]="displayOptions().localDates"
@@ -126,28 +135,37 @@
           />
           Local dates
         </label>
-        @if (externalMaxLogEntries() !== null) {
-          <label class="menu-item menu-item-select no-select" for="logs-max-entries-select">
-            Max log entries
-            <select
-              id="logs-max-entries-select"
-              class="logs-tail-select pointer"
-              (change)="onMaxLogEntriesChange($event)"
-            >
-              @for (entries of maxLogEntryOptions(); track entries) {
-                <option [value]="entries" [selected]="entries === externalMaxLogEntries()">{{ entries }}</option>
-              }
-            </select>
-          </label>
+        @let maxEntries = externalMaxLogEntries();
+        @if (maxEntries !== null) {
+          <div class="menu-item menu-item-select no-select">
+            <label for="logs-max-entries-select" id="logs-max-entries-label">Max log entries</label>
+            <catbee-container-studio-dropdown
+              inputId="logs-max-entries-select"
+              labelClickOpen
+              ariaLabelledBy="logs-max-entries-label"
+              alignment="end"
+              compact
+              width="6rem"
+              [options]="maxLogEntryDropdownOptions()"
+              [value]="maxEntries"
+              (valueChange)="onMaxLogEntriesChange($event)"
+            />
+          </div>
         } @else {
-          <label class="menu-item menu-item-select no-select" for="logs-tail-lines-select">
-            Tail lines
-            <select id="logs-tail-lines-select" class="logs-tail-select pointer" (change)="onTailLinesChange($event)">
-              @for (lines of tailLineOptions(); track lines) {
-                <option [value]="lines" [selected]="lines === selectedTailLines()">{{ lines }}</option>
-              }
-            </select>
-          </label>
+          <div class="menu-item menu-item-select no-select">
+            <label for="logs-tail-lines-select" id="logs-tail-lines-label">Tail lines</label>
+            <catbee-container-studio-dropdown
+              inputId="logs-tail-lines-select"
+              labelClickOpen
+              ariaLabelledBy="logs-tail-lines-label"
+              alignment="end"
+              compact
+              width="6rem"
+              [options]="tailLineDropdownOptions()"
+              [value]="selectedTailLines()"
+              (valueChange)="onTailLinesChange($event)"
+            />
+          </div>
         }
       </div>
     </catbee-container-studio-menu>

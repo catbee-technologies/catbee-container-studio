@@ -402,14 +402,17 @@
         <span id="network-name-error" class="field-error" aria-live="polite">{{ nameError }}</span>
       }
     </div>
-    <label class="field"
-      ><span class="field-label">Driver</span
-      ><select class="field-input" [formField]="createForm.driver">
-        <option value="bridge">Bridge</option>
-        <option value="macvlan">Macvlan</option>
-        <option value="ipvlan">IPvlan</option>
-      </select></label
-    ><catbee-container-studio-switch-input [formField]="createForm.internal" label="Internal network" />
+    <div class="field">
+      <label class="field-label" id="network-driver-label" for="network-driver">Driver</label>
+      <catbee-container-studio-dropdown
+        inputId="network-driver"
+        labelClickOpen
+        ariaLabelledBy="network-driver-label"
+        [options]="driverOptions"
+        [formField]="createForm.driver"
+      />
+    </div>
+    <catbee-container-studio-switch-input [formField]="createForm.internal" label="Internal network" />
     <catbee-container-studio-switch-input [formField]="createForm.attachable" label="Manually attachable" />
   </form>
 

@@ -5,10 +5,11 @@ import { CatbeeTooltip } from '@components/tooltip/tooltip.directive';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
 import { hostPortsConflict, PortMappingRow } from '@utils/port.utils';
 import { fieldError, portMappingSchema } from '@utils/configuration-form.utils';
+import { DropdownComponent, DropdownOption } from '@components/dropdown/dropdown';
 
 @Component({
   selector: 'catbee-container-studio-port-mappings-editor',
-  imports: [EmptyStateComponent, CatbeeTooltip, ConfirmDialogComponent, FormField],
+  imports: [EmptyStateComponent, CatbeeTooltip, ConfirmDialogComponent, FormField, DropdownComponent],
   templateUrl: './port-mappings-editor.html',
   styleUrl: './port-mappings-editor.scss'
 })
@@ -26,6 +27,10 @@ export class PortMappingsEditorComponent {
   readonly loadingMessage = input('Checking exposed ports...');
 
   readonly showAddForm = signal(false);
+  readonly protocolOptions: readonly DropdownOption<PortMappingRow['protocol']>[] = [
+    { value: 'tcp', label: 'TCP' },
+    { value: 'udp', label: 'UDP' }
+  ];
   private readonly newPortModel = signal<PortMappingRow>({ hostPort: '', containerPort: '', protocol: 'tcp' });
   readonly newPortForm = form(this.newPortModel, path => {
     apply(path, portMappingSchema);

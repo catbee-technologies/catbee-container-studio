@@ -165,25 +165,8 @@
   }
 }
 
-.logs-tail-select {
-  border: 1px solid var(--border-color-control);
-  background: var(--bg-surface);
-  color: var(--ink-100);
-  border-radius: 0.4rem;
-  padding: 0.2rem 0.35rem;
-  min-width: 4.6rem;
-  font-family: var(--mono-font);
-  font-size: 0.74rem;
-
-  &:focus-visible {
-    outline: 1px solid var(--border-color-hover);
-    outline-offset: 1px;
-  }
-
-  option {
-    background: var(--bg-input);
-    color: var(--ink-100);
-  }
+.menu-item-select catbee-container-studio-dropdown {
+  flex-shrink: 0;
 }
 
 .scroll-actions {

@@ -33,6 +33,7 @@ import {
 } from '@utils/search-navigation.utils';
 import { TableCheckboxComponent } from '@components/table-checkbox/table-checkbox';
 import { SwitchInputComponent } from '@components/switch-input/switch-input';
+import { DropdownComponent } from '@components/dropdown/dropdown';
 
 export interface LogsSearchMode {
   caseSensitive: boolean;
@@ -91,6 +92,7 @@ interface LogScrollAnchor {
   imports: [
     CommonModule,
     SearchInputComponent,
+    DropdownComponent,
     MenuComponent,
     EmptyStateComponent,
     CatbeeTooltip,
@@ -176,7 +178,12 @@ export class LogsTabComponent implements AfterViewInit {
       10
     )
   );
-  readonly logTailLineOptions = LOG_TAIL_OPTIONS;
+  readonly tailLineDropdownOptions = computed(() =>
+    this.tailLineOptions().map(value => ({ value, label: String(value) }))
+  );
+  readonly maxLogEntryDropdownOptions = computed(() =>
+    this.maxLogEntryOptions().map(value => ({ value, label: String(value) }))
+  );
   readonly selectedTailLines = computed(() => this.externalTailLines() ?? this.logTailLines());
   readonly showLogTimestamps = signal(
     this.localStorage.getBooleanWithDefault(LOGS_STORAGE_KEYS.SHOW_TIMESTAMPS, LOGS_STORAGE_DEFAULTS.SHOW_TIMESTAMPS)
@@ -706,18 +713,8 @@ export class LogsTabComponent implements AfterViewInit {
     this.selectNearestMatchFromViewport();
   }
 
-  async onTailLinesChange(event: Event): Promise<void> {
-    const target = event.target as HTMLSelectElement | null;
-    const nextValue = Number.parseInt(target?.value ?? '', 10);
-
-    if (!this.tailLineOptions().includes(nextValue)) {
-      if (target) {
-        target.value = String(this.selectedTailLines());
-      }
-      return;
-    }
-
-    if (nextValue === this.selectedTailLines()) {
+  async onTailLinesChange(nextValue: number): Promise<void> {
+    if (!this.tailLineOptions().includes(nextValue) || nextValue === this.selectedTailLines()) {
       return;
     }
 
@@ -737,10 +734,7 @@ export class LogsTabComponent implements AfterViewInit {
     await this.restartLogsStream(id, this.getClearedSince(id));
   }
 
-  onMaxLogEntriesChange(event: Event): void {
-    const target = event.target as HTMLSelectElement | null;
-    const nextValue = Number.parseInt(target?.value ?? '', 10);
-
+  onMaxLogEntriesChange(nextValue: number): void {
     if (!this.maxLogEntryOptions().includes(nextValue)) {
       return;
     }

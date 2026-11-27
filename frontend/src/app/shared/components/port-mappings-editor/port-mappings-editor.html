@@ -146,15 +146,15 @@
 
           <div class="field-col protocol-col">
             <label class="form-label" for="new-protocol">Protocol</label>
-            <select
-              id="new-protocol"
-              class="field-select add-field-select"
+            <catbee-container-studio-dropdown
+              inputId="new-protocol"
+              labelClickOpen
+              ariaLabelledBy="new-protocol-label"
+              compact
+              width="5.75rem"
+              [options]="protocolOptions"
               [formField]="newPortForm.protocol"
-              (keydown.enter)="$event.preventDefault(); confirmAddPort()"
-            >
-              <option value="tcp">tcp</option>
-              <option value="udp">udp</option>
-            </select>
+            />
           </div>
         </div>
 

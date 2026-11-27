@@ -8,6 +8,14 @@
   align-items: center;
 }
 
+:host(.dropdown-menu) {
+  display: block;
+
+  .menu-anchor {
+    display: block;
+  }
+}
+
 .options-menu {
   box-sizing: border-box;
   width: max-content;
