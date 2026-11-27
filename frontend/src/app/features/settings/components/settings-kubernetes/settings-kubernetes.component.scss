@@ -247,23 +247,6 @@
     justify-content: space-between;
     gap: 1rem;
     font-size: 0.85rem;
-
-    .progress-title-row {
-      display: flex;
-      align-items: center;
-      gap: 0.45rem;
-
-      .spin {
-        font-size: 1rem;
-        line-height: 1rem;
-        color: var(--color-primary-base, #38bdf8);
-        animation: spin 1s linear infinite;
-
-        @media (prefers-reduced-motion: reduce) {
-          animation: none;
-        }
-      }
-    }
   }
 
   .k8s-progress-title {

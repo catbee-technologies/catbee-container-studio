@@ -147,13 +147,12 @@
             <button
               type="button"
               class="catbee-action-btn primary sm"
+              [attr.aria-busy]="page.isInstallingK8sRuntime()"
               [disabled]="page.isEngineBusy() || page.isK8sBusy() || !page.isK8sEngineAvailable()"
               (click)="page.installK8sRuntime()"
             >
               <span class="button-icon" aria-hidden="true">
-                <span class="mat-icon-filled" [class.spin]="page.isInstallingK8sRuntime()">{{
-                  page.isInstallingK8sRuntime() ? 'sync' : 'download'
-                }}</span>
+                <span class="mat-icon-filled">download</span>
               </span>
               <span>{{ page.isInstallingK8sRuntime() ? 'Installing kind...' : 'Install kind runtime' }}</span>
             </button>
@@ -161,13 +160,12 @@
             <button
               type="button"
               class="catbee-action-btn plain-btn danger sm"
+              [attr.aria-busy]="page.isUninstallingK8sRuntime()"
               [disabled]="page.isEngineBusy() || page.isK8sBusy() || !page.isK8sEngineAvailable()"
               (click)="page.requestUninstallK8sRuntime()"
             >
               <span class="button-icon" aria-hidden="true">
-                <span class="mat-icon-filled" [class.spin]="page.isUninstallingK8sRuntime()">{{
-                  page.isUninstallingK8sRuntime() ? 'sync' : 'delete'
-                }}</span>
+                <span class="mat-icon-filled">delete</span>
               </span>
               <span>{{ page.isUninstallingK8sRuntime() ? 'Uninstalling...' : 'Uninstall runtime' }}</span>
             </button>
@@ -360,18 +358,15 @@
         @if (op.operation !== 'install') {
           <output class="k8s-progress cluster-progress" aria-live="polite">
             <div class="k8s-progress-header">
-              <div class="progress-title-row">
-                <span class="mat-icon-filled spin" aria-hidden="true">progress_activity</span>
-                <span class="k8s-progress-title">
-                  {{
-                    op.operation === 'start'
-                      ? 'Starting Kubernetes cluster...'
-                      : op.operation === 'reset'
-                        ? 'Resetting Kubernetes cluster...'
-                        : 'Stopping Kubernetes cluster...'
-                  }}
-                </span>
-              </div>
+              <span class="k8s-progress-title">
+                {{
+                  op.operation === 'start'
+                    ? 'Starting Kubernetes cluster...'
+                    : op.operation === 'reset'
+                      ? 'Resetting Kubernetes cluster...'
+                      : 'Stopping Kubernetes cluster...'
+                }}
+              </span>
               @if (op.progress !== undefined) {
                 <span class="k8s-progress-percent">{{ op.progress }}%</span>
               }
