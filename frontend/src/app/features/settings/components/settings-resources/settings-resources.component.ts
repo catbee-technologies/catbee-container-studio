@@ -7,6 +7,7 @@ import { SwitchInputComponent } from '@components/switch-input/switch-input';
 import { RadioInputComponent } from '@components/radio-input/radio-input';
 import { DiscreteSliderComponent } from '@components/discrete-slider/discrete-slider';
 import { CalloutComponent } from '@components/callout/callout';
+import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { DropdownComponent, DropdownOption } from '@components/dropdown/dropdown';
 import { SETTINGS_PAGE_CONTEXT } from '@features/settings/services/settings-page.context';
 
@@ -22,6 +23,7 @@ import { SETTINGS_PAGE_CONTEXT } from '@features/settings/services/settings-page
     RadioInputComponent,
     DiscreteSliderComponent,
     CalloutComponent,
+    ErrorBannerComponent,
     DropdownComponent
   ],
   templateUrl: './settings-resources.component.html',

@@ -15,7 +15,7 @@ export class ElectronBaseService {
     }
     const result = payload;
     if (result.ok === false) {
-      throw new Error(result.error.message);
+      throw Object.assign(new Error(result.error.message), { code: result.error.code });
     }
     return result.data;
   }

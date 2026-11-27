@@ -215,6 +215,11 @@ export class ElectronApiService extends ElectronBaseService {
     return this.unwrapResult(response);
   }
 
+  async validateFileSharingPath(path: string): Promise<void> {
+    const response = await this.bridge.app?.engine?.validateFileSharingPath?.(path);
+    this.unwrapResult(response);
+  }
+
   async resetEngineSettings(): Promise<EngineSettings | undefined> {
     const response = await this.bridge.app?.engine?.resetSettings?.();
     return this.unwrapResult(response);

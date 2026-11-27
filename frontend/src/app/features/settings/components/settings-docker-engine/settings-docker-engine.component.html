@@ -16,16 +16,6 @@
     <p class="section-desc">Manage your active container daemon and inspect runtime configuration.</p>
   </header>
   <div class="settings-section-body">
-    @if (page.engineErrorMessage(); as err) {
-      <div class="settings-error-banner-wrapper">
-        <catbee-container-studio-error-banner
-          [errorMessage]="err"
-          (closeErr)="page.engineErrorMessage.set(null)"
-          size="small"
-        />
-      </div>
-    }
-
     <div id="setting-engine-built-in" class="engine-card">
       <div class="engine-card-header">
         <div class="engine-title-group">
@@ -133,12 +123,6 @@
         }
       </div>
 
-      @if (page.engineStatus()?.lastError; as lastError) {
-        <catbee-container-studio-callout type="error" title="Last engine error">
-          <p>{{ lastError }}</p>
-        </catbee-container-studio-callout>
-      }
-
       @if (page.isExternalMode()) {
         <catbee-container-studio-callout type="warning" title="External Engine Mode Active">
           @if (page.isEngineRunning()) {
@@ -148,10 +132,10 @@
             </p>
           } @else {
             <p>
-              CatBee is using an external Docker engine. In <strong>Settings → General</strong>, find
+              CatBee is using an external Docker engine. In <strong>Settings -> General</strong>, find
               <strong>Choose how to run Docker containers</strong>, select <strong>Auto (External First)</strong> or
               <strong>{{ page.builtInEngineLabel() }}</strong>, and click <strong>Apply</strong>. Return to
-              <strong>Settings → Docker Engine</strong> to start, restart, or reinstall the built-in engine.
+              <strong>Settings -> Docker Engine</strong> to start, restart, or reinstall the built-in engine.
             </p>
           }
         </catbee-container-studio-callout>
@@ -246,6 +230,17 @@
           <span>Uninstall</span>
         </button>
       </div>
+      @if (page.engineErrorMessage(); as err) {
+        <catbee-container-studio-error-banner
+          [errorMessage]="err"
+          (closeErr)="page.engineErrorMessage.set(null)"
+          size="small"
+        />
+      } @else if (page.engineStatus()?.lastError; as lastError) {
+        <catbee-container-studio-callout type="error" title="Last engine error">
+          <p>{{ lastError }}</p>
+        </catbee-container-studio-callout>
+      }
     </div>
 
     <!-- Builders & BuildKit Card -->

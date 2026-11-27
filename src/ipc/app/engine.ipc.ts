@@ -1,9 +1,13 @@
 import { ipcMain } from 'electron';
+import { isAbsolute } from 'node:path';
 import { IPC_CHANNELS } from '../channels';
 import { fail, ok, type IpcResult } from '../contracts';
 import { dockerManager } from '../../main/docker/services/docker.manager';
 import { engineManager } from '../../main/docker/embedded/engine.manager';
-import { validateLimaFileSharingPaths } from '../../main/docker/embedded/drivers/lima-engine.driver';
+import {
+  validateLimaFileSharingPath,
+  validateLimaFileSharingPaths
+} from '../../main/docker/embedded/drivers/lima-engine.driver';
 import {
   CATBEE_CONTEXT_NAME,
   getDockerBuilderInfo,
@@ -221,6 +225,22 @@ export function registerEngineHandlers(): void {
         }
 
         return ok(updated);
+      } catch (error) {
+        return fail(error);
+      }
+    }
+  );
+
+  ipcMain.removeHandler(IPC_CHANNELS.App.Engine.ValidateFileSharingPath);
+  ipcMain.handle(
+    IPC_CHANNELS.App.Engine.ValidateFileSharingPath,
+    async (_event, path: unknown): Promise<IpcResult<void>> => {
+      if (typeof path !== 'string' || !isAbsolute(path) || path.includes('\0')) {
+        return fail(new Error('Enter an absolute folder path.'));
+      }
+      try {
+        await validateLimaFileSharingPath(path);
+        return ok(undefined);
       } catch (error) {
         return fail(error);
       }

@@ -119,16 +119,6 @@
       [formRoot]="settingsForm"
       (submit)="$event.preventDefault(); applySettings()"
     >
-      @if (settingsErrorMessage(); as err) {
-        <div class="settings-error-banner-wrapper">
-          <catbee-container-studio-error-banner
-            [errorMessage]="err"
-            (closeErr)="settingsErrorMessage.set(null)"
-            size="small"
-          />
-        </div>
-      }
-
       <!-- GENERAL TAB -->
       @if (activeCategory() === 'general') {
         <catbee-settings-general />
@@ -168,7 +158,9 @@
     <!-- Bottom Actions Bar -->
     <footer class="settings-footer">
       <div class="footer-left">
-        @if (applySuccessMessage()) {
+        @if (applyError(); as err) {
+          <catbee-container-studio-error-banner [errorMessage]="err" (closeErr)="applyError.set(null)" size="small" />
+        } @else if (applySuccessMessage()) {
           <span class="success-message">
             <span class="mat-icon-filled" aria-hidden="true">check_circle</span>
             {{ applySuccessMessage() }}
@@ -191,7 +183,7 @@
           type="button"
           class="catbee-action-btn primary"
           [attr.aria-busy]="isApplying()"
-          [disabled]="!hasChanges() || isActionLoading() || hasValidationErrors()"
+          [disabled]="!hasChanges() || isActionLoading() || isValidatingSharePath() || hasValidationErrors()"
           (click)="applySettings()"
         >
           @if (isApplying()) {
@@ -211,6 +203,7 @@
       [title]="restartDialogTitle()"
       [style]="{ width: '32rem' }"
       (closeDialog)="cancelRestartModal()"
+      (closed)="focusFileSharingError()"
     >
       <ng-container catbeeDialogBody>
         <div class="restart-dialog-content">

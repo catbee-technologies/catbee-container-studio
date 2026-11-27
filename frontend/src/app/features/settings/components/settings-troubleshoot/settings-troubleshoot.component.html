@@ -42,7 +42,7 @@
               !page.isEngineInstalled() ||
               !page.isEngineRunning()
             "
-            (click)="page.restartEngine()"
+            (click)="page.restartEngine('troubleshoot')"
           >
             <span class="button-icon" aria-hidden="true">
               <span class="mat-icon-filled" [class.spin]="page.activeAction() === 'restart'">refresh</span>
@@ -53,6 +53,13 @@
           </button>
         </div>
       </div>
+      @if (page.troubleshootRestartError(); as err) {
+        <catbee-container-studio-error-banner
+          [errorMessage]="err"
+          (closeErr)="page.troubleshootRestartError.set(null)"
+          size="small"
+        />
+      }
     </div>
 
     <!-- Clean / Purge Data Card -->
@@ -92,7 +99,13 @@
           </button>
         </div>
       </div>
-      @if (page.purgeDataSuccessMessage(); as msg) {
+      @if (page.purgeDataError(); as err) {
+        <catbee-container-studio-error-banner
+          [errorMessage]="err"
+          (closeErr)="page.purgeDataError.set(null)"
+          size="small"
+        />
+      } @else if (page.purgeDataSuccessMessage(); as msg) {
         <catbee-container-studio-callout
           type="success"
           [closable]="true"
@@ -133,6 +146,13 @@
           </button>
         </div>
       </div>
+      @if (page.restoreDefaultsError(); as err) {
+        <catbee-container-studio-error-banner
+          [errorMessage]="err"
+          (closeErr)="page.restoreDefaultsError.set(null)"
+          size="small"
+        />
+      }
     </div>
 
     <!-- Factory Reset & Teardown (Uninstall CatBee) Card -->
@@ -172,6 +192,13 @@
           </button>
         </div>
       </div>
+      @if (page.teardownError(); as err) {
+        <catbee-container-studio-error-banner
+          [errorMessage]="err"
+          (closeErr)="page.teardownError.set(null)"
+          size="small"
+        />
+      }
     </div>
   </div>
 </section>

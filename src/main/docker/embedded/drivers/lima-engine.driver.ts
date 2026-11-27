@@ -898,7 +898,7 @@ fi
     } catch (error) {
       if (args[0] !== 'start') throw error;
       throw new Error(
-        'The CatBee virtual machine could not start. Try starting the built-in engine again. If it still fails, go to Settings → About → Open Logs Folder.',
+        'The CatBee virtual machine could not start. Try starting the built-in engine again. If it still fails, go to Settings -> About -> Open Logs Folder.',
         { cause: error }
       );
     }
@@ -921,23 +921,34 @@ export function validateLimaFileSharingPaths(paths: string[]): Promise<void> {
   return validateMountDirectories(normalizeMounts(paths));
 }
 
-async function validateMountDirectories(mounts: string[]): Promise<void> {
-  const fileSharingSettings = 'Settings → Resources → File sharing';
+export function validateLimaFileSharingPath(candidate: string): Promise<void> {
+  return validateMountDirectories([path.resolve(candidate)], {
+    invalid: 'Enter an existing folder or use Browse.',
+    inaccessible: 'Check its permissions or choose another folder.'
+  });
+}
+
+class FileSharingPathError extends Error {
+  readonly code = 'INVALID_FILE_SHARING_PATH';
+}
+
+async function validateMountDirectories(
+  mounts: string[],
+  hints = {
+    invalid: 'Choose an existing folder or remove this path in Settings -> Resources -> File sharing.',
+    inaccessible: 'Check its permissions or remove it in Settings -> Resources -> File sharing.'
+  }
+): Promise<void> {
   for (const mount of mounts) {
     const entry = await stat(mount).catch((error: NodeJS.ErrnoException) => {
       if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return undefined;
-      throw new Error(
-        `CatBee couldn't access “${mount}”. Check its permissions or remove it in ${fileSharingSettings}.`,
-        {
-          cause: error
-        }
-      );
+      throw new FileSharingPathError(`CatBee couldn't access “${mount}”. ${hints.inaccessible}`, {
+        cause: error
+      });
     });
     if (!entry?.isDirectory()) {
       const reason = entry ? 'must point to a folder' : 'could not be found';
-      throw new Error(
-        `The shared path “${mount}” ${reason}. Choose an existing folder or remove this path in ${fileSharingSettings}.`
-      );
+      throw new FileSharingPathError(`The shared path “${mount}” ${reason}. ${hints.invalid}`);
     }
   }
 }

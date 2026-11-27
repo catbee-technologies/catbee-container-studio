@@ -1,16 +1,6 @@
 <section class="settings-section">
   <header class="settings-section-header"><h2>Software updates</h2></header>
   <div class="settings-section-body">
-    @if (page.updateErrorMessage(); as err) {
-      <div class="settings-error-banner-wrapper">
-        <catbee-container-studio-error-banner
-          [errorMessage]="err"
-          (closeErr)="page.updateErrorMessage.set(null)"
-          size="small"
-        />
-      </div>
-    }
-
     @let status = page.updaterStatus();
     @let currentVer = page.platformInfo()?.appVersion ?? '';
     @let isAlphaOrBeta = isPrerelease(currentVer);
@@ -209,7 +199,7 @@
           </div>
           <div class="updates-details">
             <h3>Update check encountered an error</h3>
-            <p class="field-hint error-hint">{{ status.message }}</p>
+            <p class="field-hint error-hint" role="alert">{{ status.message }}</p>
           </div>
           <div class="updates-action-col">
             <button

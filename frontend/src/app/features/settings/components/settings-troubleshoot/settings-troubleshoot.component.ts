@@ -2,12 +2,13 @@ import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CatbeeLoaderComponent } from '@ng-catbee/loader';
 import { CalloutComponent } from '@shared/components/callout/callout';
+import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { SETTINGS_PAGE_CONTEXT } from '@features/settings/services/settings-page.context';
 
 @Component({
   selector: 'catbee-settings-troubleshoot',
   standalone: true,
-  imports: [CommonModule, CatbeeLoaderComponent, CalloutComponent],
+  imports: [CommonModule, CatbeeLoaderComponent, CalloutComponent, ErrorBannerComponent],
   templateUrl: './settings-troubleshoot.component.html',
   styleUrl: './settings-troubleshoot.component.scss'
 })

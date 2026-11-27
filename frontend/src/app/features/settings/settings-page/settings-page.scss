@@ -396,12 +396,6 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
-
-  > .settings-error-banner-wrapper {
-    flex: 0 0 auto;
-    max-width: 52rem;
-    margin: 1.25rem 2.5rem 0;
-  }
 }
 
 /* FOOTER ACTIONS BAR */
@@ -410,6 +404,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
   padding: 0.85rem 2.5rem;
   background: var(--bg-sidebar);
   border-top: 1px solid var(--border-color-light);
@@ -417,6 +412,7 @@
   .footer-left {
     display: flex;
     align-items: center;
+    min-width: 0;
 
     .success-message {
       display: inline-flex;
@@ -435,6 +431,7 @@
   .footer-right {
     display: flex;
     align-items: center;
+    flex-shrink: 0;
     gap: 0.75rem;
   }
 }
