@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import jsyaml from 'js-yaml';
@@ -173,6 +173,7 @@ export class LimaEngineDriver implements PlatformEngineDriver {
     }
 
     const settings = await getEngineSettings();
+    if (!hasInstanceConfig) await validateLimaFileSharingPaths(settings.fileSharingPaths);
     const limaVersion = (await pathExists(this.limactl)) ? undefined : await this.installLima(onProgress);
     if (hasInstanceConfig) {
       onProgress(25, 'Recovering the existing CatBee virtual machine...');
@@ -294,6 +295,10 @@ export class LimaEngineDriver implements PlatformEngineDriver {
     const applied = await this.readAppliedConfig();
     const desired = this.desiredVmConfig(settings, applied);
     const vmChanged = !applied || JSON.stringify(applied) !== JSON.stringify(desired);
+
+    if (vmChanged || status !== 'Running') {
+      await validateMountDirectories(desired.mounts);
+    }
 
     if (vmChanged) {
       if (status === 'Running') {
@@ -883,12 +888,20 @@ fi
     };
   }
 
-  private limactlRun(
+  private async limactlRun(
     args: string[],
     env: NodeJS.ProcessEnv,
     options: { timeoutMs?: number; input?: string; onOutput?: (line: string) => void } = {}
   ): Promise<RunResult> {
-    return runCommand(this.limactl, args, { env, timeoutMs: options.timeoutMs ?? 60_000, ...options });
+    try {
+      return await runCommand(this.limactl, args, { env, timeoutMs: options.timeoutMs ?? 60_000, ...options });
+    } catch (error) {
+      if (args[0] !== 'start') throw error;
+      throw new Error(
+        'The CatBee virtual machine could not start. Try starting the built-in engine again. If it still fails, go to Settings → About → Open Logs Folder.',
+        { cause: error }
+      );
+    }
   }
 
   private guestShell(
@@ -901,6 +914,31 @@ fi
       input,
       timeoutMs
     });
+  }
+}
+
+export function validateLimaFileSharingPaths(paths: string[]): Promise<void> {
+  return validateMountDirectories(normalizeMounts(paths));
+}
+
+async function validateMountDirectories(mounts: string[]): Promise<void> {
+  const fileSharingSettings = 'Settings → Resources → File sharing';
+  for (const mount of mounts) {
+    const entry = await stat(mount).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === 'ENOENT' || error.code === 'ENOTDIR') return undefined;
+      throw new Error(
+        `CatBee couldn't access “${mount}”. Check its permissions or remove it in ${fileSharingSettings}.`,
+        {
+          cause: error
+        }
+      );
+    });
+    if (!entry?.isDirectory()) {
+      const reason = entry ? 'must point to a folder' : 'could not be found';
+      throw new Error(
+        `The shared path “${mount}” ${reason}. Choose an existing folder or remove this path in ${fileSharingSettings}.`
+      );
+    }
   }
 }
 
