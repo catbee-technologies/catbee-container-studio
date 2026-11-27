@@ -48,19 +48,19 @@
           }
           <span
             class="engine-status-badge"
-            [class.status-running]="page.isEngineRunning()"
+            [class.status-running]="page.isEngineRunning() && !page.isEngineBusy()"
             [class.status-error]="page.engineState() === 'error'"
             [class.status-busy]="page.isEngineBusy()"
             [class.status-inactive]="!page.isEngineRunning() && page.engineState() !== 'error' && !page.isEngineBusy()"
           >
             <span class="mat-icon-filled status-icon" aria-hidden="true">
               {{
-                page.isEngineRunning()
-                  ? 'play_arrow'
-                  : page.engineState() === 'error'
-                    ? 'error'
-                    : page.isEngineBusy()
-                      ? 'sync'
+                page.isEngineBusy()
+                  ? 'sync'
+                  : page.isEngineRunning()
+                    ? 'play_arrow'
+                    : page.engineState() === 'error'
+                      ? 'error'
                       : 'stop'
               }}
             </span>
@@ -162,9 +162,6 @@
         >
           <span class="button-icon" aria-hidden="true">
             <span class="mat-icon-filled">play_arrow</span>
-            @if (page.isStarting()) {
-              <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'start' }" />
-            }
           </span>
           <span>{{ page.startButtonLabel() }}</span>
         </button>
@@ -177,9 +174,6 @@
         >
           <span class="button-icon" aria-hidden="true">
             <span class="mat-icon-filled">stop</span>
-            @if (page.activeAction() === 'stop') {
-              <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'stop' }" />
-            }
           </span>
           <span>Stop</span>
         </button>
@@ -193,7 +187,7 @@
           (click)="page.restartEngine()"
         >
           <span class="button-icon" aria-hidden="true">
-            <span class="mat-icon-filled" [class.spin]="page.activeAction() === 'restart'">refresh</span>
+            <span class="mat-icon-filled">refresh</span>
           </span>
           <span>Restart</span>
         </button>
@@ -208,9 +202,6 @@
         >
           <span class="button-icon" aria-hidden="true">
             <span class="mat-icon-filled">build</span>
-            @if (page.activeAction() === 'reinstall') {
-              <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'reinstall' }" />
-            }
           </span>
           <span>Reinstall</span>
         </button>
@@ -223,9 +214,6 @@
         >
           <span class="button-icon" aria-hidden="true">
             <span class="mat-icon-filled">delete_forever</span>
-            @if (page.activeAction() === 'uninstall') {
-              <ng-container [ngTemplateOutlet]="buttonLoader" [ngTemplateOutletContext]="{ $implicit: 'uninstall' }" />
-            }
           </span>
           <span>Uninstall</span>
         </button>

@@ -1167,12 +1167,13 @@ export class SettingsPageComponent implements OnInit {
     if (this.activeAction() === 'install' || this.activeAction() === 'reinstall') return 'installing';
     if (this.activeAction() === 'start') return 'starting';
     if (this.activeAction() === 'stop') return 'stopping';
+    if (this.activeAction() === 'restart') return 'restarting';
     if (this.activeAction() === 'uninstall') return 'uninstalling';
     return this.engineStatus()?.state ?? 'not-installed';
   });
   readonly isEngineBusy = computed(
     () =>
-      ['installing', 'starting', 'stopping', 'uninstalling'].includes(this.engineState()) ||
+      ['installing', 'starting', 'stopping', 'restarting', 'uninstalling'].includes(this.engineState()) ||
       this.engineOperation() !== null ||
       this.activeAction() === 'install' ||
       this.activeAction() === 'uninstall' ||
@@ -1224,6 +1225,7 @@ export class SettingsPageComponent implements OnInit {
       starting: 'Starting',
       running: 'Running',
       stopping: 'Stopping',
+      restarting: 'Restarting',
       uninstalling: 'Uninstalling',
       error: 'Error'
     };
