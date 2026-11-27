@@ -1,4 +1,5 @@
-import { chmod, mkdir, readFile, readlink, rm } from 'node:fs/promises';
+import { constants, type Stats } from 'node:fs';
+import { access, chmod, mkdir, readFile, readlink, realpath, rm, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RootlessEngineDriver } from '../../../../../src/main/docker/embedded/drivers/rootless-engine.driver';
@@ -13,6 +14,7 @@ import {
   getDockerServerVersion,
   pathExists,
   pingDockerEndpoint,
+  runCommand,
   updateEngineManifest,
   writeEngineManifest
 } from '../../../../../src/main/docker/embedded/engine-utils';
@@ -22,11 +24,14 @@ vi.mock('electron', () => ({}));
 vi.mock('../../../../../src/main/docker/embedded/system-proxy.ts', () => ({ detectSystemProxy: async () => null }));
 vi.mock('../../../../../src/main/logger', () => ({ logger: { debug: vi.fn(), warn: vi.fn() } }));
 vi.mock('node:fs/promises', () => ({
+  access: vi.fn(),
   chmod: vi.fn(),
   mkdir: vi.fn(),
   readFile: vi.fn(),
   readlink: vi.fn(),
-  rm: vi.fn()
+  realpath: vi.fn(),
+  rm: vi.fn(),
+  stat: vi.fn()
 }));
 vi.mock('../../../../../src/main/docker/embedded/engine-settings', async importOriginal => {
   const original = await importOriginal<typeof import('../../../../../src/main/docker/embedded/engine-settings')>();
@@ -39,6 +44,7 @@ vi.mock('../../../../../src/main/docker/embedded/engine-utils', async importOrig
   fetchEngineResource: vi.fn(),
   getDockerServerVersion: vi.fn(),
   pathExists: vi.fn(),
+  runCommand: vi.fn(),
   updateEngineManifest: vi.fn(),
   writeEngineManifest: vi.fn(),
   sleep: vi.fn()
@@ -133,7 +139,44 @@ describe('Linux rootless installation', () => {
     vi.mocked(fetchEngineResource).mockResolvedValue(new Response('docker-rootless-extras-29.9.3.tgz'));
   });
 
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    { preferredExecutable: true, expectedName: 'docker-rootlesskit' },
+    { preferredExecutable: false, expectedName: 'rootlesskit' }
+  ])('probes AppArmor by launching $expectedName directly', async ({ preferredExecutable, expectedName }) => {
+    vi.stubEnv('PATH', 'first tools:second tools');
+    const fallback = path.join('first tools', 'rootlesskit');
+    const preferred = path.join('second tools', 'docker-rootlesskit');
+    vi.mocked(readFile).mockResolvedValue('1');
+    vi.mocked(stat).mockImplementation(async file => {
+      if (file !== preferred && file !== fallback) throw new Error('Candidate not found');
+      return { isFile: () => true } as Stats;
+    });
+    vi.mocked(access).mockImplementation(async file => {
+      if (file === preferred && !preferredExecutable) throw new Error('Candidate is not executable');
+    });
+    const executable = path.join('resolved tools', expectedName);
+    vi.mocked(realpath).mockResolvedValue(executable);
+    vi.mocked(runCommand).mockResolvedValue({ stdout: '', stderr: '' });
+
+    const driver = new RootlessEngineDriver();
+    vi.spyOn(driver, 'checkPrerequisites').mockResolvedValue({ ok: true });
+    vi.spyOn(driver, 'stop').mockResolvedValue(undefined);
+    vi.spyOn(driver, 'start').mockResolvedValue(driver.getRunningConnection());
+
+    await driver.install(vi.fn());
+
+    expect(access).toHaveBeenCalledWith(preferred, constants.X_OK);
+    expect(realpath).toHaveBeenCalledExactlyOnceWith(preferredExecutable ? preferred : fallback);
+    expect(runCommand).toHaveBeenCalledExactlyOnceWith(executable, ['--net=host', '/usr/bin/true'], {
+      env: expect.objectContaining({ PATH: expect.stringMatching(/first tools:second tools$/) }),
+      timeoutMs: 5_000
+    });
+  });
 
   it('keeps the installation incomplete if the extracted engine cannot start', async () => {
     const driver = new RootlessEngineDriver();
