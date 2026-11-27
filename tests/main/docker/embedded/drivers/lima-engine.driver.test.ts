@@ -2,8 +2,10 @@ import { readFile, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { beforeEach, expect, it, vi } from 'vitest';
+import { fail } from '../../../../../src/ipc/contracts';
 import {
   LimaEngineDriver,
+  validateLimaFileSharingPath,
   validateLimaFileSharingPaths
 } from '../../../../../src/main/docker/embedded/drivers/lima-engine.driver';
 import { CATBEE_LIMA_INSTANCE } from '../../../../../src/main/docker/embedded/engine-paths';
@@ -71,9 +73,14 @@ it('reports a missing shared folder before stopping a running VM', async () => {
   });
   vi.mocked(stat).mockRejectedValueOnce(Object.assign(new Error('missing directory'), { code: 'ENOENT' }));
 
-  await expect(driver.start({ ...DEFAULT_ENGINE_SETTINGS, fileSharingPaths: [mount] })).rejects.toThrow(
-    `The shared path “${mount}” could not be found. Choose an existing folder or remove this path in Settings → Resources → File sharing.`
-  );
+  const result = await driver.start({ ...DEFAULT_ENGINE_SETTINGS, fileSharingPaths: [mount] }).catch(fail);
+  expect(result).toMatchObject({
+    ok: false,
+    error: {
+      code: 'INVALID_FILE_SHARING_PATH',
+      message: `The shared path “${mount}” could not be found. Choose an existing folder or remove this path in Settings -> Resources -> File sharing.`
+    }
+  });
   expect(vi.mocked(runCommand).mock.calls.map(([, [command]]) => command)).toEqual(['list']);
   expect(writeFile).not.toHaveBeenCalled();
 });
@@ -83,8 +90,19 @@ it('explains what to do when a shared folder is inaccessible', async () => {
   vi.mocked(stat).mockRejectedValueOnce(Object.assign(new Error('permission denied'), { code: 'EACCES' }));
 
   await expect(validateLimaFileSharingPaths([mount])).rejects.toThrow(
-    `CatBee couldn’t access “${mount}”. Check its permissions or remove it in Settings → Resources → File sharing.`
+    `CatBee couldn't access “${mount}”. Check its permissions or remove it in Settings -> Resources -> File sharing.`
   );
+});
+
+it('checks the entered folder on its own and returns guidance for the input', async () => {
+  const mount = path.resolve('/abc');
+  vi.mocked(stat).mockRejectedValueOnce(Object.assign(new Error('missing directory'), { code: 'ENOENT' }));
+
+  await expect(validateLimaFileSharingPath(mount)).rejects.toMatchObject({
+    code: 'INVALID_FILE_SHARING_PATH',
+    message: `The shared path “${mount}” could not be found. Enter an existing folder or use Browse.`
+  });
+  expect(stat).toHaveBeenCalledExactlyOnceWith(mount);
 });
 
 it('points to app logs when the VM fails to boot and preserves the Lima error', async () => {
@@ -97,7 +115,7 @@ it('points to app logs when the VM fails to boot and preserves the Lima error', 
   });
 
   await expect(driver.start({ ...DEFAULT_ENGINE_SETTINGS, fileSharingPaths: [] })).rejects.toMatchObject({
-    message: expect.stringContaining('Settings → About → Open Logs Folder'),
+    message: expect.stringContaining('Settings -> About -> Open Logs Folder'),
     cause
   });
 });

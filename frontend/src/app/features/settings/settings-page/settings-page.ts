@@ -1,5 +1,17 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, DestroyRef, effect, HostListener, inject, OnInit, signal } from '@angular/core';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  HostListener,
+  inject,
+  Injector,
+  OnInit,
+  signal,
+  type WritableSignal
+} from '@angular/core';
 import { disabled, form, FormRoot } from '@angular/forms/signals';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ConfirmDialogComponent } from '@components/dialog/confirm-dialog';
@@ -118,6 +130,10 @@ function isValidAbsolutePath(path: string, isWin: boolean): boolean {
   return trimmed.startsWith('/');
 }
 
+function isFileSharingPathError(error: unknown): error is Error {
+  return error instanceof Error && 'code' in error && error.code === 'INVALID_FILE_SHARING_PATH';
+}
+
 function resolveInitialTheme(themeService: ThemeService): SettingsTheme {
   if (themeService.isDeviceDefaultTheme()) {
     return 'system';
@@ -204,6 +220,7 @@ export class SettingsPageComponent implements OnInit {
   private readonly electronApi = inject(ElectronApiService);
   private readonly dockerApi = inject(DockerApiService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
   private readonly localStorage = inject(LocalStorageService);
 
   readonly categories: readonly SettingsCategory[] = [
@@ -238,10 +255,16 @@ export class SettingsPageComponent implements OnInit {
   readonly isActionLoading = computed(() => this.activeAction() !== null || this.isApplying());
   readonly applySuccessMessage = signal<string | null>(null);
 
-  // Error banners state
-  readonly settingsErrorMessage = signal<string | null>(null);
+  readonly applyError = signal<string | null>(null);
+  readonly fileSharingError = signal<string | null>(null);
+  readonly wslIntegrationError = signal<string | null>(null);
+  readonly aboutActionError = signal<string | null>(null);
+  readonly troubleshootRestartError = signal<string | null>(null);
+  readonly restoreDefaultsError = signal<string | null>(null);
+  readonly purgeDataError = signal<string | null>(null);
+  readonly teardownError = signal<string | null>(null);
+  readonly k8sEngineStartError = signal<string | null>(null);
   readonly engineErrorMessage = signal<string | null>(null);
-  readonly updateErrorMessage = signal<string | null>(null);
   readonly updaterStatus = signal<AutoUpdaterStatus>({ status: 'idle' });
   readonly isInstallingUpdate = computed(() => {
     const status = this.updaterStatus();
@@ -378,6 +401,7 @@ export class SettingsPageComponent implements OnInit {
   readonly forwardHostFileChanges = signal(this.settings.forwardHostFileChanges());
   readonly newSharePath = signal<string>('');
   readonly sharePathError = signal<string | null>(null);
+  readonly isValidatingSharePath = signal(false);
 
   // Proxies state
   readonly desktopProxy = signal<DesktopProxyConfig>({ ...this.settings.desktopProxy() });
@@ -1016,9 +1040,9 @@ export class SettingsPageComponent implements OnInit {
     }
   }
 
-  addSharePath(): void {
+  async addSharePath(): Promise<void> {
     const pathToAdd = this.newSharePath().trim();
-    if (!pathToAdd) return;
+    if (!pathToAdd || this.isExternalMode() || this.isApplying() || this.isValidatingSharePath()) return;
 
     if (!isValidAbsolutePath(pathToAdd, this.isWindows())) {
       this.sharePathError.set(
@@ -1029,19 +1053,34 @@ export class SettingsPageComponent implements OnInit {
       return;
     }
 
-    const current = this.fileSharingPaths();
-    if (current.includes(pathToAdd)) {
+    if (this.fileSharingPaths().includes(pathToAdd)) {
       this.sharePathError.set('This directory is already in your shared list.');
       return;
     }
 
-    this.fileSharingPaths.set([...current, pathToAdd]);
-    this.newSharePath.set('');
     this.sharePathError.set(null);
+    this.isValidatingSharePath.set(true);
+    try {
+      await this.electronApi.validateFileSharingPath(pathToAdd);
+      if (this.newSharePath().trim() !== pathToAdd || this.isExternalMode()) return;
+
+      this.fileSharingPaths.update(paths => (paths.includes(pathToAdd) ? paths : [...paths, pathToAdd]));
+      this.newSharePath.set('');
+      this.fileSharingError.set(null);
+    } catch (error) {
+      if (this.newSharePath().trim() === pathToAdd && !this.isExternalMode()) {
+        this.sharePathError.set(
+          isFileSharingPathError(error) ? error.message : 'Could not check this folder. Try again or use Browse.'
+        );
+      }
+    } finally {
+      this.isValidatingSharePath.set(false);
+    }
   }
 
   removeSharePath(pathToRemove: string): void {
     this.fileSharingPaths.set(this.fileSharingPaths().filter(p => p !== pathToRemove));
+    this.fileSharingError.set(null);
   }
 
   // Proxies actions
@@ -1098,6 +1137,7 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async toggleDistroIntegration(distro: string): Promise<void> {
+    this.wslIntegrationError.set(null);
     const current = this.wslAdditionalDistros();
     const isIntegrated = current.includes(distro);
     const updated = isIntegrated ? current.filter(d => d !== distro) : [...current, distro];
@@ -1109,8 +1149,7 @@ export class SettingsPageComponent implements OnInit {
       this.initialState.update(init => ({ ...init, wslAdditionalDistros: [...updated] }));
     } catch (err) {
       this.wslAdditionalDistros.set(current);
-      const msg = err instanceof Error ? err.message : String(err);
-      this.settingsErrorMessage.set(`Failed to configure WSL integration for ${distro}: ${msg}`);
+      this.reportActionError(this.wslIntegrationError, `Failed to configure WSL integration for ${distro}`, err);
     }
   }
 
@@ -2110,9 +2149,10 @@ export class SettingsPageComponent implements OnInit {
     }
   }
 
-  async startEngine(): Promise<void> {
+  async startEngine(source: 'engine' | 'kubernetes' = 'engine'): Promise<void> {
     this.activeAction.set(this.isEngineInstalled() ? 'start' : 'install');
     this.engineErrorMessage.set(null);
+    this.k8sEngineStartError.set(null);
     try {
       if (this.isEngineInstalled()) {
         await this.electronApi.startEmbeddedEngine();
@@ -2124,9 +2164,8 @@ export class SettingsPageComponent implements OnInit {
       }
       await this.loadEngineStatus();
     } catch (err) {
-      console.error('Failed to start engine:', err);
-      const msg = err instanceof Error ? err.message : String(err);
-      this.engineErrorMessage.set(`Failed to start engine: ${msg}`);
+      const error = source === 'kubernetes' ? this.k8sEngineStartError : this.engineErrorMessage;
+      this.reportActionError(error, 'Failed to start engine', err);
     } finally {
       this.activeAction.set(null);
     }
@@ -2156,16 +2195,16 @@ export class SettingsPageComponent implements OnInit {
     }
   }
 
-  async restartEngine(): Promise<void> {
+  async restartEngine(source: 'engine' | 'troubleshoot' = 'engine'): Promise<void> {
     this.activeAction.set('restart');
     this.engineErrorMessage.set(null);
+    this.troubleshootRestartError.set(null);
     try {
       await this.electronApi.restartEmbeddedEngine();
       await this.loadEngineStatus();
     } catch (err) {
-      console.error('Failed to restart engine:', err);
-      const msg = err instanceof Error ? err.message : String(err);
-      this.engineErrorMessage.set(`Failed to restart engine: ${msg}`);
+      const error = source === 'troubleshoot' ? this.troubleshootRestartError : this.engineErrorMessage;
+      this.reportActionError(error, 'Failed to restart engine', err);
     } finally {
       this.activeAction.set(null);
     }
@@ -2238,12 +2277,11 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async openLogsFolder(): Promise<void> {
+    this.aboutActionError.set(null);
     try {
       await this.electronApi.openLogsFolder();
     } catch (err) {
-      console.error('Failed to open logs:', err);
-      const msg = err instanceof Error ? err.message : String(err);
-      this.settingsErrorMessage.set(`Failed to open logs folder: ${msg}`);
+      this.reportActionError(this.aboutActionError, 'Failed to open logs folder', err);
     }
   }
 
@@ -2259,19 +2297,19 @@ export class SettingsPageComponent implements OnInit {
     this.pendingRestoreDefaults.set(false);
     this.isRestoringDefaults.set(true);
     this.isSavingSettings.set(true);
+    this.restoreDefaultsError.set(null);
     const wasRunning = this.isEngineRunning();
     try {
       await this.electronApi.resetEngineSettings();
       await this.loadEngineSettings();
+      this.clearApplyErrors();
       this.applySuccessMessage.set('Settings restored to factory defaults.');
       setTimeout(() => this.applySuccessMessage.set(null), 4000);
       if (wasRunning) {
         this.showRestartModal.set(true);
       }
     } catch (err) {
-      console.error('Failed to restore default settings:', err);
-      const msg = err instanceof Error ? err.message : String(err);
-      this.settingsErrorMessage.set(`Failed to restore default settings: ${msg}`);
+      this.reportActionError(this.restoreDefaultsError, 'Failed to restore default settings', err);
     } finally {
       this.isSavingSettings.set(false);
       this.isRestoringDefaults.set(false);
@@ -2290,6 +2328,7 @@ export class SettingsPageComponent implements OnInit {
     this.pendingPurgeData.set(false);
     this.isPurgingData.set(true);
     this.purgeDataSuccessMessage.set(null);
+    this.purgeDataError.set(null);
     try {
       const res = await this.electronApi.purgeData();
       const count = (res?.containersPruned ?? 0) + (res?.imagesPruned ?? 0) + (res?.volumesPruned ?? 0);
@@ -2297,7 +2336,7 @@ export class SettingsPageComponent implements OnInit {
       this.purgeDataSuccessMessage.set(`Purge complete: ${count} items deleted, ~${mb} MB disk space reclaimed.`);
       setTimeout(() => this.purgeDataSuccessMessage.set(null), 6000);
     } catch (err) {
-      this.reportSettingsError('Failed to purge data', err);
+      this.reportActionError(this.purgeDataError, 'Failed to purge data', err);
     } finally {
       this.isPurgingData.set(false);
     }
@@ -2315,6 +2354,7 @@ export class SettingsPageComponent implements OnInit {
 
   async confirmFactoryResetTeardown(): Promise<void> {
     this.pendingFactoryResetTeardown.set(false);
+    this.teardownError.set(null);
     this.teardownProgressPercent.set(0);
     this.teardownStageMessage.set('Starting complete teardown...');
     this.teardownSuccess.set(false);
@@ -2335,7 +2375,7 @@ export class SettingsPageComponent implements OnInit {
       this.teardownSuccess.set(true);
       this.engineOperation.set(null);
     } catch (err) {
-      this.reportSettingsError('Teardown failed', err);
+      this.reportActionError(this.teardownError, 'Teardown failed', err);
       this.isTeardownInProgress.set(false);
       this.showTeardownModal.set(false);
       this.engineOperation.set(null);
@@ -2362,12 +2402,11 @@ export class SettingsPageComponent implements OnInit {
   }
 
   async openEngineDirectory(): Promise<void> {
+    this.aboutActionError.set(null);
     try {
       await this.electronApi.openEngineDirectory();
     } catch (err) {
-      console.error('Failed to open engine directory:', err);
-      const msg = err instanceof Error ? err.message : String(err);
-      this.settingsErrorMessage.set(`Failed to open engine directory: ${msg}`);
+      this.reportActionError(this.aboutActionError, 'Failed to open engine directory', err);
     }
   }
 
@@ -2380,7 +2419,6 @@ export class SettingsPageComponent implements OnInit {
       return;
     }
     this.activeAction.set('check-updates');
-    this.updateErrorMessage.set(null);
     this.updaterStatus.set({ status: 'checking' });
     this.updateCheckStartedAt = Date.now();
     try {
@@ -2397,7 +2435,6 @@ export class SettingsPageComponent implements OnInit {
     } catch (err) {
       console.error('Failed to check for updates:', err);
       const msg = err instanceof Error ? err.message : String(err);
-      this.updateErrorMessage.set(`Failed to check for updates: ${msg}`);
       this.updaterStatus.set({ status: 'error', message: msg });
     } finally {
       this.activeAction.set(null);
@@ -2502,10 +2539,11 @@ export class SettingsPageComponent implements OnInit {
   }
 
   applySettings(): void {
-    if (!this.hasChanges() || this.isActionLoading() || this.hasValidationErrors()) {
+    if (!this.hasChanges() || this.isActionLoading() || this.isValidatingSharePath() || this.hasValidationErrors()) {
       return;
     }
 
+    this.clearApplyErrors();
     if (this.requiresEngineRestart()) {
       this.showRestartModal.set(true);
       return;
@@ -2513,7 +2551,7 @@ export class SettingsPageComponent implements OnInit {
 
     void this.persistSettings()
       .then(() => this.flashSuccess('Settings applied successfully!', 3000))
-      .catch(err => this.reportSettingsError('Failed to apply settings', err));
+      .catch(err => this.reportApplyError('Failed to apply settings', err));
   }
 
   private buildSettingsPayload(): Partial<EngineSettings> {
@@ -2523,7 +2561,6 @@ export class SettingsPageComponent implements OnInit {
   /** Saves everything to the backend and local storage, then marks the form as pristine. */
   private async persistSettings(): Promise<void> {
     this.isSavingSettings.set(true);
-    this.settingsErrorMessage.set(null);
     try {
       const loginChanged = this.startAtLogin() !== this.initialState().startAtLogin;
       const saved = await this.electronApi.saveEngineSettings(this.buildSettingsPayload());
@@ -2615,39 +2652,62 @@ export class SettingsPageComponent implements OnInit {
     return '';
   }
 
-  private reportSettingsError(prefix: string, err?: unknown): void {
+  private reportActionError(target: WritableSignal<string | null>, prefix: string, err?: unknown): void {
     if (err) {
       console.error(`${prefix}:`, err);
     }
     const msg = this.formatErrorMessage(err);
-    this.settingsErrorMessage.set(msg ? `${prefix}: ${msg}` : prefix);
+    target.set(msg ? `${prefix}: ${msg}` : prefix);
+  }
+
+  private clearApplyErrors(): void {
+    this.applyError.set(null);
+    this.fileSharingError.set(null);
+  }
+
+  private reportApplyError(prefix: string, err: unknown): void {
+    if (isFileSharingPathError(err) && this.supportsFileSharing()) {
+      this.fileSharingError.set(err.message);
+      this.selectResourceTab('file-sharing');
+      if (this.activeCategory() !== 'resources') {
+        this.selectCategory('resources');
+      }
+      if (!this.showRestartModal()) {
+        afterNextRender(() => this.focusFileSharingError(), { injector: this.injector });
+      }
+      return;
+    }
+    this.reportActionError(this.applyError, prefix, err);
+  }
+
+  focusFileSharingError(): void {
+    if (
+      this.fileSharingError() &&
+      this.activeCategory() === 'resources' &&
+      this.activeResourceTab() === 'file-sharing'
+    ) {
+      document.getElementById('setting-res-file-sharing-error')?.focus();
+    }
   }
 
   private reportK8sClusterError(prefix: string, err?: unknown): void {
-    if (err) {
-      console.error(`${prefix}:`, err);
-    }
-    const msg = this.formatErrorMessage(err);
-    this.k8sClusterActionError.set(msg ? `${prefix}: ${msg}` : prefix);
+    this.reportActionError(this.k8sClusterActionError, prefix, err);
   }
 
   private reportK8sRuntimeError(prefix: string, err?: unknown): void {
-    if (err) {
-      console.error(`${prefix}:`, err);
-    }
-    const msg = this.formatErrorMessage(err);
-    this.k8sRuntimeActionError.set(msg ? `${prefix}: ${msg}` : prefix);
+    this.reportActionError(this.k8sRuntimeActionError, prefix, err);
   }
 
   async confirmRestartNow(): Promise<void> {
     if (this.isActionLoading()) return;
+    this.clearApplyErrors();
     this.isRestarting.set(true);
     const modeChanged = this.engineModeChanged();
     const isSwitchToUninstalled = this.isEngineModeSwitchToUninstalled();
     try {
       await this.persistSettings();
     } catch (err) {
-      this.reportSettingsError('Failed to save settings', err);
+      this.reportApplyError('Failed to save settings', err);
       this.showRestartModal.set(false);
       this.isRestarting.set(false);
       return;
@@ -2677,7 +2737,7 @@ export class SettingsPageComponent implements OnInit {
         4000
       );
     } catch (err) {
-      this.reportSettingsError('Settings saved, but applying them to the engine failed', err);
+      this.reportApplyError('Settings saved. The engine could not apply them', err);
       this.showRestartModal.set(false);
       await this.loadEngineStatus();
     } finally {
@@ -2687,13 +2747,14 @@ export class SettingsPageComponent implements OnInit {
 
   confirmRestartLater(): void {
     if (this.isActionLoading()) return;
+    this.clearApplyErrors();
     void this.persistSettings()
       .then(() => {
         this.showRestartModal.set(false);
         this.flashSuccess('Settings saved. Changes will take effect the next time the engine starts.', 4000);
       })
       .catch(err => {
-        this.reportSettingsError('Failed to save settings', err);
+        this.reportApplyError('Failed to save settings', err);
         this.showRestartModal.set(false);
       });
   }
@@ -2762,6 +2823,7 @@ export class SettingsPageComponent implements OnInit {
     this.k8sShowSystemContainers.set(init.kubernetes.showSystemContainers);
     this.newSharePath.set('');
     this.sharePathError.set(null);
+    this.clearApplyErrors();
   }
 
   close(): void {

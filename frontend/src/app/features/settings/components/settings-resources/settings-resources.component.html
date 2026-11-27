@@ -253,8 +253,10 @@
               [disabled]="page.isExternalMode()"
               [value]="page.newSharePath()"
               (input)="page.onSharePathInput($any($event.target).value)"
-              (keydown.enter)="page.addSharePath()"
+              (keydown.enter)="$event.preventDefault(); page.addSharePath()"
               aria-label="Path to share with containers"
+              [attr.aria-invalid]="page.sharePathError() ? 'true' : null"
+              [attr.aria-describedby]="page.sharePathError() ? 'setting-file-sharing-path-error' : null"
             />
             <button
               type="button"
@@ -268,15 +270,18 @@
           <button
             type="button"
             class="catbee-action-btn icon-only primary"
-            [disabled]="page.isExternalMode() || !page.newSharePath().trim()"
+            [disabled]="
+              page.isExternalMode() || page.isApplying() || page.isValidatingSharePath() || !page.newSharePath().trim()
+            "
             (click)="page.addSharePath()"
             aria-label="Add directory"
+            [attr.aria-busy]="page.isValidatingSharePath()"
           >
             <span class="mat-icon-filled" aria-hidden="true">add</span>
           </button>
         </div>
         @if (page.sharePathError(); as err) {
-          <p class="field-error file-sharing-error">{{ err }}</p>
+          <p id="setting-file-sharing-path-error" class="field-error file-sharing-error" role="alert">{{ err }}</p>
         }
 
         <div class="file-sharing-table-container">
@@ -317,6 +322,15 @@
             </tbody>
           </table>
         </div>
+        @if (page.fileSharingError(); as err) {
+          <catbee-container-studio-error-banner
+            id="setting-res-file-sharing-error"
+            tabindex="-1"
+            [errorMessage]="err"
+            (closeErr)="page.fileSharingError.set(null)"
+            size="small"
+          />
+        }
       </div>
     }
 
@@ -691,6 +705,13 @@
               <p class="field-hint">No additional WSL 2 distributions found.</p>
             }
           </div>
+          @if (page.wslIntegrationError(); as err) {
+            <catbee-container-studio-error-banner
+              [errorMessage]="err"
+              (closeErr)="page.wslIntegrationError.set(null)"
+              size="small"
+            />
+          }
 
           <div class="distros-card-footer">
             <button

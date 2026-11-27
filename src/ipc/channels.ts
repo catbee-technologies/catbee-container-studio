@@ -55,6 +55,7 @@ export const IPC_CHANNELS = {
       SetupCatBeeContext: 'app:engine:setup-catbee-context',
       GetSettings: 'app:engine:get-settings',
       SaveSettings: 'app:engine:save-settings',
+      ValidateFileSharingPath: 'app:engine:validate-file-sharing-path',
       GetWslDistros: 'app:engine:get-wsl-distros',
       ApplyWslDistroIntegration: 'app:engine:apply-wsl-distro-integration',
       Uninstall: 'app:engine:uninstall',

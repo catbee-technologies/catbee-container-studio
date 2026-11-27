@@ -63,6 +63,7 @@ const IPC_CHANNELS = {
       SetupCatBeeContext: 'app:engine:setup-catbee-context',
       GetSettings: 'app:engine:get-settings',
       SaveSettings: 'app:engine:save-settings',
+      ValidateFileSharingPath: 'app:engine:validate-file-sharing-path',
       GetWslDistros: 'app:engine:get-wsl-distros',
       ApplyWslDistroIntegration: 'app:engine:apply-wsl-distro-integration',
       Uninstall: 'app:engine:uninstall',
@@ -289,6 +290,8 @@ const electronBridge = {
         ipcRenderer.invoke(IPC_CHANNELS.App.Engine.SetupCatBeeContext, setAsActive, customEndpoint),
       getSettings: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetSettings),
       saveSettings: (settings: unknown) => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.SaveSettings, settings),
+      validateFileSharingPath: (path: string) =>
+        ipcRenderer.invoke(IPC_CHANNELS.App.Engine.ValidateFileSharingPath, path),
       resetSettings: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.ResetSettings),
       getWslDistros: () => ipcRenderer.invoke(IPC_CHANNELS.App.Engine.GetWslDistros),
       applyWslDistroIntegration: (distroName: string, enabled: boolean) =>

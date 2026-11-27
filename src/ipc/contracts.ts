@@ -43,6 +43,7 @@ export function fail(error: unknown): IpcFailure {
       ok: false,
       error: {
         message: error.message,
+        ...('code' in error && typeof error.code === 'string' ? { code: error.code } : {}),
         details: {
           name: error.name,
           stack: error.stack

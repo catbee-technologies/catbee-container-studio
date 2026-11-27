@@ -1,7 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ElectronApiService } from '@core/electron-api.service';
-import { ErrorBannerComponent } from '@components/error-banner/error-banner';
 import { ExpansionCardComponent } from '@components/expansion-card/expansion-card';
 import { CopyButtonComponent } from '@components/copy-button/copy-button';
 import { EmptyStateComponent } from '@components/empty-state/empty-state';
@@ -17,7 +16,6 @@ import { parseAppReleaseNotes, renderReleaseNotesMarkdown, ParsedReleaseNotes } 
   standalone: true,
   imports: [
     CommonModule,
-    ErrorBannerComponent,
     ExpansionCardComponent,
     CopyButtonComponent,
     EmptyStateComponent,

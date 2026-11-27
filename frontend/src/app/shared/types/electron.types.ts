@@ -379,6 +379,7 @@ export interface ElectronBridge {
       setupCatBeeContext: (setAsActive?: boolean, customEndpoint?: string) => IpcPromise<DockerContextDetails>;
       getSettings: () => IpcPromise<EngineSettings>;
       saveSettings: (settings: Partial<EngineSettings>) => IpcPromise<EngineSettings>;
+      validateFileSharingPath: (path: string) => IpcPromise<void>;
       resetSettings?: () => IpcPromise<EngineSettings>;
       getWslDistros: () => IpcPromise<string[]>;
       applyWslDistroIntegration: (distroName: string, enabled: boolean) => IpcPromise<boolean>;
