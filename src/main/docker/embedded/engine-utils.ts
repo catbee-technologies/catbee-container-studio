@@ -80,6 +80,7 @@ export function runCommand(command: string, args: string[], options: RunOptions 
     const baseEnv = options.env ?? process.env;
     const spawnOptions: SpawnOptions = {
       env: sanitizeEnv(baseEnv),
+      shell: false,
       windowsHide: true,
       detached: process.platform !== 'win32',
       stdio: ['pipe', 'pipe', 'pipe']
@@ -130,9 +131,11 @@ export function runCommand(command: string, args: string[], options: RunOptions 
       timer = setTimeout(() => signalChild('SIGKILL'), 5_000);
       if (process.platform === 'win32' && child.pid) {
         // eslint-disable-next-line n/no-process-env
-        const systemRoot = process.env.SystemRoot ?? process.env.SYSTEMROOT ?? String.raw`C:\Windows`;
-        const taskkillBin = path.join(systemRoot, 'System32', 'taskkill.exe');
+        const systemRoot = process.env.SystemRoot ?? process.env.SYSTEMROOT ?? '';
+        const windowsDir = path.win32.isAbsolute(systemRoot) ? systemRoot : String.raw`C:\Windows`;
+        const taskkillBin = path.win32.join(windowsDir, 'System32', 'taskkill.exe');
         const killer = spawn(taskkillBin, ['/pid', String(child.pid), '/f', '/t'], {
+          shell: false,
           windowsHide: true,
           stdio: 'ignore'
         });
@@ -393,7 +396,7 @@ export async function extractArchive(archive: string, destination: string, strip
   const systemRoot = process.env.SystemRoot;
   let tar = 'tar';
   if (process.platform === 'win32') {
-    tar = systemRoot ? path.join(systemRoot, 'System32', 'tar.exe') : 'tar.exe';
+    tar = systemRoot && path.isAbsolute(systemRoot) ? path.join(systemRoot, 'System32', 'tar.exe') : 'tar.exe';
   }
   await runCommand(tar, args, { timeoutMs: 10 * 60_000 });
 }
@@ -585,93 +588,90 @@ export function getDockerCliDownloadInfo(version = DOCKER_CLI_RELEASE_VERSION): 
   }
 }
 
+function runBinDirPowerShell(script: string, binDir: string, failureContext: string): Promise<void> {
+  const command = Buffer.from(script.trim(), 'utf16le').toString('base64');
+  return runCommand('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', command], {
+    // Pass binDir via an environment variable so PowerShell never parses user paths inside the script string.
+    // eslint-disable-next-line n/no-process-env
+    env: { ...process.env, CATBEE_BIN_DIR: binDir },
+    timeoutMs: 10_000
+  })
+    .then(() => undefined)
+    .catch(err => {
+      logger.debug(`[EngineUtils] ${failureContext}:`, err);
+    });
+}
+
 /**
  * Configures the Windows User PATH environment variable to include CatBee's bin directory (~/.catbee/bin),
  * matching tools like Rancher Desktop and Docker Desktop without requiring administrator privileges.
  */
-async function ensureWindowsUserPath(binDir: string): Promise<void> {
-  const safeDir = binDir.replaceAll('"', '""');
+function ensureWindowsUserPath(binDir: string): Promise<void> {
   const script = `
-    $target = "${safeDir}";
+    $target = $env:CATBEE_BIN_DIR;
     $current = [Environment]::GetEnvironmentVariable("Path", "User");
-    if ($current -notlike "*$target*") {
+    if (($current -split ';') -notcontains $target) {
       $new = if ($current) { "$target;$current" } else { $target };
       [Environment]::SetEnvironmentVariable("Path", $new, "User");
     }
-  `
-    .trim()
-    .replace(/\s+/g, ' ');
-  await runCommand('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
-    timeoutMs: 10_000
-  }).catch(err => {
-    logger.debug('[EngineUtils] Could not update Windows user PATH:', err);
-  });
+  `;
+  return runBinDirPowerShell(script, binDir, 'Could not update Windows user PATH');
 }
 
 /**
  * Configures PowerShell user profiles on Windows to prepend ~/.catbee/bin to $env:PATH.
  */
-async function ensureWindowsPowerShellProfile(binDir: string): Promise<void> {
-  const safeDir = binDir.replaceAll('"', '""');
+function ensureWindowsPowerShellProfile(binDir: string): Promise<void> {
   const script = `
-    $target = "${safeDir}";
+    $target = $env:CATBEE_BIN_DIR;
+    $quotedTarget = [System.Management.Automation.Language.CodeGeneration]::EscapeSingleQuotedStringContent($target);
+    $targetPattern = '*' + [WildcardPattern]::Escape($target) + '*';
+    $quotedTargetPattern = '*' + [WildcardPattern]::Escape($quotedTarget) + '*';
     $profileDirs = @(
       (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)) "PowerShell"),
       (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)) "WindowsPowerShell")
     );
     foreach ($dir in $profileDirs) {
-      if (!(Test-Path $dir)) {
-        try { New-Item -ItemType Directory -Path $dir -Force | Out-Null } catch {}
-      }
       $p = Join-Path $dir "profile.ps1";
       try {
-        $content = if (Test-Path $p) { Get-Content $p -Raw -ErrorAction SilentlyContinue } else { "" };
-        if ($content -notlike "*$target*") {
-          $line = [Environment]::NewLine + '# Added by CatBee Container Studio' + [Environment]::NewLine + 'if ($env:PATH -notlike "*' + $target + '*") { $env:PATH = "' + $target + ';$env:PATH" }' + [Environment]::NewLine;
-          Add-Content -Path $p -Value $line -Force -ErrorAction SilentlyContinue;
+        [IO.Directory]::CreateDirectory($dir) | Out-Null;
+        $content = if (Test-Path -LiteralPath $p) { Get-Content -LiteralPath $p -Raw -ErrorAction SilentlyContinue } else { "" };
+        if ($content -notlike $targetPattern -and $content -notlike $quotedTargetPattern) {
+          $line = [Environment]::NewLine + '# Added by CatBee Container Studio' + [Environment]::NewLine + 'if (($env:PATH -split '';'') -notcontains ''' + $quotedTarget + ''') { $env:PATH = ''' + $quotedTarget + ';'' + $env:PATH }' + [Environment]::NewLine;
+          Add-Content -LiteralPath $p -Value $line -Force -ErrorAction SilentlyContinue;
         }
       } catch {}
     }
-  `
-    .trim()
-    .replace(/\s+/g, ' ');
-  await runCommand('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
-    timeoutMs: 10_000
-  }).catch(err => {
-    logger.debug('[EngineUtils] Could not update PowerShell profiles:', err);
-  });
+  `;
+  return runBinDirPowerShell(script, binDir, 'Could not update PowerShell profiles');
 }
 
 /**
  * Removes CatBee's bin directory from PowerShell user profiles on Windows.
  */
-async function removeWindowsPowerShellProfile(binDir: string): Promise<void> {
-  const safeDir = binDir.replaceAll('"', '""');
+function removeWindowsPowerShellProfile(binDir: string): Promise<void> {
   const script = `
-    $target = "${safeDir}";
+    $target = $env:CATBEE_BIN_DIR;
+    $quotedTarget = [System.Management.Automation.Language.CodeGeneration]::EscapeSingleQuotedStringContent($target);
+    $targetPattern = '*' + [WildcardPattern]::Escape($target) + '*';
+    $quotedTargetPattern = '*' + [WildcardPattern]::Escape($quotedTarget) + '*';
     $profileDirs = @(
       (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)) "PowerShell"),
       (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments)) "WindowsPowerShell")
     );
     foreach ($dir in $profileDirs) {
       $p = Join-Path $dir "profile.ps1";
-      if (Test-Path $p) {
+      if (Test-Path -LiteralPath $p) {
         try {
-          $lines = (Get-Content $p -ErrorAction SilentlyContinue) | Where-Object {
-            $_ -notlike "*Added by CatBee Container Studio*" -and $_ -notlike "*$target*"
+          $lines = (Get-Content -LiteralPath $p -ErrorAction SilentlyContinue) | Where-Object {
+            $_ -notlike "*Added by CatBee Container Studio*" -and $_ -notlike $targetPattern -and $_ -notlike $quotedTargetPattern
           };
-          Set-Content -Path $p -Value $lines -Force -ErrorAction SilentlyContinue;
+          Set-Content -LiteralPath $p -Value $lines -Force -ErrorAction SilentlyContinue;
         } catch {}
       }
     }
-  `
-    .trim()
-    .replace(/\s+/g, ' ');
-  await runCommand('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
-    timeoutMs: 10_000
-  }).catch(err => {
-    logger.debug('[EngineUtils] Could not clean PowerShell profiles:', err);
-  });
+  `;
+  return runBinDirPowerShell(script, binDir, 'Could not clean PowerShell profiles');
 }
 
 /**
@@ -685,7 +685,8 @@ export async function ensureShellPath(): Promise<void> {
     await ensureWindowsPowerShellProfile(binDir);
   }
 
-  const exportLine = `export PATH="${binDir}:$PATH"`;
+  const pathEntry = process.platform === 'win32' ? '"$HOME/.catbee/bin"' : shellQuote(binDir);
+  const exportLine = `export PATH=${pathEntry}:"$PATH"`;
   const comment = '# Added by CatBee Container Studio';
 
   const home = homeDir();
@@ -725,23 +726,16 @@ export async function ensureShellPath(): Promise<void> {
 /**
  * Removes CatBee's bin directory (~/.catbee/bin) from the Windows User PATH environment variable.
  */
-async function removeWindowsUserPath(binDir: string): Promise<void> {
-  const safeDir = binDir.replaceAll('"', '""');
+function removeWindowsUserPath(binDir: string): Promise<void> {
   const script = `
-    $target = "${safeDir}";
+    $target = $env:CATBEE_BIN_DIR;
     $current = [Environment]::GetEnvironmentVariable("Path", "User");
-    if ($current -like "*$target*") {
+    if (($current -split ';') -contains $target) {
       $parts = ($current -split ';') | Where-Object { $_ -ne $target -and $_ -ne "" };
       [Environment]::SetEnvironmentVariable("Path", ($parts -join ';'), "User");
     }
-  `
-    .trim()
-    .replace(/\s+/g, ' ');
-  await runCommand('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
-    timeoutMs: 10_000
-  }).catch(err => {
-    logger.debug('[EngineUtils] Could not remove from Windows user PATH:', err);
-  });
+  `;
+  return runBinDirPowerShell(script, binDir, 'Could not remove from Windows user PATH');
 }
 
 /**

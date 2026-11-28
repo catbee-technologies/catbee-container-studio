@@ -1,5 +1,5 @@
-import { closeSync, openSync } from 'node:fs';
-import { chmod, mkdir, readFile, readlink, realpath, rm, writeFile } from 'node:fs/promises';
+import { closeSync, constants, openSync } from 'node:fs';
+import { access, chmod, mkdir, readFile, readlink, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
@@ -196,15 +196,7 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
       // Match dockerd-rootless.sh, which prefers docker-rootlesskit even if rootlesskit is earlier in PATH.
       // eslint-disable-next-line n/no-process-env
       const env = { ...process.env, PATH: this.launchPath() };
-      const { stdout } = await runCommand(
-        '/bin/sh',
-        ['-c', 'command -v docker-rootlesskit || command -v rootlesskit'],
-        {
-          env,
-          timeoutMs: 5_000
-        }
-      );
-      rootlesskit = await realpath(stdout.trim());
+      rootlesskit = await findRootlessKit(env.PATH);
       await runCommand(rootlesskit, ['--net=host', '/usr/bin/true'], { env, timeoutMs: 5_000 });
       return { ok: true };
     } catch (error) {
@@ -489,6 +481,23 @@ async function readSysctl(file: string): Promise<string | null> {
   return await readFile(file, 'utf8')
     .then(v => v.trim())
     .catch(() => null);
+}
+
+async function findRootlessKit(launchPath: string): Promise<string> {
+  const directories = launchPath.split(':');
+  for (const name of ['docker-rootlesskit', 'rootlesskit']) {
+    for (const dir of directories) {
+      const candidate = path.join(dir, name);
+      try {
+        if (!(await stat(candidate)).isFile()) continue;
+        await access(candidate, constants.X_OK);
+        return await realpath(candidate);
+      } catch {
+        // Try the next PATH entry if the candidate is missing or cannot be executed.
+      }
+    }
+  }
+  throw new Error('Neither docker-rootlesskit nor rootlesskit was found on PATH.');
 }
 
 async function findBinary(name: string): Promise<boolean> {
