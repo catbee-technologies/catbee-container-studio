@@ -22,7 +22,6 @@ import { DEFAULT_ENGINE_SETTINGS } from '../../../../../src/main/docker/embedded
 
 vi.mock('electron', () => ({}));
 vi.mock('../../../../../src/main/docker/embedded/system-proxy.ts', () => ({ detectSystemProxy: async () => null }));
-vi.mock('../../../../../src/main/logger', () => ({ logger: { debug: vi.fn(), warn: vi.fn() } }));
 vi.mock('node:fs/promises', () => ({
   access: vi.fn(),
   chmod: vi.fn(),

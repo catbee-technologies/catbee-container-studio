@@ -4,7 +4,7 @@ import { mkdir, readdir, readFile, rm } from 'node:fs/promises';
 import { spawn, type ChildProcess } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
-import { logger } from '../../../logger';
+import { logger as appLogger } from '../../../logger';
 import type { DockerConnection } from '../../types/connection.types';
 import type { EngineManifest } from '../types/manifest.types';
 import type {
@@ -48,6 +48,8 @@ import {
   writeEngineManifest,
   type RunResult
 } from '../engine-utils';
+
+const logger = appLogger.child({}, { msgPrefix: '[WslEngineDriver] ' });
 
 /** dockerd listens on loopback inside WSL; WSL's localhost forwarding makes it reachable from Windows. */
 const TCP_CONNECTION: DockerConnection = { type: 'tcp', host: '127.0.0.1', port: CATBEE_WSL_DOCKER_TCP_PORT };
@@ -175,7 +177,7 @@ export class WslEngineDriver implements PlatformEngineDriver {
     try {
       await this.wsl(['--status'], { timeoutMs: 20_000 });
     } catch (error) {
-      logger.warn({ err: error }, '[WslEngineDriver] wsl.exe --status failed.');
+      logger.warn({ err: error }, 'wsl.exe --status failed.');
       const hasWsl = await runCommand('where', ['wsl.exe'])
         .then(() => true)
         .catch(() => false);
@@ -291,7 +293,7 @@ export class WslEngineDriver implements PlatformEngineDriver {
 
     onProgress(50, 'Synchronizing corporate CA certificates into distribution...');
     await this.syncHostCaCertificates(msg => onProgress(50, msg)).catch(err => {
-      logger.warn({ err }, '[WslEngineDriver] Could not synchronize host CA certificates during install.');
+      logger.warn({ err }, 'Could not synchronize host CA certificates during install.');
     });
 
     onProgress(55, 'Installing Docker Engine (docker, containerd, iptables)...');
@@ -313,7 +315,7 @@ export class WslEngineDriver implements PlatformEngineDriver {
     await ensureHostDockerCli((fraction, stage) => {
       onProgress(90 + Math.round(fraction * 0.08), stage);
     }).catch(err => {
-      logger.warn({ err }, '[WslEngineDriver] Could not download host Docker CLI, continuing with system fallback.');
+      logger.warn({ err }, 'Could not download host Docker CLI, continuing with system fallback.');
     });
 
     manifest.state = 'stopped';
@@ -386,7 +388,7 @@ export class WslEngineDriver implements PlatformEngineDriver {
 
     // Ensure standalone host Docker CLI is available in CatBee bin directory
     void ensureHostDockerCli().catch(err => {
-      logger.debug('[WslEngineDriver] Background host Docker CLI check failed:', err);
+      logger.debug('Background host Docker CLI check failed:', err);
     });
 
     const alreadyRunning = (await this.isDistroRunning()) && (await this.getGuestEngineId());
@@ -503,10 +505,10 @@ export class WslEngineDriver implements PlatformEngineDriver {
       : `rm -f ${INTEGRATION_PROFILE}`;
     try {
       await this.wsl(['-d', distroName, '-u', 'root', '--exec', 'sh', '-s'], { input: script });
-      logger.info(`[WslEngineDriver] ${enabled ? 'Enabled' : 'Disabled'} Docker integration for ${distroName}.`);
+      logger.info(`${enabled ? 'Enabled' : 'Disabled'} Docker integration for ${distroName}.`);
       return true;
     } catch (err) {
-      logger.error({ err }, `[WslEngineDriver] Could not update integration for ${distroName}.`);
+      logger.error({ err }, `Could not update integration for ${distroName}.`);
       return false;
     }
   }
@@ -520,25 +522,25 @@ export class WslEngineDriver implements PlatformEngineDriver {
     });
     child.on('error', err => {
       this.daemonExitReason = `Failed to launch wsl.exe: ${err.message}`;
-      logger.error({ err }, '[WslEngineDriver] Failed to spawn dockerd.');
+      logger.error({ err }, 'Failed to spawn dockerd.');
     });
     child.on('exit', code => {
       if (this.daemonProcess === child) {
         this.daemonProcess = null;
         if (code !== 0) {
           this.daemonExitReason = `dockerd exited unexpectedly (code ${code}).`;
-          logger.error({ exitCode: code }, '[WslEngineDriver] dockerd exited unexpectedly.');
+          logger.error({ exitCode: code }, 'dockerd exited unexpectedly.');
           return;
         }
       }
-      logger.debug({ exitCode: code }, '[WslEngineDriver] dockerd session exited.');
+      logger.debug({ exitCode: code }, 'dockerd session exited.');
     });
     this.daemonProcess = child;
   }
 
   private async stopDaemon(): Promise<void> {
     await this.sh(STOP_DOCKERD_SCRIPT, { timeoutMs: 40_000 }).catch(err => {
-      logger.debug({ err }, '[WslEngineDriver] Stopping dockerd failed (distro may be stopped).');
+      logger.debug({ err }, 'Stopping dockerd failed (distro may be stopped).');
     });
     if (this.daemonProcess) {
       this.daemonProcess.kill();
@@ -757,12 +759,10 @@ fi
 echo "${certsHash}" > ${cachePath}
 `;
       await this.sh(installScript, { input: certsPayload });
-      logger.debug(
-        `[WslEngineDriver] Synchronized ${trustedCaPems.length} trusted host CA certificates into CatBee WSL.`
-      );
+      logger.debug(`Synchronized ${trustedCaPems.length} trusted host CA certificates into CatBee WSL.`);
       return true;
     } catch (err) {
-      logger.warn({ err }, '[WslEngineDriver] Could not synchronize host CA certificates.');
+      logger.warn({ err }, 'Could not synchronize host CA certificates.');
       return false;
     }
   }
@@ -853,13 +853,11 @@ echo "UPDATED"
       });
       const isUpdated = copyRes.stdout.trim() === 'UPDATED';
       if (isUpdated) {
-        logger.debug(
-          `[WslEngineDriver] Reconciled ${certFiles.length} host Docker certificate files via copy into WSL.`
-        );
+        logger.debug(`Reconciled ${certFiles.length} host Docker certificate files via copy into WSL.`);
       }
       return isUpdated;
     } catch (err) {
-      logger.warn({ err }, '[WslEngineDriver] Could not synchronize Docker certs directory.');
+      logger.warn({ err }, 'Could not synchronize Docker certs directory.');
       return false;
     }
   }
@@ -901,7 +899,7 @@ async function resolveAlpineRootfs(): Promise<{ url: string; version: string }> 
       }
     }
   } catch (err) {
-    logger.warn({ err }, '[WslEngineDriver] Could not resolve latest Alpine release; using pinned version.');
+    logger.warn({ err }, 'Could not resolve latest Alpine release; using pinned version.');
   }
   const minor = FALLBACK_ALPINE_VERSION.split('.').slice(0, 2).join('.');
   return {

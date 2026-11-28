@@ -8,10 +8,12 @@ import {
 } from '../docker.connection';
 import { getDockerCliPath, getRdctlPath, startDockerRuntime } from './docker.runtime';
 import { engineManager } from '../embedded/engine.manager';
-import { logger } from '../../logger';
+import { logger as appLogger } from '../../logger';
 import { getEngineSettings, type EngineMode } from '../embedded/engine-settings';
 import type { DockerInitializationStatus, DockerRuntimeInfo, SelectedDockerRuntime } from '../types/runtime.types';
 import type { DockerConnection } from '../types/connection.types';
+
+const logger = appLogger.child({}, { msgPrefix: '[DockerRuntime] ' });
 
 const execFileAsync = promisify(execFile);
 
@@ -29,7 +31,7 @@ export class DockerRuntimeManager {
   ): Promise<SelectedDockerRuntime> {
     const settings = await getEngineSettings();
     const mode = forceMode ?? settings.engineMode ?? 'auto';
-    logger.debug(`[DockerRuntime] Resolving Docker runtime using mode: ${mode}`);
+    logger.debug(`Resolving Docker runtime using mode: ${mode}`);
 
     if (mode === 'embedded') {
       return await this.ensureEmbeddedRuntime(onStatus);
@@ -40,7 +42,7 @@ export class DockerRuntimeManager {
     }
 
     // mode === 'auto': External-first if active, otherwise prefer installed embedded engine
-    logger.debug('[DockerRuntime] Resolving external Docker connection first.');
+    logger.debug('Resolving external Docker connection first.');
 
     // 1. Check if an external Docker engine is already responding
     onStatus?.({
@@ -54,21 +56,21 @@ export class DockerRuntimeManager {
       try {
         const client = createDockerClient(activeExternal);
         await client.ping();
-        logger.debug('[DockerRuntime] Active external Docker engine is ready.');
+        logger.debug('Active external Docker engine is ready.');
         return {
           source: 'external',
           runtimeName: activeExternal.source,
           connection: activeExternal
         };
       } catch {
-        logger.debug('[DockerRuntime] External connection was resolved but ping failed.');
+        logger.debug('External connection was resolved but ping failed.');
       }
     }
 
     // 2. If no external engine is actively responding, check if CatBee's built-in engine is installed
     const isEmbeddedInstalled = await engineManager.isInstalled();
     if (isEmbeddedInstalled) {
-      logger.debug('[DockerRuntime] No active external Docker engine; starting installed embedded engine.');
+      logger.debug('No active external Docker engine; starting installed embedded engine.');
       return await this.ensureEmbeddedRuntime(onStatus);
     }
 
@@ -81,7 +83,7 @@ export class DockerRuntimeManager {
 
     const externalInfo = await this.detectExternalRuntime();
     if (externalInfo) {
-      logger.debug(`[DockerRuntime] Starting detected external runtime: ${externalInfo.runtime}`);
+      logger.debug(`Starting detected external runtime: ${externalInfo.runtime}`);
       const runtimeName = externalInfo.runtime === 'rancher-desktop' ? 'Rancher Desktop' : 'Docker Desktop';
       onStatus?.({
         state: 'starting-runtime',
@@ -103,13 +105,13 @@ export class DockerRuntimeManager {
       } catch (error) {
         logger.warn(
           { err: error },
-          `[DockerRuntime] Failed to start external runtime ${runtimeName}. Falling back to embedded engine.`
+          `Failed to start external runtime ${runtimeName}. Falling back to embedded engine.`
         );
       }
     }
 
     // 4. Fallback to CatBee's Embedded Engine prompt/prerequisites
-    logger.debug('[DockerRuntime] No external Docker engine available. Checking embedded engine.');
+    logger.debug('No external Docker engine available. Checking embedded engine.');
     return await this.ensureEmbeddedRuntime(onStatus);
   }
 
@@ -128,14 +130,14 @@ export class DockerRuntimeManager {
       try {
         const client = createDockerClient(activeExternal);
         await client.ping();
-        logger.debug('[DockerRuntime] Active external Docker engine is ready.');
+        logger.debug('Active external Docker engine is ready.');
         return {
           source: 'external',
           runtimeName: activeExternal.source,
           connection: activeExternal
         };
       } catch {
-        logger.debug('[DockerRuntime] External connection was resolved but ping failed.');
+        logger.debug('External connection was resolved but ping failed.');
       }
     }
 
@@ -175,7 +177,7 @@ export class DockerRuntimeManager {
     const isInstalled = await engineManager.isInstalled();
 
     if (!isInstalled) {
-      logger.info('[DockerRuntime] Built-in engine is not installed.');
+      logger.info('Built-in engine is not installed.');
       const prereq = await engineManager.checkPrerequisites();
 
       onStatus?.({
@@ -191,7 +193,7 @@ export class DockerRuntimeManager {
     }
 
     // User recommendation #3: If installed but stopped, automatically start it
-    logger.debug('[DockerRuntime] Embedded engine is installed. Starting background engine.');
+    logger.debug('Embedded engine is installed. Starting background engine.');
     onStatus?.({
       state: 'starting-runtime',
       runtime: 'catbee-embedded',
@@ -211,14 +213,14 @@ export class DockerRuntimeManager {
       const client = createDockerClient(connection);
       await client.ping();
 
-      logger.debug('[DockerRuntime] CatBee embedded engine is ready.');
+      logger.debug('CatBee embedded engine is ready.');
       return {
         source: 'embedded',
         runtimeName: 'CatBee Built-in Engine',
         connection
       };
     } catch (error) {
-      logger.error({ err: error }, '[DockerRuntime] Failed to start CatBee embedded engine.');
+      logger.error({ err: error }, 'Failed to start CatBee embedded engine.');
       onStatus?.({
         state: 'error',
         message: 'Failed to start CatBee Container Engine.',
@@ -229,7 +231,7 @@ export class DockerRuntimeManager {
   }
 
   private async detectExternalRuntime(): Promise<DockerRuntimeInfo | null> {
-    logger.debug('[DockerRuntime] Detecting external Docker desktop runtimes.');
+    logger.debug('Detecting external Docker desktop runtimes.');
 
     const dockerPath = await getDockerCliPath();
     if (dockerPath) {

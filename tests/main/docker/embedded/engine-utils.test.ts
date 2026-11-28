@@ -12,7 +12,6 @@ const { fetch, setProxy, sessionFetch, fromPartition, request } = vi.hoisted(() 
   request: vi.fn()
 }));
 vi.mock('electron', () => ({ net: { fetch, request }, session: { fromPartition } }));
-vi.mock('../../../../src/main/logger', () => ({ logger: {} }));
 vi.mock('../../../../src/main/docker/embedded/engine-settings', () => ({ getEngineSettings: vi.fn() }));
 
 const url = 'https://downloads.example.test/engine.tar.gz';

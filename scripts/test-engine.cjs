@@ -4,10 +4,7 @@ const { mkdtemp, readdir, readFile, writeFile } = require('node:fs/promises');
 const { tmpdir } = require('node:os');
 const { app } = require('electron');
 
-async function testEngine() {
-  assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Run this test on a disposable GitHub Actions runner.');
-  assert.equal(process.env.RUNNER_ENVIRONMENT, 'github-hosted', 'This test requires a clean GitHub-hosted runner.');
-
+async function testEngine(logger) {
   const { CATBEE_CONTEXT_NAME } = require('../dist/constants.docker.js');
   const { dockerCliEnv } = require('../dist/main/docker/docker.connection.js');
   const { engineManager } = require('../dist/main/docker/embedded/engine.manager.js');
@@ -38,6 +35,7 @@ async function testEngine() {
   const context = ['--context', CATBEE_CONTEXT_NAME];
   const phase = process.env.CATBEE_TEST_PHASE ?? 'smoke';
   assert.ok(['smoke', 'seed', 'upgrade'].includes(phase));
+  logger.info({ phase, backend: expectedBackend }, 'Starting engine checks');
   const upgrading = phase === 'upgrade';
   const image = 'docker.io/library/alpine:3.22';
   const mount = ['--mount', 'type=volume,source=catbee-ci-data,target=/data'];
@@ -68,7 +66,8 @@ async function testEngine() {
   assert.equal(await pathExists(cli), upgrading, 'Unexpected CLI state before the test.');
 
   let contextMetadataPath;
-  let keepEngine = false;
+  let testFailure;
+  let hasTestFailure = false;
   let controlDistroImported = false;
   const controlDistro = 'catbee-ci-control';
   const runWsl = (args, timeoutMs = 60_000) =>
@@ -95,8 +94,7 @@ async function testEngine() {
       );
       await dockerManager.startEmbeddedEngine();
     } else {
-      console.log(`Installing ${expectedBackend} engine`);
-      await dockerManager.installEmbeddedEngine((progress, stage) => console.log(`${progress}% ${stage}`));
+      await dockerManager.installEmbeddedEngine();
     }
     assert.equal((await engineManager.getManifest())?.backend, expectedBackend);
     assert.equal(dockerManager.isEmbeddedEngineReady, true, 'The built-in Docker runtime should be ready.');
@@ -163,7 +161,7 @@ async function testEngine() {
     await dockerManager.stopEmbeddedEngine();
     assert.equal(await pingDockerEndpoint(connection), false, 'The CatBee endpoint should stop responding.');
     if (phase === 'seed') {
-      keepEngine = true;
+      logger.info('Seeded the previous release with a container, volume data, and a saved setting');
       return;
     }
     if (process.platform === 'linux' && phase === 'smoke') {
@@ -172,6 +170,7 @@ async function testEngine() {
       const original = await readFile(profile, 'utf8');
       const denyNamespace = original.replace('flags=(unconfined)', '').replace('  userns,', '  file,\n  deny userns,');
       assert.notEqual(denyNamespace, original);
+      logger.info('Blocking RootlessKit temporarily to verify the expected AppArmor startup error');
       try {
         await runCommand('sudo', ['apparmor_parser', '-r'], { input: denyNamespace, timeoutMs: 15_000 });
         await assert.rejects(() => dockerManager.startEmbeddedEngine(), {
@@ -186,6 +185,7 @@ async function testEngine() {
     const { stdout: version } = await runDocker([...context, 'version', '--format', '{{.Server.Version}}']);
     assert.ok(version.trim(), 'The restarted CatBee engine should report its Docker version.');
     await checkPersistedData();
+    logger.info('Verified the container and named-volume data survived the restart');
     if (windows) {
       const entries = await readWindowsUserPath();
       assert.equal(entries.filter(entry => entry === getEngineBinDir().toLowerCase()).length, 1);
@@ -202,55 +202,81 @@ async function testEngine() {
       assert.ok(configuredProfiles > 0, 'The upgrade should retain the shell PATH configuration.');
     }
   } catch (error) {
-    console.error('Engine test failed:', error);
-    throw error;
-  } finally {
-    if (!keepEngine) {
-      try {
-        console.log('Tearing down the built-in engine');
-        await dockerManager.factoryResetTeardown((progress, stage) => console.log(`${progress}% ${stage}`));
-        assert.equal(await engineManager.isInstalled(), false, 'The engine should be removed.');
-        assert.equal(await pathExists(cli), false, 'The CatBee CLI should be removed.');
-        if (contextMetadataPath) {
-          assert.equal(await pathExists(contextMetadataPath), false, 'The CatBee context should be removed.');
-        }
-        if (windows) {
-          assert.ok(!(await readWindowsUserPath()).includes(getEngineBinDir().toLowerCase()));
-        } else if (macos) {
-          const profile = path.join(process.env.HOME, '.zshrc');
-          assert.doesNotMatch(
-            await readFile(profile, 'utf8').catch(error => {
-              if (error.code === 'ENOENT') return '';
-              throw error;
-            }),
-            /\.catbee\/bin/
-          );
-          if (phase === 'smoke') {
-            const bashContent = await readFile(bashProfile, 'utf8');
-            assert.ok(bashContent.includes(bashSetting));
-            assert.doesNotMatch(bashContent, /\.catbee\/bin/);
-          }
-        }
-        if (controlDistroImported) {
-          const { stdout } = await runControlDistro(['cat', '/catbee-ci-marker']);
-          assert.equal(stdout.trim(), 'preserved', 'The unrelated WSL distro should survive CatBee teardown.');
-        }
-      } finally {
-        if (controlDistroImported) {
-          await runWsl(['--unregister', controlDistro]);
-        }
+    testFailure = error;
+    hasTestFailure = true;
+  }
+
+  const teardownErrors = [];
+  try {
+    logger.info('Tearing down the built-in engine');
+    await dockerManager.factoryResetTeardown();
+    assert.equal(await engineManager.isInstalled(), false, 'The engine should be removed.');
+    assert.equal(await pathExists(cli), false, 'The CatBee CLI should be removed.');
+    if (contextMetadataPath) {
+      assert.equal(await pathExists(contextMetadataPath), false, 'The CatBee context should be removed.');
+    }
+    if (windows) {
+      assert.ok(!(await readWindowsUserPath()).includes(getEngineBinDir().toLowerCase()));
+    } else if (macos) {
+      const profile = path.join(process.env.HOME, '.zshrc');
+      assert.doesNotMatch(
+        await readFile(profile, 'utf8').catch(error => {
+          if (error.code === 'ENOENT') return '';
+          throw error;
+        }),
+        /\.catbee\/bin/
+      );
+      if (phase === 'smoke') {
+        const bashContent = await readFile(bashProfile, 'utf8');
+        assert.ok(bashContent.includes(bashSetting));
+        assert.doesNotMatch(bashContent, /\.catbee\/bin/);
       }
     }
+    if (controlDistroImported) {
+      const { stdout } = await runControlDistro(['cat', '/catbee-ci-marker']);
+      assert.equal(stdout.trim(), 'preserved', 'The unrelated WSL distro should survive CatBee teardown.');
+    }
+  } catch (error) {
+    teardownErrors.push(error);
+  }
+  if (controlDistroImported) {
+    try {
+      await runWsl(['--unregister', controlDistro]);
+    } catch (error) {
+      teardownErrors.push(error);
+    }
+  }
+
+  if (hasTestFailure && teardownErrors.length) {
+    throw new AggregateError([testFailure, ...teardownErrors], 'Engine checks and teardown both failed');
+  }
+  if (hasTestFailure) throw testFailure;
+  if (teardownErrors.length === 1) throw teardownErrors[0];
+  if (teardownErrors.length > 1) {
+    throw new AggregateError(teardownErrors, 'Engine teardown failed');
   }
 }
 
+let testLogger;
+
 app
   .whenReady()
-  .then(testEngine)
+  .then(async () => {
+    assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Run this test on a disposable GitHub Actions runner.');
+    assert.equal(process.env.RUNNER_ENVIRONMENT, 'github-hosted', 'This test requires a clean GitHub-hosted runner.');
+    const { logger } = require('../dist/main/logger.js');
+    testLogger = logger.child({}, { msgPrefix: '[TEST SCRIPT] ' });
+    await testEngine(testLogger);
+    testLogger.info('Engine checks passed');
+  })
   .then(
-    () => app.quit(),
+    () => testLogger.flush(() => app.quit()),
     error => {
-      console.error(error);
-      app.exit(1);
+      if (testLogger) {
+        testLogger.error({ err: error }, 'Engine checks failed');
+        testLogger.flush(() => app.exit(1));
+      } else {
+        process.stderr.write(`[TEST SCRIPT] ${error.stack ?? error}\n`, () => app.exit(1));
+      }
     }
   );

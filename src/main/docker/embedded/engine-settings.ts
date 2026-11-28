@@ -1,9 +1,11 @@
 import { copyFile, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { logger } from '../../logger';
+import { logger as appLogger } from '../../logger';
 import { getEngineSettingsFilePath } from './engine-paths';
 import { DEFAULT_K8S_VERSION } from '../../../constants.docker';
+
+const logger = appLogger.child({}, { msgPrefix: '[EngineSettings] ' });
 
 export interface DesktopProxyConfig {
   mode: 'system' | 'none' | 'manual';
@@ -278,11 +280,11 @@ export function saveEngineSettings(settings: Partial<EngineSettings>, apply?: Ap
       const updated = mergeEngineSettings(current, settings);
 
       await persistSettings(current, updated, apply);
-      logger.info('[EngineSettings] Engine settings saved.');
-      logger.debug({ settings: updated }, '[EngineSettings] Saved engine settings details.');
+      logger.info('Engine settings saved.');
+      logger.debug({ settings: updated }, 'Saved engine settings details.');
       return updated;
     } catch (error) {
-      logger.error({ err: error }, '[EngineSettings] Failed to save engine settings.');
+      logger.error({ err: error }, 'Failed to save engine settings.');
       throw error;
     }
   };
@@ -303,11 +305,11 @@ export function resetEngineSettings(apply?: ApplySettings): Promise<EngineSettin
       const preservedMode = current.engineMode === 'embedded' ? 'embedded' : DEFAULT_ENGINE_SETTINGS.engineMode;
       const reset = mergeEngineSettings(DEFAULT_ENGINE_SETTINGS, { engineMode: preservedMode });
       await persistSettings(current, reset, apply);
-      logger.info('[EngineSettings] Engine settings reset to defaults.');
-      logger.debug({ settings: reset }, '[EngineSettings] Reset engine settings details.');
+      logger.info('Engine settings reset to defaults.');
+      logger.debug({ settings: reset }, 'Reset engine settings details.');
       return reset;
     } catch (error) {
-      logger.error({ err: error }, '[EngineSettings] Failed to reset engine settings.');
+      logger.error({ err: error }, 'Failed to reset engine settings.');
       throw error;
     }
   };

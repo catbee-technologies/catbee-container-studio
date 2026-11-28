@@ -1,5 +1,7 @@
 import { Transform, type TransformCallback } from 'node:stream';
-import { logger } from '../../logger';
+import { logger as appLogger } from '../../logger';
+
+const logger = appLogger.child({}, { msgPrefix: '[WindowsPathRewriter] ' });
 
 /**
  * Translates Windows host paths (C:\Users\me\app) in Docker API requests into the WSL 2 mount
@@ -149,7 +151,7 @@ function jsonRewrite(rewrite: (body: JsonObject) => boolean, label: string): (bo
     try {
       const parsed: unknown = JSON.parse(body.toString('utf8'));
       if (isObject(parsed) && rewrite(parsed)) {
-        logger.debug(`[WindowsPathRewriter] Translated Windows host paths in ${label}.`);
+        logger.debug(`Translated Windows host paths in ${label}.`);
         return { body: Buffer.from(JSON.stringify(parsed), 'utf8'), rawAfter: false };
       }
     } catch {
@@ -187,7 +189,7 @@ export class DockerRequestRewriter extends Transform {
     try {
       this.process();
     } catch (err) {
-      logger.debug({ err }, '[WindowsPathRewriter] Unexpected parser error; switching to passthrough.');
+      logger.debug({ err }, 'Unexpected parser error; switching to passthrough.');
       this.switchToRaw();
     }
     callback();

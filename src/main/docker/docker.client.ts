@@ -1,9 +1,11 @@
 import Docker from 'dockerode';
 import type { DockerConnection } from './types/connection.types';
-import { logger } from '../logger';
+import { logger as appLogger } from '../logger';
+
+const logger = appLogger.child({}, { msgPrefix: '[DockerClient] ' });
 
 export function createDockerClient(connection: DockerConnection): Docker {
-  logger.debug({ connection }, '[DockerClient] Creating Docker client instance.');
+  logger.debug({ connection }, 'Creating Docker client instance.');
 
   switch (connection.type) {
     case 'unix':

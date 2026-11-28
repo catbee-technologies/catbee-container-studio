@@ -22,9 +22,6 @@ vi.mock('js-yaml', async importOriginal => {
   const yaml = await importOriginal<typeof import('js-yaml')>();
   return { default: yaml };
 });
-vi.mock('../../../src/main/logger', () => ({
-  logger: { info: vi.fn(), warn: vi.fn(), debug: vi.fn(), error: vi.fn() }
-}));
 vi.mock('../../../src/main/docker/embedded/engine-paths', async importOriginal => ({
   ...(await importOriginal<typeof import('../../../src/main/docker/embedded/engine-paths')>()),
   homeDir: home

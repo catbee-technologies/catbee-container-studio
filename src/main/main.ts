@@ -3,7 +3,7 @@ import { registerIpcHandlers } from '../ipc';
 import { registerAppProtocol } from './app/protocol';
 import { createMainWindow } from './window';
 import { buildApplicationMenu } from './app/menu';
-import { logger } from './logger';
+import { logger as appLogger } from './logger';
 import { isDev, isMacOS } from './app/constants';
 import { requestQuitConfirmation } from './app/quit-confirmation';
 import { initializeAutoUpdater, skipAutoInstallOnQuit } from './app/updater';
@@ -14,6 +14,8 @@ import type { DockerInitializationStatus } from './docker/types/runtime.types';
 import { stopAllStreamSessions } from '../ipc/docker/streams.ipc';
 
 app.commandLine.appendSwitch('force-color-profile', 'srgb');
+
+const logger = appLogger.child({}, { msgPrefix: '[App] ' });
 
 const SHUTDOWN_TIMEOUT_MS = 30_000;
 const isHeadlessTeardown = process.argv.includes('--uninstall') || process.argv.includes('--factory-reset');
@@ -141,13 +143,13 @@ if (!gotTheLock) {
           const confirmed = await requestQuitConfirmation(mainWindow);
           if (confirmed) {
             quitConfirmed = true;
-            logger.debug('[App] Quit confirmed by user.');
+            logger.debug('Quit confirmed by user.');
             app.quit();
           } else {
-            logger.debug('[App] Quit cancelled by user.');
+            logger.debug('Quit cancelled by user.');
           }
         } catch (err) {
-          logger.error({ err }, '[App] Could not request quit confirmation.');
+          logger.error({ err }, 'Could not request quit confirmation.');
         } finally {
           isConfirmingQuit = false;
         }
@@ -239,7 +241,7 @@ if (!gotTheLock) {
             });
           }
         } catch (err) {
-          logger.debug('[Main] Could not register k8sManager progress listener:', err);
+          logger.debug('Could not register k8sManager progress listener:', err);
         }
       })();
 
@@ -263,7 +265,7 @@ if (!gotTheLock) {
         )
         .catch(error => {
           if (engineInitializationState !== 'engine-not-installed' && engineInitializationState !== 'error') {
-            logger.error({ err: error }, '[DockerConnection] Failed to initialize Docker service.');
+            logger.error({ err: error }, 'Failed to initialize Docker service.');
           }
         });
 

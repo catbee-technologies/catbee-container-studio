@@ -17,9 +17,6 @@ vi.mock('electron', async () => {
   };
 });
 vi.mock('../../../src/main/app/constants', () => ({ isDev: false, isMacOS: false }));
-vi.mock('../../../src/main/logger', () => ({
-  logger: { debug: vi.fn(), error: vi.fn(), info: vi.fn(), warn: vi.fn() }
-}));
 vi.mock('electron-updater', async () => {
   const { EventEmitter } = await import('node:events');
   return {

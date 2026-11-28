@@ -30,7 +30,6 @@ vi.mock('../../../../../src/main/docker/embedded/engine-settings', async importO
   return { ...original, getEngineSettings: vi.fn(async () => original.DEFAULT_ENGINE_SETTINGS) };
 });
 vi.mock('../../../../../src/main/docker/embedded/system-proxy', () => ({ detectSystemProxy: async () => null }));
-vi.mock('../../../../../src/main/logger', () => ({ logger: { debug: vi.fn(), warn: vi.fn() } }));
 vi.mock('../../../../../src/main/docker/embedded/engine-utils', async importOriginal => ({
   ...(await importOriginal<typeof import('../../../../../src/main/docker/embedded/engine-utils')>()),
   ensureHostDockerCli: vi.fn(),

@@ -27,7 +27,6 @@ vi.mock('../../src/main/docker/services/docker.manager', () => ({
   dockerManager: { shutdown: vi.fn(), initialize: vi.fn(async () => {}) }
 }));
 vi.mock('../../src/main/k8s/k8s-manager.js', () => ({ k8sManager: { onProgress: vi.fn() } }));
-vi.mock('../../src/main/logger', () => ({ logger: { debug: vi.fn(), error: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
 vi.mock('../../src/main/window', () => ({
   createMainWindow: () =>
     Object.assign(new EventEmitter(), {

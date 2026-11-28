@@ -1,7 +1,7 @@
 import net from 'node:net';
 import { rm } from 'node:fs/promises';
 import type { Duplex } from 'node:stream';
-import { logger } from '../../logger';
+import { logger as appLogger } from '../../logger';
 import type { DockerConnection } from '../types/connection.types';
 import { connectionToUri, toNodeSocketPath } from './engine-utils';
 
@@ -23,11 +23,14 @@ export class EndpointRelay {
   private server: net.Server | null = null;
   private key: string | null = null;
   private readonly sockets = new Set<net.Socket>();
+  private readonly logger: typeof appLogger;
 
   constructor(
     private readonly name: string,
     private readonly options: EndpointRelayOptions = {}
-  ) {}
+  ) {
+    this.logger = appLogger.child({}, { msgPrefix: `[EndpointRelay:${this.name}] ` });
+  }
 
   get isRunning(): boolean {
     return this.server !== null;
@@ -51,13 +54,13 @@ export class EndpointRelay {
       const server = net.createServer({ allowHalfOpen: true }, client => this.handleClient(client, target));
 
       server.once('error', err => {
-        logger.warn({ err }, `[EndpointRelay:${this.name}] Failed to listen on ${describe(listen)}.`);
+        this.logger.warn({ err }, `Failed to listen on ${describe(listen)}.`);
         resolve(false);
       });
 
       const onListening = (): void => {
-        logger.debug(`[EndpointRelay:${this.name}] Relaying ${key}`);
-        server.on('error', err => logger.warn({ err }, `[EndpointRelay:${this.name}] Server error.`));
+        this.logger.debug(`Relaying ${key}`);
+        server.on('error', err => this.logger.warn({ err }, 'Server error.'));
         this.server = server;
         this.key = key;
         resolve(true);
@@ -118,7 +121,7 @@ export class EndpointRelay {
     const transform = this.options.createRequestTransform?.();
     if (transform) {
       transform.on('error', err => {
-        logger.debug({ err }, `[EndpointRelay:${this.name}] Request transform error.`);
+        this.logger.debug({ err }, 'Request transform error.');
         destroyBoth();
       });
       client.pipe(transform).pipe(upstream);
@@ -128,7 +131,7 @@ export class EndpointRelay {
     upstream.pipe(client);
     client.on('error', destroyBoth);
     upstream.on('error', err => {
-      logger.debug({ err }, `[EndpointRelay:${this.name}] Upstream connection error.`);
+      this.logger.debug({ err }, 'Upstream connection error.');
       destroyBoth();
     });
     client.on('close', () => closeAfter(client, upstream));

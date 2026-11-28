@@ -2,14 +2,16 @@ import { access } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
-import { logger } from '../../logger';
+import { logger as appLogger } from '../../logger';
 import { DockerRuntimeInfo } from '../types/runtime.types';
 import { getEngineBinDir, homeDir } from '../embedded/engine-paths';
+
+const logger = appLogger.child({}, { msgPrefix: '[DockerRuntime] ' });
 
 const execFileAsync = promisify(execFile);
 
 export async function startDockerRuntime(runtimeInfo: DockerRuntimeInfo): Promise<void> {
-  logger.debug(`[DockerRuntime] Starting runtime: ${runtimeInfo.runtime}`);
+  logger.debug(`Starting runtime: ${runtimeInfo.runtime}`);
 
   switch (runtimeInfo.runtime) {
     case 'docker-desktop':
@@ -23,18 +25,18 @@ export async function startDockerRuntime(runtimeInfo: DockerRuntimeInfo): Promis
 }
 
 async function startDockerDesktop(dockerPath: string): Promise<void> {
-  logger.debug(`[DockerRuntime] Starting Docker Desktop using: ${dockerPath}`);
+  logger.debug(`Starting Docker Desktop using: ${dockerPath}`);
 
   await execFileAsync(dockerPath, ['desktop', 'start', '--detach'], {
     encoding: 'utf8',
     windowsHide: true
   });
 
-  logger.debug('[DockerRuntime] Docker Desktop start command completed.');
+  logger.debug('Docker Desktop start command completed.');
 }
 
 async function startRancherDesktop(rdctlPath: string): Promise<void> {
-  logger.debug(`[DockerRuntime] Starting Rancher Desktop using: ${rdctlPath}`);
+  logger.debug(`Starting Rancher Desktop using: ${rdctlPath}`);
 
   if (process.platform === 'win32') {
     const child = execFile(rdctlPath, ['start'], {
@@ -43,14 +45,14 @@ async function startRancherDesktop(rdctlPath: string): Promise<void> {
     });
 
     child.on('error', error => {
-      logger.error({ err: error }, '[DockerRuntime] Rancher Desktop start failed.');
+      logger.error({ err: error }, 'Rancher Desktop start failed.');
     });
 
     child.on('exit', (code, signal) => {
-      logger.debug(`[DockerRuntime] Rancher Desktop start process exited. code=${code}, signal=${signal ?? 'none'}`);
+      logger.debug(`Rancher Desktop start process exited. code=${code}, signal=${signal ?? 'none'}`);
     });
 
-    logger.debug('[DockerRuntime] Rancher Desktop start command launched.');
+    logger.debug('Rancher Desktop start command launched.');
     return;
   }
 
@@ -59,7 +61,7 @@ async function startRancherDesktop(rdctlPath: string): Promise<void> {
     windowsHide: true
   });
 
-  logger.debug('[DockerRuntime] Rancher Desktop start command completed.');
+  logger.debug('Rancher Desktop start command completed.');
 }
 
 async function findWindowsDockerCli(): Promise<string | null> {
@@ -127,7 +129,7 @@ export async function getDockerCliPath(): Promise<string | null> {
   const embeddedCli = path.join(getEngineBinDir(), process.platform === 'win32' ? 'docker.exe' : 'docker');
   try {
     await access(embeddedCli);
-    logger.debug(`[DockerRuntime] Using CatBee built-in Docker CLI at: ${embeddedCli}`);
+    logger.debug(`Using CatBee built-in Docker CLI at: ${embeddedCli}`);
     cachedDockerCliPath = embeddedCli;
     return embeddedCli;
   } catch {
@@ -162,7 +164,7 @@ export async function getDockerCliPath(): Promise<string | null> {
     case 'win32': {
       const dockerPath = await findWindowsDockerCli();
       if (dockerPath) {
-        logger.debug(`[DockerRuntime] Docker CLI found at: ${dockerPath}`);
+        logger.debug(`Docker CLI found at: ${dockerPath}`);
         cachedDockerCliPath = dockerPath;
         return dockerPath;
       }
@@ -182,11 +184,11 @@ export async function getDockerCliPath(): Promise<string | null> {
   for (const candidate of candidates) {
     try {
       await access(candidate);
-      logger.debug(`[DockerRuntime] Docker CLI found at: ${candidate}`);
+      logger.debug(`Docker CLI found at: ${candidate}`);
       cachedDockerCliPath = candidate;
       return candidate;
     } catch {
-      logger.debug(`[DockerRuntime] Docker CLI not found at: ${candidate}`);
+      logger.debug(`Docker CLI not found at: ${candidate}`);
     }
   }
 
@@ -194,7 +196,7 @@ export async function getDockerCliPath(): Promise<string | null> {
 
   const dockerPath = await findDockerCliInPath();
   if (dockerPath) {
-    logger.debug(`[DockerRuntime] Docker CLI found in PATH: ${dockerPath}`);
+    logger.debug(`Docker CLI found in PATH: ${dockerPath}`);
     cachedDockerCliPath = dockerPath;
   }
   return dockerPath;
@@ -250,7 +252,7 @@ export async function getRdctlPath(): Promise<string | null> {
           .find(line => line.toLowerCase().endsWith('rdctl.exe'));
 
         if (rdctlPath) {
-          logger.debug(`[DockerRuntime] Rancher Desktop rdctl found in PATH: ${rdctlPath}`);
+          logger.debug(`Rancher Desktop rdctl found in PATH: ${rdctlPath}`);
           return rdctlPath;
         }
       } catch {
@@ -263,10 +265,10 @@ export async function getRdctlPath(): Promise<string | null> {
   for (const candidate of candidates) {
     try {
       await access(candidate);
-      logger.debug(`[DockerRuntime] Rancher Desktop rdctl found at: ${candidate}`);
+      logger.debug(`Rancher Desktop rdctl found at: ${candidate}`);
       return candidate;
     } catch {
-      logger.debug(`[DockerRuntime] rdctl not found at: ${candidate}`);
+      logger.debug(`rdctl not found at: ${candidate}`);
     }
   }
 
@@ -280,7 +282,7 @@ export async function getRdctlPath(): Promise<string | null> {
       const rdctlPath = stdout.trim();
 
       if (rdctlPath) {
-        logger.debug(`[DockerRuntime] Rancher Desktop rdctl found in PATH: ${rdctlPath}`);
+        logger.debug(`Rancher Desktop rdctl found in PATH: ${rdctlPath}`);
         return rdctlPath;
       }
     } catch {

@@ -5,7 +5,9 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { Readable } from 'node:stream';
 import { extract, pack } from 'tar-stream';
-import { logger } from '../../logger';
+import { logger as appLogger } from '../../logger';
+
+const logger = appLogger.child({}, { msgPrefix: '[DockerContainerService] ' });
 import type { DockerConnection } from '../types/connection.types';
 import { connectionToUri } from '../embedded/engine-utils';
 import { getDockerCliPath } from '../runtime/docker.runtime';
@@ -62,7 +64,7 @@ export class DockerContainerService extends DockerBaseService {
     try {
       defaults = await this.envDefaults();
     } catch (err) {
-      logger.debug({ err }, '[DockerContainerService] Could not resolve default container environment.');
+      logger.debug({ err }, 'Could not resolve default container environment.');
       return options;
     }
     const env = options.Env ?? [];
@@ -152,9 +154,7 @@ export class DockerContainerService extends DockerBaseService {
       composeArgs.push(options.service);
     }
 
-    logger.debug(
-      `[DockerContainerService] Running compose recreate: ${dockerCli} ${composeArgs.join(' ')} (cwd: ${workingDir})`
-    );
+    logger.debug(`Running compose recreate: ${dockerCli} ${composeArgs.join(' ')} (cwd: ${workingDir})`);
 
     let stdout: string;
     let stderr: string;
@@ -176,7 +176,7 @@ export class DockerContainerService extends DockerBaseService {
         );
       }
       if (errorStr.includes('is not a docker command') || errorStr.includes('unknown command: docker compose')) {
-        logger.warn('[DockerContainerService] "docker compose" failed. Trying "docker-compose" fallback.');
+        logger.warn('"docker compose" failed. Trying "docker-compose" fallback.');
         const standaloneArgs = composeArgs.slice(1);
         try {
           const res = await execFileAsync('docker-compose', standaloneArgs, {
@@ -198,7 +198,7 @@ export class DockerContainerService extends DockerBaseService {
       }
     }
 
-    logger.debug(`[DockerContainerService] Docker compose recreate completed: ${stdout || stderr}`);
+    logger.debug(`Docker compose recreate completed: ${stdout || stderr}`);
 
     if (options.service && options.projectName) {
       try {
@@ -251,7 +251,7 @@ export class DockerContainerService extends DockerBaseService {
         canUseCompose = true;
       } catch {
         logger.debug(
-          `[DockerContainerService] Compose working dir "${composeWorkingDir}" not accessible on host. Falling back to Engine API recreate.`
+          `Compose working dir "${composeWorkingDir}" not accessible on host. Falling back to Engine API recreate.`
         );
       }
     }

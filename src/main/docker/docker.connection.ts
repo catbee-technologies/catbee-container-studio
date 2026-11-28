@@ -1,10 +1,12 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { logger } from '../logger';
+import { logger as appLogger } from '../logger';
 import { getDockerCliPath } from './runtime/docker.runtime';
 import { pingDockerEndpoint } from './embedded/engine-utils';
 import type { DockerConnection, DockerContextInspect, ResolvedDockerConnection } from './types/connection.types';
 import { CATBEE_CONTEXT_NAME } from '../../constants.docker';
+
+const logger = appLogger.child({}, { msgPrefix: '[DockerConnection] ' });
 
 const execFileAsync = promisify(execFile);
 
@@ -29,25 +31,25 @@ export function dockerCliEnv(): NodeJS.ProcessEnv {
  * 4. Any other CLI context whose engine answers (e.g. rancher-desktop while catbee-desktop is current)
  */
 export async function resolveExternalDockerConnection(): Promise<ResolvedDockerConnection | null> {
-  logger.debug('[DockerConnection] Starting external Docker connection resolution.');
+  logger.debug('Starting external Docker connection resolution.');
 
   // 1. DOCKER_HOST
   // eslint-disable-next-line n/no-process-env
   const dockerHost = process.env.DOCKER_HOST;
   if (dockerHost) {
-    logger.debug(`[DockerConnection] DOCKER_HOST detected: ${dockerHost}`);
+    logger.debug(`DOCKER_HOST detected: ${dockerHost}`);
     try {
       const connection = parseDockerHost(dockerHost);
       const available = await isConnectionAvailable(connection);
       if (available) {
-        logger.debug(`[DockerConnection] Docker connection resolved using DOCKER_HOST: ${dockerHost}`);
+        logger.debug(`Docker connection resolved using DOCKER_HOST: ${dockerHost}`);
         return {
           ...connection,
           source: 'docker-host'
         };
       }
     } catch (error) {
-      logger.warn({ err: error }, '[DockerConnection] Could not use DOCKER_HOST. Trying other Docker endpoints.');
+      logger.warn({ err: error }, 'Could not use DOCKER_HOST. Trying other Docker endpoints.');
     }
   }
 
@@ -56,7 +58,7 @@ export async function resolveExternalDockerConnection(): Promise<ResolvedDockerC
   if (contextConnection) {
     const available = await isConnectionAvailable(contextConnection);
     if (available) {
-      logger.debug('[DockerConnection] Docker connection resolved using Docker context.');
+      logger.debug('Docker connection resolved using Docker context.');
       return {
         ...contextConnection,
         source: 'docker-context'
@@ -68,7 +70,7 @@ export async function resolveExternalDockerConnection(): Promise<ResolvedDockerC
   const defaultConnection = getPlatformDefaultConnection();
   const defaultAvailable = await isConnectionAvailable(defaultConnection);
   if (defaultAvailable) {
-    logger.debug('[DockerConnection] Docker connection resolved using platform default socket/pipe.');
+    logger.debug('Docker connection resolved using platform default socket/pipe.');
     return {
       ...defaultConnection,
       source: 'platform-default'
@@ -78,14 +80,14 @@ export async function resolveExternalDockerConnection(): Promise<ResolvedDockerC
   // 4. Another CLI context
   const reachableContext = await resolveReachableDockerContext();
   if (reachableContext) {
-    logger.debug(`[DockerConnection] Docker connection resolved using context "${reachableContext.contextName}".`);
+    logger.debug(`Docker connection resolved using context "${reachableContext.contextName}".`);
     return {
       ...reachableContext.connection,
       source: 'docker-context'
     };
   }
 
-  logger.debug('[DockerConnection] No external Docker connection is currently active.');
+  logger.debug('No external Docker connection is currently active.');
   return null;
 }
 
@@ -222,7 +224,7 @@ export async function resolveReachableDockerContext(): Promise<{
       }
     }
   } catch (err) {
-    logger.debug({ err }, '[DockerConnection] Could not scan Docker contexts.');
+    logger.debug({ err }, 'Could not scan Docker contexts.');
   }
   return null;
 }

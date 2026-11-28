@@ -2,8 +2,10 @@ import { ipcMain } from 'electron';
 import { IPC_CHANNELS } from '../channels';
 import { fail, ok, type IpcResult } from '../contracts';
 import { k8sManager, type K8sClusterInfo, type K8sStartResult } from '../../main/k8s/k8s-manager';
-import { logger } from '../../main/logger';
+import { logger as appLogger } from '../../main/logger';
 import { saveEngineSettings, type KubernetesSettingsConfig } from '../../main/docker/embedded/engine-settings';
+
+const logger = appLogger.child({}, { msgPrefix: '[IPC] ' });
 
 export function registerK8sHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.App.K8s.GetStatus);
@@ -12,7 +14,7 @@ export function registerK8sHandlers(): void {
       const status = await k8sManager.getStatus();
       return ok(status);
     } catch (error) {
-      logger.error({ err: error }, '[IPC] Failed to get Kubernetes status.');
+      logger.error({ err: error }, 'Failed to get Kubernetes status.');
       return fail(error);
     }
   });
@@ -37,7 +39,7 @@ export function registerK8sHandlers(): void {
         const result = await k8sManager.resetCluster();
         return ok({ ...result, settings: saved?.kubernetes });
       } catch (error) {
-        logger.error({ err: error }, '[IPC] Failed to reset Kubernetes cluster.');
+        logger.error({ err: error }, 'Failed to reset Kubernetes cluster.');
         return fail(error);
       }
     }
@@ -49,7 +51,7 @@ export function registerK8sHandlers(): void {
       const versions = await k8sManager.getAvailableVersions();
       return ok(versions);
     } catch (error) {
-      logger.error({ err: error }, '[IPC] Failed to get Kubernetes versions.');
+      logger.error({ err: error }, 'Failed to get Kubernetes versions.');
       return fail(error);
     }
   });
@@ -63,7 +65,7 @@ export function registerK8sHandlers(): void {
         const saved = config ? await saveEngineSettings({ kubernetes: config }) : undefined;
         return ok({ ...(await k8sManager.startCluster(saved?.kubernetes)), settings: saved?.kubernetes });
       } catch (error) {
-        logger.error({ err: error }, '[IPC] Failed to start Kubernetes cluster.');
+        logger.error({ err: error }, 'Failed to start Kubernetes cluster.');
         return fail(error);
       }
     }
@@ -75,7 +77,7 @@ export function registerK8sHandlers(): void {
       await k8sManager.stopCluster();
       return ok({ success: true });
     } catch (error) {
-      logger.error({ err: error }, '[IPC] Failed to stop Kubernetes cluster.');
+      logger.error({ err: error }, 'Failed to stop Kubernetes cluster.');
       return fail(error);
     }
   });
@@ -86,7 +88,7 @@ export function registerK8sHandlers(): void {
       await k8sManager.installKind();
       return ok({ success: true });
     } catch (error) {
-      logger.error({ err: error }, '[IPC] Failed to install Kubernetes runtime.');
+      logger.error({ err: error }, 'Failed to install Kubernetes runtime.');
       return fail(error);
     }
   });
@@ -97,7 +99,7 @@ export function registerK8sHandlers(): void {
       const result = await k8sManager.uninstallRuntime();
       return ok(result);
     } catch (error) {
-      logger.error({ err: error }, '[IPC] Failed to uninstall Kubernetes runtime.');
+      logger.error({ err: error }, 'Failed to uninstall Kubernetes runtime.');
       return fail(error);
     }
   });
@@ -108,7 +110,7 @@ export function registerK8sHandlers(): void {
       const result = await k8sManager.cancelCurrentOperation();
       return ok(result);
     } catch (error) {
-      logger.error({ err: error }, '[IPC] Failed to cancel Kubernetes operation.');
+      logger.error({ err: error }, 'Failed to cancel Kubernetes operation.');
       return fail(error);
     }
   });

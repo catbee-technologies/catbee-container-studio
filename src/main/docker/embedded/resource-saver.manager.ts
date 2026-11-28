@@ -1,6 +1,8 @@
-import { logger } from '../../logger';
+import { logger as appLogger } from '../../logger';
 import { getEngineSettings } from './engine-settings';
 import { engineManager } from './engine.manager';
+
+const logger = appLogger.child({}, { msgPrefix: '[ResourceSaver] ' });
 
 export class ResourceSaverManager {
   private timer: NodeJS.Timeout | null = null;
@@ -13,7 +15,7 @@ export class ResourceSaverManager {
       return;
     }
 
-    logger.debug('[ResourceSaver] Starting Resource Saver background monitor.');
+    logger.debug('Starting Resource Saver background monitor.');
     this.timer = setInterval(async () => {
       if (this.isChecking) return;
       this.isChecking = true;
@@ -38,19 +40,19 @@ export class ResourceSaverManager {
           if (this.idleSeconds >= settings.resourceSaverTimeout && !this.inSaverMode) {
             this.inSaverMode = true;
             logger.info(
-              `[ResourceSaver] No containers running for ${this.idleSeconds}s (threshold: ${settings.resourceSaverTimeout}s). Triggering memory and CPU reclamation.`
+              `No containers running for ${this.idleSeconds}s (threshold: ${settings.resourceSaverTimeout}s). Triggering memory and CPU reclamation.`
             );
             await this.reclaimMemory();
           }
         } else {
           if (this.inSaverMode) {
-            logger.debug('[ResourceSaver] Active containers detected. Exiting Resource Saver mode.');
+            logger.debug('Active containers detected. Exiting Resource Saver mode.');
             this.inSaverMode = false;
           }
           this.idleSeconds = 0;
         }
       } catch (err) {
-        logger.debug({ err }, '[ResourceSaver] Check error:');
+        logger.debug({ err }, 'Check error:');
       } finally {
         this.isChecking = false;
       }
@@ -60,9 +62,9 @@ export class ResourceSaverManager {
   async reclaimMemory(): Promise<void> {
     try {
       await engineManager.reclaimMemory();
-      logger.debug('[ResourceSaver] Reclaimed engine memory.');
+      logger.debug('Reclaimed engine memory.');
     } catch (err) {
-      logger.debug({ err }, '[ResourceSaver] Memory reclamation skipped.');
+      logger.debug({ err }, 'Memory reclamation skipped.');
     }
   }
 

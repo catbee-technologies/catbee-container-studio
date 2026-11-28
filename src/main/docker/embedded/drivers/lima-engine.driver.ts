@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/
 import os from 'node:os';
 import path from 'node:path';
 import jsyaml from 'js-yaml';
-import { logger } from '../../../logger';
+import { logger as appLogger } from '../../../logger';
 import type { DockerConnection, DockerUnixConnection } from '../../types/connection.types';
 import type { EngineManifest } from '../types/manifest.types';
 import type {
@@ -37,6 +37,8 @@ import {
   writeEngineManifest,
   type RunResult
 } from '../engine-utils';
+
+const logger = appLogger.child({}, { msgPrefix: '[LimaEngineDriver] ' });
 
 const FALLBACK_LIMA_VERSION = '2.3.0';
 const DOCKER_ROOTFUL_TEMPLATE = 'template:docker-rootful';
@@ -222,7 +224,7 @@ export class LimaEngineDriver implements PlatformEngineDriver {
     await ensureHostDockerCli((fraction, stage) => {
       onProgress(95 + Math.round(fraction * 0.04), stage);
     }).catch(err => {
-      logger.warn({ err }, '[LimaEngineDriver] Could not download host Docker CLI, continuing with system fallback.');
+      logger.warn({ err }, 'Could not download host Docker CLI, continuing with system fallback.');
     });
 
     const manifest = await this.recordRunningManifest(limaVersion);
@@ -326,7 +328,7 @@ export class LimaEngineDriver implements PlatformEngineDriver {
 
     // Ensure standalone host Docker CLI is available in CatBee bin directory
     void ensureHostDockerCli().catch(err => {
-      logger.debug('[LimaEngineDriver] Background host Docker CLI check failed:', err);
+      logger.debug('Background host Docker CLI check failed:', err);
     });
 
     return await this.recordRunningManifest(limaVersion);
@@ -347,7 +349,7 @@ export class LimaEngineDriver implements PlatformEngineDriver {
     try {
       await this.limactlRun(['stop', CATBEE_LIMA_INSTANCE], env, { timeoutMs: 120_000 });
     } catch (err) {
-      logger.warn({ err }, '[LimaEngineDriver] Graceful stop failed; forcing.');
+      logger.warn({ err }, 'Graceful stop failed; forcing.');
       await this.limactlRun(['stop', '--force', CATBEE_LIMA_INSTANCE], env);
     }
     const remaining = await this.getInstance(env);
@@ -417,13 +419,13 @@ export class LimaEngineDriver implements PlatformEngineDriver {
 
     if (currentResolved.trim() !== resolvedDropIn.trim()) {
       await this.guestShell(['mkdir', '-p', '/etc/systemd/resolved.conf.d'], env).catch(err => {
-        logger.warn({ err }, '[LimaEngineDriver] Could not create resolved.conf.d directory.');
+        logger.warn({ err }, 'Could not create resolved.conf.d directory.');
       });
       await this.guestShell(['tee', resolvedPath], env, resolvedDropIn).catch(err => {
-        logger.warn({ err }, '[LimaEngineDriver] Could not write resolved drop-in configuration.');
+        logger.warn({ err }, 'Could not write resolved drop-in configuration.');
       });
       await this.guestShell(['systemctl', 'restart', 'systemd-resolved'], env).catch(err => {
-        logger.warn({ err }, '[LimaEngineDriver] Could not restart systemd-resolved.');
+        logger.warn({ err }, 'Could not restart systemd-resolved.');
       });
     }
 
@@ -511,7 +513,7 @@ if ! systemctl is-enabled --quiet catbee-mtu.service 2>/dev/null; then
 fi
 `;
     await this.guestShell(['sh', '-c', networkScript], env).catch(err => {
-      logger.warn({ err }, '[LimaEngineDriver] Could not apply network MTU and DNS routing domains.');
+      logger.warn({ err }, 'Could not apply network MTU and DNS routing domains.');
     });
 
     const swapMb = Math.round(settings.resources.swapGb * 1024);
@@ -532,7 +534,7 @@ if [ "$have" != "$want" ]; then
 fi
 swapon -a 2>/dev/null || true`;
     await this.guestShell(['sh', '-c', swapScript], env, undefined, 120_000).catch(err => {
-      logger.warn({ err }, '[LimaEngineDriver] Could not configure swap.');
+      logger.warn({ err }, 'Could not configure swap.');
     });
   }
 
@@ -701,13 +703,11 @@ echo "UPDATED"
       const copyRes = await this.guestShell(['sh', '-c', copyScript, '_', payloadHash], env, payload);
       const isUpdated = copyRes.stdout.trim() === 'UPDATED';
       if (isUpdated) {
-        logger.debug(
-          `[LimaEngineDriver] Reconciled ${certFiles.length} host Docker certificate files via copy fallback.`
-        );
+        logger.debug(`Reconciled ${certFiles.length} host Docker certificate files via copy fallback.`);
       }
       return isUpdated;
     } catch (err) {
-      logger.warn({ err }, '[LimaEngineDriver] Could not synchronize Docker certs directory.');
+      logger.warn({ err }, 'Could not synchronize Docker certs directory.');
       return false;
     }
   }
@@ -778,7 +778,7 @@ fi
         provision: [{ mode: 'boot', script }]
       });
     } catch (err) {
-      logger.warn({ err }, '[LimaEngineDriver] Could not read host CA certificates for first boot.');
+      logger.warn({ err }, 'Could not read host CA certificates for first boot.');
       return undefined;
     }
   }
@@ -802,12 +802,10 @@ fi
           : 'Cleaning up stale host CA certificates in CatBee VM...'
       );
       await this.guestShell(['sh', '-c', hostCaInstallScript(certsHash)], env, certsPayload);
-      logger.debug(
-        `[LimaEngineDriver] Synchronized ${trustedCaPems.length} trusted host CA certificates into CatBee VM.`
-      );
+      logger.debug(`Synchronized ${trustedCaPems.length} trusted host CA certificates into CatBee VM.`);
       return true;
     } catch (err) {
-      logger.warn({ err }, '[LimaEngineDriver] Could not synchronize host CA certificates.');
+      logger.warn({ err }, 'Could not synchronize host CA certificates.');
       return false;
     }
   }
@@ -815,9 +813,7 @@ fi
   private desiredVmConfig(settings: EngineSettings, applied: AppliedVmConfig | null): AppliedVmConfig {
     const { cpus, memoryGb, diskGb, rosetta } = settings.resources;
     if (applied && diskGb < applied.diskGb) {
-      logger.warn(
-        `[LimaEngineDriver] Disk cannot shrink (${applied.diskGb} GiB -> ${diskGb} GiB); keeping current size.`
-      );
+      logger.warn(`Disk cannot shrink (${applied.diskGb} GiB -> ${diskGb} GiB); keeping current size.`);
     }
     return {
       schemaVersion: 2,
@@ -1046,7 +1042,7 @@ async function resolveLimaVersion(): Promise<string> {
       }
     }
   } catch (err) {
-    logger.warn({ err }, '[LimaEngineDriver] Could not resolve latest Lima release; using pinned version.');
+    logger.warn({ err }, 'Could not resolve latest Lima release; using pinned version.');
   }
   return FALLBACK_LIMA_VERSION;
 }

@@ -1,13 +1,11 @@
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { expect, it, vi } from 'vitest';
+import { expect, it } from 'vitest';
 import {
   DockerRequestRewriter,
   translateContainerCreateBody,
   translateVolumeCreateBody
 } from '../../../../src/main/docker/embedded/windows-path-rewriter';
-
-vi.mock('../../../../src/main/logger', () => ({ logger: { debug: vi.fn() } }));
 
 function rewrite(chunks: Buffer[]): Promise<Buffer> {
   return pipeline(Readable.from(chunks), new DockerRequestRewriter(), async source => {

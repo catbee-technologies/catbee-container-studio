@@ -1,4 +1,4 @@
-import { logger } from '../../logger';
+import { logger as appLogger } from '../../logger';
 import type { DockerConnection } from '../types/connection.types';
 import type {
   EngineCapabilities,
@@ -15,6 +15,8 @@ import { EndpointRelay } from './endpoint-relay';
 import { getEngineSettings, type EngineSettings } from './engine-settings';
 import { CATBEE_EXPOSED_TCP_PORT } from './engine-paths';
 import { connectionToUri } from './engine-utils';
+
+const logger = appLogger.child({}, { msgPrefix: '[EngineManager] ' });
 
 export type EngineLifecycleState =
   'not-installed' | 'installing' | 'stopped' | 'starting' | 'running' | 'stopping' | 'uninstalling' | 'error';
@@ -128,7 +130,7 @@ export class EngineManager {
 
   install(onProgress?: EngineProgressCallback): Promise<EngineManifest> {
     return this.exclusive(async () => {
-      logger.info('[EngineManager] Installing built-in engine.');
+      logger.info('Installing built-in engine.');
       this.currentState = 'installing';
       this.lastError = null;
       const report = this.beginOperation('install', 'Preparing installation...', onProgress);
@@ -136,7 +138,7 @@ export class EngineManager {
         const manifest = await this.driver.install(report);
         // Some backends (Lima) boot during install; reflect the real state.
         this.currentState = (await this.driver.getStatus()) === 'running' ? 'running' : 'stopped';
-        logger.info({ state: this.currentState }, '[EngineManager] Built-in engine installed.');
+        logger.info({ state: this.currentState }, 'Built-in engine installed.');
         return manifest;
       } catch (error) {
         this.fail(error, 'Installation failed.');
@@ -190,7 +192,7 @@ export class EngineManager {
 
   uninstall(onProgress?: EngineProgressCallback): Promise<void> {
     return this.exclusive(async () => {
-      logger.info('[EngineManager] Uninstalling built-in engine.');
+      logger.info('Uninstalling built-in engine.');
       this.currentState = 'uninstalling';
       const report = this.beginOperation('uninstall', 'Preparing to uninstall...', onProgress);
       try {
@@ -199,7 +201,7 @@ export class EngineManager {
         this.lastConnection = null;
         this.lastError = null;
         this.currentState = 'not-installed';
-        logger.info('[EngineManager] Built-in engine uninstalled.');
+        logger.info('Built-in engine uninstalled.');
       } catch (error) {
         this.fail(error, 'Uninstall failed.');
         throw error;
@@ -281,7 +283,7 @@ export class EngineManager {
       } catch (error) {
         for (const { distro, enabled } of applied.reverse()) {
           if (!(await driver.configureWslDistroIntegration(distro, !enabled))) {
-            logger.error(`[EngineManager] Could not restore Docker integration for "${distro}".`);
+            logger.error(`Could not restore Docker integration for "${distro}".`);
           }
         }
         throw error;
@@ -290,7 +292,7 @@ export class EngineManager {
   }
 
   private async startUnlocked(onStatus?: (status: string) => void): Promise<DockerConnection> {
-    logger.debug('[EngineManager] Starting built-in engine.');
+    logger.debug('Starting built-in engine.');
     this.currentState = 'starting';
     this.lastError = null;
     try {
@@ -301,13 +303,13 @@ export class EngineManager {
       }
       const settings = await getEngineSettings();
       const connection = await this.driver.start(settings, status => {
-        logger.debug(`[EngineManager] ${status}`);
+        logger.debug(`${status}`);
         onStatus?.(status);
       });
       this.lastConnection = connection;
       await this.syncTcpExposure(settings, connection);
       this.currentState = 'running';
-      logger.debug({ endpoint: connectionToUri(connection) }, '[EngineManager] Built-in engine is running.');
+      logger.debug({ endpoint: connectionToUri(connection) }, 'Built-in engine is running.');
       return connection;
     } catch (error) {
       this.fail(error, 'Failed to start engine.');
@@ -319,14 +321,14 @@ export class EngineManager {
     if (this.currentState === 'not-installed') {
       return;
     }
-    logger.debug('[EngineManager] Stopping built-in engine.');
+    logger.debug('Stopping built-in engine.');
     this.currentState = 'stopping';
     try {
       await this.tcpRelay.stop();
       await this.driver.stop();
       this.lastConnection = null;
       this.currentState = 'stopped';
-      logger.info('[EngineManager] Built-in engine stopped.');
+      logger.info('Built-in engine stopped.');
     } catch (error) {
       this.fail(error, 'Failed to stop engine cleanly.');
       throw error;
@@ -341,7 +343,7 @@ export class EngineManager {
     const ok = await this.tcpRelay.start({ type: 'tcp', host: '127.0.0.1', port: CATBEE_EXPOSED_TCP_PORT }, connection);
     if (!ok) {
       logger.warn(
-        `[EngineManager] Port ${CATBEE_EXPOSED_TCP_PORT} is in use; the daemon is not exposed on tcp://localhost:${CATBEE_EXPOSED_TCP_PORT}.`
+        `Port ${CATBEE_EXPOSED_TCP_PORT} is in use; the daemon is not exposed on tcp://localhost:${CATBEE_EXPOSED_TCP_PORT}.`
       );
     }
   }
@@ -392,7 +394,7 @@ export class EngineManager {
         return;
       }
       this.currentOperation = next;
-      logger.debug(`[EngineManager] ${operation} ${next.progress}%: ${next.stage}`);
+      logger.debug(`${operation} ${next.progress}%: ${next.stage}`);
 
       const elapsed = Date.now() - lastEmitAt;
       if (next.progress !== previous.progress || elapsed >= PROGRESS_THROTTLE_MS) {
@@ -417,7 +419,7 @@ export class EngineManager {
       try {
         listener(progress);
       } catch (err) {
-        logger.debug({ err }, '[EngineManager] Operation progress listener failed.');
+        logger.debug({ err }, 'Operation progress listener failed.');
       }
     }
   }
@@ -425,7 +427,7 @@ export class EngineManager {
   private fail(error: unknown, message: string): void {
     this.currentState = 'error';
     this.lastError = error instanceof Error ? error.message : String(error);
-    logger.error({ err: error }, `[EngineManager] ${message}`);
+    logger.error({ err: error }, `${message}`);
   }
 
   /** Serializes lifecycle operations so concurrent start/stop/install calls cannot interleave. */

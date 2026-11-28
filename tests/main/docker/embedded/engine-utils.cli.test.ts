@@ -26,7 +26,6 @@ vi.mock('../../../../src/main/docker/embedded/engine-paths', () => ({
   homeDir: home,
   SHELL_PROFILE_TARGETS: ['.bashrc', '.bash_profile', '.zshrc', '.zprofile']
 }));
-vi.mock('../../../../src/main/logger', () => ({ logger: { debug: vi.fn(), warn: vi.fn() } }));
 
 let directory: string;
 

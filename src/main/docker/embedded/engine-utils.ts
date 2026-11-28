@@ -9,7 +9,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as WebReadableStream } from 'node:stream/web';
 import { isDeepStrictEqual } from 'node:util';
-import { logger } from '../../logger';
+import { logger as appLogger } from '../../logger';
 import { DOCKER_CLI_RELEASE_VERSION } from '../../../constants.docker';
 import type { DockerConnection } from '../types/connection.types';
 import { getEngineSettings } from './engine-settings';
@@ -21,6 +21,8 @@ import {
   homeDir,
   SHELL_PROFILE_TARGETS
 } from './engine-paths';
+
+const logger = appLogger.child({}, { msgPrefix: '[EngineUtils] ' });
 
 export interface RunResult {
   stdout: string;
@@ -115,7 +117,7 @@ export function runCommand(command: string, args: string[], options: RunOptions 
           process.kill(-child.pid, signal);
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
-            logger.warn({ err: error }, '[EngineUtils] Could not signal command process group.');
+            logger.warn({ err: error }, 'Could not signal command process group.');
             child.kill(signal);
           }
         }
@@ -357,7 +359,7 @@ export async function downloadFile(
   destination: string,
   onProgress?: (fraction: number, receivedBytes: number, totalBytes: number) => void
 ): Promise<void> {
-  logger.info(`[EngineUtils] Downloading ${url}`);
+  logger.info(`Downloading ${url}`);
   await mkdir(path.dirname(destination), { recursive: true });
   const response = await fetchEngineResource(url, { redirect: 'follow' });
   if (!response.ok || !response.body) {
@@ -598,7 +600,7 @@ function runBinDirPowerShell(script: string, binDir: string, failureContext: str
   })
     .then(() => undefined)
     .catch(err => {
-      logger.debug(`[EngineUtils] ${failureContext}:`, err);
+      logger.debug(`${failureContext}:`, err);
     });
 }
 
@@ -700,12 +702,12 @@ export async function ensureShellPath(): Promise<void> {
         if (!content.includes('.catbee/bin')) {
           const addition = `\n${comment}\n${exportLine}\n`;
           await appendFile(filePath, addition, 'utf8');
-          logger.debug(`[EngineUtils] Added CatBee bin dir to ${filePath}`);
+          logger.debug(`Added CatBee bin dir to ${filePath}`);
         }
         configuredShell ||= process.platform !== 'darwin' || file === '.zshrc' || file === '.zprofile';
       }
     } catch (err) {
-      logger.debug(`[EngineUtils] Could not update shell profile ${file}:`, err);
+      logger.debug(`Could not update shell profile ${file}:`, err);
     }
   }
 
@@ -714,7 +716,7 @@ export async function ensureShellPath(): Promise<void> {
     const profilePath = path.join(home, defaultProfile);
     try {
       await appendFile(profilePath, `\n${comment}\n${exportLine}\n`, 'utf8');
-      logger.debug(`[EngineUtils] Configured ${profilePath} with CatBee PATH`);
+      logger.debug(`Configured ${profilePath} with CatBee PATH`);
     } catch {
       // ignore
     }
@@ -760,11 +762,11 @@ export async function removeShellPath(): Promise<void> {
             .filter(line => !line.includes('# Added by CatBee Container Studio') && !line.includes('.catbee/bin'))
             .join('\n');
           await writeFile(filePath, cleaned, 'utf8');
-          logger.debug(`[EngineUtils] Removed CatBee bin dir from ${filePath}`);
+          logger.debug(`Removed CatBee bin dir from ${filePath}`);
         }
       }
     } catch (err) {
-      logger.debug(`[EngineUtils] Could not clean shell profile ${file}:`, err);
+      logger.debug(`Could not clean shell profile ${file}:`, err);
     }
   }
 }
@@ -800,7 +802,7 @@ export function ensureHostDockerCli(onProgress?: (progress: number, stage: strin
 /** Waits for an in-flight CLI install before teardown removes its files. */
 export async function waitForHostDockerCliInstall(): Promise<void> {
   await hostDockerCliInstall?.catch(error => {
-    logger.warn({ err: error }, '[EngineUtils] Host Docker CLI installation failed before teardown.');
+    logger.warn({ err: error }, 'Host Docker CLI installation failed before teardown.');
   });
 }
 
@@ -818,7 +820,7 @@ async function installHostDockerCli(onProgress?: (progress: number, stage: strin
       return target;
     }
     logger.debug(
-      `[EngineUtils] Current CatBee Docker CLI is ${currentVersion ?? 'unknown'} (target: ${DOCKER_CLI_RELEASE_VERSION}). Updating...`
+      `Current CatBee Docker CLI is ${currentVersion ?? 'unknown'} (target: ${DOCKER_CLI_RELEASE_VERSION}). Updating...`
     );
   }
 
@@ -858,6 +860,6 @@ async function installHostDockerCli(onProgress?: (progress: number, stage: strin
     await rm(temporaryBinary, { force: true });
   }
   onProgress?.(100, 'Docker CLI ready.');
-  logger.debug(`[EngineUtils] Successfully prepared host Docker CLI at: ${target}`);
+  logger.debug(`Successfully prepared host Docker CLI at: ${target}`);
   return target;
 }

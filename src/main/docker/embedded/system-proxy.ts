@@ -1,6 +1,8 @@
 import { session } from 'electron';
-import { logger } from '../../logger';
+import { logger as appLogger } from '../../logger';
 import type { ResolvedProxy } from './daemon-config';
+
+const logger = appLogger.child({}, { msgPrefix: '[SystemProxy] ' });
 
 const PROBE_URL = 'https://registry-1.docker.io';
 
@@ -33,7 +35,7 @@ export async function detectSystemProxy(): Promise<ResolvedProxy | null> {
       };
     }
   } catch (err) {
-    logger.debug({ err }, '[SystemProxy] Chromium proxy resolution failed; using environment variables.');
+    logger.debug({ err }, 'Chromium proxy resolution failed; using environment variables.');
   }
 
   if (envProxy.httpProxy || envProxy.httpsProxy) {

@@ -3,7 +3,9 @@ import { dirname, resolve } from 'node:path';
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { IPC_CHANNELS } from '../channels';
 import { IpcResult, fail, ok } from '../contracts';
-import { logger } from '../../main/logger';
+import { logger as appLogger } from '../../main/logger';
+
+const logger = appLogger.child({}, { msgPrefix: '[App] ' });
 
 export function registerWindowHandlers(): void {
   ipcMain.removeHandler(IPC_CHANNELS.App.Shell.ShowItem);
@@ -79,7 +81,7 @@ export function registerWindowHandlers(): void {
 
   ipcMain.removeHandler(IPC_CHANNELS.App.Quit);
   ipcMain.handle(IPC_CHANNELS.App.Quit, (): IpcResult<{ quit: boolean }> => {
-    logger.debug('[App] Quit requested from UI.');
+    logger.debug('Quit requested from UI.');
     // Engine and stream shutdown happen in the app-wide before-quit hook so Cmd+Q / tray quit behave the same.
     app.quit();
     return ok({ quit: true });

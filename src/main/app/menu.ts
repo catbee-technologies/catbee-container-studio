@@ -1,8 +1,10 @@
 import { app, BrowserWindow, dialog, Menu, shell } from 'electron';
 import { isDev, isMacOS, LOG_DIR_PATH, ZOOM_CONFIG } from './constants';
 import { syncMacTrafficLights } from './mac-traffic-lights';
-import { logger } from '../logger';
+import { logger as appLogger } from '../logger';
 import { IPC_CHANNELS } from '../../ipc/channels';
+
+const logger = appLogger.child({}, { msgPrefix: '[Menu] ' });
 
 export interface ApplicationMenuOptions {
   getMainWindow: () => BrowserWindow | null;
@@ -152,7 +154,7 @@ function runEngineAction(action: EngineMenuAction): void {
         return await dockerManager.restartEmbeddedEngine();
     }
   })().catch((error: unknown) => {
-    logger.error({ err: error }, `[Menu] Built-in engine ${action} failed.`);
+    logger.error({ err: error }, `Built-in engine ${action} failed.`);
     dialog.showErrorBox(
       `Could not ${action} the built-in engine`,
       error instanceof Error ? error.message : String(error)

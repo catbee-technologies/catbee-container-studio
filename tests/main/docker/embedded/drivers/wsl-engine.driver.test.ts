@@ -13,9 +13,6 @@ import { DEFAULT_ENGINE_SETTINGS } from '../../../../../src/main/docker/embedded
 
 const { stopRelay } = vi.hoisted(() => ({ stopRelay: vi.fn(async () => {}) }));
 vi.mock('electron', () => ({}));
-vi.mock('../../../../../src/main/logger', () => ({
-  logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-}));
 vi.mock('../../../../../src/main/docker/embedded/engine-settings', async importOriginal => ({
   ...(await importOriginal<typeof import('../../../../../src/main/docker/embedded/engine-settings')>()),
   getEngineSettings: async () => ({ desktopProxy: { mode: 'none' } })

@@ -7,9 +7,6 @@ import { k8sManager } from '../../../src/main/k8s/k8s-manager';
 
 vi.mock('electron', () => ({}));
 vi.mock('node:fs/promises', () => ({ mkdir: vi.fn(), readFile: vi.fn(), writeFile: vi.fn(), rm: vi.fn() }));
-vi.mock('../../../src/main/logger', () => ({
-  logger: { debug: vi.fn(), info: vi.fn(), error: vi.fn(), warn: vi.fn() }
-}));
 vi.mock('../../../src/main/docker/runtime/docker.runtime', () => ({}));
 vi.mock('../../../src/main/docker/embedded/engine-paths', () => ({
   getEngineBinDir: () => 'C:/Users/CatBee Test/.catbee/bin',

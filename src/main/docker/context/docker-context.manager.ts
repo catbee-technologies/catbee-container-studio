@@ -3,7 +3,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { logger } from '../../logger';
+import { logger as appLogger } from '../../logger';
 import { getDockerCliPath } from '../runtime/docker.runtime';
 import type { DockerConnection, DockerContextInspect } from '../types/connection.types';
 import { dockerCliEnv, parseDockerHost, resolveReachableDockerContext } from '../docker.connection';
@@ -20,6 +20,8 @@ import { getEngineSettings } from '../embedded/engine-settings';
 import { detectSystemProxy } from '../embedded/system-proxy';
 import { engineManager } from '../embedded/engine.manager';
 import { CATBEE_CONTEXT_NAME } from '../../../constants.docker';
+
+const logger = appLogger.child({}, { msgPrefix: '[DockerContextManager] ' });
 
 const execFileAsync = promisify(execFile);
 
@@ -188,7 +190,7 @@ export async function getDockerContextInfo(): Promise<DockerContextDetails> {
       defaultEndpoint
     };
   } catch (err) {
-    logger.warn({ err }, '[DockerContextManager] Failed to list docker contexts.');
+    logger.warn({ err }, 'Failed to list docker contexts.');
     return {
       cliAvailable: true,
       envOverride,
@@ -208,7 +210,7 @@ export async function useDockerContext(contextName: string): Promise<DockerConte
     throw new Error('Docker CLI is not found on your system.');
   }
 
-  logger.debug(`[DockerContextManager] Switching docker context to: ${contextName}`);
+  logger.debug(`Switching docker context to: ${contextName}`);
   await execFileAsync(dockerPath, ['context', 'use', contextName], {
     encoding: 'utf8',
     windowsHide: true,
@@ -260,7 +262,7 @@ export async function setupCatBeeContext(setAsActive = false, customEndpoint?: s
   const info = await getDockerContextInfo();
 
   if (info.catbeeContextExists) {
-    logger.debug(`[DockerContextManager] Updating ${CATBEE_CONTEXT_NAME} context with endpoint: ${endpoint}`);
+    logger.debug(`Updating ${CATBEE_CONTEXT_NAME} context with endpoint: ${endpoint}`);
     try {
       await execFileAsync(
         dockerPath,
@@ -305,11 +307,11 @@ export async function setupCatBeeContext(setAsActive = false, customEndpoint?: s
           }
         );
       } catch (err) {
-        logger.error({ err }, '[DockerContextManager] Failed to update/recreate context.');
+        logger.error({ err }, 'Failed to update/recreate context.');
       }
     }
   } else {
-    logger.debug(`[DockerContextManager] Creating ${CATBEE_CONTEXT_NAME} context with endpoint: ${endpoint}`);
+    logger.debug(`Creating ${CATBEE_CONTEXT_NAME} context with endpoint: ${endpoint}`);
     await execFileAsync(
       dockerPath,
       [
@@ -350,7 +352,7 @@ export async function syncCatBeeCliProxies(endpoint: string, proxy: ResolvedProx
     config = JSON.parse(await readFile(configPath, 'utf8')) as Record<string, unknown>;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
-      logger.warn({ err }, '[DockerContextManager] Docker CLI config is unreadable; leaving proxies untouched.');
+      logger.warn({ err }, 'Docker CLI config is unreadable; leaving proxies untouched.');
       return;
     }
   }
@@ -380,7 +382,7 @@ export async function syncCatBeeCliProxies(endpoint: string, proxy: ResolvedProx
   const tempPath = `${configPath}.catbee.tmp`;
   await writeFile(tempPath, `${JSON.stringify(config, null, '\t')}\n`, 'utf8');
   await rename(tempPath, configPath);
-  logger.debug(`[DockerContextManager] Updated Docker CLI proxy configuration for ${endpoint}.`);
+  logger.debug(`Updated Docker CLI proxy configuration for ${endpoint}.`);
 }
 
 /**
@@ -391,14 +393,14 @@ export async function activateCatBeeEngineContext(connection: DockerConnection):
   const endpoint = connectionToUri(connection);
   try {
     if (!(await getDockerCliPath())) {
-      logger.debug('[DockerContextManager] Docker CLI not found; skipping catbee-desktop context setup.');
+      logger.debug('Docker CLI not found; skipping catbee-desktop context setup.');
       return;
     }
     await setupCatBeeContext(true, endpoint);
     const settings = await getEngineSettings();
     await syncCatBeeCliProxies(endpoint, resolveContainersProxy(settings, await detectSystemProxy()));
   } catch (err) {
-    logger.warn({ err }, '[DockerContextManager] Failed to activate the catbee-desktop context.');
+    logger.warn({ err }, 'Failed to activate the catbee-desktop context.');
   }
 }
 
@@ -412,10 +414,10 @@ export async function releaseCatBeeContext(connection: DockerConnection): Promis
     const info = await getDockerContextInfo();
     if (!info.isCatBeeActive) return;
     const target = await pickNonCatBeeContext(info, connection);
-    logger.debug(`[DockerContextManager] CatBee is using an external engine; switching the Docker CLI to "${target}".`);
+    logger.debug(`CatBee is using an external engine; switching the Docker CLI to "${target}".`);
     await useDockerContext(target);
   } catch (err) {
-    logger.warn({ err }, '[DockerContextManager] Failed to switch the Docker CLI away from catbee-desktop.');
+    logger.warn({ err }, 'Failed to switch the Docker CLI away from catbee-desktop.');
   }
 }
 
@@ -568,7 +570,7 @@ export async function getDockerBuilderInfo(): Promise<DockerBuilderInfo> {
       sharedBytes = cacheUsage.sharedBytes;
     }
   } catch (err) {
-    logger.debug({ err }, '[DockerContextManager] Could not read BuildCache via docker df.');
+    logger.debug({ err }, 'Could not read BuildCache via docker df.');
   }
 
   // Common multi-platform emulations supported by contemporary BuildKit & Linux engines

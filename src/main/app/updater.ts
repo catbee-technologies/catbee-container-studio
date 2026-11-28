@@ -2,8 +2,11 @@ import { spawn } from 'node:child_process';
 import { app, BrowserWindow } from 'electron';
 import { autoUpdater, type BaseUpdater } from 'electron-updater';
 import { isDev, isMacOS } from './constants';
-import { logger } from '../logger';
+import { logger as appLogger } from '../logger';
 import { IPC_CHANNELS } from '../../ipc/channels';
+
+const logger = appLogger.child({}, { msgPrefix: '[AutoUpdater] ' });
+const electronUpdaterLogger = appLogger.child({}, { msgPrefix: '[ElectronUpdater] ' });
 
 type UpdateInstallPhase = 'preparing' | 'installing';
 type UpdateInstallStatus = { phase: UpdateInstallPhase } | { phase: 'failed'; message: string };
@@ -91,7 +94,7 @@ export async function getReleaseNotes(version?: string): Promise<ReleaseNotesInf
     });
 
     if (!res.ok) {
-      logger.warn(`[AutoUpdater] Release not found on GitHub for ${cacheKey} (HTTP ${res.status})`);
+      logger.warn(`Release not found on GitHub for ${cacheKey} (HTTP ${res.status})`);
       return null;
     }
 
@@ -119,7 +122,7 @@ export async function getReleaseNotes(version?: string): Promise<ReleaseNotesInf
     releaseNotesCache.set(cacheKey, info);
     return info;
   } catch (error) {
-    logger.warn({ err: error }, `[AutoUpdater] Failed to fetch release notes for ${cacheKey}`);
+    logger.warn({ err: error }, `Failed to fetch release notes for ${cacheKey}`);
     return null;
   } finally {
     clearTimeout(timeoutId);
@@ -213,32 +216,32 @@ export function initializeAutoUpdater(window: BrowserWindow): void {
   mainWindow = window;
 
   autoUpdater.logger = {
-    debug: message => logger.debug('[ElectronUpdater] %s', message),
-    info: message => logger.debug('[ElectronUpdater] %s', message),
-    warn: message => logger.warn('[ElectronUpdater] %s', message),
-    error: message => logger.error('[ElectronUpdater] %s', message)
+    debug: message => electronUpdaterLogger.debug('%s', message),
+    info: message => electronUpdaterLogger.debug('%s', message),
+    warn: message => electronUpdaterLogger.warn('%s', message),
+    error: message => electronUpdaterLogger.error('%s', message)
   };
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallEvent = 'onQuit';
   autoUpdater.allowPrerelease = app.getVersion().includes('-');
 
   autoUpdater.on('checking-for-update', () => {
-    logger.debug('[AutoUpdater] Checking for update...');
+    logger.debug('Checking for update...');
     sendStatus({ status: 'checking' });
   });
 
   autoUpdater.on('update-available', info => {
-    logger.debug(`[AutoUpdater] Update available: ${info.version}`);
+    logger.debug(`Update available: ${info.version}`);
     sendStatus({ status: 'available', version: info.version });
   });
 
   autoUpdater.on('update-not-available', info => {
-    logger.debug(`[AutoUpdater] No update available: ${info.version}`);
+    logger.debug(`No update available: ${info.version}`);
     sendStatus({ status: 'not-available', version: info.version });
   });
 
   autoUpdater.on('download-progress', progress => {
-    logger.debug(`[AutoUpdater] Download progress: ${progress.percent.toFixed(1)}%`);
+    logger.debug(`Download progress: ${progress.percent.toFixed(1)}%`);
 
     sendStatus({
       status: 'downloading',
@@ -251,12 +254,12 @@ export function initializeAutoUpdater(window: BrowserWindow): void {
 
   autoUpdater.on('update-downloaded', info => {
     downloadedUpdate = { file: info.downloadedFile, version: info.version };
-    logger.info(`[AutoUpdater] Update downloaded: ${info.version}`);
+    logger.info(`Update downloaded: ${info.version}`);
     sendStatus({ status: 'downloaded', version: info.version });
   });
 
   autoUpdater.on('error', error => {
-    logger.error({ err: error }, '[AutoUpdater] Error');
+    logger.error({ err: error }, 'Error');
     if (recoverFromInstallFailure) {
       recoverFromInstallFailure();
       sendInstallStatus({ phase: 'failed', message: 'Could not install the update.' });
@@ -279,25 +282,25 @@ export async function checkForUpdates(): Promise<void> {
     return;
   }
   if (isDev) {
-    logger.debug('[AutoUpdater] Skipping update check in development.');
+    logger.debug('Skipping update check in development.');
     return;
   }
 
   if (isMicrosoftStoreInstallation()) {
-    logger.debug('[AutoUpdater] Checking Microsoft Store Display Catalog for updates...');
+    logger.debug('Checking Microsoft Store Display Catalog for updates...');
     sendStatus({ status: 'checking' });
     try {
       const storeVersion = await checkMicrosoftStoreVersion();
       const currentVersion = app.getVersion();
       if (storeVersion && compareVersions(storeVersion, currentVersion) > 0) {
-        logger.debug(`[AutoUpdater] Microsoft Store update available: ${storeVersion}`);
+        logger.debug(`Microsoft Store update available: ${storeVersion}`);
         sendStatus({ status: 'available', version: storeVersion });
       } else {
-        logger.debug(`[AutoUpdater] Microsoft Store app is up to date (${currentVersion})`);
+        logger.debug(`Microsoft Store app is up to date (${currentVersion})`);
         sendStatus({ status: 'not-available', version: currentVersion });
       }
     } catch (error) {
-      logger.error({ err: error }, '[AutoUpdater] Failed to check Microsoft Store updates');
+      logger.error({ err: error }, 'Failed to check Microsoft Store updates');
       sendStatus({
         status: 'error',
         message: 'Unable to check for Microsoft Store updates. Please check your internet connection.'
@@ -315,7 +318,7 @@ export async function checkForUpdates(): Promise<void> {
       });
     }
   } catch (error) {
-    logger.error({ err: error }, '[AutoUpdater] Failed to check for updates');
+    logger.error({ err: error }, 'Failed to check for updates');
     sendStatus({
       status: 'error',
       message: getErrorMessage(error)
@@ -331,7 +334,7 @@ export async function downloadUpdate(): Promise<void> {
   try {
     await autoUpdater.downloadUpdate();
   } catch (error) {
-    logger.error({ err: error }, '[AutoUpdater] Failed to download update');
+    logger.error({ err: error }, 'Failed to download update');
     sendStatus({ status: 'error', message: getErrorMessage(error) });
   }
 }
@@ -353,7 +356,7 @@ export async function restartAndInstallUpdate(prepare: PrepareForUpdateInstall):
     restoreShutdownState = await prepare();
   } catch (err) {
     installPhase = null;
-    logger.error({ err }, '[AutoUpdater] Background shutdown did not finish before update installation.');
+    logger.error({ err }, 'Background shutdown did not finish before update installation.');
     sendInstallStatus({ phase: 'failed', message: 'CatBee could not finish shutting down.' });
     return;
   }
@@ -365,7 +368,7 @@ export async function restartAndInstallUpdate(prepare: PrepareForUpdateInstall):
   };
   installPhase = 'installing';
   sendInstallStatus({ phase: installPhase });
-  logger.info('[AutoUpdater] Restarting and installing update...');
+  logger.info('Restarting and installing update...');
   try {
     if (isLinuxPackage) {
       const installed = await (autoUpdater as BaseUpdater).installAsync(false, false);
@@ -383,7 +386,7 @@ export async function restartAndInstallUpdate(prepare: PrepareForUpdateInstall):
     autoUpdater.quitAndInstall();
   } catch (err) {
     recoverFromInstallFailure?.();
-    logger.error({ err }, '[AutoUpdater] Could not start the update installer.');
+    logger.error({ err }, 'Could not start the update installer.');
     sendInstallStatus({ phase: 'failed', message: 'Could not start the update installer.' });
   }
 }
@@ -393,9 +396,7 @@ function relaunchLinuxPackage(): void {
   // The quit event fires before Electron releases its single-instance lock.
   app.releaseSingleInstanceLock();
   const child = spawn(process.execPath, process.argv.slice(1), { detached: true, stdio: 'ignore' });
-  child.once('error', err =>
-    logger.error({ err }, '[AutoUpdater] Could not reopen CatBee after installing the update.')
-  );
+  child.once('error', err => logger.error({ err }, 'Could not reopen CatBee after installing the update.'));
   child.unref();
 }
 

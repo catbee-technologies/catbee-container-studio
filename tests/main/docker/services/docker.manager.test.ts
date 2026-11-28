@@ -33,9 +33,6 @@ vi.mock('../../../../src/main/docker/runtime/docker.runtime-manager', () => ({
 vi.mock('../../../../src/main/k8s/k8s-manager', () => ({
   k8sManager: { suspendOperations: vi.fn(async () => resume), removeCluster: vi.fn() }
 }));
-vi.mock('../../../../src/main/logger', () => ({
-  logger: { debug: vi.fn(), error: vi.fn(), info: vi.fn(), warn: vi.fn() }
-}));
 
 it('preserves engine files after a teardown failure and allows a retry', async () => {
   vi.mocked(engineManager.uninstall).mockRejectedValueOnce(new Error('engine shutdown failed'));

@@ -3,7 +3,7 @@ import { access, chmod, mkdir, readFile, readlink, realpath, rm, stat, writeFile
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
-import { logger } from '../../../logger';
+import { logger as appLogger } from '../../../logger';
 import type { DockerConnection, DockerUnixConnection } from '../../types/connection.types';
 import type { EngineManifest } from '../types/manifest.types';
 import type {
@@ -43,6 +43,8 @@ import {
   waitForDockerEndpoint,
   writeEngineManifest
 } from '../engine-utils';
+
+const logger = appLogger.child({}, { msgPrefix: '[RootlessEngineDriver] ' });
 
 const FALLBACK_DOCKER_VERSION = '29.10.0';
 const SBIN_PATHS = ['/usr/local/sbin', '/usr/sbin', '/sbin'];
@@ -370,7 +372,7 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
       signalGroup(pid, 'SIGTERM');
       const stopped = await this.waitForProcessExit(pid, startTime);
       if (!stopped) {
-        logger.warn('[RootlessEngineDriver] Engine did not stop within 20s; killing it.');
+        logger.warn('Engine did not stop within 20s; killing it.');
         if ((await getProcessStartTime(pid)) === startTime) signalGroup(pid, 'SIGKILL');
         if (!(await this.waitForProcessExit(pid, startTime))) throw new Error('Rootless Docker Engine did not stop.');
       }
@@ -403,7 +405,7 @@ export class RootlessEngineDriver implements PlatformEngineDriver {
     const rootlesskit = path.join(this.binDir, 'rootlesskit');
     if ((await pathExists(rootlesskit)) && (await pathExists(this.dataRoot))) {
       await runCommand(rootlesskit, ['rm', '-rf', this.dataRoot], { timeoutMs: 10 * 60_000 }).catch(err => {
-        logger.warn({ err }, '[RootlessEngineDriver] rootlesskit rm failed.');
+        logger.warn({ err }, 'rootlesskit rm failed.');
       });
     }
     onProgress?.(80, 'Deleting engine files...');
@@ -526,7 +528,7 @@ async function resolveDockerVersion(arch: string): Promise<string> {
       }
     }
   } catch (err) {
-    logger.warn({ err }, '[RootlessEngineDriver] Could not resolve latest Docker release; using pinned version.');
+    logger.warn({ err }, 'Could not resolve latest Docker release; using pinned version.');
   }
   return FALLBACK_DOCKER_VERSION;
 }

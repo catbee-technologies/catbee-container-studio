@@ -4,7 +4,6 @@ import { DEFAULT_ENGINE_SETTINGS } from '../../../../src/main/docker/embedded/en
 import { EngineManager } from '../../../../src/main/docker/embedded/engine.manager';
 
 vi.mock('electron', () => ({}));
-vi.mock('../../../../src/main/logger', () => ({ logger: { error: vi.fn() } }));
 
 describe('WSL integration transactions', () => {
   afterEach(() => vi.restoreAllMocks());

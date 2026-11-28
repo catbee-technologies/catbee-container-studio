@@ -7,7 +7,6 @@ import { DockerContainerService } from '../../../../src/main/docker/services/doc
 
 vi.mock('electron', () => ({}));
 vi.mock('node:child_process', () => ({ execFile: vi.fn() }));
-vi.mock('../../../../src/main/logger', () => ({ logger: { debug: vi.fn(), warn: vi.fn() } }));
 vi.mock('../../../../src/main/docker/runtime/docker.runtime', () => ({ getDockerCliPath: async () => 'docker' }));
 
 type Exec = (
