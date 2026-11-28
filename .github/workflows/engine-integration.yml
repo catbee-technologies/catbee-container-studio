@@ -1,0 +1,82 @@
+name: Engine Integration Tests
+run-name: Engine Integration Tests on ${{ github.ref_name }}
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/engine-integration.yml'
+      - 'scripts/prepare-linux-engine-test.sh'
+      - 'scripts/test-engine.cjs'
+      - 'src/main/docker/**'
+      - 'src/main/k8s/**'
+      - 'src/main/logger.ts'
+      - 'src/main/app/constants.ts'
+      - 'src/constants.docker.ts'
+      - '.npmrc'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  engine-windows:
+    name: Windows Engine (WSL 2)
+    runs-on: windows-2025
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Test the real WSL 2 engine
+        run: .\node_modules\.bin\electron.cmd scripts/test-engine.cjs
+
+  engine-macos:
+    name: macOS Engine (Lima)
+    runs-on: macos-15-intel
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Test the real Lima engine
+        run: |
+          # Keep Lima's socket path short and start without any existing shell profiles.
+          export HOME="$(mktemp -d /tmp/catbee.XXXXXX)"
+          unset ZDOTDIR
+          ./node_modules/.bin/electron scripts/test-engine.cjs
+
+  engine-linux:
+    name: Linux Engine (rootless Docker)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - name: Prepare rootless Docker and AppArmor
+        run: bash scripts/prepare-linux-engine-test.sh
+      - run: npm ci
+      - run: npm run build
+      - name: Test the real rootless Docker engine
+        run: xvfb-run -a ./node_modules/.bin/electron --no-sandbox scripts/test-engine.cjs
