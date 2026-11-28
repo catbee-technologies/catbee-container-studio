@@ -1,0 +1,85 @@
+name: Engine Upgrade Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      upgrade_from:
+        description: Older release tag to test on Windows, macOS, and Linux
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  engine-upgrade:
+    name: ${{ matrix.platform }} Engine Upgrade
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Windows
+            runner: windows-2025
+          - platform: macOS
+            runner: macos-15-intel
+          - platform: Linux
+            runner: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.upgrade_from }}
+          path: baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            baseline/package-lock.json
+      - name: Prepare rootless Docker and AppArmor
+        if: runner.os == 'Linux'
+        run: bash scripts/prepare-linux-engine-test.sh
+      - name: Build current engine
+        shell: bash
+        run: npm ci && npm run build
+      - name: Build the previous release
+        shell: bash
+        run: |
+          cp scripts/test-engine.cjs baseline/scripts/test-engine.cjs
+          cd baseline
+          npm ci
+          npm run build
+      - name: Use the same clean macOS home for both builds
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          # Keep the Lima socket path short across both Electron processes.
+          engine_home="$(mktemp -d /tmp/catbee.XXXXXX)"
+          printf 'HOME=%s\nZDOTDIR=%s\n' "$engine_home" "$engine_home" >> "$GITHUB_ENV"
+      - name: Install and seed data with the previous release
+        working-directory: baseline
+        shell: bash
+        env:
+          CATBEE_TEST_PHASE: seed
+        run: |
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            xvfb-run -a node node_modules/electron/cli.js --no-sandbox scripts/test-engine.cjs
+          else
+            node node_modules/electron/cli.js scripts/test-engine.cjs
+          fi
+      - name: Verify the current build preserves the existing engine state
+        shell: bash
+        env:
+          CATBEE_TEST_PHASE: upgrade
+        run: |
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            xvfb-run -a node node_modules/electron/cli.js --no-sandbox scripts/test-engine.cjs
+          else
+            node node_modules/electron/cli.js scripts/test-engine.cjs
+          fi
