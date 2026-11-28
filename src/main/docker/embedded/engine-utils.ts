@@ -690,7 +690,7 @@ export async function ensureShellPath(): Promise<void> {
   const comment = '# Added by CatBee Container Studio';
 
   const home = homeDir();
-  let modifiedAny = false;
+  let configuredShell = false;
 
   for (const file of SHELL_PROFILE_TARGETS) {
     const filePath = path.join(home, file);
@@ -700,23 +700,21 @@ export async function ensureShellPath(): Promise<void> {
         if (!content.includes('.catbee/bin')) {
           const addition = `\n${comment}\n${exportLine}\n`;
           await appendFile(filePath, addition, 'utf8');
-          modifiedAny = true;
           logger.debug(`[EngineUtils] Added CatBee bin dir to ${filePath}`);
-        } else {
-          modifiedAny = true;
         }
+        configuredShell ||= process.platform !== 'darwin' || file === '.zshrc' || file === '.zprofile';
       }
     } catch (err) {
       logger.debug(`[EngineUtils] Could not update shell profile ${file}:`, err);
     }
   }
 
-  if (process.platform !== 'win32' && !modifiedAny) {
+  if (process.platform !== 'win32' && !configuredShell) {
     const defaultProfile = process.platform === 'darwin' ? '.zshrc' : '.bashrc';
     const profilePath = path.join(home, defaultProfile);
     try {
-      await writeFile(profilePath, `${comment}\n${exportLine}\n`, 'utf8');
-      logger.debug(`[EngineUtils] Created ${profilePath} with CatBee PATH`);
+      await appendFile(profilePath, `\n${comment}\n${exportLine}\n`, 'utf8');
+      logger.debug(`[EngineUtils] Configured ${profilePath} with CatBee PATH`);
     } catch {
       // ignore
     }

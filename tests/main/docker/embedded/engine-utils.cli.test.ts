@@ -24,11 +24,31 @@ vi.mock('../../../../src/main/docker/embedded/engine-paths', () => ({
   getEngineBinDir: bin,
   getEngineDownloadsDir: downloads,
   homeDir: home,
-  SHELL_PROFILE_TARGETS: ['.bashrc']
+  SHELL_PROFILE_TARGETS: ['.bashrc', '.bash_profile', '.zshrc', '.zprofile']
 }));
 vi.mock('../../../../src/main/logger', () => ({ logger: { debug: vi.fn(), warn: vi.fn() } }));
 
 let directory: string;
+
+it('configures Zsh on macOS even when a Bash profile already exists', async () => {
+  vi.stubGlobal('process', Object.create(process, { platform: { value: 'darwin' } }));
+  directory = await mkdtemp(path.join(tmpdir(), 'catbee-shell-path-test-'));
+  home.mockReturnValue(directory);
+  bin.mockReturnValue('/Users/example/.catbee/bin');
+  const bashProfile = path.join(directory, '.bash_profile');
+  const zshProfile = path.join(directory, '.zshrc');
+  await writeFile(bashProfile, 'export EDITOR=vim\n');
+
+  await ensureShellPath();
+  const zshContent = await readFile(zshProfile, 'utf8');
+  expect(zshContent).toContain(`export PATH='/Users/example/.catbee/bin':"$PATH"`);
+  await ensureShellPath();
+  expect(await readFile(zshProfile, 'utf8')).toBe(zshContent);
+
+  await removeShellPath();
+  expect((await readFile(bashProfile, 'utf8')).trim()).toBe('export EDITOR=vim');
+  expect(await readFile(zshProfile, 'utf8')).not.toContain('.catbee/bin');
+});
 
 afterEach(async () => {
   vi.unstubAllGlobals();
