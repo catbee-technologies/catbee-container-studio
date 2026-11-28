@@ -63,7 +63,7 @@
     "rimraf": "^6.1.4",
     "semver": "^7.8.6",
     "ts-node": "^10.9.2",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^5.1.2",
     "wait-on": "^9.5.1"
   }
